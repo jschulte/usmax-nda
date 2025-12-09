@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { Card } from '../ui/Card';
-import { Button } from '../ui/Button';
-import { Input, TextArea, Select } from '../ui/Input';
+import { Card } from '../ui/AppCard';
+import { Button } from '../ui/AppButton';
+import { Input, TextArea, Select } from '../ui/AppInput';
 import { Stepper } from '../ui/Stepper';
-import { Badge } from '../ui/Badge';
+import { Badge } from '../ui/AppBadge';
 import { ArrowLeft, ArrowRight, Info, AlertTriangle } from 'lucide-react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import type { NDAType, InformationType, RiskLevel } from '../../types';
