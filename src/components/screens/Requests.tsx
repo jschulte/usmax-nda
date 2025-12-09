@@ -1,12 +1,26 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
-import { Input, Select } from '../ui/Input';
-import { Search, Filter, Plus, MoreVertical, Edit, Eye, Trash2, Copy } from 'lucide-react';
+import { Input } from '../ui/Input';
+import {
+  Plus,
+  Filter,
+  Download,
+  Search,
+  Calendar,
+  Building,
+  User,
+  Clock,
+  MoreVertical,
+  Eye,
+  Edit,
+  Copy,
+  Trash2
+} from 'lucide-react';
 import { mockNDAs } from '../../data/mockData';
-import { useNavigate } from 'react-router-dom';
-import type { NDAStatus, NDAType, RiskLevel } from '../../types';
+import { toast } from 'sonner@2.0.3';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,7 +28,21 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu';
-import { toast } from 'sonner';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '../ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../ui/select';
 
 export function Requests() {
   const navigate = useNavigate();
@@ -22,6 +50,20 @@ export function Requests() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [riskFilter, setRiskFilter] = useState<string>('all');
+  
+  // Confirmation dialog state
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [ndaToDelete, setNdaToDelete] = useState<any>(null);
+  
+  // Edit dialog state
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [editingNDA, setEditingNDA] = useState<any>(null);
+  const [editForm, setEditForm] = useState({
+    title: '',
+    counterparty: '',
+    type: '',
+    riskLevel: ''
+  });
   
   const filteredNDAs = mockNDAs.filter(nda => {
     const matchesSearch = nda.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -39,8 +81,11 @@ export function Requests() {
   
   const handleEditNDA = (nda: any, e: React.MouseEvent) => {
     e.stopPropagation();
-    toast.info('Edit NDA', {
-      description: `Opening editor for ${nda.title}...`
+    navigate('/request-wizard', { 
+      state: { 
+        editMode: true, 
+        nda: nda 
+      } 
     });
   };
   
@@ -53,9 +98,8 @@ export function Requests() {
   
   const handleDeleteNDA = (nda: any, e: React.MouseEvent) => {
     e.stopPropagation();
-    toast.success('NDA deleted', {
-      description: `${nda.title} has been deleted.`
-    });
+    setNdaToDelete(nda);
+    setShowDeleteConfirm(true);
   };
   
   const handleMoreFilters = () => {
@@ -65,8 +109,8 @@ export function Requests() {
   };
   
   return (
-    <div className="p-8">
-      <div className="flex items-center justify-between mb-8">
+    <div className="p-4 md:p-8">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 md:mb-8">
         <div>
           <h1 className="mb-2">Requests</h1>
           <p className="text-[var(--color-text-secondary)]">Manage all NDA requests and agreements</p>
@@ -75,6 +119,7 @@ export function Requests() {
           variant="primary" 
           icon={<Plus className="w-5 h-5" />}
           onClick={() => navigate('/request-wizard')}
+          className="w-full sm:w-auto"
         >
           Request new NDA
         </Button>
@@ -82,8 +127,8 @@ export function Requests() {
       
       {/* Filters */}
       <Card className="mb-6">
-        <div className="flex flex-wrap items-end gap-4">
-          <div className="flex-1 min-w-[300px]">
+        <div className="flex flex-col md:flex-row md:flex-wrap md:items-end gap-4">
+          <div className="flex-1 md:min-w-[300px]">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--color-text-muted)]" />
               <input
@@ -109,7 +154,7 @@ export function Requests() {
               { value: 'Executed', label: 'Executed' },
               { value: 'Expired', label: 'Expired' }
             ]}
-            className="w-48"
+            className="w-full md:w-48"
           />
           
           <Select
@@ -125,7 +170,7 @@ export function Requests() {
               { value: 'Research', label: 'Research' },
               { value: 'Vendor access', label: 'Vendor access' }
             ]}
-            className="w-48"
+            className="w-full md:w-48"
           />
           
           <Select
@@ -138,10 +183,10 @@ export function Requests() {
               { value: 'Medium', label: 'Medium Risk' },
               { value: 'High', label: 'High Risk' }
             ]}
-            className="w-48"
+            className="w-full md:w-48"
           />
           
-          <Button variant="subtle" icon={<Filter className="w-4 h-4" />} onClick={handleMoreFilters}>
+          <Button variant="subtle" icon={<Filter className="w-4 h-4" />} onClick={handleMoreFilters} className="w-full md:w-auto">
             More filters
           </Button>
         </div>
@@ -154,8 +199,8 @@ export function Requests() {
         </p>
       </div>
       
-      {/* Table */}
-      <Card padding="none">
+      {/* Desktop Table */}
+      <Card padding="none" className="hidden md:block">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-[var(--color-border)]">
@@ -251,6 +296,99 @@ export function Requests() {
           </table>
         </div>
       </Card>
+
+      {/* Mobile Card View */}
+      <div className="md:hidden space-y-3">
+        {filteredNDAs.map((nda) => (
+          <Card 
+            key={nda.id} 
+            className="p-4 active:bg-gray-50 transition-colors cursor-pointer"
+            onClick={() => handleViewNDA(nda)}
+          >
+            <div className="flex items-start justify-between mb-3">
+              <div className="flex-1 min-w-0 pr-2">
+                <p className="font-medium mb-1 truncate">{nda.title}</p>
+                <p className="text-sm text-[var(--color-text-secondary)] truncate">{nda.department}</p>
+              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger 
+                  className="p-2 hover:bg-gray-100 rounded transition-colors flex-shrink-0"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <MoreVertical className="w-4 h-4 text-[var(--color-text-secondary)]" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={(e) => handleEditNDA(nda, e)}>
+                    <Edit className="w-4 h-4 mr-2" />
+                    Edit
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={(e) => handleDuplicateNDA(nda, e)}>
+                    <Copy className="w-4 h-4 mr-2" />
+                    Duplicate
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={(e) => handleDeleteNDA(nda, e)}>
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => handleViewNDA(nda)}>
+                    <Eye className="w-4 h-4 mr-2" />
+                    View
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+            
+            <div className="space-y-2 mb-3">
+              <div className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)]">
+                <Building className="w-4 h-4 flex-shrink-0" />
+                <span className="truncate">{nda.counterparty}</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)]">
+                <Calendar className="w-4 h-4 flex-shrink-0" />
+                <span>Created {new Date(nda.createdDate).toLocaleDateString()}</span>
+              </div>
+            </div>
+            
+            <div className="flex flex-wrap gap-2">
+              <Badge variant="status" status={nda.status}>{nda.status}</Badge>
+              <Badge variant="type">{nda.type}</Badge>
+              <Badge variant="risk" risk={nda.riskLevel}>{nda.riskLevel}</Badge>
+            </div>
+          </Card>
+        ))}
+      </div>
+      
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Delete NDA</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this NDA? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowDeleteConfirm(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                toast.success('NDA deleted', {
+                  description: `${ndaToDelete.title} has been deleted.`
+                });
+                setShowDeleteConfirm(false);
+              }}
+            >
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

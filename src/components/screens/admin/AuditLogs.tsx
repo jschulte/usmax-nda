@@ -11,7 +11,8 @@ import {
   Calendar,
   User,
   FileText,
-  Eye
+  Eye,
+  Globe
 } from 'lucide-react';
 import { toast } from 'sonner@2.0.3';
 import {
@@ -29,6 +30,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../../ui/dialog';
+import { Label } from '../../ui/Label';
 
 interface AuditEvent {
   id: string;
@@ -384,7 +386,7 @@ export function AuditLogs() {
         </div>
 
         {/* Audit Log Table */}
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto hidden md:block">
           <table className="w-full">
             <thead>
               <tr className="border-b border-[var(--color-border)]">
@@ -450,6 +452,56 @@ export function AuditLogs() {
               ))}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Card View */}
+        <div className="md:hidden space-y-3">
+          {filteredEvents.map(event => (
+            <div 
+              key={event.id}
+              className="p-4 border border-[var(--color-border)] rounded-lg"
+            >
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex-1">
+                  <p className="font-medium mb-1">{event.actor}</p>
+                  <p className="text-xs text-[var(--color-text-secondary)] mb-1">{event.actor_email}</p>
+                  <p className="text-sm">{event.action}</p>
+                </div>
+                <Badge variant="status" status={getStatusBadge(event.status)}>
+                  {event.status}
+                </Badge>
+              </div>
+              
+              <div className="space-y-2 mb-3">
+                <div className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)]">
+                  <Calendar className="w-4 h-4 flex-shrink-0" />
+                  <span className="text-xs">{formatTimestamp(event.timestamp)}</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)]">
+                  <FileText className="w-4 h-4 flex-shrink-0" />
+                  <span className="truncate">{event.resource_name}</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)]">
+                  <Globe className="w-4 h-4 flex-shrink-0" />
+                  <span className="font-mono text-xs">{event.ip_address}</span>
+                </div>
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <code className="text-xs text-[var(--color-text-muted)] bg-gray-100 px-2 py-1 rounded">
+                  {event.event_type}
+                </code>
+                <Button
+                  variant="subtle"
+                  size="sm"
+                  icon={<Eye className="w-4 h-4" />}
+                  onClick={() => handleViewDetails(event)}
+                >
+                  Details
+                </Button>
+              </div>
+            </div>
+          ))}
         </div>
 
         {filteredEvents.length === 0 && (

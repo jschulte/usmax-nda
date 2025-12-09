@@ -208,7 +208,7 @@ export function NDADetail() {
           Back to requests
         </Button>
         
-        <div className="flex items-start justify-between">
+        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
           <div className="flex-1">
             <h1 className="mb-3">{nda.title}</h1>
             <div className="flex flex-wrap items-center gap-2 mb-3">
@@ -224,7 +224,7 @@ export function NDADetail() {
             </div>
           </div>
           
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             <Button variant="secondary" icon={<Download className="w-4 h-4" />} onClick={handleDownloadPDF}>
               Download PDF
             </Button>

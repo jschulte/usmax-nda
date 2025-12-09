@@ -16,6 +16,7 @@ import { Switch } from '../../ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../ui/tabs';
 import { Textarea } from '../../ui/textarea';
 import { Input } from '../../ui/Input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../../ui/dialog';
 
 interface NotificationTemplate {
   id: string;
@@ -101,6 +102,16 @@ export function NotificationSettings() {
     escalateToAdmin: false,
     maxEscalationLevel: '2'
   });
+  
+  // Edit template state
+  const [showEditTemplateDialog, setShowEditTemplateDialog] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<NotificationTemplate | null>(null);
+  const [editTemplateForm, setEditTemplateForm] = useState({
+    name: '',
+    event: '',
+    subject: '',
+    body: ''
+  });
 
   const handleSave = () => {
     toast.success('Notification settings saved', {
@@ -112,6 +123,17 @@ export function NotificationSettings() {
     toast.success('Test notification sent', {
       description: 'Check your email and in-app notifications'
     });
+  };
+  
+  const handleEditTemplate = (template: NotificationTemplate) => {
+    setEditingTemplate(template);
+    setEditTemplateForm({
+      name: template.name,
+      event: template.event,
+      subject: template.subject,
+      body: ''
+    });
+    setShowEditTemplateDialog(true);
   };
 
   return (
@@ -290,7 +312,7 @@ export function NotificationSettings() {
               Configure which channels to use for each type of notification
             </p>
 
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto hidden md:block">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-[var(--color-border)]">
@@ -353,6 +375,70 @@ export function NotificationSettings() {
                 </tbody>
               </table>
             </div>
+
+            {/* Mobile Card View */}
+            <div className="md:hidden space-y-3">
+              {Object.entries(eventSettings).map(([event, channels]) => (
+                <div 
+                  key={event}
+                  className="p-4 border border-[var(--color-border)] rounded-lg"
+                >
+                  <p className="font-medium mb-3 capitalize">
+                    {event.replace(/([A-Z])/g, ' $1').trim()}
+                  </p>
+                  
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Mail className="w-4 h-4 text-[var(--color-text-secondary)]" />
+                        <span className="text-sm">Email</span>
+                      </div>
+                      <Switch
+                        checked={channels.email}
+                        onCheckedChange={(checked) => 
+                          setEventSettings(prev => ({
+                            ...prev,
+                            [event]: { ...prev[event as keyof typeof prev], email: checked }
+                          }))
+                        }
+                      />
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Bell className="w-4 h-4 text-[var(--color-text-secondary)]" />
+                        <span className="text-sm">In-App</span>
+                      </div>
+                      <Switch
+                        checked={channels.inApp}
+                        onCheckedChange={(checked) => 
+                          setEventSettings(prev => ({
+                            ...prev,
+                            [event]: { ...prev[event as keyof typeof prev], inApp: checked }
+                          }))
+                        }
+                      />
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <MessageSquare className="w-4 h-4 text-[var(--color-text-secondary)]" />
+                        <span className="text-sm">SMS</span>
+                      </div>
+                      <Switch
+                        checked={channels.sms}
+                        onCheckedChange={(checked) => 
+                          setEventSettings(prev => ({
+                            ...prev,
+                            [event]: { ...prev[event as keyof typeof prev], sms: checked }
+                          }))
+                        }
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </Card>
         </TabsContent>
 
@@ -408,7 +494,7 @@ export function NotificationSettings() {
                   </div>
 
                   <div className="flex gap-2 mt-3 pt-3 border-t border-[var(--color-border)]">
-                    <Button variant="secondary" size="sm">Edit Template</Button>
+                    <Button variant="secondary" size="sm" onClick={() => handleEditTemplate(template)}>Edit Template</Button>
                     <Button variant="subtle" size="sm">Preview</Button>
                   </div>
                 </div>
@@ -550,6 +636,74 @@ export function NotificationSettings() {
           </Card>
         </TabsContent>
       </Tabs>
+      
+      {/* Edit Template Dialog */}
+      <Dialog
+        open={showEditTemplateDialog}
+        onOpenChange={setShowEditTemplateDialog}
+      >
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Edit Email Template</DialogTitle>
+            <DialogDescription>
+              Customize the email notification template
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Input
+              label="Template Name"
+              value={editTemplateForm.name}
+              onChange={(e) => setEditTemplateForm({ ...editTemplateForm, name: e.target.value })}
+            />
+            <Input
+              label="Event ID"
+              value={editTemplateForm.event}
+              onChange={(e) => setEditTemplateForm({ ...editTemplateForm, event: e.target.value })}
+              readOnly
+              className="bg-gray-50"
+            />
+            <Input
+              label="Subject Line"
+              value={editTemplateForm.subject}
+              onChange={(e) => setEditTemplateForm({ ...editTemplateForm, subject: e.target.value })}
+              placeholder="Use {{variables}} for dynamic content"
+            />
+            <div>
+              <Label htmlFor="template-body">Email Body</Label>
+              <Textarea
+                id="template-body"
+                rows={8}
+                className="mt-1"
+                value={editTemplateForm.body}
+                onChange={(e) => setEditTemplateForm({ ...editTemplateForm, body: e.target.value })}
+                placeholder="Enter email template body... Use {{variables}} for dynamic content"
+              />
+              <p className="text-xs text-[var(--color-text-secondary)] mt-1">
+                Available variables: {'{{'}user_name{'}}'}, {'{{'}nda_number{'}}'}, {'{{'}task_name{'}}'}, {'{{'}link{'}}'}
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="secondary"
+              onClick={() => setShowEditTemplateDialog(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() => {
+                toast.success('Template updated', {
+                  description: `${editTemplateForm.name} has been updated successfully.`
+                });
+                setShowEditTemplateDialog(false);
+              }}
+            >
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

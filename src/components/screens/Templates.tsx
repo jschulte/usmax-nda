@@ -3,7 +3,7 @@ import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
 import { Input, Select } from '../ui/Input';
-import { Search, Plus, MoreVertical, Edit, Copy, Power, Trash2 } from 'lucide-react';
+import { Search, Plus, MoreVertical, Edit, Copy, Power, Trash2, FileText, Calendar } from 'lucide-react';
 import { mockTemplates, mockClauses } from '../../data/mockData';
 import {
   Dialog,
@@ -33,6 +33,21 @@ export function Templates() {
   const [templateType, setTemplateType] = useState('');
   const [clauseName, setClauseName] = useState('');
   const [clauseTopic, setClauseTopic] = useState('');
+  
+  // Confirmation dialogs
+  const [showDeleteTemplateConfirm, setShowDeleteTemplateConfirm] = useState(false);
+  const [showDeleteClauseConfirm, setShowDeleteClauseConfirm] = useState(false);
+  const [templateToDelete, setTemplateToDelete] = useState<any>(null);
+  const [clauseToDelete, setClauseToDelete] = useState<any>(null);
+  
+  // Edit clause dialog
+  const [showEditClauseDialog, setShowEditClauseDialog] = useState(false);
+  const [editingClause, setEditingClause] = useState<any>(null);
+  const [editClauseForm, setEditClauseForm] = useState({
+    name: '',
+    topic: '',
+    text: ''
+  });
   
   const filteredTemplates = mockTemplates.filter(t => 
     t.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -102,9 +117,15 @@ export function Templates() {
   };
   
   const handleDeleteTemplate = (template: any) => {
+    setTemplateToDelete(template);
+    setShowDeleteTemplateConfirm(true);
+  };
+  
+  const confirmDeleteTemplate = () => {
     toast.success('Template deleted', {
-      description: `${template.name} has been deleted.`
+      description: `${templateToDelete.name} has been deleted.`
     });
+    setShowDeleteTemplateConfirm(false);
   };
   
   const handleViewClauseDetails = (clause: any) => {
@@ -113,15 +134,25 @@ export function Templates() {
   };
   
   const handleEditClause = (clause: any) => {
-    toast.info('Edit clause', {
-      description: `Opening editor for ${clause.name}...`
+    setEditingClause(clause);
+    setEditClauseForm({
+      name: clause.name,
+      topic: clause.topic,
+      text: clause.text
     });
+    setShowEditClauseDialog(true);
   };
   
   const handleDeleteClause = (clause: any) => {
+    setClauseToDelete(clause);
+    setShowDeleteClauseConfirm(true);
+  };
+  
+  const confirmDeleteClause = () => {
     toast.success('Clause deleted', {
-      description: `${clause.name} has been deleted.`
+      description: `${clauseToDelete.name} has been deleted.`
     });
+    setShowDeleteClauseConfirm(false);
   };
   
   return (
@@ -181,7 +212,9 @@ export function Templates() {
       
       {/* Templates View */}
       {activeView === 'templates' && (
-        <Card padding="none">
+        <>
+        {/* Desktop Table */}
+        <Card padding="none" className="hidden md:block">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-[var(--color-border)]">
@@ -282,6 +315,70 @@ export function Templates() {
             </table>
           </div>
         </Card>
+
+        {/* Mobile Card View */}
+        <div className="md:hidden space-y-3">
+          {filteredTemplates.map((template) => (
+            <Card 
+              key={template.id} 
+              className="p-4"
+            >
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex-1 min-w-0 pr-2">
+                  <p className="font-medium mb-1">{template.name}</p>
+                  <p className="text-sm text-[var(--color-text-secondary)] line-clamp-2">{template.description}</p>
+                </div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="p-2 hover:bg-gray-100 rounded transition-colors flex-shrink-0">
+                      <MoreVertical className="w-4 h-4 text-[var(--color-text-secondary)]" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => handleEditTemplate(template)}>
+                      <Edit className="w-4 h-4 mr-2" />
+                      Edit
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleDuplicateTemplate(template)}>
+                      <Copy className="w-4 h-4 mr-2" />
+                      Duplicate
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleToggleTemplate(template)}>
+                      <Power className="w-4 h-4 mr-2" />
+                      {template.active ? 'Deactivate' : 'Activate'}
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => handleDeleteTemplate(template)} variant="destructive">
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+              
+              <div className="space-y-2 mb-3">
+                <div className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)]">
+                  <FileText className="w-4 h-4 flex-shrink-0" />
+                  <span>{template.department}</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)]">
+                  <Calendar className="w-4 h-4 flex-shrink-0" />
+                  <span>Updated {new Date(template.lastUpdated).toLocaleDateString()}</span>
+                </div>
+              </div>
+              
+              <div className="flex flex-wrap gap-2">
+                <Badge variant="type">{template.type}</Badge>
+                {template.active ? (
+                  <Badge variant="status" status="Executed">Active</Badge>
+                ) : (
+                  <Badge variant="default">Inactive</Badge>
+                )}
+              </div>
+            </Card>
+          ))}
+        </div>
+        </>
       )}
       
       {/* Clauses View */}
@@ -479,6 +576,93 @@ export function Templates() {
               setShowClauseDialog(false);
             }}>
               Edit Clause
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Delete Template Confirmation Dialog */}
+      <Dialog open={showDeleteTemplateConfirm} onOpenChange={setShowDeleteTemplateConfirm}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Template</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this template? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="secondary" size="sm" onClick={() => setShowDeleteTemplateConfirm(false)}>
+              Cancel
+            </Button>
+            <Button variant="primary" size="sm" onClick={confirmDeleteTemplate}>
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Delete Clause Confirmation Dialog */}
+      <Dialog open={showDeleteClauseConfirm} onOpenChange={setShowDeleteClauseConfirm}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Clause</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this clause? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="secondary" size="sm" onClick={() => setShowDeleteClauseConfirm(false)}>
+              Cancel
+            </Button>
+            <Button variant="primary" size="sm" onClick={confirmDeleteClause}>
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Edit Clause Dialog */}
+      <Dialog open={showEditClauseDialog} onOpenChange={setShowEditClauseDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Edit Clause</DialogTitle>
+            <DialogDescription>
+              Update the clause details.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <input
+              type="text"
+              placeholder="Clause name..."
+              className="w-full px-3 py-2 border border-[var(--color-border)] rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+              value={editClauseForm.name}
+              onChange={(e) => setEditClauseForm({ ...editClauseForm, name: e.target.value })}
+            />
+            <input
+              type="text"
+              placeholder="Topic..."
+              className="w-full px-3 py-2 border border-[var(--color-border)] rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+              value={editClauseForm.topic}
+              onChange={(e) => setEditClauseForm({ ...editClauseForm, topic: e.target.value })}
+            />
+            <textarea
+              placeholder="Clause text..."
+              className="w-full px-3 py-2 border border-[var(--color-border)] rounded-md text-sm min-h-[100px] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+              value={editClauseForm.text}
+              onChange={(e) => setEditClauseForm({ ...editClauseForm, text: e.target.value })}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="secondary" size="sm" onClick={() => setShowEditClauseDialog(false)}>
+              Cancel
+            </Button>
+            <Button variant="primary" size="sm" onClick={() => {
+              toast.success('Clause updated', {
+                description: `${editClauseForm.name} has been updated successfully.`
+              });
+              setShowEditClauseDialog(false);
+            }}>
+              Update
             </Button>
           </DialogFooter>
         </DialogContent>

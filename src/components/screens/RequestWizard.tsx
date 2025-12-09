@@ -5,8 +5,9 @@ import { Input, TextArea, Select } from '../ui/Input';
 import { Stepper } from '../ui/Stepper';
 import { Badge } from '../ui/Badge';
 import { ArrowLeft, ArrowRight, Info, AlertTriangle } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import type { NDAType, InformationType, RiskLevel } from '../../types';
+import { toast } from 'sonner';
 
 const ndaTypes: { value: NDAType; label: string; description: string }[] = [
   { value: 'Mutual', label: 'Mutual', description: 'Both parties will exchange confidential information' },
@@ -28,19 +29,25 @@ const informationTypes: InformationType[] = [
 
 export function RequestWizard() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const params = useParams();
   const [currentStep, setCurrentStep] = useState(1);
   
-  // Form state
+  // Check if we're in edit mode
+  const editMode = location.state?.editMode;
+  const existingNDA = location.state?.nda;
+  
+  // Form state - initialize with existing data if editing
   const [formData, setFormData] = useState({
-    title: '',
-    purpose: '',
-    counterpartyOrg: '',
-    counterpartyContact: '',
-    counterpartyEmail: '',
-    ndaType: '' as NDAType | '',
-    informationShared: [] as InformationType[],
-    sensitivity: '' as RiskLevel | '',
-    systems: [] as string[],
+    title: existingNDA?.title || '',
+    purpose: existingNDA?.purpose || '',
+    counterpartyOrg: existingNDA?.counterparty || '',
+    counterpartyContact: existingNDA?.contactName || '',
+    counterpartyEmail: existingNDA?.contactEmail || '',
+    ndaType: (existingNDA?.type as NDAType) || '' as NDAType | '',
+    informationShared: existingNDA?.informationTypes || [] as InformationType[],
+    sensitivity: (existingNDA?.riskLevel as RiskLevel) || '' as RiskLevel | '',
+    systems: existingNDA?.systems || [] as string[],
     systemInput: '',
     confirmed: false
   });
@@ -117,11 +124,16 @@ export function RequestWizard() {
   const handleSubmit = () => {
     console.log('Submitting NDA request:', formData);
     navigate('/requests');
+    if (editMode) {
+      toast.success('NDA updated successfully!');
+    } else {
+      toast.success('NDA request submitted successfully!');
+    }
   };
   
   return (
-    <div className="p-8 max-w-6xl mx-auto">
-      <div className="mb-8">
+    <div className="p-4 md:p-8 max-w-6xl mx-auto">
+      <div className="mb-6 md:mb-8">
         <Button 
           variant="subtle" 
           size="sm" 
@@ -131,13 +143,18 @@ export function RequestWizard() {
         >
           Back to requests
         </Button>
-        <h1 className="mb-2">Request new NDA</h1>
-        <p className="text-[var(--color-text-secondary)]">Complete the following steps to submit your NDA request</p>
+        <h1 className="mb-2">{editMode ? 'Edit NDA' : 'Request new NDA'}</h1>
+        <p className="text-[var(--color-text-secondary)]">
+          {editMode ? 'Update the NDA information and resubmit for review' : 'Complete the following steps to submit your NDA request'}
+        </p>
       </div>
       
-      <Stepper steps={steps} currentStep={currentStep} className="mb-8" />
+      {/* Mobile-friendly stepper with horizontal scroll */}
+      <div className="mb-6 md:mb-8 overflow-x-auto">
+        <Stepper steps={steps} currentStep={currentStep} className="min-w-max md:min-w-0" />
+      </div>
       
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
         <div className="lg:col-span-2">
           <Card>
             {/* Step 1: Basic Details */}

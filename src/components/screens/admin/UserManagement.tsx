@@ -14,7 +14,9 @@ import {
   Calendar,
   MoreVertical,
   UserPlus,
-  Key
+  Key,
+  User as UserIcon,
+  Briefcase
 } from 'lucide-react';
 import { toast } from 'sonner@2.0.3';
 import {
@@ -163,6 +165,12 @@ export function UserManagement() {
   const [showRoleDialog, setShowRoleDialog] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [editingRole, setEditingRole] = useState<Role | null>(null);
+  
+  // Confirmation dialogs
+  const [showDeleteUserConfirm, setShowDeleteUserConfirm] = useState(false);
+  const [showDeleteRoleConfirm, setShowDeleteRoleConfirm] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  const [roleToDelete, setRoleToDelete] = useState<Role | null>(null);
 
   const [userForm, setUserForm] = useState({
     username: '',
@@ -240,9 +248,15 @@ export function UserManagement() {
   };
 
   const handleDeleteUser = (user: User) => {
+    setUserToDelete(user);
+    setShowDeleteUserConfirm(true);
+  };
+
+  const confirmDeleteUser = () => {
     toast.success('User deleted', {
-      description: `${user.full_name} has been removed from the system`
+      description: `${userToDelete?.full_name} has been removed from the system`
     });
+    setShowDeleteUserConfirm(false);
   };
 
   const handleResetPassword = (user: User) => {
@@ -390,7 +404,7 @@ export function UserManagement() {
             </div>
 
             {/* Users Table */}
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto hidden md:block">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-[var(--color-border)]">
@@ -469,6 +483,77 @@ export function UserManagement() {
                   ))}
                 </tbody>
               </table>
+            </div>
+
+            {/* Mobile Card View */}
+            <div className="md:hidden space-y-3">
+              {filteredUsers.map(user => (
+                <div 
+                  key={user.id}
+                  className="p-4 border border-[var(--color-border)] rounded-lg"
+                >
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex-1">
+                      <p className="font-medium mb-1">{user.full_name}</p>
+                      <p className="text-sm text-[var(--color-text-secondary)] mb-0.5">{user.email}</p>
+                      <p className="text-xs text-[var(--color-text-muted)]">{user.job_title}</p>
+                    </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button className="p-2 hover:bg-gray-100 rounded flex-shrink-0">
+                          <MoreVertical className="w-4 h-4" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => handleEditUser(user)}>
+                          <Edit className="w-4 h-4 mr-2" />
+                          Edit User
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleResetPassword(user)}>
+                          <Key className="w-4 h-4 mr-2" />
+                          Reset Password
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleSuspendUser(user)}>
+                          <Shield className="w-4 h-4 mr-2" />
+                          Suspend User
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          onClick={() => handleDeleteUser(user)}
+                          className="text-[var(--color-danger)]"
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Delete User
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                  
+                  <div className="space-y-2 mb-3">
+                    <div className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)]">
+                      <Briefcase className="w-4 h-4 flex-shrink-0" />
+                      <span>{user.department}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)]">
+                      <Calendar className="w-4 h-4 flex-shrink-0" />
+                      <span>Last login: {formatDate(user.last_login)}</span>
+                    </div>
+                  </div>
+                  
+                  <div className="flex flex-wrap gap-2">
+                    <Badge 
+                      variant="status" 
+                      status={user.status === 'active' ? 'Executed' : user.status === 'inactive' ? 'Expired' : 'Rejected'}
+                    >
+                      {user.status}
+                    </Badge>
+                    {user.roles.map(role => (
+                      <Badge key={role} variant="default" className="text-xs">
+                        {role.replace('_', ' ')}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
 
             {filteredUsers.length === 0 && (
@@ -736,6 +821,27 @@ export function UserManagement() {
             </Button>
             <Button variant="primary" onClick={handleSaveRole}>
               {editingRole ? 'Update Role' : 'Create Role'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete User Confirmation Dialog */}
+      <Dialog open={showDeleteUserConfirm} onOpenChange={setShowDeleteUserConfirm}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Confirm Delete User</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this user? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter>
+            <Button variant="secondary" onClick={() => setShowDeleteUserConfirm(false)}>
+              Cancel
+            </Button>
+            <Button variant="primary" onClick={confirmDeleteUser}>
+              Delete User
             </Button>
           </DialogFooter>
         </DialogContent>

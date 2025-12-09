@@ -170,6 +170,12 @@ export function WorkflowEditor() {
   const [showRuleDialog, setShowRuleDialog] = useState(false);
   const [editingStep, setEditingStep] = useState<WorkflowStep | null>(null);
   const [editingRule, setEditingRule] = useState<WorkflowRule | null>(null);
+  
+  // Confirmation dialogs
+  const [showDeleteStepConfirm, setShowDeleteStepConfirm] = useState(false);
+  const [showDeleteRuleConfirm, setShowDeleteRuleConfirm] = useState(false);
+  const [stepToDelete, setStepToDelete] = useState<string | null>(null);
+  const [ruleToDelete, setRuleToDelete] = useState<string | null>(null);
 
   // Step form state
   const [stepForm, setStepForm] = useState({
@@ -411,34 +417,37 @@ export function WorkflowEditor() {
   };
 
   return (
-    <div className="p-8">
+    <div className="p-4 md:p-8">
       {/* Header */}
-      <div className="mb-8">
+      <div className="mb-6 md:mb-8">
         <Button 
           variant="subtle" 
           size="sm" 
           icon={<ArrowLeft className="w-4 h-4" />}
-          onClick={handleCancel}
+          onClick={() => navigate('/workflows')}
           className="mb-4"
         >
-          Back to Workflows
+          Back to workflows
         </Button>
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="mb-2">{isEditMode ? 'Edit Workflow' : 'Create New Workflow'}</h1>
-            <p className="text-[var(--color-text-secondary)]">
-              {isEditMode ? 'Modify workflow configuration and rules' : 'Configure a new approval workflow'}
-            </p>
-          </div>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
+          <h1>{isEditMode ? 'Edit workflow' : 'Create new workflow'}</h1>
           <div className="flex gap-2">
             <Button variant="secondary" onClick={handleCancel}>
               Cancel
             </Button>
-            <Button variant="primary" icon={<Save className="w-5 h-5" />} onClick={handleSave}>
-              {isEditMode ? 'Save Changes' : 'Create Workflow'}
+            <Button 
+              variant="primary" 
+              icon={<Save className="w-5 h-5" />}
+              onClick={handleSave}
+              disabled={!workflow.name || workflow.steps.length === 0}
+            >
+              Save workflow
             </Button>
           </div>
         </div>
+        <p className="text-[var(--color-text-secondary)]">
+          Define approval steps and routing rules for NDA processing
+        </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -574,9 +583,43 @@ export function WorkflowEditor() {
                 {workflow.steps.map((step, index) => (
                   <div
                     key={step.id}
-                    className="flex items-start gap-3 p-4 border border-[var(--color-border)] rounded-lg hover:border-[var(--color-primary)] transition-colors"
+                    className="flex flex-col sm:flex-row sm:items-start gap-3 p-4 border border-[var(--color-border)] rounded-lg hover:border-[var(--color-primary)] transition-colors"
                   >
-                    <div className="flex flex-col gap-1 mt-1">
+                    {/* Mobile: Top row with order badge and actions */}
+                    <div className="flex items-start justify-between sm:hidden">
+                      <div className="w-8 h-8 bg-[var(--color-primary-light)] rounded-full flex items-center justify-center flex-shrink-0">
+                        <span className="text-sm text-[var(--color-primary)]">{step.order}</span>
+                      </div>
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => handleMoveStep(step.id, 'up')}
+                          disabled={index === 0}
+                          className="p-1 hover:bg-gray-100 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                        >
+                          <GripVertical className="w-4 h-4 text-[var(--color-text-secondary)]" />
+                        </button>
+                        <button
+                          onClick={() => handleEditStep(step)}
+                          className="p-2 hover:bg-gray-100 rounded transition-colors"
+                          title="Edit step"
+                        >
+                          <Settings className="w-4 h-4 text-[var(--color-text-secondary)]" />
+                        </button>
+                        <button
+                          onClick={() => {
+                            setStepToDelete(step.id);
+                            setShowDeleteStepConfirm(true);
+                          }}
+                          className="p-2 hover:bg-red-50 rounded transition-colors"
+                          title="Delete step"
+                        >
+                          <Trash2 className="w-4 h-4 text-[var(--color-danger)]" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Desktop: Grip handle */}
+                    <div className="hidden sm:flex flex-col gap-1 mt-1">
                       <button
                         onClick={() => handleMoveStep(step.id, 'up')}
                         disabled={index === 0}
@@ -586,39 +629,41 @@ export function WorkflowEditor() {
                       </button>
                     </div>
 
-                    <div className="w-8 h-8 bg-[var(--color-primary-light)] rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                    {/* Desktop: Order badge */}
+                    <div className="hidden sm:flex w-8 h-8 bg-[var(--color-primary-light)] rounded-full items-center justify-center flex-shrink-0 mt-1">
                       <span className="text-sm text-[var(--color-primary)]">{step.order}</span>
                     </div>
 
-                    <div className="flex-1">
-                      <div className="flex items-start justify-between mb-2">
-                        <div>
-                          <h4 className="mb-1">{step.name}</h4>
-                          <div className="flex items-center gap-3 text-xs text-[var(--color-text-secondary)]">
-                            <span className="inline-flex items-center gap-1">
-                              <Settings className="w-3 h-3" />
-                              {stepTypes.find(t => t.value === step.type)?.label}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-col gap-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <h4 className="flex-1 min-w-0">{step.name}</h4>
+                          {step.required && (
+                            <span className="inline-flex items-center gap-1 text-xs text-[var(--color-danger)] bg-[var(--color-danger-light)] px-2 py-1 rounded whitespace-nowrap flex-shrink-0">
+                              <AlertCircle className="w-3 h-3" />
+                              Required
                             </span>
-                            <span className="inline-flex items-center gap-1">
-                              <User className="w-3 h-3" />
-                              {roleOptions.find(r => r.value === step.assignedRole)?.label}
-                            </span>
-                            <span className="inline-flex items-center gap-1">
-                              <Clock className="w-3 h-3" />
-                              {step.dueDays} {step.dueDays === 1 ? 'day' : 'days'}
-                            </span>
-                          </div>
+                          )}
                         </div>
-                        {step.required && (
-                          <span className="inline-flex items-center gap-1 text-xs text-[var(--color-danger)] bg-[var(--color-danger-light)] px-2 py-1 rounded">
-                            <AlertCircle className="w-3 h-3" />
-                            Required
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 text-xs text-[var(--color-text-secondary)]">
+                          <span className="inline-flex items-center gap-1">
+                            <Settings className="w-3 h-3 flex-shrink-0" />
+                            <span className="truncate">{stepTypes.find(t => t.value === step.type)?.label}</span>
                           </span>
-                        )}
+                          <span className="inline-flex items-center gap-1">
+                            <User className="w-3 h-3 flex-shrink-0" />
+                            <span className="truncate">{roleOptions.find(r => r.value === step.assignedRole)?.label}</span>
+                          </span>
+                          <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                            <Clock className="w-3 h-3 flex-shrink-0" />
+                            {step.dueDays} {step.dueDays === 1 ? 'day' : 'days'}
+                          </span>
+                        </div>
                       </div>
                     </div>
 
-                    <div className="flex gap-1">
+                    {/* Desktop: Actions */}
+                    <div className="hidden sm:flex gap-1">
                       <button
                         onClick={() => handleEditStep(step)}
                         className="p-2 hover:bg-gray-100 rounded transition-colors"
@@ -627,7 +672,10 @@ export function WorkflowEditor() {
                         <Settings className="w-4 h-4 text-[var(--color-text-secondary)]" />
                       </button>
                       <button
-                        onClick={() => handleDeleteStep(step.id)}
+                        onClick={() => {
+                          setStepToDelete(step.id);
+                          setShowDeleteStepConfirm(true);
+                        }}
                         className="p-2 hover:bg-red-50 rounded transition-colors"
                         title="Delete step"
                       >
@@ -648,7 +696,7 @@ export function WorkflowEditor() {
 
           {/* Conditional Rules */}
           <Card>
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
               <div>
                 <h3 className="mb-1">Conditional Rules</h3>
                 <p className="text-sm text-[var(--color-text-secondary)]">
@@ -660,6 +708,7 @@ export function WorkflowEditor() {
                 size="sm" 
                 icon={<Plus className="w-4 h-4" />}
                 onClick={handleAddRule}
+                className="w-full sm:w-auto"
               >
                 Add Rule
               </Button>
@@ -670,24 +719,54 @@ export function WorkflowEditor() {
                 {workflow.rules.map((rule) => (
                   <div
                     key={rule.id}
-                    className="flex items-start gap-4 p-4 border border-[var(--color-border)] rounded-lg hover:border-[var(--color-primary)] transition-colors"
+                    className="flex flex-col sm:flex-row sm:items-start gap-3 p-4 border border-[var(--color-border)] rounded-lg hover:border-[var(--color-primary)] transition-colors"
                   >
-                    <div className="w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0">
+                    {/* Mobile: Top row with icon and actions */}
+                    <div className="flex items-start justify-between sm:hidden">
+                      <div className="w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0">
+                        <GitBranch className="w-4 h-4 text-amber-700" />
+                      </div>
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => handleEditRule(rule)}
+                          className="p-2 hover:bg-gray-100 rounded transition-colors"
+                          title="Edit rule"
+                        >
+                          <Settings className="w-4 h-4 text-[var(--color-text-secondary)]" />
+                        </button>
+                        <button
+                          onClick={() => {
+                            setRuleToDelete(rule.id);
+                            setShowDeleteRuleConfirm(true);
+                          }}
+                          className="p-2 hover:bg-red-50 rounded transition-colors"
+                          title="Delete rule"
+                        >
+                          <Trash2 className="w-4 h-4 text-[var(--color-danger)]" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Desktop: Icon */}
+                    <div className="hidden sm:flex w-8 h-8 bg-amber-100 rounded-full items-center justify-center flex-shrink-0">
                       <GitBranch className="w-4 h-4 text-amber-700" />
                     </div>
-                    <div className="flex-1">
-                      <div className="grid grid-cols-2 gap-4">
+
+                    <div className="flex-1 min-w-0">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                         <div>
                           <p className="text-xs text-[var(--color-text-secondary)] mb-1">IF (Condition)</p>
-                          <p className="text-sm">{rule.condition}</p>
+                          <p className="text-sm break-words">{rule.condition}</p>
                         </div>
                         <div>
                           <p className="text-xs text-[var(--color-text-secondary)] mb-1">THEN (Action)</p>
-                          <p className="text-sm">{rule.action}</p>
+                          <p className="text-sm break-words">{rule.action}</p>
                         </div>
                       </div>
                     </div>
-                    <div className="flex gap-1">
+
+                    {/* Desktop: Actions */}
+                    <div className="hidden sm:flex gap-1 flex-shrink-0">
                       <button
                         onClick={() => handleEditRule(rule)}
                         className="p-2 hover:bg-gray-100 rounded transition-colors"
@@ -696,7 +775,10 @@ export function WorkflowEditor() {
                         <Settings className="w-4 h-4 text-[var(--color-text-secondary)]" />
                       </button>
                       <button
-                        onClick={() => handleDeleteRule(rule.id)}
+                        onClick={() => {
+                          setRuleToDelete(rule.id);
+                          setShowDeleteRuleConfirm(true);
+                        }}
                         className="p-2 hover:bg-red-50 rounded transition-colors"
                         title="Delete rule"
                       >
@@ -910,6 +992,66 @@ export function WorkflowEditor() {
             </Button>
             <Button variant="primary" onClick={handleSaveRule}>
               {editingRule ? 'Update Rule' : 'Add Rule'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Step Confirmation Dialog */}
+      <Dialog open={showDeleteStepConfirm} onOpenChange={setShowDeleteStepConfirm}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Step Deletion</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this step? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter>
+            <Button variant="secondary" onClick={() => setShowDeleteStepConfirm(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() => {
+                if (stepToDelete) {
+                  handleDeleteStep(stepToDelete);
+                }
+                setShowDeleteStepConfirm(false);
+              }}
+              className="bg-red-500 hover:bg-red-600"
+            >
+              Delete Step
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Rule Confirmation Dialog */}
+      <Dialog open={showDeleteRuleConfirm} onOpenChange={setShowDeleteRuleConfirm}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Rule Deletion</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this rule? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter>
+            <Button variant="secondary" onClick={() => setShowDeleteRuleConfirm(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() => {
+                if (ruleToDelete) {
+                  handleDeleteRule(ruleToDelete);
+                }
+                setShowDeleteRuleConfirm(false);
+              }}
+              className="bg-red-500 hover:bg-red-600"
+            >
+              Delete Rule
             </Button>
           </DialogFooter>
         </DialogContent>

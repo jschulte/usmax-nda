@@ -47,13 +47,15 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
         lg:translate-x-0
       `}>
         {/* Mobile Close Button */}
-        <div className="flex items-center justify-between p-6 lg:justify-center">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-[var(--color-primary)] rounded flex items-center justify-center">
-              <FileText className="w-5 h-5 text-white" />
-            </div>
-            <div className="lg:block">
-              <h1 className="text-lg">NDA System</h1>
+        <div className="flex items-start justify-between p-6">
+          <div className="flex flex-col items-start gap-3 flex-1">
+            <img 
+              src="https://www.usmax.com/wp-content/themes/usmax/static/images/usmax-site-logo.jpg" 
+              alt="USMax"
+              className="h-12 w-auto object-contain"
+            />
+            <div>
+              <h1 className="text-base">NDA System</h1>
               <p className="text-xs text-[var(--color-text-secondary)]">Lifecycle Management</p>
             </div>
           </div>
@@ -90,7 +92,7 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
         <div className="p-4 border-t border-[var(--color-border)]">
           <div className="text-xs text-[var(--color-text-muted)]">
             <p>Version 2.1.0</p>
-            <p className="mt-1">© 2025 Government Agency</p>
+            <p className="mt-1">© 2025 USMax</p>
           </div>
         </div>
       </aside>

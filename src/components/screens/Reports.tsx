@@ -3,7 +3,7 @@ import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
 import { Select } from '../ui/Input';
-import { Download, Calendar, TrendingUp, TrendingDown } from 'lucide-react';
+import { Download, Calendar, TrendingUp, TrendingDown, Building, Clock } from 'lucide-react';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { mockNDAs } from '../../data/mockData';
 
@@ -239,14 +239,15 @@ export function Reports() {
       
       {/* Expiring NDAs Table */}
       <Card>
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
           <h3>NDAs expiring in next 90 days</h3>
-          <Button variant="secondary" size="sm" icon={<Download className="w-4 h-4" />}>
+          <Button variant="secondary" size="sm" icon={<Download className="w-4 h-4" />} className="w-full sm:w-auto">
             Export list
           </Button>
         </div>
         
-        <div className="overflow-x-auto">
+        {/* Desktop Table */}
+        <div className="overflow-x-auto hidden md:block">
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-[var(--color-border)]">
               <tr>
@@ -288,6 +289,41 @@ export function Reports() {
               })}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Card View */}
+        <div className="md:hidden space-y-3">
+          {expiringNDAs.map((nda) => {
+            const daysUntilExpiry = Math.floor((new Date(nda.expiryDate!).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+            return (
+              <div 
+                key={nda.id}
+                className="p-4 border border-[var(--color-border)] rounded-lg"
+              >
+                <div className="mb-3">
+                  <p className="font-medium mb-1">{nda.title}</p>
+                  <p className="text-sm text-[var(--color-text-secondary)]">{nda.counterparty}</p>
+                </div>
+                
+                <div className="space-y-2 mb-3">
+                  <div className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)]">
+                    <Calendar className="w-4 h-4 flex-shrink-0" />
+                    <span>Expires {new Date(nda.expiryDate!).toLocaleDateString()}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)]">
+                    <Clock className="w-4 h-4 flex-shrink-0" />
+                    <Badge variant="risk" risk={daysUntilExpiry <= 30 ? 'High' : daysUntilExpiry <= 60 ? 'Medium' : 'Low'}>
+                      {daysUntilExpiry} days remaining
+                    </Badge>
+                  </div>
+                </div>
+                
+                <div>
+                  <Badge variant="status" status={nda.status}>{nda.status}</Badge>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </Card>
     </div>
