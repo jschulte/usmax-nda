@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card } from '../../ui/Card';
-import { Button } from '../../ui/Button';
+import { Card } from '../../ui/AppCard';
+import { Button } from '../../ui/AppButton';
 import {
   ArrowLeft,
   Bell,

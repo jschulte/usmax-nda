@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Card } from '../ui/Card';
-import { Button } from '../ui/Button';
-import { Input } from '../ui/Input';
+import { Card } from '../ui/AppCard';
+import { Button } from '../ui/AppButton';
+import { Input } from '../ui/AppInput';
 import {
   User,
   Mail,
@@ -19,7 +19,7 @@ import {
 import { toast } from 'sonner@2.0.3';
 import { Label } from '../ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
-import { Badge } from '../ui/Badge';
+import { Badge } from '../ui/AppBadge';
 import {
   Dialog,
   DialogContent,

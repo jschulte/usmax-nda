@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { Card } from '../ui/Card';
-import { Badge } from '../ui/Badge';
-import { Button } from '../ui/Button';
-import { Select } from '../ui/Input';
+import { Card } from '../ui/AppCard';
+import { Badge } from '../ui/AppBadge';
+import { Button } from '../ui/AppButton';
+import { Select } from '../ui/AppInput';
 import { Download, Calendar, TrendingUp, TrendingDown, Building, Clock } from 'lucide-react';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { mockNDAs } from '../../data/mockData';

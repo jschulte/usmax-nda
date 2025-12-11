@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card } from '../../ui/Card';
-import { Button } from '../../ui/Button';
-import { Input } from '../../ui/Input';
+import { Card } from '../../ui/AppCard';
+import { Button } from '../../ui/AppButton';
+import { Input } from '../../ui/AppInput';
 import {
   ArrowLeft,
   Plus,

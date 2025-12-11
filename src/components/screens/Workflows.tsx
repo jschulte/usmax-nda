@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card } from '../ui/Card';
-import { Badge } from '../ui/Badge';
-import { Button } from '../ui/Button';
+import { Card } from '../ui/AppCard';
+import { Badge } from '../ui/AppBadge';
+import { Button } from '../ui/AppButton';
 import { Plus, Edit, ChevronRight, GitBranch } from 'lucide-react';
 import { toast } from 'sonner';
 

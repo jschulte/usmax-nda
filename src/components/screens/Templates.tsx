@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { Card } from '../ui/Card';
-import { Badge } from '../ui/Badge';
-import { Button } from '../ui/Button';
-import { Input, Select } from '../ui/Input';
+import { Card } from '../ui/AppCard';
+import { Badge } from '../ui/AppBadge';
+import { Button } from '../ui/AppButton';
+import { Input, Select } from '../ui/AppInput';
 import { Search, Plus, MoreVertical, Edit, Copy, Power, Trash2, FileText, Calendar } from 'lucide-react';
 import { mockTemplates, mockClauses } from '../../data/mockData';
 import {
