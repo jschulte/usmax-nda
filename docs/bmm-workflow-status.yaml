@@ -1,0 +1,125 @@
+# Workflow Status Template
+
+# This tracks progress through BMM methodology Analysis, Planning, and Solutioning phases.
+# Implementation phase is tracked separately in sprint-status.yaml
+
+# STATUS DEFINITIONS:
+# ==================
+# Initial Status (before completion):
+#   - required: Must be completed to progress
+#   - optional: Can be completed but not required
+#   - recommended: Strongly suggested but not required
+#   - conditional: Required only if certain conditions met (e.g., if_has_ui)
+#
+# Completion Status:
+#   - {file-path}: File created/found (e.g., "docs/product-brief.md")
+#   - skipped: Optional/conditional workflow that was skipped
+
+generated: "2025-12-12"
+project: "USMax NDA Management System"
+project_type: "Government NDA Lifecycle Application"
+selected_track: "method"
+field_type: "brownfield"
+workflow_path: "method-brownfield"
+discovery_workflows:
+  brainstorm: "required"
+  research: "required"
+workflow_status:
+  # Prerequisite (not a phase - must complete first)
+  documentation:
+    document-project:
+      status: "docs/index.md"
+      agent: "analyst"
+      command: "/bmad:bmm:workflows:document-project"
+      output: "Comprehensive project documentation"
+      purpose: "Understand existing codebase before planning"
+      note: "Required for brownfield without existing docs"
+      completed: "2025-12-12"
+      files_generated:
+        - "docs/index.md"
+        - "docs/project-overview.md"
+        - "docs/component-inventory-main.md"
+        - "docs/data-models-main.md"
+        - "docs/source-tree-analysis.md"
+        - "docs/development-guide-main.md"
+
+  # Phase 0: Discovery (Optional - user selected)
+  discovery:
+    brainstorming-session:
+      status: "docs/analysis/brainstorming-session-2025-12-12.md"
+      agent: "analyst"
+      command: "/bmad:core:workflows:brainstorming-session"
+      note: "User selected - creative exploration"
+      completed: "2025-12-12"
+      files_generated:
+        - "docs/analysis/brainstorming-session-2025-12-12.md"
+        - "docs/assumptions-validation-doc.md"
+        - "docs/feature-priority-matrix.md"
+        - "docs/phase-1-build-plan.md"
+
+    research:
+      status: "docs/analysis/research/domain-government-nda-management-research-2025-12-12.md"
+      agent: "analyst"
+      command: "/bmad:bmm:workflows:research"
+      note: "User selected - domain analysis"
+      completed: "2025-12-12"
+      files_generated:
+        - "docs/analysis/research/domain-government-nda-management-research-2025-12-12.md"
+
+  # Phase 1: Planning
+  planning:
+    create-prd:
+      status: "required"
+      agent: "pm"
+      command: "/bmad:bmm:workflows:create-prd"
+      output: "PRD focused on new features/changes"
+      note: "Must consider existing system constraints"
+
+    create-ux-design:
+      status: "conditional"
+      agent: "ux-designer"
+      command: "/bmad:bmm:workflows:create-ux-design"
+      condition: "if_has_ui"
+      note: "Required if project involves UI changes"
+
+  # Phase 2: Solutioning
+  solutioning:
+    create-architecture:
+      status: "recommended"
+      agent: "architect"
+      command: "/bmad:bmm:workflows:create-architecture"
+      output: "Integration architecture - solution design for THIS project"
+      note: "HIGHLY RECOMMENDED: Distills brownfield context into focused solution design"
+
+    create-epics-stories:
+      status: "required"
+      agent: "pm"
+      command: "/bmad:bmm:workflows:create-epics-stories"
+      note: "Break down PRD into implementable epics and stories"
+      requires: "PRD + UX (if applicable) + Architecture (if created)"
+
+    testarch-test-design:
+      status: "recommended"
+      agent: "tea"
+      command: "/bmad:bmm:workflows:testarch-test-design"
+      output: "System-level testability review"
+      note: "Auto-detects system-level mode for solutioning phase"
+
+    validate-architecture:
+      status: "optional"
+      agent: "architect"
+      command: "/bmad:bmm:workflows:validate-architecture"
+
+    check-implementation-readiness:
+      status: "required"
+      agent: "architect"
+      command: "/bmad:bmm:workflows:check-implementation-readiness"
+      note: "Validates PRD + Architecture + Epics + UX before implementation"
+
+  # Phase 3: Implementation
+  implementation:
+    sprint-planning:
+      status: "required"
+      agent: "sm"
+      command: "/bmad:bmm:workflows:sprint-planning"
+      note: "Creates sprint plan and status tracking"
