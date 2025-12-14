@@ -193,9 +193,9 @@ Thanks,
 
 ## Next Steps Workflow
 
-### Step 1: Customer Validation Meeting (THIS WEEK)
+### Step 1: Send Validation Questions to Customer
 
-**Action:** Present [`docs/assumptions-validation-doc.md`](./docs/assumptions-validation-doc.md)
+**Action:** Email customer with link to [`docs/assumptions-validation-doc.md`](./docs/assumptions-validation-doc.md)
 
 **Collect Answers:**
 - 13 Tier 1 critical questions
@@ -207,9 +207,9 @@ Thanks,
 - Recommend Option 2 (Core + Smart Improvements)
 - Get customer preference
 
-**Expected Duration:** 60-90 minutes
+**Customer Response:** At their convenience (email or call, their choice)
 
-### Step 2: Update Plans Based on Customer Answers (AFTER MEETING)
+### Step 2: Update Plans Based on Customer Answers
 
 **Actions:**
 - Update feature priority matrix with validated scope
@@ -369,7 +369,7 @@ You're the bridge between the development team and the customer. Your job is to:
 5. Updates build plan based on validated requirements
 6. Confirms any clarifications needed
 
-**Within 1 week:**
+**Next:**
 7. Proceed to PRD creation (formal requirements document)
 8. Begin technical architecture design
 9. Development kickoff
@@ -660,41 +660,40 @@ Requirements flow through intermediary (you) to customer - risk of miscommunicat
 - Customer validation meeting (need answers to 22 questions)
 
 **⏭️ Next:**
-1. Customer meeting (validate assumptions)
-2. PRD creation (formal requirements)
-3. Architecture design
-4. Development kickoff
+1. Send validation questions to customer
+2. Collect answers (at customer's pace)
+3. PRD creation (formal requirements)
+4. Architecture design
+5. Development kickoff
 
 ---
 
-## Project Timeline (Estimated)
+## Project Timeline
 
-**This Week:**
-- ✅ Discovery complete
-- ⏭️ Customer validation meeting
-- ⏭️ Collect answers to 22 questions
+**Discovery Phase:**
+- ✅ Discovery complete (2025-12-12)
+- ⏭️ Send validation questions to customer
+- ⏭️ Await customer responses
 
-**Next Week:**
-- PRD creation
+**Planning Phase:**
+- PRD creation (after validation answers received)
 - Architecture document
 - Technical spike (React 19 vs Next.js evaluation)
 - Database schema design
 
-**Weeks 3-10:**
-- Development sprints (8-week build plan)
+**Development Phase:**
+- Development sprints (8-week build plan internal estimate)
 - Weekly demos and validation
 - Iterative refinement based on feedback
 
-**Week 11:**
+**Launch Phase:**
 - Beta testing with customer users
 - Final refinements
-
-**Week 12:**
 - Production launch
 - User training (if needed)
 - Monitoring and support
 
-**Ongoing:**
+**Post-Launch:**
 - Usage analytics collection
 - Phase 2 feature prioritization
 - Continuous improvement based on feedback
@@ -720,7 +719,7 @@ Run `/bmad:bmm:workflows:workflow-status` to check progress at any time
 
 **Key Milestones:**
 - ✅ 2025-12-12: Discovery phase complete, validation doc ready
-- ⏭️ TBD: Customer validation meeting
+- ⏭️ TBD: Customer provides validation answers
 - ⏭️ TBD: Development kickoff
 - ⏭️ TBD: Production launch
 
