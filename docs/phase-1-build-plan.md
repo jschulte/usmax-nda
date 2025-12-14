@@ -45,14 +45,21 @@
 - Status state machine definition (Tier 1 Q4)
 - Template system scope (Tier 1 Q5)
 - Email recipient logic (Tier 1 Q3)
+- Non-USMax NDA behavior (Tier 1 Q10)
+- POC structure - 2 vs. 3 POC types (Tier 1 Q11)
+- RBAC granularity - simple roles vs. permissions (Tier 1 Q12)
+- Database choice - DynamoDB vs. Aurora Serverless (Tier 1 Q13)
+- Document retention period - 3, 4, or 6 years (Tier 1 Q7)
+- CMMC compliance level needed (Tier 1 Q8)
 
 **3. Infrastructure Setup**
-- Cloud provider selection (AWS/Azure/GCP)
-- Serverless framework choice (if serverless)
-- Database selection (PostgreSQL recommended)
-- Document storage solution (S3-compatible)
-- Email service provider (SendGrid/AWS SES/Postmark)
-- Monitoring setup (Sentry + New Relic/Datadog)
+- Cloud provider: AWS (already confirmed by customer)
+- Serverless framework: AWS SAM or Serverless Framework
+- Database: Aurora Serverless v2 or DynamoDB (validate with customer - Tier 1 Q13)
+- Document storage: S3 with encryption and versioning
+- Email service: AWS SES (serverless-native)
+- Authentication: AWS Cognito with MFA
+- Monitoring: Sentry (errors) + CloudWatch (AWS-native) or New Relic
 
 ---
 
@@ -83,10 +90,12 @@
 16. Search across all fields
 
 **✅ Authentication & Security**
-17. SSO/OIDC login with MFA
-18. Role-based access (Admin vs. Standard user)
-19. Encrypted document storage
-20. Secure document downloads (time-limited URLs)
+17. SSO/OIDC login with MFA (AWS Cognito)
+18. Role-based access control (validate granularity - simple roles vs. RBAC permissions)
+   - Minimum: Read-Only, NDA User, Admin
+   - Optional: Granular permissions (nda:create, nda:update, etc.)
+19. Encrypted document storage (S3 server-side encryption)
+20. Secure document downloads (time-limited pre-signed URLs)
 
 **✅ Audit & Compliance**
 21. Centralized audit log viewer
@@ -148,12 +157,14 @@
 - **Routing:** React Router (or Next.js routing if using Next.js)
 
 ### Backend
-- **Architecture:** Serverless (preferred per scope doc)
+- **Architecture:** Serverless (required per scope doc)
 - **API Style:** REST (simple, proven)
-- **Database:** PostgreSQL (relational data, ACID compliance)
-- **Document Storage:** S3-compatible storage with encryption
-- **Email:** SendGrid / AWS SES / Postmark
-- **Authentication:** OAuth2/OIDC with MFA (Okta/Auth0/AWS Cognito)
+- **Database:** Aurora Serverless v2 (PostgreSQL-compatible, true serverless) or DynamoDB (AWS-native NoSQL)
+  - **Decision pending:** Validate customer preference (Tier 1 Q13)
+  - **Recommendation:** Aurora Serverless v2 (relational benefits + serverless scaling)
+- **Document Storage:** S3 with encryption at rest, versioning enabled
+- **Email:** AWS SES (serverless-native) or SendGrid
+- **Authentication:** AWS Cognito with MFA (serverless-native OAuth2/OIDC)
 
 ### DevOps & Monitoring
 - **CI/CD:** GitHub Actions

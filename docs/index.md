@@ -62,6 +62,9 @@ Government NDA Lifecycle Application (Prototype)
 - **[Legacy vs Prototype Gap + Backlog](./legacy-prototype-gap-backlog.md)**
   Coverage matrix, prototype-only features, prioritized epics/user stories, and proposed API surface
 
+- **[Technical Clarifications](./technical-clarifications.md)**
+  Implementation details: POC structure, RBAC options, database choice, API surface, status enums, and acceptance criteria
+
 - **[Component Inventory](./component-inventory-main.md)**
   Complete catalog of all 69 React components with sizing, categorization, and analysis
 

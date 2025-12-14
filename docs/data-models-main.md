@@ -56,6 +56,26 @@ interface NDA {
   internalOwner: string;
   legalOwner: string;
   businessOwner: string;
+
+  // POCs (Point of Contact) - Legacy System Structure
+  opportunityPoc: string;      // Required - internal user
+  contractsPoc?: {             // Optional
+    name: string;
+    email: string;
+    phone: string;
+    fax?: string;
+  };
+  relationshipPoc: {           // Required
+    name: string;
+    email: string;
+    phone: string;
+    fax?: string;
+  };
+  contactsPoc?: {              // Optional - appears in legacy "More info" modal
+    name: string;              // NOTE: May be same as Contracts POC (validation needed)
+    email?: string;
+    phone?: string;
+  };
 }
 ```
 
@@ -430,12 +450,55 @@ When implementing a real database, consider:
 
 ---
 
+## Additional Data Model Considerations from Legacy Analysis
+
+### User Roles and Permissions
+
+**Role-Based Access Control (RBAC) Options:**
+
+**Option 1: Simple Roles**
+- **Read-Only:** View NDAs and documents only
+- **NDA User:** Create, edit, email, upload NDAs
+- **Admin:** Full access including agency/user management
+
+**Option 2: Granular Permissions**
+- `nda:create` - Create new NDA requests
+- `nda:update` - Edit existing NDAs
+- `nda:upload_document` - Upload documents
+- `nda:send_email` - Send NDA emails
+- `nda:mark_inactive` - Archive NDAs
+- `admin:manage_agency_groups` - Manage agency groups
+- `admin:manage_subagencies` - Manage subagencies
+- `admin:manage_contacts` - Manage user directory
+- `admin:manage_access` - Assign user permissions
+
+**Recommendation:** Start with Option 1 (simple roles), add granular permissions Phase 2 if needed
+
+### Agency-Based Data Scoping
+
+**Access Control Model:**
+- Users granted access at Agency Group level (see all subagencies in group)
+- Users optionally granted access at specific Subagency level (more granular)
+- **Critical:** Row-level security - users only see NDAs for their authorized agencies
+
+### Database Technology Considerations
+
+**Serverless-Optimized Options:**
+- **DynamoDB:** AWS-native, fully serverless, pay-per-request, scales automatically
+- **Aurora Serverless v2:** PostgreSQL-compatible, true serverless, relational benefits
+- **PostgreSQL (RDS):** Traditional relational (requires instance sizing, not fully serverless)
+
+**Recommendation:** Aurora Serverless v2 for relational benefits with serverless architecture
+
+---
+
 ## Missing Data Model Elements (To Add in Real Implementation)
 
-1. **User Management**
-   - User entity
-   - Role definitions
-   - Permission mappings
+1. **User Management** (Enhanced)
+   - User entity with firstName, lastName, email, workNumber, cellNumber, positionTitle
+   - Role assignments (simple or granular RBAC)
+   - Agency Group and Subagency access grants
+   - isActive flag for user deactivation
 
 2. **Document Management**
    - File attachments

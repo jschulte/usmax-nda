@@ -174,11 +174,84 @@ We are rebuilding your NDA management system following the catastrophic failure 
 
 ---
 
+### 10. Non-USMax NDA Behavior
+
+**Question:** When "Non-USMax NDA" checkbox is checked, should the system:
+
+**Option A (Recommended):**
+- Skip template generation entirely
+- Require user to upload initial NDA document manually
+- Clear distinction between USMax-generated vs. external NDAs
+
+**Option B:**
+- Generate from template anyway
+- Label as "non-standard" for tracking
+- Allows template use even for non-USMax situations
+
+**Why critical:** Determines document generation workflow and what "Non-USMax NDA" actually means functionally.
+
+---
+
+### 11. Contacts POC Clarification
+
+**Question:** The legacy screenshots show THREE POC types:
+
+1. **Contracts POC** (optional)
+2. **Relationship POC** (required)
+3. **Contacts POC** (appears in "More info" modal)
+
+**Questions:**
+- Are "Contacts POC" and "Contracts POC" the same thing (typo)?
+- Or are they different roles (three distinct POC types)?
+- If different, what's the distinction?
+
+**Why critical:** Determines data model structure for POC capture and display.
+
+---
+
+### 12. User Permission Granularity
+
+**Question:** Should we implement granular RBAC permissions or simple role-based access?
+
+**Granular RBAC Approach:**
+- Specific permissions: `nda:create`, `nda:update`, `nda:upload_document`, `nda:send_email`, `nda:mark_inactive`
+- Admin permissions: `admin:manage_agency_groups`, `admin:manage_subagencies`, `admin:manage_contacts`
+- Mix and match per user (e.g., can create but not send email)
+
+**Simple Role-Based:**
+- Read-Only (view only)
+- NDA User (create, edit, email, upload)
+- Admin (everything)
+
+**Question:** Do you need granular control, or are simple roles sufficient?
+
+**Why critical:** Impacts authorization system complexity and user management UI.
+
+---
+
+### 13. Database Architecture for Serverless
+
+**Question:** Do you have a preference for database technology?
+
+**Options:**
+- **DynamoDB** - AWS-native, fully serverless, scales automatically, pay-per-request
+- **Aurora Serverless v2** - PostgreSQL-compatible, scales automatically, relational benefits
+- **PostgreSQL (RDS)** - Traditional relational, requires instance sizing
+
+**Trade-offs:**
+- DynamoDB: Best serverless integration, requires NoSQL data modeling
+- Aurora Serverless: Relational benefits, true serverless scaling
+- PostgreSQL RDS: Most familiar, but not fully serverless (fixed capacity)
+
+**Why matters:** Serverless architecture preference stated in scope document; database should align.
+
+---
+
 ## TIER 2: Important for User Adoption - Scoping Questions
 
 **These 5 questions help us prioritize features and set appropriate expectations.**
 
-### 7. Pain Points with Legacy System
+### 14. Pain Points with Legacy System
 
 **Question:** What were the top 5 pain points or frustrations with the old system?
 
@@ -193,7 +266,7 @@ We are rebuilding your NDA management system following the catastrophic failure 
 
 ---
 
-### 8. What Worked Well (Must Preserve)
+### 15. What Worked Well (Must Preserve)
 
 **Question:** What did you LIKE about the legacy system that we must keep?
 
@@ -207,7 +280,7 @@ We are rebuilding your NDA management system following the catastrophic failure 
 
 ---
 
-### 9. Volume & Scale
+### 16. Volume & Scale
 
 **Question:** How many NDAs do you process per month/year?
 
@@ -219,7 +292,7 @@ We are rebuilding your NDA management system following the catastrophic failure 
 
 ---
 
-### 10. Cycle Time Baseline
+### 17. Cycle Time Baseline
 
 **Question:** On average, how long does an NDA take from initial request to fully executed?
 
@@ -233,7 +306,7 @@ We are rebuilding your NDA management system following the catastrophic failure 
 
 ---
 
-### 11. Access Control Complexity
+### 18. Access Control Complexity
 
 **Question:** How many of each do you have?
 
@@ -250,7 +323,7 @@ We are rebuilding your NDA management system following the catastrophic failure 
 
 **These 4 concepts represent improvements beyond legacy. We assume "probably yes" but want feedback.**
 
-### 12. Email Templates
+### 19. Email Templates
 
 **Concept:** Pre-written email templates you can pick from (e.g., "Standard NDA Request", "Research Partnership NDA", "Vendor Access NDA") that auto-fill subject/body, then customize before sending.
 
@@ -258,7 +331,7 @@ We are rebuilding your NDA management system following the catastrophic failure 
 
 ---
 
-### 13. Clone/Duplicate NDA
+### 20. Clone/Duplicate NDA
 
 **Concept:** "Duplicate" button on existing NDAs → copies all info → you change only what's different (company name, dates, purpose) → saves 10+ minutes of re-entry.
 
@@ -266,7 +339,7 @@ We are rebuilding your NDA management system following the catastrophic failure 
 
 ---
 
-### 14. Personalized Dashboard
+### 21. Personalized Dashboard
 
 **Concept:** Landing page showing: Your NDAs, Recent activity on NDAs you're following, Your pending tasks, Notifications.
 
@@ -274,7 +347,7 @@ We are rebuilding your NDA management system following the catastrophic failure 
 
 ---
 
-### 15. Notification System
+### 22. Notification System
 
 **Concept:** Facebook/Instagram-style bell icon with badge count showing: "NDA uploaded", "You were added as POC", "3 NDAs expiring soon", etc.
 
@@ -316,7 +389,7 @@ We are rebuilding your NDA management system following the catastrophic failure 
 ## What We Need From You
 
 **Initial Requirements Meeting:**
-- Answers to Tier 1 questions (6 critical technical questions)
+- Answers to Tier 1 questions (13 critical technical questions)
 - Answers to Tier 2 questions (5 scoping questions)
 
 **Design Review Meeting:**
