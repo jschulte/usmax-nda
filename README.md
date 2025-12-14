@@ -24,48 +24,53 @@ This is a complete rebuild of USMax's NDA (Non-Disclosure Agreement) management 
 
 ### Immediate Action Required
 
-**📋 CUSTOMER VALIDATION MEETING NEEDED**
+**📧 SEND VALIDATION QUESTIONS TO CUSTOMER**
 
-Present this document to the customer: **[Assumptions Validation Document](./docs/assumptions-validation-doc.md)**
+**Action:** Email the customer with a link to this document: **[Assumptions Validation Document](./docs/assumptions-validation-doc.md)**
 
-**What to cover in the meeting:**
+**Suggested Email Template:**
 
-1. **Tier 1 Questions (13 critical - MUST answer before development):**
-   - Dropdown field values (Type, USMax Position, NDA Owner)
-   - Document format preference (PDF vs. RTF)
-   - Email recipient logic (who receives the emails?)
-   - Status transitions (what statuses exist?)
-   - Template system scope (one template or multiple?)
-   - Archive behavior (reversible or permanent?)
-   - Document retention period (3-6 years per FAR requirements)
-   - CMMC/CUI compliance level (security requirements)
-   - Employee NDA tracking needs (DFARS requirement)
-   - Non-USMax NDA behavior (skip template or generate?)
-   - POC structure clarification (2 or 3 types of contacts?)
-   - RBAC granularity (simple roles or granular permissions?)
-   - Database preference (DynamoDB vs. Aurora Serverless)
+```
+Subject: USMax NDA System Rebuild - Questions to Guide Development
 
-2. **Tier 2 Questions (5 scoping - important for prioritization):**
-   - Top 5 pain points with legacy system
-   - What worked well that must be preserved
-   - Volume (how many NDAs per month/year?)
-   - Average cycle time (request to fully executed)
-   - Scale (users, agencies, subagencies counts)
+Hi [Customer Name],
 
-3. **Tier 3 Questions (4 feature concepts - show mockups for reaction):**
-   - Email templates - valuable?
-   - Clone/duplicate NDAs - would they use it?
-   - Personalized dashboard - helpful?
-   - Notification system - engaging or annoying?
+We've completed our analysis of your legacy NDA system (from the 8 screenshots) and have created a comprehensive rebuild plan. To ensure we build exactly what you need, we have 22 questions organized by priority.
 
-**📊 Three-Tier Options to Present:**
+📋 Validation Document: [Include link to docs/assumptions-validation-doc.md in your repo]
 
-Show the customer our three implementation options (in assumptions-validation-doc.md):
+The document contains:
+• 13 critical technical questions (we can't build without these answers)
+• 5 scoping questions (help us prioritize features properly)
+• 4 feature concept questions (get your reaction to proposed improvements)
+• 3 implementation options for you to choose from (we recommend Option 2)
+
+Please review at your convenience and provide answers. The sooner we have responses to the Tier 1 critical questions, the faster we can get you operational.
+
+We understand your system is currently down, so we've designed this to move quickly once you provide the technical details we need.
+
+Feel free to respond via email, or let me know if you'd prefer a quick call to discuss any questions.
+
+Thanks,
+[Your name]
+```
+
+**What's in the validation document:**
+
+**Tier 1 (13 critical - blocks development):**
+- Technical decisions: Document format, status values, template behavior, POC structure, RBAC model, database choice
+- Compliance: Retention period, CMMC level, employee tracking requirements
+
+**Tier 2 (5 scoping - helps prioritization):**
+- Pain points, preferences, volume, cycle time, scale
+
+**Tier 3 (4 feature concepts - get reactions):**
+- Email templates, clone NDA, dashboard, notifications
+
+**Three-Tier Options:**
 - **Option 1:** Core operations only (legacy parity)
 - **Option 2:** Core + smart improvements (RECOMMENDED)
 - **Option 3:** Full modern platform (future vision)
-
-**Our recommendation:** Option 2 (delivers value quickly while significantly improving UX)
 
 ---
 
@@ -332,32 +337,27 @@ You're the bridge between the development team and the customer. Your job is to:
 **The Value Proposition:**
 > "Your old system's bar is low (90s technology). Any modern system will feel like a huge upgrade. But we're not just replacing functionality - we're making NDAs faster, easier, and dare I say... enjoyable to work with daily."
 
-### Meeting Structure (60-90 minutes)
+### Response Options (Customer's Choice)
 
-**Part 1: Context Setting (10 min)**
-- Acknowledge the system failure and current pain
-- Show you understand what they had (reference screenshots)
-- Explain three-tier options
+**Option A: Email Response (Easiest)**
+- Customer reviews document at their leisure
+- Responds to questions via email
+- Can take time to consult with team members
+- No scheduling coordination needed
 
-**Part 2: Critical Questions (30-40 min)**
-- Go through Tier 1 questions (13 items)
-- Take notes on answers
-- Ask clarifying follow-ups
+**Option B: Quick Call (If Preferred)**
+- 30-45 minute call to walk through questions
+- Real-time clarifications
+- Faster for complex questions
+- Record answers during call
 
-**Part 3: Scoping Questions (15-20 min)**
-- Tier 2 questions (volume, pain points, preferences)
-- Understand scale and priorities
+**Option C: Hybrid**
+- Customer answers straightforward questions via email
+- Schedule brief call for complex items only
 
-**Part 4: Feature Validation (10-15 min)**
-- Show Tier 3 concepts (email templates, clone, dashboard, notifications)
-- Get gut reactions (valuable or unnecessary?)
+**Recommendation:** Start with email (Option A), offer call if they prefer discussion
 
-**Part 5: Next Steps (5 min)**
-- Confirm their preferred option (1, 2, or 3)
-- Set expectations for follow-up
-- Schedule design review meeting if needed
-
-### After the Meeting
+### After Receiving Answers
 
 **Immediately:**
 1. Document all answers in a new file: `docs/customer-validation-answers.md`
@@ -608,20 +608,23 @@ Requirements flow through intermediary (you) to customer - risk of miscommunicat
 
 ### For the Customer Liaison
 
-**Before the meeting:**
+**Before sending:**
 - Review assumptions-validation-doc.md thoroughly
 - Familiarize yourself with the three-tier options
 - Understand why we're asking each question
+- Prepare brief email (use template above)
 
-**During the meeting:**
-- Take detailed notes on ALL answers
-- Ask clarifying questions if responses are vague
-- Note any new requirements or concerns raised
-- Get clear decision on implementation tier (1, 2, or 3)
+**After sending:**
+- Give customer reasonable time to respond (2-3 days suggested)
+- Follow up if no response after 1 week
+- Be available for clarification questions
+- Offer call option if they prefer discussion
 
-**After the meeting:**
-- Document answers immediately
+**When you receive answers:**
+- Document all responses in: `docs/customer-validation-answers.md`
 - Flag any surprises or conflicts with assumptions
+- Note any new requirements or concerns raised
+- Confirm which implementation tier they chose (1, 2, or 3)
 - Share with development team within 24 hours
 
 ### For the Development Team
