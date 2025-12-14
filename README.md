@@ -128,7 +128,7 @@ Thanks,
 - Create NDA request → Generate document from template → Email with attachment → Upload executed PDF → Archive
 - Agency Groups/Subagencies for access control
 - Basic filtering and history tracking
-- **Died:** 90s Windows machine hardware failure, data lost
+- **Died:** Legacy Windows hardware failure, data lost
 
 ### What the Figma Prototype Shows
 
@@ -305,12 +305,17 @@ usmax-nda/
 
 ### Your Role
 
-You're the bridge between the development team and the customer. Your job is to:
+**You're the people person!** You deal with the customers so the engineers don't have to.
+
+Your job is to:
 
 1. **Validate requirements** - Get answers to the 22 questions in the validation doc
 2. **Present options** - Show the three-tier implementation options
 3. **Collect feedback** - Gather reactions to proposed smart improvements
 4. **Clarify unknowns** - Ask follow-up questions as needed
+5. **Translate between worlds** - Keep engineers from over-engineering
+
+**Why this matters:** You keep us grounded in what the customer actually needs vs. what we think would be cool to build.
 
 ### Key Documents to Review Before Meeting
 
@@ -326,7 +331,7 @@ You're the bridge between the development team and the customer. Your job is to:
 ### What to Tell the Customer
 
 **The Situation:**
-> "Your legacy NDA system died (90s Windows machine hardware failure). We've analyzed the 8 screenshots of what you had and created a modernization plan. We have 22 questions that will help us build exactly what you need - some are critical technical details we can't build without, others help us prioritize features properly."
+> "Your legacy NDA system died (hardware failure on the old Windows system). We've analyzed the 8 screenshots of what you had and created a modernization plan. We have 22 questions that will help us build exactly what you need - some are critical technical details we can't build without, others help us prioritize features properly."
 
 **The Approach:**
 > "We're proposing three implementation options. Option 1 is basic legacy parity. Option 2 (our recommendation) adds smart improvements that save time without changing your workflows. Option 3 is a full modern platform for the future. You choose your comfort level."
@@ -335,7 +340,7 @@ You're the bridge between the development team and the customer. Your job is to:
 > "Once we have answers to the critical questions, we can move quickly. The system will be bulletproof - cloud-hosted, secure, with monitoring to prevent another catastrophic failure."
 
 **The Value Proposition:**
-> "Your old system's bar is low (90s technology). Any modern system will feel like a huge upgrade. But we're not just replacing functionality - we're making NDAs faster, easier, and dare I say... enjoyable to work with daily."
+> "Your old system's bar is low (legacy technology). Any modern system will feel like a huge upgrade. But we're not just replacing functionality - we're making NDAs faster, easier, and dare I say... enjoyable to work with daily."
 
 ### Response Options (Customer's Choice)
 
@@ -381,7 +386,7 @@ You're the bridge between the development team and the customer. Your job is to:
 ### The Legacy System
 
 **What It Was:**
-- Windows-based application (circa 1990s)
+- Windows-based desktop application
 - Simple NDA tracking workflow
 - Agency Groups/Subagencies access control
 - Document generation, email distribution, upload management

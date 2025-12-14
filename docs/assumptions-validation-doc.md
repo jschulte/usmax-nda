@@ -17,7 +17,7 @@ We are rebuilding your NDA management system following the catastrophic failure 
 ## Background Context
 
 **What We Know:**
-- Legacy system ran on 90s Windows machine that failed
+- Legacy system ran on older Windows hardware that failed
 - System data was lost before export could occur
 - 8 screenshots document the legacy functionality
 - Current operations are down (urgency to replace)
