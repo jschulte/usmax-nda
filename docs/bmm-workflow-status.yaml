@@ -93,11 +93,22 @@ workflow_status:
   # Phase 2: Solutioning
   solutioning:
     create-architecture:
-      status: "recommended"
+      status: "docs/architecture.md"
       agent: "architect"
       command: "/bmad:bmm:workflows:create-architecture"
       output: "Integration architecture - solution design for THIS project"
       note: "HIGHLY RECOMMENDED: Distills brownfield context into focused solution design"
+      completed: "2025-12-15"
+      files_generated:
+        - "docs/architecture.md"
+        - "docs/project_context.md"
+      key_decisions:
+        - "Lightsail PERN stack with Docker ($57-91/month vs $125 serverless)"
+        - "17-table PostgreSQL schema (proper FK, no JSONB for entities)"
+        - "35-40 REST endpoints (consolidated, nested resources + actions)"
+        - "Comprehensive patterns prevent AI agent conflicts"
+        - "Migration safety: Prisma + snapshots + 6 rules"
+        - "Project context: 369-line critical rules guide for AI agents"
 
     create-epics-stories:
       status: "required"
