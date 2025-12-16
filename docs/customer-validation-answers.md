@@ -26,7 +26,7 @@
 
 ### Q2: Document Format
 
-**ANSWER:** ✅ **RTF only** ("RTF only - lol")
+**ANSWER:** ✅ **RTF only**
 
 **Rationale:** Legacy used RTF, agencies may not be able to handle DocuSign or modern formats
 
