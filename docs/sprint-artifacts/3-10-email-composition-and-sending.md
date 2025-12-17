@@ -1,6 +1,6 @@
 # Story 3.10: Email Composition & Sending
 
-Status: backlog
+Status: done
 
 ## Story
 
