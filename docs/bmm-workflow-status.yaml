@@ -111,11 +111,20 @@ workflow_status:
         - "Project context: 369-line critical rules guide for AI agents"
 
     create-epics-stories:
-      status: "required"
+      status: "docs/epics.md"
       agent: "pm"
       command: "/bmad:bmm:workflows:create-epics-stories"
       note: "Break down PRD into implementable epics and stories"
       requires: "PRD + UX (if applicable) + Architecture (if created)"
+      completed: "2025-12-15"
+      files_generated:
+        - "docs/epics.md"
+      key_decisions:
+        - "8 user-value-focused epics (not technical layers)"
+        - "113 user stories with Given/When/Then acceptance criteria"
+        - "100% FR coverage (all 159 requirements mapped)"
+        - "100% NFR coverage (all 63 quality attributes addressed)"
+        - "Epics 1-4 fully detailed (32 stories), Epics 5-8 designed by subagent (81 stories)"
 
     testarch-test-design:
       status: "recommended"
