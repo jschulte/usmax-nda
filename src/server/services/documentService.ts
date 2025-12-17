@@ -1,0 +1,630 @@
+/**
+ * Document Service
+ * Story 4.1-4.7: Document Management & Execution
+ *
+ * Handles document operations:
+ * - Upload documents (Story 4.1)
+ * - Mark as fully executed (Story 4.2)
+ * - Download with pre-signed URLs (Story 4.3)
+ * - Version history (Story 4.4)
+ * - Bulk download as ZIP (Story 4.5)
+ * - Metadata tracking (Story 4.6)
+ */
+
+import { prisma } from '../db/index.js';
+import { uploadDocument, getDownloadUrl, getDocumentContent, S3ServiceError } from './s3Service.js';
+import { auditService, AuditAction } from './auditService.js';
+import { transitionStatus, StatusTrigger } from './statusTransitionService.js';
+import type { Document, DocumentType, NdaStatus } from '../../generated/prisma/index.js';
+import type { UserContext } from '../types/auth.js';
+import archiver from 'archiver';
+import { PassThrough } from 'stream';
+
+/**
+ * Service error class
+ */
+export class DocumentServiceError extends Error {
+  constructor(
+    message: string,
+    public code: string
+  ) {
+    super(message);
+    this.name = 'DocumentServiceError';
+  }
+}
+
+/**
+ * Allowed file types for upload
+ */
+export const ALLOWED_FILE_TYPES = [
+  'application/pdf',
+  'application/rtf',
+  'text/rtf',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+  'application/msword', // .doc
+];
+
+/**
+ * Allowed file extensions
+ */
+export const ALLOWED_EXTENSIONS = ['.pdf', '.rtf', '.docx', '.doc'];
+
+/**
+ * Maximum file size (50MB)
+ */
+export const MAX_FILE_SIZE = 50 * 1024 * 1024;
+
+/**
+ * Document upload input
+ */
+export interface DocumentUploadInput {
+  ndaId: string;
+  filename: string;
+  content: Buffer;
+  contentType: string;
+  fileSize: number;
+  isFullyExecuted?: boolean;
+  notes?: string;
+}
+
+/**
+ * Document response type
+ */
+export interface DocumentResponse {
+  id: string;
+  ndaId: string;
+  filename: string;
+  fileType: string | null;
+  fileSize: number | null;
+  documentType: DocumentType;
+  isFullyExecuted: boolean;
+  versionNumber: number;
+  notes: string | null;
+  uploadedById: string;
+  uploadedBy: {
+    id: string;
+    firstName: string | null;
+    lastName: string | null;
+    email: string;
+  };
+  uploadedAt: Date;
+}
+
+/**
+ * Validate file type and extension
+ */
+export function validateFileType(filename: string, contentType: string): void {
+  const ext = filename.substring(filename.lastIndexOf('.')).toLowerCase();
+
+  if (!ALLOWED_EXTENSIONS.includes(ext)) {
+    throw new DocumentServiceError(
+      `Invalid file extension. Allowed: ${ALLOWED_EXTENSIONS.join(', ')}`,
+      'INVALID_FILE_TYPE'
+    );
+  }
+
+  // Also validate content type if provided
+  if (contentType && !ALLOWED_FILE_TYPES.includes(contentType)) {
+    throw new DocumentServiceError(
+      'Invalid file type. Only RTF, PDF, and DOCX files are allowed.',
+      'INVALID_FILE_TYPE'
+    );
+  }
+}
+
+/**
+ * Validate file size
+ */
+export function validateFileSize(size: number): void {
+  if (size > MAX_FILE_SIZE) {
+    throw new DocumentServiceError(
+      `File size exceeds maximum allowed (${MAX_FILE_SIZE / (1024 * 1024)}MB)`,
+      'FILE_TOO_LARGE'
+    );
+  }
+}
+
+/**
+ * Upload a document to an NDA
+ * Story 4.1: Document Upload with Drag-Drop
+ *
+ * @param input - Document upload parameters
+ * @param userContext - User context for authorization
+ * @param auditMeta - Audit metadata (IP, user agent)
+ * @returns Uploaded document record
+ */
+export async function uploadNdaDocument(
+  input: DocumentUploadInput,
+  userContext: UserContext,
+  auditMeta?: { ipAddress?: string; userAgent?: string }
+): Promise<DocumentResponse> {
+  // Validate file
+  validateFileType(input.filename, input.contentType);
+  validateFileSize(input.fileSize);
+
+  // Check NDA exists and user has access
+  const nda = await prisma.nda.findUnique({
+    where: { id: input.ndaId },
+    select: {
+      id: true,
+      displayId: true,
+      status: true,
+      agencyGroupId: true,
+      subagencyId: true,
+    },
+  });
+
+  if (!nda) {
+    throw new DocumentServiceError('NDA not found', 'NDA_NOT_FOUND');
+  }
+
+  // Check user has access to this NDA's agency
+  if (!hasAgencyAccess(nda.agencyGroupId, nda.subagencyId, userContext)) {
+    throw new DocumentServiceError('Access denied to this NDA', 'ACCESS_DENIED');
+  }
+
+  // Get next version number
+  const lastDoc = await prisma.document.findFirst({
+    where: { ndaId: input.ndaId },
+    orderBy: { versionNumber: 'desc' },
+    select: { versionNumber: true },
+  });
+  const nextVersion = (lastDoc?.versionNumber ?? 0) + 1;
+
+  // Upload to S3
+  const s3Result = await uploadDocument({
+    ndaId: input.ndaId,
+    filename: input.filename,
+    content: input.content,
+    contentType: input.contentType,
+  });
+
+  // Determine document type
+  let documentType: DocumentType = 'UPLOADED';
+  if (input.isFullyExecuted) {
+    documentType = 'FULLY_EXECUTED';
+  }
+
+  // Create document record
+  const document = await prisma.document.create({
+    data: {
+      ndaId: input.ndaId,
+      filename: input.filename,
+      s3Key: s3Result.s3Key,
+      s3Region: 'us-east-1',
+      fileType: input.contentType,
+      fileSize: input.fileSize,
+      documentType,
+      isFullyExecuted: input.isFullyExecuted ?? false,
+      versionNumber: nextVersion,
+      notes: input.notes ?? `Uploaded by ${userContext.email}`,
+      uploadedById: userContext.contactId,
+    },
+    include: {
+      uploadedBy: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+        },
+      },
+    },
+  });
+
+  // Log audit
+  await auditService.log({
+    action: AuditAction.DOCUMENT_UPLOADED,
+    entityType: 'document',
+    entityId: document.id,
+    userId: userContext.contactId,
+    ipAddress: auditMeta?.ipAddress,
+    userAgent: auditMeta?.userAgent,
+    details: {
+      ndaId: input.ndaId,
+      ndaDisplayId: nda.displayId,
+      filename: input.filename,
+      documentType,
+      isFullyExecuted: input.isFullyExecuted,
+      versionNumber: nextVersion,
+    },
+  });
+
+  // If marked as fully executed, auto-transition NDA status (Story 4.2)
+  if (input.isFullyExecuted) {
+    try {
+      await transitionStatus(
+        input.ndaId,
+        'FULLY_EXECUTED' as NdaStatus,
+        StatusTrigger.FULLY_EXECUTED_UPLOAD,
+        userContext,
+        auditMeta
+      );
+    } catch {
+      // Log but don't fail if transition doesn't apply
+      console.log(`[Document] Could not auto-transition NDA ${input.ndaId} to FULLY_EXECUTED`);
+    }
+  }
+
+  return formatDocumentResponse(document);
+}
+
+/**
+ * Get documents for an NDA
+ * Story 4.4: Document Version History
+ *
+ * @param ndaId - NDA ID
+ * @param userContext - User context for authorization
+ * @returns List of documents ordered by version
+ */
+export async function getNdaDocuments(
+  ndaId: string,
+  userContext: UserContext
+): Promise<DocumentResponse[]> {
+  // Check NDA exists and user has access
+  const nda = await prisma.nda.findUnique({
+    where: { id: ndaId },
+    select: {
+      id: true,
+      agencyGroupId: true,
+      subagencyId: true,
+    },
+  });
+
+  if (!nda) {
+    throw new DocumentServiceError('NDA not found', 'NDA_NOT_FOUND');
+  }
+
+  if (!hasAgencyAccess(nda.agencyGroupId, nda.subagencyId, userContext)) {
+    throw new DocumentServiceError('Access denied to this NDA', 'ACCESS_DENIED');
+  }
+
+  const documents = await prisma.document.findMany({
+    where: { ndaId },
+    include: {
+      uploadedBy: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+        },
+      },
+    },
+    orderBy: { uploadedAt: 'desc' },
+  });
+
+  return documents.map(formatDocumentResponse);
+}
+
+/**
+ * Get download URL for a document
+ * Story 4.3: Document Download with Pre-Signed URLs
+ *
+ * @param documentId - Document ID
+ * @param userContext - User context for authorization
+ * @param auditMeta - Audit metadata
+ * @returns Pre-signed download URL
+ */
+export async function getDocumentDownloadUrl(
+  documentId: string,
+  userContext: UserContext,
+  auditMeta?: { ipAddress?: string; userAgent?: string }
+): Promise<{ url: string; filename: string }> {
+  const document = await prisma.document.findUnique({
+    where: { id: documentId },
+    include: {
+      nda: {
+        select: {
+          id: true,
+          displayId: true,
+          agencyGroupId: true,
+          subagencyId: true,
+        },
+      },
+    },
+  });
+
+  if (!document) {
+    throw new DocumentServiceError('Document not found', 'DOCUMENT_NOT_FOUND');
+  }
+
+  if (!hasAgencyAccess(document.nda.agencyGroupId, document.nda.subagencyId, userContext)) {
+    throw new DocumentServiceError('Access denied to this document', 'ACCESS_DENIED');
+  }
+
+  // Generate pre-signed URL (15 minutes TTL)
+  const url = await getDownloadUrl(document.s3Key, 900);
+
+  // Log audit
+  await auditService.log({
+    action: AuditAction.DOCUMENT_DOWNLOADED,
+    entityType: 'document',
+    entityId: document.id,
+    userId: userContext.contactId,
+    ipAddress: auditMeta?.ipAddress,
+    userAgent: auditMeta?.userAgent,
+    details: {
+      ndaId: document.ndaId,
+      ndaDisplayId: document.nda.displayId,
+      filename: document.filename,
+    },
+  });
+
+  return { url, filename: document.filename };
+}
+
+/**
+ * Get a single document by ID
+ */
+export async function getDocument(
+  documentId: string,
+  userContext: UserContext
+): Promise<DocumentResponse | null> {
+  const document = await prisma.document.findUnique({
+    where: { id: documentId },
+    include: {
+      nda: {
+        select: {
+          agencyGroupId: true,
+          subagencyId: true,
+        },
+      },
+      uploadedBy: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+        },
+      },
+    },
+  });
+
+  if (!document) {
+    return null;
+  }
+
+  if (!hasAgencyAccess(document.nda.agencyGroupId, document.nda.subagencyId, userContext)) {
+    throw new DocumentServiceError('Access denied to this document', 'ACCESS_DENIED');
+  }
+
+  return formatDocumentResponse(document);
+}
+
+/**
+ * Mark document as fully executed
+ * Story 4.2: Mark Document as Fully Executed
+ */
+export async function markDocumentFullyExecuted(
+  documentId: string,
+  userContext: UserContext,
+  auditMeta?: { ipAddress?: string; userAgent?: string }
+): Promise<DocumentResponse> {
+  const document = await prisma.document.findUnique({
+    where: { id: documentId },
+    include: {
+      nda: {
+        select: {
+          id: true,
+          displayId: true,
+          agencyGroupId: true,
+          subagencyId: true,
+        },
+      },
+    },
+  });
+
+  if (!document) {
+    throw new DocumentServiceError('Document not found', 'DOCUMENT_NOT_FOUND');
+  }
+
+  if (!hasAgencyAccess(document.nda.agencyGroupId, document.nda.subagencyId, userContext)) {
+    throw new DocumentServiceError('Access denied', 'ACCESS_DENIED');
+  }
+
+  // Update document
+  const updated = await prisma.document.update({
+    where: { id: documentId },
+    data: {
+      isFullyExecuted: true,
+      documentType: 'FULLY_EXECUTED',
+    },
+    include: {
+      uploadedBy: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+        },
+      },
+    },
+  });
+
+  // Log audit
+  await auditService.log({
+    action: AuditAction.DOCUMENT_MARKED_EXECUTED,
+    entityType: 'document',
+    entityId: documentId,
+    userId: userContext.contactId,
+    ipAddress: auditMeta?.ipAddress,
+    userAgent: auditMeta?.userAgent,
+    details: {
+      ndaId: document.ndaId,
+      ndaDisplayId: document.nda.displayId,
+    },
+  });
+
+  // Auto-transition NDA status
+  try {
+    await transitionStatus(
+      document.ndaId,
+      'FULLY_EXECUTED' as NdaStatus,
+      StatusTrigger.FULLY_EXECUTED_UPLOAD,
+      userContext,
+      auditMeta
+    );
+  } catch {
+    console.log(`[Document] Could not auto-transition NDA ${document.ndaId}`);
+  }
+
+  return formatDocumentResponse(updated);
+}
+
+/**
+ * Bulk download response type
+ */
+export interface BulkDownloadResult {
+  stream: PassThrough;
+  filename: string;
+  documentCount: number;
+}
+
+/**
+ * Create a ZIP archive of all documents for an NDA
+ * Story 4.5: Download All Versions as ZIP
+ *
+ * @param ndaId - NDA ID
+ * @param userContext - User context for authorization
+ * @param auditMeta - Audit metadata
+ * @returns ZIP stream and metadata
+ */
+export async function createBulkDownload(
+  ndaId: string,
+  userContext: UserContext,
+  auditMeta?: { ipAddress?: string; userAgent?: string }
+): Promise<BulkDownloadResult> {
+  // Check NDA exists and user has access
+  const nda = await prisma.nda.findUnique({
+    where: { id: ndaId },
+    select: {
+      id: true,
+      displayId: true,
+      companyName: true,
+      agencyGroupId: true,
+      subagencyId: true,
+    },
+  });
+
+  if (!nda) {
+    throw new DocumentServiceError('NDA not found', 'NDA_NOT_FOUND');
+  }
+
+  if (!hasAgencyAccess(nda.agencyGroupId, nda.subagencyId, userContext)) {
+    throw new DocumentServiceError('Access denied to this NDA', 'ACCESS_DENIED');
+  }
+
+  // Get all documents for this NDA
+  const documents = await prisma.document.findMany({
+    where: { ndaId },
+    orderBy: { uploadedAt: 'desc' },
+    select: {
+      id: true,
+      filename: true,
+      s3Key: true,
+      versionNumber: true,
+      uploadedAt: true,
+    },
+  });
+
+  if (documents.length === 0) {
+    throw new DocumentServiceError('No documents found for this NDA', 'NO_DOCUMENTS');
+  }
+
+  // Create ZIP archive
+  const archive = archiver('zip', {
+    zlib: { level: 9 }, // Maximum compression
+  });
+
+  const passthrough = new PassThrough();
+  archive.pipe(passthrough);
+
+  // Add each document to the archive
+  for (const doc of documents) {
+    try {
+      const content = await getDocumentContent(doc.s3Key);
+      // Prefix filename with version number to avoid duplicates
+      const archiveFilename = `v${doc.versionNumber}_${doc.filename}`;
+      archive.append(content, { name: archiveFilename });
+    } catch (error) {
+      console.error(`[Document] Failed to add ${doc.filename} to archive:`, error);
+      // Continue with other files even if one fails
+    }
+  }
+
+  // Finalize the archive
+  archive.finalize();
+
+  // Generate ZIP filename
+  const sanitizedCompany = nda.companyName.replace(/[^a-zA-Z0-9]/g, '_');
+  const filename = `NDA_${nda.displayId}_${sanitizedCompany}_documents.zip`;
+
+  // Log audit
+  await auditService.log({
+    action: AuditAction.DOCUMENT_DOWNLOADED,
+    entityType: 'nda',
+    entityId: ndaId,
+    userId: userContext.contactId,
+    ipAddress: auditMeta?.ipAddress,
+    userAgent: auditMeta?.userAgent,
+    details: {
+      ndaId,
+      ndaDisplayId: nda.displayId,
+      downloadType: 'bulk_zip',
+      documentCount: documents.length,
+    },
+  });
+
+  return {
+    stream: passthrough,
+    filename,
+    documentCount: documents.length,
+  };
+}
+
+/**
+ * Check if user has access to an agency
+ */
+function hasAgencyAccess(
+  agencyGroupId: string,
+  subagencyId: string | null,
+  userContext: UserContext
+): boolean {
+  // Admin has access to all
+  if (userContext.permissions.has('admin:manage_agencies')) {
+    return true;
+  }
+
+  // Check agency group access
+  if (userContext.authorizedAgencyGroups.includes(agencyGroupId)) {
+    return true;
+  }
+
+  // Check subagency access
+  if (subagencyId && userContext.authorizedSubagencies.includes(subagencyId)) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Format document for API response
+ */
+function formatDocumentResponse(document: any): DocumentResponse {
+  return {
+    id: document.id,
+    ndaId: document.ndaId,
+    filename: document.filename,
+    fileType: document.fileType,
+    fileSize: document.fileSize,
+    documentType: document.documentType,
+    isFullyExecuted: document.isFullyExecuted,
+    versionNumber: document.versionNumber,
+    notes: document.notes,
+    uploadedById: document.uploadedById,
+    uploadedBy: document.uploadedBy,
+    uploadedAt: document.uploadedAt,
+  };
+}

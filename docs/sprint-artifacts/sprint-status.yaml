@@ -73,14 +73,14 @@ development_status:
   epic-3-retrospective: optional
 
   epic-3: done
-  epic-4: backlog
-  4-1-document-upload-with-drag-drop: backlog
-  4-2-mark-document-as-fully-executed: backlog
-  4-3-document-download-with-pre-signed-urls: backlog
-  4-4-document-version-history: backlog
-  4-5-download-all-versions-as-zip: backlog
-  4-6-document-metadata-tracking: backlog
-  4-7-indefinite-document-preservation: backlog
+  epic-4: done
+  4-1-document-upload-with-drag-drop: done
+  4-2-mark-document-as-fully-executed: done
+  4-3-document-download-with-pre-signed-urls: done
+  4-4-document-version-history: done
+  4-5-download-all-versions-as-zip: done
+  4-6-document-metadata-tracking: done
+  4-7-indefinite-document-preservation: done
   epic-4-retrospective: optional
 
   epic-5: backlog

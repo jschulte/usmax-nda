@@ -144,6 +144,47 @@ export async function getDownloadUrl(
 }
 
 /**
+ * Get document content from S3
+ * Story 4.5: Download All Versions as ZIP
+ *
+ * @param s3Key - S3 key of the document
+ * @returns Document content as Buffer
+ * @throws S3ServiceError on download failure
+ */
+export async function getDocumentContent(s3Key: string): Promise<Buffer> {
+  try {
+    const command = new GetObjectCommand({
+      Bucket: BUCKET_NAME,
+      Key: s3Key,
+    });
+
+    const response = await s3Client.send(command);
+
+    if (!response.Body) {
+      throw new S3ServiceError('Empty response body', 'DOWNLOAD_FAILED');
+    }
+
+    // Convert stream to buffer
+    const chunks: Uint8Array[] = [];
+    // @ts-expect-error - Body is a stream
+    for await (const chunk of response.Body) {
+      chunks.push(chunk);
+    }
+
+    return Buffer.concat(chunks);
+  } catch (error) {
+    if (error instanceof S3ServiceError) {
+      throw error;
+    }
+    throw new S3ServiceError(
+      'Failed to download document from S3',
+      'DOWNLOAD_FAILED',
+      error instanceof Error ? error : undefined
+    );
+  }
+}
+
+/**
  * Delete a document from S3
  *
  * @param s3Key - S3 key of the document to delete

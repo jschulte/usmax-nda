@@ -64,10 +64,11 @@ export enum AuditAction {
   NDA_STATUS_CHANGED = 'nda_status_changed',
   NDA_DELETED = 'nda_deleted',
 
-  // Document management events (Story 3.5+)
+  // Document management events (Story 3.5+, 4.1+)
   DOCUMENT_GENERATED = 'document_generated',
   DOCUMENT_UPLOADED = 'document_uploaded',
   DOCUMENT_DOWNLOADED = 'document_downloaded',
+  DOCUMENT_MARKED_EXECUTED = 'document_marked_executed',
   DOCUMENT_DELETED = 'document_deleted',
 
   // Email events (Story 3.10)

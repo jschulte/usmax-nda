@@ -88,6 +88,15 @@ import {
   isTerminalStatus,
   canReactivate,
 } from '../services/statusTransitionService.js';
+import {
+  uploadNdaDocument,
+  getNdaDocuments,
+  getDocumentDownloadUrl,
+  markDocumentFullyExecuted,
+  createBulkDownload,
+  DocumentServiceError,
+} from '../services/documentService.js';
+import { documentUpload } from '../middleware/fileUpload.js';
 
 const router = Router();
 
@@ -1001,11 +1010,11 @@ router.post(
 /**
  * GET /api/ndas/:id/documents
  * List all documents for an NDA
- * Story 3.5: RTF Document Generation
+ * Story 3.5: RTF Document Generation / Story 4.4: Document Version History
  *
  * Requires: nda:view permission
  *
- * Returns: Array of document metadata
+ * Returns: Array of document metadata with version history
  */
 router.get(
   '/:id/documents',
@@ -1016,12 +1025,287 @@ router.get(
   ]),
   async (req, res) => {
     try {
-      const documents = await listNdaDocuments(req.params.id, req.userContext!);
+      // Use new documentService for richer response (Story 4.4)
+      const documents = await getNdaDocuments(req.params.id, req.userContext!);
       res.json({ documents });
     } catch (error) {
+      if (error instanceof DocumentServiceError) {
+        const statusCode = error.code === 'NDA_NOT_FOUND' ? 404 : 500;
+        return res.status(statusCode).json({
+          error: error.message,
+          code: error.code,
+        });
+      }
+
       console.error('[NDAs] Error listing documents:', error);
       res.status(500).json({
         error: 'Failed to list documents',
+        code: 'INTERNAL_ERROR',
+      });
+    }
+  }
+);
+
+/**
+ * POST /api/ndas/:id/documents/upload
+ * Upload a document to an NDA
+ * Story 4.1: Document Upload with Drag-Drop
+ *
+ * Body (multipart/form-data):
+ * - file: File (required) - RTF, PDF, or DOCX file
+ * - isFullyExecuted: boolean (optional) - Mark as fully executed
+ * - notes: string (optional) - Additional notes
+ *
+ * Requires: nda:create or nda:update permission
+ *
+ * Returns:
+ * - document: Uploaded document metadata
+ */
+router.post(
+  '/:id/documents/upload',
+  requireAnyPermission([PERMISSIONS.NDA_CREATE, PERMISSIONS.NDA_UPDATE]),
+  documentUpload.single('file'),
+  async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({
+          error: 'No file provided',
+          code: 'VALIDATION_ERROR',
+        });
+      }
+
+      const isFullyExecuted = req.body.isFullyExecuted === 'true';
+      const notes = req.body.notes as string | undefined;
+
+      const document = await uploadNdaDocument(
+        {
+          ndaId: req.params.id,
+          filename: req.file.originalname,
+          content: req.file.buffer,
+          contentType: req.file.mimetype,
+          fileSize: req.file.size,
+          isFullyExecuted,
+          notes,
+        },
+        req.userContext!,
+        {
+          ipAddress: req.ip,
+          userAgent: req.get('User-Agent'),
+        }
+      );
+
+      res.status(201).json({
+        message: 'Document uploaded successfully',
+        document,
+      });
+    } catch (error) {
+      if (error instanceof DocumentServiceError) {
+        const statusCode =
+          error.code === 'NDA_NOT_FOUND'
+            ? 404
+            : error.code === 'ACCESS_DENIED'
+              ? 403
+              : error.code === 'INVALID_FILE_TYPE' || error.code === 'FILE_TOO_LARGE'
+                ? 400
+                : 500;
+
+        return res.status(statusCode).json({
+          error: error.message,
+          code: error.code,
+        });
+      }
+
+      // Handle multer errors
+      if (error instanceof Error && error.message.includes('Invalid file')) {
+        return res.status(400).json({
+          error: error.message,
+          code: 'INVALID_FILE_TYPE',
+        });
+      }
+
+      console.error('[NDAs] Error uploading document:', error);
+      res.status(500).json({
+        error: 'Failed to upload document',
+        code: 'INTERNAL_ERROR',
+      });
+    }
+  }
+);
+
+/**
+ * PATCH /api/ndas/documents/:documentId/mark-executed
+ * Mark a document as fully executed
+ * Story 4.2: Mark Document as Fully Executed
+ *
+ * Marks the document as fully executed and auto-transitions NDA status.
+ *
+ * Requires: nda:update permission
+ *
+ * Returns:
+ * - document: Updated document metadata
+ */
+router.patch(
+  '/documents/:documentId/mark-executed',
+  requirePermission(PERMISSIONS.NDA_UPDATE),
+  async (req, res) => {
+    try {
+      const document = await markDocumentFullyExecuted(
+        req.params.documentId,
+        req.userContext!,
+        {
+          ipAddress: req.ip,
+          userAgent: req.get('User-Agent'),
+        }
+      );
+
+      res.json({
+        message: 'Document marked as fully executed',
+        document,
+      });
+    } catch (error) {
+      if (error instanceof DocumentServiceError) {
+        const statusCode =
+          error.code === 'DOCUMENT_NOT_FOUND'
+            ? 404
+            : error.code === 'ACCESS_DENIED'
+              ? 403
+              : 500;
+
+        return res.status(statusCode).json({
+          error: error.message,
+          code: error.code,
+        });
+      }
+
+      console.error('[NDAs] Error marking document executed:', error);
+      res.status(500).json({
+        error: 'Failed to mark document as executed',
+        code: 'INTERNAL_ERROR',
+      });
+    }
+  }
+);
+
+/**
+ * GET /api/ndas/documents/:documentId/download-url
+ * Get a pre-signed download URL for a document
+ * Story 4.3: Document Download with Pre-Signed URLs
+ *
+ * Uses documentService for audit logging.
+ *
+ * Query params:
+ * - expiresIn: URL expiration in seconds (default: 900 = 15 minutes)
+ *
+ * Requires: nda:view permission
+ *
+ * Returns: Pre-signed S3 URL for download
+ */
+router.get(
+  '/documents/:documentId/download-url',
+  requireAnyPermission([
+    PERMISSIONS.NDA_VIEW,
+    PERMISSIONS.NDA_CREATE,
+    PERMISSIONS.NDA_UPDATE,
+  ]),
+  async (req, res) => {
+    try {
+      const result = await getDocumentDownloadUrl(
+        req.params.documentId,
+        req.userContext!,
+        {
+          ipAddress: req.ip,
+          userAgent: req.get('User-Agent'),
+        }
+      );
+
+      res.json({
+        downloadUrl: result.url,
+        filename: result.filename,
+      });
+    } catch (error) {
+      if (error instanceof DocumentServiceError) {
+        const statusCode =
+          error.code === 'DOCUMENT_NOT_FOUND'
+            ? 404
+            : error.code === 'ACCESS_DENIED'
+              ? 403
+              : 500;
+
+        return res.status(statusCode).json({
+          error: error.message,
+          code: error.code,
+        });
+      }
+
+      console.error('[NDAs] Error getting download URL:', error);
+      res.status(500).json({
+        error: 'Failed to generate download URL',
+        code: 'INTERNAL_ERROR',
+      });
+    }
+  }
+);
+
+/**
+ * GET /api/ndas/:id/documents/download-all
+ * Download all documents for an NDA as a ZIP archive
+ * Story 4.5: Download All Versions as ZIP
+ *
+ * Requires: nda:view permission
+ *
+ * Returns: ZIP file stream
+ */
+router.get(
+  '/:id/documents/download-all',
+  requireAnyPermission([
+    PERMISSIONS.NDA_VIEW,
+    PERMISSIONS.NDA_CREATE,
+    PERMISSIONS.NDA_UPDATE,
+  ]),
+  async (req, res) => {
+    try {
+      const result = await createBulkDownload(req.params.id, req.userContext!, {
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent'),
+      });
+
+      // Set headers for ZIP download
+      res.setHeader('Content-Type', 'application/zip');
+      res.setHeader('Content-Disposition', `attachment; filename="${result.filename}"`);
+
+      // Pipe the archive stream to the response
+      result.stream.pipe(res);
+
+      // Handle stream errors
+      result.stream.on('error', (error) => {
+        console.error('[NDAs] Error streaming ZIP:', error);
+        if (!res.headersSent) {
+          res.status(500).json({
+            error: 'Failed to generate ZIP archive',
+            code: 'INTERNAL_ERROR',
+          });
+        }
+      });
+    } catch (error) {
+      if (error instanceof DocumentServiceError) {
+        const statusCode =
+          error.code === 'NDA_NOT_FOUND'
+            ? 404
+            : error.code === 'ACCESS_DENIED'
+              ? 403
+              : error.code === 'NO_DOCUMENTS'
+                ? 404
+                : 500;
+
+        return res.status(statusCode).json({
+          error: error.message,
+          code: error.code,
+        });
+      }
+
+      console.error('[NDAs] Error creating bulk download:', error);
+      res.status(500).json({
+        error: 'Failed to create bulk download',
         code: 'INTERNAL_ERROR',
       });
     }
