@@ -222,6 +222,10 @@ app.listen(PORT, () => {
 ║    GET /api/ndas/company-search      - Search companies   ║
 ║    GET /api/ndas/company-agency      - Most common agency ║
 ╠═══════════════════════════════════════════════════════════╣
+║  Agency Suggestions (Story 3.4):                          ║
+║    GET /api/ndas/agency-suggestions  - Agency suggestions ║
+║    GET /api/ndas/agency-subagencies  - Common subagencies ║
+╠═══════════════════════════════════════════════════════════╣
 ║  Mock Users (when USE_MOCK_AUTH=true):                    ║
 ║    admin@usmax.com / Admin123!@#$  (MFA: 123456)          ║
 ║    test@usmax.com  / Test1234!@#$  (MFA: 123456)          ║

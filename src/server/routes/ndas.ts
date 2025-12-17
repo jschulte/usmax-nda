@@ -3,12 +3,15 @@
  * Story 3.1: Create NDA with Basic Form
  * Story 3.2: Smart Form Auto-Fill (Company-First Entry Path)
  * Story 3.3: Clone/Duplicate NDA (Second Entry Path)
+ * Story 3.4: Agency-First Entry Path with Suggestions
  *
  * REST API endpoints for NDA operations:
  * - GET    /api/ndas                    - List NDAs with pagination and filtering
  * - GET    /api/ndas/company-suggestions - Get recent companies
  * - GET    /api/ndas/company-defaults   - Get auto-fill defaults for company
  * - GET    /api/ndas/company-search     - Search companies
+ * - GET    /api/ndas/agency-suggestions - Get suggestions for an agency
+ * - GET    /api/ndas/agency-subagencies - Get common subagencies for agency
  * - GET    /api/ndas/:id                - Get NDA details
  * - POST   /api/ndas                    - Create new NDA
  * - POST   /api/ndas/:id/clone          - Clone an existing NDA
@@ -40,6 +43,10 @@ import {
   searchCompanies,
   getMostCommonAgency,
 } from '../services/companySuggestionsService.js';
+import {
+  getAgencySuggestions,
+  getCommonSubagencies,
+} from '../services/agencySuggestionsService.js';
 
 const router = Router();
 
@@ -246,6 +253,86 @@ router.get(
       console.error('[NDAs] Error getting company agency:', error);
       res.status(500).json({
         error: 'Failed to get company agency',
+        code: 'INTERNAL_ERROR',
+      });
+    }
+  }
+);
+
+/**
+ * GET /api/ndas/agency-suggestions
+ * Get intelligent suggestions for an agency
+ * Story 3.4: Agency-First Entry Path with Suggestions
+ *
+ * Query params:
+ * - agencyGroupId: Agency group ID (required)
+ *
+ * Returns:
+ * - commonCompanies: Top 5 companies for this agency
+ * - typicalPosition: Most common USMax position
+ * - positionCounts: Counts for all positions
+ * - defaultTemplateId/Name: Most used template (when available)
+ *
+ * Requires: nda:create or nda:update permission
+ */
+router.get(
+  '/agency-suggestions',
+  requireAnyPermission([PERMISSIONS.NDA_CREATE, PERMISSIONS.NDA_UPDATE]),
+  async (req, res) => {
+    try {
+      const agencyGroupId = req.query.agencyGroupId as string;
+
+      if (!agencyGroupId) {
+        return res.status(400).json({
+          error: 'Agency group ID is required',
+          code: 'VALIDATION_ERROR',
+        });
+      }
+
+      const suggestions = await getAgencySuggestions(agencyGroupId, req.userContext!);
+      res.json({ suggestions });
+    } catch (error) {
+      console.error('[NDAs] Error getting agency suggestions:', error);
+      res.status(500).json({
+        error: 'Failed to get agency suggestions',
+        code: 'INTERNAL_ERROR',
+      });
+    }
+  }
+);
+
+/**
+ * GET /api/ndas/agency-subagencies
+ * Get common subagencies for an agency
+ * Story 3.4: Agency-First Entry Path with Suggestions
+ *
+ * Query params:
+ * - agencyGroupId: Agency group ID (required)
+ * - limit: Max results (default: 5)
+ *
+ * Requires: nda:create or nda:update permission
+ */
+router.get(
+  '/agency-subagencies',
+  requireAnyPermission([PERMISSIONS.NDA_CREATE, PERMISSIONS.NDA_UPDATE]),
+  async (req, res) => {
+    try {
+      const agencyGroupId = req.query.agencyGroupId as string;
+      const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 5;
+
+      if (!agencyGroupId) {
+        return res.status(400).json({
+          error: 'Agency group ID is required',
+          code: 'VALIDATION_ERROR',
+        });
+      }
+
+      const subagencies = await getCommonSubagencies(agencyGroupId, req.userContext!, limit);
+      res.json({ subagencies });
+    } catch (error) {
+      console.error('[NDAs] Error getting agency subagencies:', error);
+      res.status(500).json({
+        error: 'Failed to get agency subagencies',
         code: 'INTERNAL_ERROR',
       });
     }

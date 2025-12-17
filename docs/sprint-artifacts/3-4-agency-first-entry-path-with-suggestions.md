@@ -1,6 +1,6 @@
 # Story 3.4: Agency-First Entry Path with Suggestions
 
-Status: backlog
+Status: done
 
 ## Story
 
