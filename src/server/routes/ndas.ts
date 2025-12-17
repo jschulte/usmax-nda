@@ -1,13 +1,17 @@
 /**
  * NDA Routes
  * Story 3.1: Create NDA with Basic Form
+ * Story 3.2: Smart Form Auto-Fill (Company-First Entry Path)
  *
  * REST API endpoints for NDA operations:
- * - GET    /api/ndas         - List NDAs with pagination and filtering
- * - GET    /api/ndas/:id     - Get NDA details
- * - POST   /api/ndas         - Create new NDA
- * - PUT    /api/ndas/:id     - Update NDA
- * - PATCH  /api/ndas/:id/status - Change NDA status
+ * - GET    /api/ndas                    - List NDAs with pagination and filtering
+ * - GET    /api/ndas/company-suggestions - Get recent companies
+ * - GET    /api/ndas/company-defaults   - Get auto-fill defaults for company
+ * - GET    /api/ndas/company-search     - Search companies
+ * - GET    /api/ndas/:id                - Get NDA details
+ * - POST   /api/ndas                    - Create new NDA
+ * - PUT    /api/ndas/:id                - Update NDA
+ * - PATCH  /api/ndas/:id/status         - Change NDA status
  *
  * All endpoints require authentication and appropriate permissions.
  * Row-level security is enforced via agency access grants.
@@ -27,6 +31,12 @@ import {
   NdaServiceError,
   NdaStatus,
 } from '../services/ndaService.js';
+import {
+  getRecentCompanies,
+  getCompanyDefaults,
+  searchCompanies,
+  getMostCommonAgency,
+} from '../services/companySuggestionsService.js';
 
 const router = Router();
 
@@ -88,6 +98,151 @@ router.get(
       console.error('[NDAs] Error listing NDAs:', error);
       res.status(500).json({
         error: 'Failed to list NDAs',
+        code: 'INTERNAL_ERROR',
+      });
+    }
+  }
+);
+
+/**
+ * GET /api/ndas/company-suggestions
+ * Get recent companies used by the current user
+ * Story 3.2: Smart Form Auto-Fill
+ *
+ * Query params:
+ * - limit: Max companies to return (default: 10)
+ *
+ * Requires: nda:create or nda:update permission
+ */
+router.get(
+  '/company-suggestions',
+  requireAnyPermission([PERMISSIONS.NDA_CREATE, PERMISSIONS.NDA_UPDATE]),
+  async (req, res) => {
+    try {
+      const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 10;
+      const companies = await getRecentCompanies(req.userContext!, limit);
+      res.json({ companies });
+    } catch (error) {
+      console.error('[NDAs] Error getting company suggestions:', error);
+      res.status(500).json({
+        error: 'Failed to get company suggestions',
+        code: 'INTERNAL_ERROR',
+      });
+    }
+  }
+);
+
+/**
+ * GET /api/ndas/company-defaults
+ * Get auto-fill defaults for a company name
+ * Story 3.2: Smart Form Auto-Fill
+ *
+ * Query params:
+ * - name: Company name (required)
+ *
+ * Returns historical defaults for:
+ * - companyCity, companyState, stateOfIncorporation
+ * - lastRelationshipPocId/Name, lastContractsPocId/Name
+ * - mostCommonAgencyGroupId/Name, mostCommonSubagencyId/Name
+ *
+ * Requires: nda:create or nda:update permission
+ */
+router.get(
+  '/company-defaults',
+  requireAnyPermission([PERMISSIONS.NDA_CREATE, PERMISSIONS.NDA_UPDATE]),
+  async (req, res) => {
+    try {
+      const companyName = req.query.name as string;
+
+      if (!companyName) {
+        return res.status(400).json({
+          error: 'Company name is required',
+          code: 'VALIDATION_ERROR',
+        });
+      }
+
+      const defaults = await getCompanyDefaults(companyName, req.userContext!);
+      res.json({ defaults });
+    } catch (error) {
+      console.error('[NDAs] Error getting company defaults:', error);
+      res.status(500).json({
+        error: 'Failed to get company defaults',
+        code: 'INTERNAL_ERROR',
+      });
+    }
+  }
+);
+
+/**
+ * GET /api/ndas/company-search
+ * Search companies by partial name match
+ * Story 3.2: Smart Form Auto-Fill
+ *
+ * Query params:
+ * - q: Search query (required)
+ * - limit: Max results (default: 20)
+ *
+ * Requires: nda:create or nda:update permission
+ */
+router.get(
+  '/company-search',
+  requireAnyPermission([PERMISSIONS.NDA_CREATE, PERMISSIONS.NDA_UPDATE]),
+  async (req, res) => {
+    try {
+      const query = req.query.q as string;
+      const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 20;
+
+      if (!query || query.length < 2) {
+        return res.status(400).json({
+          error: 'Search query must be at least 2 characters',
+          code: 'VALIDATION_ERROR',
+        });
+      }
+
+      const companies = await searchCompanies(query, req.userContext!, limit);
+      res.json({ companies });
+    } catch (error) {
+      console.error('[NDAs] Error searching companies:', error);
+      res.status(500).json({
+        error: 'Failed to search companies',
+        code: 'INTERNAL_ERROR',
+      });
+    }
+  }
+);
+
+/**
+ * GET /api/ndas/company-agency
+ * Get the most common agency for a company
+ * Story 3.2: Smart Form Auto-Fill
+ *
+ * Query params:
+ * - name: Company name (required)
+ *
+ * Returns: { agencyGroupId, agencyGroupName, frequency }
+ *
+ * Requires: nda:create or nda:update permission
+ */
+router.get(
+  '/company-agency',
+  requireAnyPermission([PERMISSIONS.NDA_CREATE, PERMISSIONS.NDA_UPDATE]),
+  async (req, res) => {
+    try {
+      const companyName = req.query.name as string;
+
+      if (!companyName) {
+        return res.status(400).json({
+          error: 'Company name is required',
+          code: 'VALIDATION_ERROR',
+        });
+      }
+
+      const agency = await getMostCommonAgency(companyName, req.userContext!);
+      res.json({ agency });
+    } catch (error) {
+      console.error('[NDAs] Error getting company agency:', error);
+      res.status(500).json({
+        error: 'Failed to get company agency',
         code: 'INTERNAL_ERROR',
       });
     }

@@ -208,12 +208,18 @@ app.listen(PORT, () => {
 ║  Access Export (Story 2.6):                               ║
 ║    GET    /api/admin/access-export - CSV compliance audit ║
 ╠═══════════════════════════════════════════════════════════╣
-║  NDA Endpoints (Story 3.1+):                              ║
+║  NDA Endpoints (Story 3.1):                               ║
 ║    GET    /api/ndas             - List NDAs (filtered)    ║
 ║    GET    /api/ndas/:id         - Get NDA details         ║
 ║    POST   /api/ndas             - Create NDA              ║
 ║    PUT    /api/ndas/:id         - Update NDA              ║
 ║    PATCH  /api/ndas/:id/status  - Change NDA status       ║
+╠═══════════════════════════════════════════════════════════╣
+║  Company Suggestions (Story 3.2):                         ║
+║    GET /api/ndas/company-suggestions - Recent companies   ║
+║    GET /api/ndas/company-defaults    - Auto-fill values   ║
+║    GET /api/ndas/company-search      - Search companies   ║
+║    GET /api/ndas/company-agency      - Most common agency ║
 ╠═══════════════════════════════════════════════════════════╣
 ║  Mock Users (when USE_MOCK_AUTH=true):                    ║
 ║    admin@usmax.com / Admin123!@#$  (MFA: 123456)          ║

@@ -1,6 +1,6 @@
 # Story 3.2: Smart Form Auto-Fill (Company-First Entry Path)
 
-Status: backlog
+Status: done
 
 ## Story
 
