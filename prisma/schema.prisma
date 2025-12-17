@@ -319,18 +319,27 @@ enum DocumentType {
 }
 
 /// Document represents files attached to an NDA
+/// Story 4.1-4.7: Document Management & Execution
 model Document {
-  id           String       @id @default(uuid())
-  ndaId        String       @map("nda_id")
-  nda          Nda          @relation(fields: [ndaId], references: [id], onDelete: Cascade)
-  filename     String
-  s3Key        String       @map("s3_key")
-  documentType DocumentType @default(UPLOADED) @map("document_type")
-  uploadedById String       @map("uploaded_by_id")
-  uploadedBy   Contact      @relation(fields: [uploadedById], references: [id])
-  uploadedAt   DateTime     @default(now()) @map("uploaded_at")
+  id             String       @id @default(uuid())
+  ndaId          String       @map("nda_id")
+  nda            Nda          @relation(fields: [ndaId], references: [id], onDelete: Cascade)
+  filename       String       // Original filename
+  s3Key          String       @map("s3_key")
+  s3Region       String       @default("us-east-1") @map("s3_region")
+  fileType       String?      @map("file_type") // MIME type (e.g., application/pdf)
+  fileSize       Int?         @map("file_size") // File size in bytes
+  documentType   DocumentType @default(UPLOADED) @map("document_type")
+  isFullyExecuted Boolean     @default(false) @map("is_fully_executed") // Story 4.2
+  versionNumber  Int          @default(1) @map("version_number") // Story 4.4
+  notes          String?      @db.Text // Story 4.6: metadata notes
+  uploadedById   String       @map("uploaded_by_id")
+  uploadedBy     Contact      @relation(fields: [uploadedById], references: [id])
+  uploadedAt     DateTime     @default(now()) @map("uploaded_at")
 
   @@index([ndaId])
+  @@index([documentType])
+  @@index([isFullyExecuted])
   @@map("documents")
 }
 

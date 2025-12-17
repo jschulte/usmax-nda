@@ -87,6 +87,8 @@ export interface ListNdaParams {
   limit?: number;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
+  // Global search (Story 5.1)
+  search?: string; // Full-text search across all fields
   // Filters
   agencyGroupId?: string;
   subagencyId?: string;
@@ -543,6 +545,54 @@ export async function listNdas(
   const where: Prisma.NdaWhereInput = {
     ...securityFilter,
   };
+
+  // Global search (Story 5.1) - search across multiple fields
+  if (params.search && params.search.trim().length >= 2) {
+    const searchTerm = params.search.trim();
+    where.OR = [
+      { companyName: { contains: searchTerm, mode: 'insensitive' } },
+      { abbreviatedName: { contains: searchTerm, mode: 'insensitive' } },
+      { authorizedPurpose: { contains: searchTerm, mode: 'insensitive' } },
+      { companyCity: { contains: searchTerm, mode: 'insensitive' } },
+      { companyState: { contains: searchTerm, mode: 'insensitive' } },
+      { agencyOfficeName: { contains: searchTerm, mode: 'insensitive' } },
+      { stateOfIncorporation: { contains: searchTerm, mode: 'insensitive' } },
+      // Search by display ID (convert to number if possible)
+      ...(isFinite(parseInt(searchTerm, 10))
+        ? [{ displayId: parseInt(searchTerm, 10) }]
+        : []),
+      // Search in related entities
+      { agencyGroup: { name: { contains: searchTerm, mode: 'insensitive' } } },
+      { subagency: { name: { contains: searchTerm, mode: 'insensitive' } } },
+      {
+        opportunityPoc: {
+          OR: [
+            { firstName: { contains: searchTerm, mode: 'insensitive' } },
+            { lastName: { contains: searchTerm, mode: 'insensitive' } },
+            { email: { contains: searchTerm, mode: 'insensitive' } },
+          ],
+        },
+      },
+      {
+        contractsPoc: {
+          OR: [
+            { firstName: { contains: searchTerm, mode: 'insensitive' } },
+            { lastName: { contains: searchTerm, mode: 'insensitive' } },
+            { email: { contains: searchTerm, mode: 'insensitive' } },
+          ],
+        },
+      },
+      {
+        relationshipPoc: {
+          OR: [
+            { firstName: { contains: searchTerm, mode: 'insensitive' } },
+            { lastName: { contains: searchTerm, mode: 'insensitive' } },
+            { email: { contains: searchTerm, mode: 'insensitive' } },
+          ],
+        },
+      },
+    ];
+  }
 
   // Apply filters
   if (params.agencyGroupId) {

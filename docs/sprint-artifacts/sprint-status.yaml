@@ -83,19 +83,19 @@ development_status:
   4-7-indefinite-document-preservation: done
   epic-4-retrospective: optional
 
-  epic-5: backlog
-  5-1-global-nda-search: backlog
-  5-2-column-sorting-with-persistence: backlog
-  5-3-advanced-filtering-system: backlog
-  5-4-filter-presets: backlog
-  5-5-date-range-shortcuts: backlog
-  5-6-pagination-with-configurable-page-size: backlog
-  5-7-recently-used-values-in-dropdowns: backlog
-  5-8-personalized-dashboard: backlog
-  5-9-at-a-glance-metrics: backlog
-  5-10-stale-nda-identification: backlog
-  5-11-waiting-on-3rd-party-tracking: backlog
-  5-12-expiration-alerts: backlog
+  epic-5: in-progress
+  5-1-global-nda-search: done
+  5-2-column-sorting-with-persistence: done
+  5-3-advanced-filtering-system: done
+  5-4-filter-presets: done
+  5-5-date-range-shortcuts: done
+  5-6-pagination-with-configurable-page-size: done
+  5-7-recently-used-values-in-dropdowns: done
+  5-8-personalized-dashboard: done
+  5-9-at-a-glance-metrics: done
+  5-10-stale-nda-identification: done
+  5-11-waiting-on-3rd-party-tracking: done
+  5-12-expiration-alerts: done
   5-13-email-notification-preferences: backlog
   5-14-nda-stakeholder-subscriptions: backlog
   epic-5-retrospective: optional

@@ -63,8 +63,10 @@ vi.mock('../statusTransitionService.js', () => ({
     MANUAL_CHANGE: 'manual_change',
   },
   StatusTransitionError: class StatusTransitionError extends Error {
-    constructor(message: string, public code: string) {
+    code: string;
+    constructor(message: string, code: string) {
       super(message);
+      this.code = code;
       this.name = 'StatusTransitionError';
     }
   },

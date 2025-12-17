@@ -181,6 +181,7 @@ router.get(
  * - limit: Items per page (default: 20, max: 100)
  * - sortBy: Column to sort by (default: createdAt)
  * - sortOrder: 'asc' or 'desc' (default: desc)
+ * - search: Global search across all NDA fields (min 2 chars) (Story 5.1)
  * - agencyGroupId: Filter by agency group
  * - subagencyId: Filter by subagency
  * - companyName: Filter by company (partial match)
@@ -221,6 +222,8 @@ router.get(
         limit: req.query.limit ? parseInt(req.query.limit as string, 10) : undefined,
         sortBy: req.query.sortBy as string | undefined,
         sortOrder: req.query.sortOrder as 'asc' | 'desc' | undefined,
+        // Global search (Story 5.1)
+        search: req.query.search as string | undefined,
         agencyGroupId: req.query.agencyGroupId as string | undefined,
         subagencyId: req.query.subagencyId as string | undefined,
         companyName: req.query.companyName as string | undefined,
