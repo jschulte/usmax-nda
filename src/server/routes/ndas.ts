@@ -2,6 +2,7 @@
  * NDA Routes
  * Story 3.1: Create NDA with Basic Form
  * Story 3.2: Smart Form Auto-Fill (Company-First Entry Path)
+ * Story 3.3: Clone/Duplicate NDA (Second Entry Path)
  *
  * REST API endpoints for NDA operations:
  * - GET    /api/ndas                    - List NDAs with pagination and filtering
@@ -10,6 +11,7 @@
  * - GET    /api/ndas/company-search     - Search companies
  * - GET    /api/ndas/:id                - Get NDA details
  * - POST   /api/ndas                    - Create new NDA
+ * - POST   /api/ndas/:id/clone          - Clone an existing NDA
  * - PUT    /api/ndas/:id                - Update NDA
  * - PATCH  /api/ndas/:id/status         - Change NDA status
  *
@@ -28,6 +30,7 @@ import {
   listNdas,
   updateNda,
   changeNdaStatus,
+  cloneNda,
   NdaServiceError,
   NdaStatus,
 } from '../services/ndaService.js';
@@ -549,6 +552,110 @@ router.patch('/:id/status', requirePermission(PERMISSIONS.NDA_MARK_STATUS), asyn
     console.error('[NDAs] Error changing NDA status:', error);
     res.status(500).json({
       error: 'Failed to change NDA status',
+      code: 'INTERNAL_ERROR',
+    });
+  }
+});
+
+/**
+ * POST /api/ndas/:id/clone
+ * Clone an existing NDA
+ * Story 3.3: Clone/Duplicate NDA (Second Entry Path)
+ *
+ * Body (all optional - override values from source NDA):
+ * - abbreviatedName: string
+ * - authorizedPurpose: string (max 255 chars)
+ * - effectiveDate: ISO date string
+ * - companyName: string
+ * - agencyGroupId: string
+ * - subagencyId: string | null
+ * - other fields as needed
+ *
+ * Returns cloned NDA with clonedFromId pointing to source
+ *
+ * Requires: nda:create permission
+ */
+router.post('/:id/clone', requirePermission(PERMISSIONS.NDA_CREATE), async (req, res) => {
+  try {
+    const {
+      abbreviatedName,
+      authorizedPurpose,
+      effectiveDate,
+      companyName,
+      companyCity,
+      companyState,
+      stateOfIncorporation,
+      agencyGroupId,
+      subagencyId,
+      agencyOfficeName,
+      usMaxPosition,
+      isNonUsMax,
+      opportunityPocId,
+      contractsPocId,
+      relationshipPocId,
+    } = req.body;
+
+    const clonedNda = await cloneNda(
+      req.params.id,
+      {
+        abbreviatedName,
+        authorizedPurpose,
+        effectiveDate,
+        companyName,
+        companyCity,
+        companyState,
+        stateOfIncorporation,
+        agencyGroupId,
+        subagencyId,
+        agencyOfficeName,
+        usMaxPosition,
+        isNonUsMax,
+        opportunityPocId,
+        contractsPocId,
+        relationshipPocId,
+      },
+      req.userContext!,
+      {
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent'),
+      }
+    );
+
+    res.status(201).json({
+      message: 'NDA cloned successfully',
+      nda: {
+        id: clonedNda.id,
+        displayId: clonedNda.displayId,
+        companyName: clonedNda.companyName,
+        status: clonedNda.status,
+        agencyGroup: clonedNda.agencyGroup,
+        subagency: clonedNda.subagency,
+        clonedFrom: clonedNda.clonedFrom,
+        createdAt: clonedNda.createdAt,
+      },
+    });
+  } catch (error) {
+    if (error instanceof NdaServiceError) {
+      const statusCode =
+        error.code === 'NOT_FOUND'
+          ? 404
+          : error.code === 'VALIDATION_ERROR'
+            ? 400
+            : error.code === 'UNAUTHORIZED_AGENCY'
+              ? 403
+              : error.code === 'INVALID_SUBAGENCY'
+                ? 400
+                : 500;
+
+      return res.status(statusCode).json({
+        error: error.message,
+        code: error.code,
+      });
+    }
+
+    console.error('[NDAs] Error cloning NDA:', error);
+    res.status(500).json({
+      error: 'Failed to clone NDA',
       code: 'INTERNAL_ERROR',
     });
   }

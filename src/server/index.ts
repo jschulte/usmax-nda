@@ -208,10 +208,11 @@ app.listen(PORT, () => {
 ║  Access Export (Story 2.6):                               ║
 ║    GET    /api/admin/access-export - CSV compliance audit ║
 ╠═══════════════════════════════════════════════════════════╣
-║  NDA Endpoints (Story 3.1):                               ║
+║  NDA Endpoints (Stories 3.1-3.3):                         ║
 ║    GET    /api/ndas             - List NDAs (filtered)    ║
 ║    GET    /api/ndas/:id         - Get NDA details         ║
 ║    POST   /api/ndas             - Create NDA              ║
+║    POST   /api/ndas/:id/clone   - Clone NDA (Story 3.3)   ║
 ║    PUT    /api/ndas/:id         - Update NDA              ║
 ║    PATCH  /api/ndas/:id/status  - Change NDA status       ║
 ╠═══════════════════════════════════════════════════════════╣

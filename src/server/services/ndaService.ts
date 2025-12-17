@@ -569,3 +569,176 @@ export async function changeNdaStatus(
 
   return nda;
 }
+
+/**
+ * Clone an existing NDA
+ * Story 3.3: Clone/Duplicate NDA (Second Entry Path)
+ *
+ * Creates a new NDA with all fields copied from the source,
+ * with optional overrides for specific fields.
+ */
+export interface CloneNdaOverrides {
+  abbreviatedName?: string;
+  authorizedPurpose?: string;
+  effectiveDate?: string | Date;
+  companyName?: string;
+  companyCity?: string;
+  companyState?: string;
+  stateOfIncorporation?: string;
+  agencyGroupId?: string;
+  subagencyId?: string | null;
+  agencyOfficeName?: string;
+  usMaxPosition?: UsMaxPosition;
+  isNonUsMax?: boolean;
+  opportunityPocId?: string;
+  contractsPocId?: string | null;
+  relationshipPocId?: string;
+}
+
+export async function cloneNda(
+  sourceId: string,
+  overrides: CloneNdaOverrides,
+  userContext: UserContext,
+  auditMeta?: AuditMeta
+): Promise<any> {
+  // Get the source NDA with security check
+  const source = await getNda(sourceId, userContext);
+  if (!source) {
+    throw new NdaServiceError('Source NDA not found or access denied', 'NOT_FOUND');
+  }
+
+  // If changing agency, validate access to new agency
+  const targetAgencyGroupId = overrides.agencyGroupId || source.agencyGroup.id;
+  const targetSubagencyId = overrides.subagencyId !== undefined ? overrides.subagencyId : source.subagency?.id;
+  await validateAgencyAccess(userContext, targetAgencyGroupId, targetSubagencyId || undefined);
+
+  // If subagency provided, validate it belongs to agency group
+  if (targetSubagencyId) {
+    const subagency = await prisma.subagency.findFirst({
+      where: {
+        id: targetSubagencyId,
+        agencyGroupId: targetAgencyGroupId,
+      },
+    });
+
+    if (!subagency) {
+      throw new NdaServiceError(
+        'Subagency does not belong to the specified agency group',
+        'INVALID_SUBAGENCY'
+      );
+    }
+  }
+
+  // Parse effective date if provided
+  let effectiveDate: Date | null = null;
+  if (overrides.effectiveDate) {
+    effectiveDate = typeof overrides.effectiveDate === 'string'
+      ? new Date(overrides.effectiveDate)
+      : overrides.effectiveDate;
+
+    if (isNaN(effectiveDate.getTime())) {
+      throw new NdaServiceError('Invalid effective date format', 'VALIDATION_ERROR');
+    }
+  }
+
+  // Validate authorizedPurpose length if provided
+  if (overrides.authorizedPurpose && overrides.authorizedPurpose.length > 255) {
+    throw new NdaServiceError(
+      'Authorized purpose must not exceed 255 characters',
+      'VALIDATION_ERROR'
+    );
+  }
+
+  // Create the cloned NDA
+  const clonedNda = await prisma.nda.create({
+    data: {
+      // Copy from source with overrides
+      companyName: overrides.companyName?.trim() || source.companyName,
+      companyCity: overrides.companyCity !== undefined
+        ? overrides.companyCity?.trim() || null
+        : source.companyCity,
+      companyState: overrides.companyState !== undefined
+        ? overrides.companyState?.trim() || null
+        : source.companyState,
+      stateOfIncorporation: overrides.stateOfIncorporation !== undefined
+        ? overrides.stateOfIncorporation?.trim() || null
+        : source.stateOfIncorporation,
+      agencyGroup: { connect: { id: targetAgencyGroupId } },
+      subagency: targetSubagencyId ? { connect: { id: targetSubagencyId } } : undefined,
+      agencyOfficeName: overrides.agencyOfficeName !== undefined
+        ? overrides.agencyOfficeName?.trim() || null
+        : source.agencyOfficeName,
+      abbreviatedName: overrides.abbreviatedName?.trim() || source.abbreviatedName,
+      authorizedPurpose: overrides.authorizedPurpose?.trim() || source.authorizedPurpose,
+      effectiveDate: effectiveDate !== null ? effectiveDate : null,
+      usMaxPosition: overrides.usMaxPosition ?? source.usMaxPosition,
+      isNonUsMax: overrides.isNonUsMax ?? source.isNonUsMax,
+
+      // Reset status to CREATED for cloned NDAs
+      status: 'CREATED',
+      fullyExecutedDate: null,
+
+      // Track clone source
+      clonedFrom: { connect: { id: sourceId } },
+
+      // Set current user as creator
+      createdBy: { connect: { id: userContext.contactId } },
+
+      // POCs - use overrides or copy from source
+      opportunityPoc: {
+        connect: {
+          id: overrides.opportunityPocId || userContext.contactId,
+        },
+      },
+      contractsPoc: overrides.contractsPocId !== undefined
+        ? (overrides.contractsPocId ? { connect: { id: overrides.contractsPocId } } : undefined)
+        : (source.contractsPoc ? { connect: { id: source.contractsPoc.id } } : undefined),
+      relationshipPoc: {
+        connect: {
+          id: overrides.relationshipPocId || source.relationshipPoc?.id || userContext.contactId,
+        },
+      },
+
+      // Create initial status history entry
+      statusHistory: {
+        create: {
+          status: 'CREATED',
+          changedById: userContext.contactId,
+        },
+      },
+    },
+    include: {
+      agencyGroup: { select: { id: true, name: true, code: true } },
+      subagency: { select: { id: true, name: true, code: true } },
+      opportunityPoc: { select: { id: true, firstName: true, lastName: true, email: true } },
+      contractsPoc: { select: { id: true, firstName: true, lastName: true, email: true } },
+      relationshipPoc: { select: { id: true, firstName: true, lastName: true, email: true } },
+      createdBy: { select: { id: true, firstName: true, lastName: true, email: true } },
+      clonedFrom: { select: { id: true, displayId: true, companyName: true } },
+      statusHistory: {
+        orderBy: { changedAt: 'asc' },
+        include: {
+          changedBy: { select: { id: true, firstName: true, lastName: true } },
+        },
+      },
+    },
+  });
+
+  // Audit log with clone source information
+  await auditService.log({
+    action: AuditAction.NDA_CLONED,
+    entityType: 'nda',
+    entityId: clonedNda.id,
+    userId: userContext.contactId,
+    ipAddress: auditMeta?.ipAddress,
+    userAgent: auditMeta?.userAgent,
+    details: {
+      displayId: clonedNda.displayId,
+      clonedFromId: source.id,
+      clonedFromDisplayId: source.displayId,
+      companyName: clonedNda.companyName,
+    },
+  });
+
+  return clonedNda;
+}

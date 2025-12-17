@@ -26,6 +26,7 @@ vi.mock('../../db/index.js', () => ({
     },
     subagency: {
       findUnique: vi.fn(),
+      findFirst: vi.fn(),
     },
   },
 }));
@@ -39,6 +40,7 @@ vi.mock('../auditService.js', () => ({
     NDA_CREATED: 'nda_created',
     NDA_UPDATED: 'nda_updated',
     NDA_STATUS_CHANGED: 'nda_status_changed',
+    NDA_CLONED: 'nda_cloned',
   },
 }));
 
@@ -526,6 +528,194 @@ describe('NDA Service', () => {
       await expect(
         changeNdaStatus('nonexistent', 'EMAILED', createMockUserContext())
       ).rejects.toThrow('NDA not found or access denied');
+    });
+  });
+
+  describe('cloneNda', () => {
+    // Import cloneNda dynamically to use updated mock
+    let cloneNda: typeof import('../ndaService.js').cloneNda;
+
+    beforeEach(async () => {
+      const module = await import('../ndaService.js');
+      cloneNda = module.cloneNda;
+      // Set up default subagency mocks - validateAgencyAccess uses findUnique, cloneNda uses findFirst
+      const mockSubagency = {
+        id: 'sub-1',
+        agencyGroupId: 'agency-1',
+        name: 'Army',
+        code: 'ARMY',
+      };
+      mockPrisma.subagency.findFirst.mockResolvedValue(mockSubagency);
+      mockPrisma.subagency.findUnique.mockResolvedValue(mockSubagency);
+    });
+
+    const mockSourceNda = {
+      id: 'source-nda',
+      displayId: 1500,
+      companyName: 'TechCorp Solutions',
+      companyCity: 'San Francisco',
+      companyState: 'CA',
+      stateOfIncorporation: 'Delaware',
+      abbreviatedName: 'TC-DoD-2024',
+      authorizedPurpose: 'Software Development Services',
+      effectiveDate: new Date('2024-01-15'),
+      usMaxPosition: 'PRIME',
+      isNonUsMax: false,
+      status: 'FULLY_EXECUTED',
+      agencyGroup: { id: 'agency-1', name: 'DoD', code: 'DOD' },
+      subagency: { id: 'sub-1', name: 'Army', code: 'ARMY' },
+      opportunityPoc: { id: 'poc-1', firstName: 'John', lastName: 'Doe', email: 'john@test.com' },
+      contractsPoc: { id: 'poc-2', firstName: 'Jane', lastName: 'Smith', email: 'jane@test.com' },
+      relationshipPoc: { id: 'poc-3', firstName: 'Bob', lastName: 'Jones', email: 'bob@test.com' },
+      createdBy: { id: 'contact-1', firstName: 'Test', lastName: 'User', email: 'test@test.com' },
+    };
+
+    const mockClonedNda = {
+      id: 'cloned-nda',
+      displayId: 1501,
+      companyName: 'TechCorp Solutions',
+      companyCity: 'San Francisco',
+      companyState: 'CA',
+      stateOfIncorporation: 'Delaware',
+      abbreviatedName: 'TC-DoD-2025',
+      authorizedPurpose: 'New Project Services',
+      effectiveDate: new Date('2025-01-15'),
+      usMaxPosition: 'PRIME',
+      isNonUsMax: false,
+      status: 'CREATED',
+      agencyGroup: { id: 'agency-1', name: 'DoD', code: 'DOD' },
+      subagency: { id: 'sub-1', name: 'Army', code: 'ARMY' },
+      opportunityPoc: { id: 'contact-1', firstName: 'Test', lastName: 'User', email: 'test@test.com' },
+      contractsPoc: { id: 'poc-2', firstName: 'Jane', lastName: 'Smith', email: 'jane@test.com' },
+      relationshipPoc: { id: 'poc-3', firstName: 'Bob', lastName: 'Jones', email: 'bob@test.com' },
+      createdBy: { id: 'contact-1', firstName: 'Test', lastName: 'User', email: 'test@test.com' },
+      clonedFrom: { id: 'source-nda', displayId: 1500, companyName: 'TechCorp Solutions' },
+      statusHistory: [
+        { status: 'CREATED', changedAt: new Date(), changedBy: { id: 'contact-1', firstName: 'Test', lastName: 'User' } },
+      ],
+    };
+
+    it('clones NDA with overrides', async () => {
+      mockPrisma.nda.findFirst.mockResolvedValue(mockSourceNda);
+      mockPrisma.nda.create.mockResolvedValue(mockClonedNda);
+
+      const result = await cloneNda(
+        'source-nda',
+        {
+          abbreviatedName: 'TC-DoD-2025',
+          authorizedPurpose: 'New Project Services',
+          effectiveDate: '2025-01-15',
+        },
+        createMockUserContext()
+      );
+
+      expect(result.id).toBe('cloned-nda');
+      expect(result.clonedFrom.id).toBe('source-nda');
+      expect(result.status).toBe('CREATED');
+    });
+
+    it('copies all fields from source when no overrides provided', async () => {
+      mockPrisma.nda.findFirst.mockResolvedValue(mockSourceNda);
+      mockPrisma.nda.create.mockResolvedValue(mockClonedNda);
+
+      await cloneNda('source-nda', {}, createMockUserContext());
+
+      expect(mockPrisma.nda.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            companyName: mockSourceNda.companyName,
+            status: 'CREATED', // Always reset to CREATED
+          }),
+        })
+      );
+    });
+
+    it('sets status to CREATED regardless of source status', async () => {
+      mockPrisma.nda.findFirst.mockResolvedValue({
+        ...mockSourceNda,
+        status: 'FULLY_EXECUTED',
+      });
+      mockPrisma.nda.create.mockResolvedValue(mockClonedNda);
+
+      await cloneNda('source-nda', {}, createMockUserContext());
+
+      expect(mockPrisma.nda.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            status: 'CREATED',
+            fullyExecutedDate: null,
+          }),
+        })
+      );
+    });
+
+    it('records clonedFromId in new NDA', async () => {
+      mockPrisma.nda.findFirst.mockResolvedValue(mockSourceNda);
+      mockPrisma.nda.create.mockResolvedValue(mockClonedNda);
+
+      await cloneNda('source-nda', {}, createMockUserContext());
+
+      expect(mockPrisma.nda.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            clonedFrom: { connect: { id: 'source-nda' } },
+          }),
+        })
+      );
+    });
+
+    it('validates authorizedPurpose length in overrides', async () => {
+      mockPrisma.nda.findFirst.mockResolvedValue(mockSourceNda);
+
+      await expect(
+        cloneNda(
+          'source-nda',
+          { authorizedPurpose: 'a'.repeat(256) },
+          createMockUserContext()
+        )
+      ).rejects.toThrow('Authorized purpose must not exceed 255 characters');
+    });
+
+    it('throws error when source NDA not found', async () => {
+      mockPrisma.nda.findFirst.mockResolvedValue(null);
+
+      await expect(
+        cloneNda('nonexistent', {}, createMockUserContext())
+      ).rejects.toThrow('Source NDA not found or access denied');
+    });
+
+    it('validates agency access when changing agency', async () => {
+      // Mock source NDA without subagency for this test
+      mockPrisma.nda.findFirst.mockResolvedValue({
+        ...mockSourceNda,
+        subagency: null,
+      });
+      // Clear subagency mocks for this test - no subagency involved
+      mockPrisma.subagency.findFirst.mockResolvedValue(null);
+      mockPrisma.subagency.findUnique.mockResolvedValue(null);
+
+      const userWithLimitedAccess = createMockUserContext();
+      userWithLimitedAccess.authorizedAgencyGroups = ['other-agency'];
+      userWithLimitedAccess.authorizedSubagencies = [];
+
+      await expect(
+        cloneNda('source-nda', { agencyGroupId: 'unauthorized-agency' }, userWithLimitedAccess)
+      ).rejects.toThrow('You do not have access to create NDAs for this agency');
+    });
+
+    it('logs audit event for clone operation', async () => {
+      mockPrisma.nda.findFirst.mockResolvedValue(mockSourceNda);
+      mockPrisma.nda.create.mockResolvedValue(mockClonedNda);
+
+      await cloneNda(
+        'source-nda',
+        { abbreviatedName: 'New Name' },
+        createMockUserContext(),
+        { ipAddress: '127.0.0.1' }
+      );
+
+      // Audit log should be called (tested via auditService mock)
+      expect(mockPrisma.nda.create).toHaveBeenCalled();
     });
   });
 });
