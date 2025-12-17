@@ -1,0 +1,232 @@
+// USMax NDA Management System - Prisma Schema
+// Story 1.2: JWT Middleware & User Context
+//
+// Database schema for authorization:
+// - contacts (users)
+// - roles, permissions, role_permissions (RBAC)
+// - contact_roles (user-role assignment)
+// - agency_groups, subagencies (organizational structure)
+// - agency_group_grants, subagency_grants (data access control)
+// - audit_log (compliance logging)
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================================================
+// USERS/CONTACTS
+// ============================================================================
+
+/// Contact represents a user in the system (USMax staff member)
+model Contact {
+  id             String    @id @default(uuid())
+  cognitoId      String    @unique @map("cognito_id") // AWS Cognito sub claim
+  email          String    @unique
+  firstName      String?   @map("first_name")
+  lastName       String?   @map("last_name")
+  active         Boolean   @default(true) // Soft delete flag
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  contactRoles       ContactRole[]
+  agencyGroupGrants  AgencyGroupGrant[]
+  subagencyGrants    SubagencyGrant[]
+
+  // Audit trail relations (who granted access)
+  grantedContactRoles       ContactRole[]       @relation("GrantedBy")
+  grantedAgencyGroupGrants  AgencyGroupGrant[]  @relation("GrantedBy")
+  grantedSubagencyGrants    SubagencyGrant[]    @relation("GrantedBy")
+
+  // Audit logs created by this user
+  auditLogs AuditLog[]
+
+  @@map("contacts")
+}
+
+// ============================================================================
+// RBAC - ROLES & PERMISSIONS
+// ============================================================================
+
+/// Role defines a set of permissions that can be assigned to users
+model Role {
+  id           String   @id @default(uuid())
+  name         String   @unique // e.g., "Admin", "NDA User", "Limited User", "Read-Only"
+  description  String?
+  isSystemRole Boolean  @default(false) @map("is_system_role") // Cannot delete system roles
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  rolePermissions RolePermission[]
+  contactRoles    ContactRole[]
+
+  @@map("roles")
+}
+
+/// Permission represents a specific action that can be performed
+model Permission {
+  id          String   @id @default(uuid())
+  code        String   @unique // e.g., "nda:create", "admin:manage_users"
+  name        String   // Human-readable name
+  description String?
+  category    String   // "nda" or "admin"
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // Relations
+  rolePermissions RolePermission[]
+
+  @@map("permissions")
+}
+
+/// RolePermission is a junction table linking roles to their permissions
+model RolePermission {
+  roleId       String @map("role_id")
+  permissionId String @map("permission_id")
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+/// ContactRole assigns roles to users
+model ContactRole {
+  contactId  String    @map("contact_id")
+  roleId     String    @map("role_id")
+  grantedBy  String?   @map("granted_by") // Who assigned this role
+  grantedAt  DateTime  @default(now()) @map("granted_at")
+
+  contact      Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  role         Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  grantedByUser Contact? @relation("GrantedBy", fields: [grantedBy], references: [id])
+
+  @@id([contactId, roleId])
+  @@map("contact_roles")
+}
+
+// ============================================================================
+// AGENCY STRUCTURE
+// ============================================================================
+
+/// AgencyGroup represents a high-level organizational grouping (e.g., DoD, Commercial, Fed Civ)
+model AgencyGroup {
+  id          String   @id @default(uuid())
+  name        String   @unique // e.g., "Department of Defense"
+  code        String   @unique // e.g., "DoD"
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  subagencies        Subagency[]
+  agencyGroupGrants  AgencyGroupGrant[]
+
+  @@map("agency_groups")
+}
+
+/// Subagency represents a specific agency within a group (e.g., Air Force within DoD)
+model Subagency {
+  id            String   @id @default(uuid())
+  agencyGroupId String   @map("agency_group_id")
+  name          String   // e.g., "US Air Force"
+  code          String   // e.g., "USAF"
+  description   String?
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  agencyGroup     AgencyGroup      @relation(fields: [agencyGroupId], references: [id], onDelete: Restrict)
+  subagencyGrants SubagencyGrant[]
+  ndas            Nda[]
+
+  @@unique([agencyGroupId, code])
+  @@map("subagencies")
+}
+
+// ============================================================================
+// AGENCY ACCESS GRANTS
+// ============================================================================
+
+/// AgencyGroupGrant gives a user access to all subagencies within an agency group
+model AgencyGroupGrant {
+  id            String   @id @default(uuid())
+  contactId     String   @map("contact_id")
+  agencyGroupId String   @map("agency_group_id")
+  grantedBy     String?  @map("granted_by")
+  grantedAt     DateTime @default(now()) @map("granted_at")
+
+  contact       Contact     @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  agencyGroup   AgencyGroup @relation(fields: [agencyGroupId], references: [id], onDelete: Cascade)
+  grantedByUser Contact?    @relation("GrantedBy", fields: [grantedBy], references: [id])
+
+  @@unique([contactId, agencyGroupId])
+  @@map("agency_group_grants")
+}
+
+/// SubagencyGrant gives a user access to a specific subagency (more granular than group)
+model SubagencyGrant {
+  id          String   @id @default(uuid())
+  contactId   String   @map("contact_id")
+  subagencyId String   @map("subagency_id")
+  grantedBy   String?  @map("granted_by")
+  grantedAt   DateTime @default(now()) @map("granted_at")
+
+  contact       Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  subagency     Subagency @relation(fields: [subagencyId], references: [id], onDelete: Cascade)
+  grantedByUser Contact?  @relation("GrantedBy", fields: [grantedBy], references: [id])
+
+  @@unique([contactId, subagencyId])
+  @@map("subagency_grants")
+}
+
+// ============================================================================
+// NDA (Minimal model for Story 1.4 - will be expanded in Epic 3)
+// ============================================================================
+
+/// NDA represents a Non-Disclosure Agreement record
+/// This is a minimal model for row-level security foundation
+/// Full NDA model with all fields will be implemented in Epic 3
+model Nda {
+  id          String   @id @default(uuid())
+  subagencyId String   @map("subagency_id") // For row-level security filtering
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relation to subagency for row-level security
+  subagency Subagency @relation(fields: [subagencyId], references: [id])
+
+  @@index([subagencyId])
+  @@map("ndas")
+}
+
+// ============================================================================
+// AUDIT LOG
+// ============================================================================
+
+/// AuditLog tracks all significant actions in the system for compliance
+model AuditLog {
+  id          String   @id @default(uuid())
+  action      String   // e.g., "login_success", "nda_created", "permission_denied"
+  entityType  String   @map("entity_type") // e.g., "authentication", "nda", "user"
+  entityId    String?  @map("entity_id") // ID of the affected entity (if applicable)
+  userId      String?  @map("user_id") // User who performed the action
+  ipAddress   String?  @map("ip_address")
+  userAgent   String?  @map("user_agent")
+  details     Json?    // Additional context as JSON
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user Contact? @relation(fields: [userId], references: [id])
+
+  @@index([action])
+  @@index([entityType, entityId])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("audit_log")
+}
