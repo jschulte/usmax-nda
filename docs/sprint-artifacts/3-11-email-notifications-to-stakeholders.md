@@ -1,6 +1,6 @@
 # Story 3.11: Email Notifications to Stakeholders
 
-Status: backlog
+Status: done
 
 ## Story
 
