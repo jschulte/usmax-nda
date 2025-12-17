@@ -465,3 +465,20 @@ model AuditLog {
   @@index([createdAt])
   @@map("audit_log")
 }
+
+// ============================================================================
+// SYSTEM CONFIGURATION
+// ============================================================================
+
+/// SystemConfig stores key-value configuration pairs for system-wide settings
+/// Epic 7, Stories 7.14-7.19: Admin Configuration
+model SystemConfig {
+  id        String   @id @default(uuid())
+  key       String   @unique // Configuration key (e.g., "dashboard.stale_days")
+  value     String   @db.Text // Configuration value (JSON for complex values)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([key])
+  @@map("system_config")
+}

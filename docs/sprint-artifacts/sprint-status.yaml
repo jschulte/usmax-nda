@@ -114,26 +114,26 @@ development_status:
   6-11-immutable-audit-trail: done
   epic-6-retrospective: optional
 
-  epic-7: backlog
-  7-1-rtf-template-creation: backlog
-  7-2-rtf-template-management: backlog
-  7-3-default-template-assignment: backlog
-  7-4-template-field-merging: backlog
-  7-5-template-selection-during-creation: backlog
-  7-6-email-template-creation: backlog
-  7-7-email-template-management: backlog
-  7-8-template-suggestions: backlog
-  7-9-smart-company-suggestions: backlog
-  7-10-historical-field-suggestions: backlog
-  7-11-previous-nda-context-display: backlog
-  7-12-email-recipient-suggestions: backlog
-  7-13-learning-suggestions-over-time: backlog
-  7-14-admin-status-configuration: backlog
-  7-15-auto-transition-rule-configuration: backlog
-  7-16-notification-rule-configuration: backlog
-  7-17-dashboard-alert-threshold-configuration: backlog
-  7-18-default-email-cc-bcc-configuration: backlog
-  7-19-dropdown-field-configuration: backlog
+  epic-7: done
+  7-1-rtf-template-creation: done
+  7-2-rtf-template-management: done
+  7-3-default-template-assignment: done
+  7-4-template-field-merging: done
+  7-5-template-selection-during-creation: done
+  7-6-email-template-creation: done
+  7-7-email-template-management: done
+  7-8-template-suggestions: done
+  7-9-smart-company-suggestions: done
+  7-10-historical-field-suggestions: done
+  7-11-previous-nda-context-display: done
+  7-12-email-recipient-suggestions: done
+  7-13-learning-suggestions-over-time: done
+  7-14-admin-status-configuration: done
+  7-15-auto-transition-rule-configuration: done
+  7-16-notification-rule-configuration: done
+  7-17-dashboard-alert-threshold-configuration: done
+  7-18-default-email-cc-bcc-configuration: done
+  7-19-dropdown-field-configuration: done
   epic-7-retrospective: optional
 
   epic-8: backlog
