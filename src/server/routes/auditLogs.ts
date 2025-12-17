@@ -17,7 +17,7 @@ import { PERMISSIONS } from '../constants/permissions.js';
 import { prisma } from '../db/index.js';
 import { Prisma } from '@prisma/client';
 import { auditService, AuditAction } from '../services/auditService.js';
-import { buildSecurityFilter } from '../middleware/securityFilter.js';
+import { buildSecurityFilter } from '../services/ndaService.js';
 
 const router = Router();
 

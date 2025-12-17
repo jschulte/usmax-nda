@@ -129,7 +129,7 @@ interface AuditMeta {
  * Build row-level security filter for NDA queries
  * Users can only see NDAs for agencies they have access to
  */
-function buildSecurityFilter(userContext: UserContext): Prisma.NdaWhereInput {
+export function buildSecurityFilter(userContext: UserContext): Prisma.NdaWhereInput {
   const authorizedAgencyGroups = userContext.authorizedAgencyGroups || [];
   const authorizedSubagencies = userContext.authorizedSubagencies || [];
 

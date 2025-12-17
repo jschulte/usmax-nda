@@ -9,7 +9,7 @@
  */
 
 import { prisma } from '../db/index.js';
-import { uploadDocument, generatePresignedUrl } from './s3Service.js';
+import { uploadDocument, getDownloadUrl } from './s3Service.js';
 import { auditService, AuditAction } from './auditService.js';
 import type { UserContext } from '../types/auth.js';
 
@@ -247,7 +247,7 @@ export async function generatePreview(
 
     // Generate presigned URL for preview (15 min expiry)
     const expiresIn = 15 * 60; // 15 minutes
-    const previewUrl = await generatePresignedUrl(result.s3Key, expiresIn);
+    const previewUrl = await getDownloadUrl(result.s3Key, expiresIn);
 
     return {
       previewUrl,

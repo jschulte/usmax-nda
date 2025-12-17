@@ -15,8 +15,8 @@
 import { Router } from 'express';
 import { authenticateJWT } from '../middleware/authenticateJWT.js';
 import { attachUserContext } from '../middleware/attachUserContext.js';
-import { requirePermission } from '../middleware/requirePermission.js';
-import { PERMISSIONS } from '../middleware/requirePermission.js';
+import { requirePermission } from '../middleware/checkPermissions.js';
+import { PERMISSIONS } from '../constants/permissions.js';
 import {
   listUsers,
   getUser,
