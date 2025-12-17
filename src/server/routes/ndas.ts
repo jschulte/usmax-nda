@@ -45,6 +45,7 @@ import {
   getNda,
   getNdaDetail,
   listNdas,
+  exportNdas,
   updateNda,
   changeNdaStatus,
   cloneNda,
@@ -169,6 +170,82 @@ router.get(
   ]),
   (req, res) => {
     res.json({ presets: getFilterPresets() });
+  }
+);
+
+/**
+ * GET /api/ndas/export
+ * Export NDAs to CSV format (Story 8.26: NDA List Export)
+ *
+ * Supports the same query params as GET /api/ndas but exports all matching
+ * records (up to 10,000) as a CSV file.
+ *
+ * Query params:
+ * - Same filters as GET /api/ndas (search, agencyGroupId, status, etc.)
+ * - format: 'csv' (default) - future extensibility for xlsx
+ *
+ * Requires: nda:view permission (via any NDA permission)
+ *
+ * Returns: CSV file download
+ */
+router.get(
+  '/export',
+  requireAnyPermission([
+    PERMISSIONS.NDA_VIEW,
+    PERMISSIONS.NDA_CREATE,
+    PERMISSIONS.NDA_UPDATE,
+    PERMISSIONS.NDA_DELETE,
+  ]),
+  async (req, res) => {
+    try {
+      const params = {
+        sortBy: req.query.sortBy as string | undefined,
+        sortOrder: req.query.sortOrder as 'asc' | 'desc' | undefined,
+        search: req.query.search as string | undefined,
+        agencyGroupId: req.query.agencyGroupId as string | undefined,
+        subagencyId: req.query.subagencyId as string | undefined,
+        companyName: req.query.companyName as string | undefined,
+        status: req.query.status as NdaStatus | undefined,
+        createdById: req.query.createdById as string | undefined,
+        effectiveDateFrom: req.query.effectiveDateFrom as string | undefined,
+        effectiveDateTo: req.query.effectiveDateTo as string | undefined,
+        showInactive: req.query.showInactive === 'true',
+        showCancelled: req.query.showCancelled === 'true',
+        draftsOnly: req.query.draftsOnly === 'true',
+        myDrafts: req.query.myDrafts === 'true',
+        companyCity: req.query.companyCity as string | undefined,
+        companyState: req.query.companyState as string | undefined,
+        stateOfIncorporation: req.query.stateOfIncorporation as string | undefined,
+        agencyOfficeName: req.query.agencyOfficeName as string | undefined,
+        isNonUsMax: req.query.isNonUsMax === undefined ? undefined : req.query.isNonUsMax === 'true',
+        createdDateFrom: req.query.createdDateFrom as string | undefined,
+        createdDateTo: req.query.createdDateTo as string | undefined,
+        opportunityPocName: req.query.opportunityPocName as string | undefined,
+        contractsPocName: req.query.contractsPocName as string | undefined,
+        relationshipPocName: req.query.relationshipPocName as string | undefined,
+        preset: req.query.preset as 'my-ndas' | 'expiring-soon' | 'drafts' | 'inactive' | undefined,
+      };
+
+      const result = await exportNdas(params, req.userContext!);
+
+      // Generate filename with timestamp
+      const timestamp = new Date().toISOString().split('T')[0];
+      const filename = `nda-export-${timestamp}.csv`;
+
+      // Set headers for CSV download
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.setHeader('X-Total-Count', result.count.toString());
+
+      // Send CSV content
+      res.send(result.csv);
+    } catch (error) {
+      console.error('[NDAs] Error exporting NDAs:', error);
+      res.status(500).json({
+        error: 'Failed to export NDAs',
+        code: 'INTERNAL_ERROR',
+      });
+    }
   }
 );
 

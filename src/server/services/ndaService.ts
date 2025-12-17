@@ -1333,3 +1333,100 @@ export async function updateDraft(
     nda,
   };
 }
+
+/**
+ * Export NDAs to CSV format
+ * Story 8.26: NDA List Export
+ *
+ * Exports NDAs using the same filters as listNdas but without pagination.
+ * Returns CSV string ready for download.
+ */
+export async function exportNdas(
+  params: Omit<ListNdaParams, 'page' | 'limit'>,
+  userContext: UserContext
+): Promise<{ csv: string; count: number }> {
+  // Reuse listNdas but with a high limit to get all records
+  const maxExportLimit = 10000; // Safety limit
+  const result = await listNdas(
+    { ...params, page: 1, limit: maxExportLimit },
+    userContext
+  );
+
+  // Define CSV columns
+  const columns = [
+    { header: 'NDA ID', key: 'displayId' },
+    { header: 'Company Name', key: 'companyName' },
+    { header: 'Abbreviated Name', key: 'abbreviatedName' },
+    { header: 'Status', key: 'status' },
+    { header: 'Agency Group', key: 'agencyGroupName' },
+    { header: 'Subagency', key: 'subagencyName' },
+    { header: 'Agency Office', key: 'agencyOfficeName' },
+    { header: 'Company City', key: 'companyCity' },
+    { header: 'Company State', key: 'companyState' },
+    { header: 'State of Incorporation', key: 'stateOfIncorporation' },
+    { header: 'Authorized Purpose', key: 'authorizedPurpose' },
+    { header: 'Effective Date', key: 'effectiveDate' },
+    { header: 'USMax Position', key: 'usMaxPosition' },
+    { header: 'Non-USMax', key: 'isNonUsMax' },
+    { header: 'Opportunity POC', key: 'opportunityPocName' },
+    { header: 'Contracts POC', key: 'contractsPocName' },
+    { header: 'Relationship POC', key: 'relationshipPocName' },
+    { header: 'Created By', key: 'createdByName' },
+    { header: 'Created At', key: 'createdAt' },
+    { header: 'Updated At', key: 'updatedAt' },
+  ];
+
+  // Format rows
+  const rows = result.ndas.map((nda) => ({
+    displayId: nda.displayId,
+    companyName: nda.companyName,
+    abbreviatedName: nda.abbreviatedName,
+    status: nda.status,
+    agencyGroupName: nda.agencyGroup?.name || '',
+    subagencyName: nda.subagency?.name || '',
+    agencyOfficeName: nda.agencyOfficeName || '',
+    companyCity: nda.companyCity || '',
+    companyState: nda.companyState || '',
+    stateOfIncorporation: nda.stateOfIncorporation || '',
+    authorizedPurpose: nda.authorizedPurpose || '',
+    effectiveDate: nda.effectiveDate ? new Date(nda.effectiveDate).toISOString().split('T')[0] : '',
+    usMaxPosition: nda.usMaxPosition,
+    isNonUsMax: nda.isNonUsMax ? 'Yes' : 'No',
+    opportunityPocName: formatPocName(nda.opportunityPoc),
+    contractsPocName: formatPocName(nda.contractsPoc),
+    relationshipPocName: formatPocName(nda.relationshipPoc),
+    createdByName: formatPocName(nda.createdBy),
+    createdAt: nda.createdAt ? new Date(nda.createdAt).toISOString() : '',
+    updatedAt: nda.updatedAt ? new Date(nda.updatedAt).toISOString() : '',
+  }));
+
+  // Generate CSV
+  const header = columns.map((c) => escapeCSV(c.header)).join(',');
+  const dataRows = rows.map((row) =>
+    columns.map((col) => escapeCSV(String(row[col.key as keyof typeof row] ?? ''))).join(',')
+  );
+
+  const csv = [header, ...dataRows].join('\n');
+
+  return { csv, count: result.total };
+}
+
+/**
+ * Format POC name for export
+ */
+function formatPocName(poc: { firstName?: string; lastName?: string } | null | undefined): string {
+  if (!poc) return '';
+  const first = poc.firstName || '';
+  const last = poc.lastName || '';
+  return `${first} ${last}`.trim();
+}
+
+/**
+ * Escape a value for CSV (handles quotes and commas)
+ */
+function escapeCSV(value: string): string {
+  if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+    return `"${value.replace(/"/g, '""')}"`;
+  }
+  return value;
+}
