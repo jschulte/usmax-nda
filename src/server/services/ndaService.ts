@@ -11,11 +11,12 @@
 
 import { prisma } from '../db/index.js';
 import { auditService, AuditAction } from './auditService.js';
-import type { NdaStatus, UsMaxPosition, Prisma } from '../../generated/prisma/index.js';
+import { NdaStatus, UsMaxPosition } from '../../generated/prisma/index.js';
+import type { Prisma } from '../../generated/prisma/index.js';
 import type { UserContext } from '../types/auth.js';
 
 // Re-export enums for use in other modules
-export { NdaStatus, UsMaxPosition } from '../../generated/prisma/index.js';
+export { NdaStatus, UsMaxPosition };
 
 /**
  * Custom error for NDA service operations
@@ -341,7 +342,104 @@ export interface AvailableActions {
 }
 
 /**
- * NDA Detail Response (Story 3.8)
+ * Status progression step (Story 3.9)
+ */
+export interface StatusProgressionStep {
+  status: NdaStatus;
+  label: string;
+  completed: boolean;
+  timestamp?: Date;
+  isCurrent: boolean;
+  changedBy?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+  };
+}
+
+/**
+ * Status progression display info (Story 3.9)
+ */
+export interface StatusProgression {
+  steps: StatusProgressionStep[];
+  isTerminal: boolean;
+  terminalStatus?: NdaStatus;
+}
+
+/**
+ * Status order for progression visualization (Story 3.9)
+ */
+const STATUS_ORDER: NdaStatus[] = [
+  NdaStatus.CREATED,
+  NdaStatus.EMAILED,
+  NdaStatus.IN_REVISION,
+  NdaStatus.FULLY_EXECUTED,
+];
+
+const STATUS_LABELS: Record<NdaStatus, string> = {
+  [NdaStatus.CREATED]: 'Created',
+  [NdaStatus.EMAILED]: 'Emailed',
+  [NdaStatus.IN_REVISION]: 'In Revision',
+  [NdaStatus.FULLY_EXECUTED]: 'Fully Executed',
+  [NdaStatus.INACTIVE]: 'Inactive',
+  [NdaStatus.CANCELLED]: 'Cancelled',
+};
+
+const TERMINAL_STATUSES: NdaStatus[] = [NdaStatus.INACTIVE, NdaStatus.CANCELLED];
+
+/**
+ * Calculate status progression for visual display (Story 3.9)
+ */
+export function calculateStatusProgression(
+  currentStatus: NdaStatus,
+  statusHistory: Array<{
+    status: NdaStatus;
+    changedAt: Date;
+    changedBy?: { id: string; firstName: string; lastName: string };
+  }>
+): StatusProgression {
+  // Check if current status is terminal
+  const isTerminal = TERMINAL_STATUSES.includes(currentStatus);
+
+  // Build a map of when each status was achieved
+  const statusTimestamps = new Map<NdaStatus, { timestamp: Date; changedBy?: { id: string; firstName: string; lastName: string } }>();
+  for (const entry of statusHistory) {
+    // Only keep the first occurrence of each status
+    if (!statusTimestamps.has(entry.status)) {
+      statusTimestamps.set(entry.status, {
+        timestamp: entry.changedAt,
+        changedBy: entry.changedBy,
+      });
+    }
+  }
+
+  // Find current position in progression
+  const currentPosition = STATUS_ORDER.indexOf(currentStatus);
+
+  // Build steps
+  const steps: StatusProgressionStep[] = STATUS_ORDER.map((status, index) => {
+    const historyEntry = statusTimestamps.get(status);
+    const completed = historyEntry !== undefined || (currentPosition >= 0 && index <= currentPosition);
+
+    return {
+      status,
+      label: STATUS_LABELS[status],
+      completed,
+      timestamp: historyEntry?.timestamp,
+      isCurrent: status === currentStatus && !isTerminal,
+      changedBy: historyEntry?.changedBy,
+    };
+  });
+
+  return {
+    steps,
+    isTerminal,
+    terminalStatus: isTerminal ? currentStatus : undefined,
+  };
+}
+
+/**
+ * NDA Detail Response (Story 3.8, 3.9)
  */
 export interface NdaDetailResponse {
   nda: any;
@@ -349,6 +447,7 @@ export interface NdaDetailResponse {
   emails: any[];
   auditTrail: any[];
   statusHistory: any[];
+  statusProgression: StatusProgression;
   availableActions: AvailableActions;
 }
 
@@ -396,12 +495,19 @@ export async function getNdaDetail(
     canDelete: userContext.permissions.has('nda:delete'),
   };
 
+  // Calculate status progression for visual display (Story 3.9)
+  const statusProgression = calculateStatusProgression(
+    nda.status as NdaStatus,
+    nda.statusHistory || []
+  );
+
   return {
     nda,
     documents: nda.documents || [],
     emails: [], // Email history not yet implemented (Story 3-10)
     auditTrail: formattedAuditTrail,
     statusHistory: nda.statusHistory || [],
+    statusProgression,
     availableActions,
   };
 }

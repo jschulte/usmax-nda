@@ -57,6 +57,7 @@ import {
   getIncompleteFields,
   updateDraft,
   getFilterPresets,
+  calculateStatusProgression,
   NdaServiceError,
 } from '../ndaService.js';
 import { prisma } from '../../db/index.js';
@@ -1216,6 +1217,126 @@ describe('NDA Service', () => {
         orderBy: { createdAt: 'desc' },
         take: 100,
       });
+    });
+  });
+
+  // Story 3.9: Status Progression Visualization
+  describe('calculateStatusProgression', () => {
+    it('returns all steps with correct completion for CREATED status', () => {
+      const result = calculateStatusProgression('CREATED', [
+        { status: 'CREATED', changedAt: new Date('2024-01-01'), changedBy: { id: 'u1', firstName: 'John', lastName: 'Doe' } },
+      ]);
+
+      expect(result.steps).toHaveLength(4);
+      expect(result.steps[0]).toEqual(expect.objectContaining({
+        status: 'CREATED',
+        label: 'Created',
+        completed: true,
+        isCurrent: true,
+      }));
+      expect(result.steps[1]).toEqual(expect.objectContaining({
+        status: 'EMAILED',
+        completed: false,
+        isCurrent: false,
+      }));
+      expect(result.steps[2]).toEqual(expect.objectContaining({
+        status: 'IN_REVISION',
+        completed: false,
+        isCurrent: false,
+      }));
+      expect(result.steps[3]).toEqual(expect.objectContaining({
+        status: 'FULLY_EXECUTED',
+        completed: false,
+        isCurrent: false,
+      }));
+      expect(result.isTerminal).toBe(false);
+    });
+
+    it('returns correct progression for EMAILED status', () => {
+      const result = calculateStatusProgression('EMAILED', [
+        { status: 'CREATED', changedAt: new Date('2024-01-01') },
+        { status: 'EMAILED', changedAt: new Date('2024-01-02') },
+      ]);
+
+      expect(result.steps[0].completed).toBe(true);
+      expect(result.steps[1].completed).toBe(true);
+      expect(result.steps[1].isCurrent).toBe(true);
+      expect(result.steps[2].completed).toBe(false);
+      expect(result.steps[3].completed).toBe(false);
+    });
+
+    it('returns correct progression for FULLY_EXECUTED status', () => {
+      const result = calculateStatusProgression('FULLY_EXECUTED', [
+        { status: 'CREATED', changedAt: new Date('2024-01-01') },
+        { status: 'EMAILED', changedAt: new Date('2024-01-02') },
+        { status: 'FULLY_EXECUTED', changedAt: new Date('2024-01-05') },
+      ]);
+
+      expect(result.steps.every((s) => s.completed)).toBe(true);
+      expect(result.steps[3].isCurrent).toBe(true);
+      expect(result.isTerminal).toBe(false);
+    });
+
+    it('marks INACTIVE as terminal status', () => {
+      const result = calculateStatusProgression('INACTIVE', [
+        { status: 'CREATED', changedAt: new Date('2024-01-01') },
+        { status: 'EMAILED', changedAt: new Date('2024-01-02') },
+        { status: 'INACTIVE', changedAt: new Date('2024-01-03') },
+      ]);
+
+      expect(result.isTerminal).toBe(true);
+      expect(result.terminalStatus).toBe('INACTIVE');
+      // No step should be marked as current when terminal
+      expect(result.steps.every((s) => !s.isCurrent)).toBe(true);
+    });
+
+    it('marks CANCELLED as terminal status', () => {
+      const result = calculateStatusProgression('CANCELLED', [
+        { status: 'CREATED', changedAt: new Date('2024-01-01') },
+        { status: 'CANCELLED', changedAt: new Date('2024-01-02') },
+      ]);
+
+      expect(result.isTerminal).toBe(true);
+      expect(result.terminalStatus).toBe('CANCELLED');
+    });
+
+    it('preserves timestamps from status history', () => {
+      const createdDate = new Date('2024-01-01T10:00:00Z');
+      const emailedDate = new Date('2024-01-02T14:30:00Z');
+
+      const result = calculateStatusProgression('EMAILED', [
+        { status: 'CREATED', changedAt: createdDate },
+        { status: 'EMAILED', changedAt: emailedDate },
+      ]);
+
+      expect(result.steps[0].timestamp).toEqual(createdDate);
+      expect(result.steps[1].timestamp).toEqual(emailedDate);
+      expect(result.steps[2].timestamp).toBeUndefined();
+    });
+
+    it('includes changedBy info when available', () => {
+      const result = calculateStatusProgression('CREATED', [
+        {
+          status: 'CREATED',
+          changedAt: new Date(),
+          changedBy: { id: 'user-1', firstName: 'Jane', lastName: 'Smith' },
+        },
+      ]);
+
+      expect(result.steps[0].changedBy).toEqual({
+        id: 'user-1',
+        firstName: 'Jane',
+        lastName: 'Smith',
+      });
+    });
+
+    it('handles empty status history', () => {
+      const result = calculateStatusProgression('CREATED', []);
+
+      expect(result.steps).toHaveLength(4);
+      expect(result.steps[0].completed).toBe(true); // Current status is always completed
+      expect(result.steps[0].isCurrent).toBe(true);
+      expect(result.steps[0].timestamp).toBeUndefined(); // No timestamp without history
     });
   });
 });
