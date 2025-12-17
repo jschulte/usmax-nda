@@ -6,9 +6,11 @@
  * Story 3.4: Agency-First Entry Path with Suggestions
  * Story 3.5: RTF Document Generation
  * Story 3.6: Draft Management & Auto-Save
+ * Story 3.7: NDA List with Filtering
  *
  * REST API endpoints for NDA operations:
  * - GET    /api/ndas                    - List NDAs with pagination and filtering
+ * - GET    /api/ndas/filter-presets     - Get available filter presets
  * - GET    /api/ndas/company-suggestions - Get recent companies
  * - GET    /api/ndas/company-defaults   - Get auto-fill defaults for company
  * - GET    /api/ndas/company-search     - Search companies
@@ -42,6 +44,7 @@ import {
   cloneNda,
   updateDraft,
   getIncompleteFields,
+  getFilterPresets,
   NdaServiceError,
   NdaStatus,
 } from '../services/ndaService.js';
@@ -70,8 +73,27 @@ router.use(authenticateJWT);
 router.use(attachUserContext);
 
 /**
+ * GET /api/ndas/filter-presets
+ * Get available filter presets for NDA list (Story 3.7)
+ *
+ * Requires: nda:view permission (via any NDA permission)
+ */
+router.get(
+  '/filter-presets',
+  requireAnyPermission([
+    PERMISSIONS.NDA_VIEW,
+    PERMISSIONS.NDA_CREATE,
+    PERMISSIONS.NDA_UPDATE,
+    PERMISSIONS.NDA_DELETE,
+  ]),
+  (req, res) => {
+    res.json({ presets: getFilterPresets() });
+  }
+);
+
+/**
  * GET /api/ndas
- * List NDAs with pagination and filtering
+ * List NDAs with pagination and filtering (Story 3.7)
  *
  * Query params:
  * - page: Page number (default: 1)
@@ -89,6 +111,17 @@ router.use(attachUserContext);
  * - showCancelled: Include cancelled NDAs (default: false)
  * - draftsOnly: Only show CREATED status NDAs (Story 3.6)
  * - myDrafts: Only show drafts created by current user (Story 3.6)
+ * - companyCity: Filter by company city (partial match)
+ * - companyState: Filter by company state (partial match)
+ * - stateOfIncorporation: Filter by state of incorporation (partial match)
+ * - agencyOfficeName: Filter by agency office name (partial match)
+ * - isNonUsMax: Filter by non-USMax flag
+ * - createdDateFrom: Filter by creation date >=
+ * - createdDateTo: Filter by creation date <=
+ * - opportunityPocName: Filter by opportunity POC name (partial match)
+ * - contractsPocName: Filter by contracts POC name (partial match)
+ * - relationshipPocName: Filter by relationship POC name (partial match)
+ * - preset: Apply filter preset (my-ndas, expiring-soon, drafts, inactive)
  *
  * Requires: nda:view permission (via any NDA permission)
  */
@@ -118,6 +151,18 @@ router.get(
         showCancelled: req.query.showCancelled === 'true',
         draftsOnly: req.query.draftsOnly === 'true',
         myDrafts: req.query.myDrafts === 'true',
+        // Extended filters (Story 3.7)
+        companyCity: req.query.companyCity as string | undefined,
+        companyState: req.query.companyState as string | undefined,
+        stateOfIncorporation: req.query.stateOfIncorporation as string | undefined,
+        agencyOfficeName: req.query.agencyOfficeName as string | undefined,
+        isNonUsMax: req.query.isNonUsMax === undefined ? undefined : req.query.isNonUsMax === 'true',
+        createdDateFrom: req.query.createdDateFrom as string | undefined,
+        createdDateTo: req.query.createdDateTo as string | undefined,
+        opportunityPocName: req.query.opportunityPocName as string | undefined,
+        contractsPocName: req.query.contractsPocName as string | undefined,
+        relationshipPocName: req.query.relationshipPocName as string | undefined,
+        preset: req.query.preset as 'my-ndas' | 'expiring-soon' | 'drafts' | 'inactive' | undefined,
       };
 
       const result = await listNdas(params, req.userContext!);

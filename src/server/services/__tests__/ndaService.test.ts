@@ -52,6 +52,7 @@ import {
   changeNdaStatus,
   getIncompleteFields,
   updateDraft,
+  getFilterPresets,
   NdaServiceError,
 } from '../ndaService.js';
 import { prisma } from '../../db/index.js';
@@ -841,6 +842,255 @@ describe('NDA Service', () => {
       await expect(
         updateDraft('nonexistent', { companyName: 'Test' }, createMockUserContext())
       ).rejects.toThrow('NDA not found or access denied');
+    });
+  });
+
+  // Story 3.7: NDA List with Filtering
+  describe('getFilterPresets', () => {
+    it('returns array of filter presets', () => {
+      const presets = getFilterPresets();
+
+      expect(Array.isArray(presets)).toBe(true);
+      expect(presets.length).toBeGreaterThan(0);
+
+      // Check preset structure
+      presets.forEach((preset) => {
+        expect(preset).toHaveProperty('id');
+        expect(preset).toHaveProperty('name');
+        expect(preset).toHaveProperty('description');
+        expect(preset).toHaveProperty('params');
+      });
+    });
+
+    it('includes expected presets', () => {
+      const presets = getFilterPresets();
+      const presetIds = presets.map((p) => p.id);
+
+      expect(presetIds).toContain('my-ndas');
+      expect(presetIds).toContain('drafts');
+      expect(presetIds).toContain('expiring-soon');
+      expect(presetIds).toContain('inactive');
+      expect(presetIds).toContain('all');
+    });
+  });
+
+  describe('listNdas extended filters (Story 3.7)', () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+    });
+
+    it('filters by companyCity', async () => {
+      mockPrisma.nda.findMany.mockResolvedValue([]);
+      mockPrisma.nda.count.mockResolvedValue(0);
+
+      await listNdas(
+        { companyCity: 'Arlington' },
+        createMockUserContext()
+      );
+
+      expect(mockPrisma.nda.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            companyCity: { contains: 'Arlington', mode: 'insensitive' },
+          }),
+        })
+      );
+    });
+
+    it('filters by companyState', async () => {
+      mockPrisma.nda.findMany.mockResolvedValue([]);
+      mockPrisma.nda.count.mockResolvedValue(0);
+
+      await listNdas(
+        { companyState: 'Virginia' },
+        createMockUserContext()
+      );
+
+      expect(mockPrisma.nda.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            companyState: { contains: 'Virginia', mode: 'insensitive' },
+          }),
+        })
+      );
+    });
+
+    it('filters by stateOfIncorporation', async () => {
+      mockPrisma.nda.findMany.mockResolvedValue([]);
+      mockPrisma.nda.count.mockResolvedValue(0);
+
+      await listNdas(
+        { stateOfIncorporation: 'Delaware' },
+        createMockUserContext()
+      );
+
+      expect(mockPrisma.nda.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            stateOfIncorporation: { contains: 'Delaware', mode: 'insensitive' },
+          }),
+        })
+      );
+    });
+
+    it('filters by agencyOfficeName', async () => {
+      mockPrisma.nda.findMany.mockResolvedValue([]);
+      mockPrisma.nda.count.mockResolvedValue(0);
+
+      await listNdas(
+        { agencyOfficeName: 'Headquarters' },
+        createMockUserContext()
+      );
+
+      expect(mockPrisma.nda.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            agencyOfficeName: { contains: 'Headquarters', mode: 'insensitive' },
+          }),
+        })
+      );
+    });
+
+    it('filters by isNonUsMax', async () => {
+      mockPrisma.nda.findMany.mockResolvedValue([]);
+      mockPrisma.nda.count.mockResolvedValue(0);
+
+      await listNdas(
+        { isNonUsMax: true },
+        createMockUserContext()
+      );
+
+      expect(mockPrisma.nda.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            isNonUsMax: true,
+          }),
+        })
+      );
+    });
+
+    it('filters by created date range', async () => {
+      mockPrisma.nda.findMany.mockResolvedValue([]);
+      mockPrisma.nda.count.mockResolvedValue(0);
+
+      const fromDate = '2024-01-01';
+      const toDate = '2024-12-31';
+
+      await listNdas(
+        { createdDateFrom: fromDate, createdDateTo: toDate },
+        createMockUserContext()
+      );
+
+      expect(mockPrisma.nda.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            createdAt: {
+              gte: expect.any(Date),
+              lte: expect.any(Date),
+            },
+          }),
+        })
+      );
+    });
+
+    it('filters by opportunityPocName', async () => {
+      mockPrisma.nda.findMany.mockResolvedValue([]);
+      mockPrisma.nda.count.mockResolvedValue(0);
+
+      await listNdas(
+        { opportunityPocName: 'Smith' },
+        createMockUserContext()
+      );
+
+      expect(mockPrisma.nda.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            opportunityPoc: {
+              OR: [
+                { firstName: { contains: 'Smith', mode: 'insensitive' } },
+                { lastName: { contains: 'Smith', mode: 'insensitive' } },
+              ],
+            },
+          }),
+        })
+      );
+    });
+
+    it('applies my-ndas preset', async () => {
+      mockPrisma.nda.findMany.mockResolvedValue([]);
+      mockPrisma.nda.count.mockResolvedValue(0);
+
+      const userContext = createMockUserContext({ contactId: 'contact-123' });
+
+      await listNdas(
+        { preset: 'my-ndas' },
+        userContext
+      );
+
+      expect(mockPrisma.nda.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            createdById: 'contact-123',
+          }),
+        })
+      );
+    });
+
+    it('applies drafts preset', async () => {
+      mockPrisma.nda.findMany.mockResolvedValue([]);
+      mockPrisma.nda.count.mockResolvedValue(0);
+
+      await listNdas(
+        { preset: 'drafts' },
+        createMockUserContext()
+      );
+
+      expect(mockPrisma.nda.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            status: 'CREATED',
+          }),
+        })
+      );
+    });
+
+    it('applies inactive preset', async () => {
+      mockPrisma.nda.findMany.mockResolvedValue([]);
+      mockPrisma.nda.count.mockResolvedValue(0);
+
+      await listNdas(
+        { preset: 'inactive' },
+        createMockUserContext()
+      );
+
+      expect(mockPrisma.nda.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            status: 'INACTIVE',
+          }),
+        })
+      );
+    });
+
+    it('applies expiring-soon preset', async () => {
+      mockPrisma.nda.findMany.mockResolvedValue([]);
+      mockPrisma.nda.count.mockResolvedValue(0);
+
+      await listNdas(
+        { preset: 'expiring-soon' },
+        createMockUserContext()
+      );
+
+      expect(mockPrisma.nda.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            effectiveDate: expect.objectContaining({
+              gte: expect.any(Date),
+              lte: expect.any(Date),
+            }),
+          }),
+        })
+      );
     });
   });
 });

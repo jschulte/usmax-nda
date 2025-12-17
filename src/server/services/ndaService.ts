@@ -92,6 +92,19 @@ export interface ListNdaParams {
   // Draft filter (Story 3.6)
   draftsOnly?: boolean; // Only show CREATED status with incomplete fields
   myDrafts?: boolean; // Only show drafts created by current user
+  // Extended filters (Story 3.7)
+  companyCity?: string;
+  companyState?: string;
+  stateOfIncorporation?: string;
+  agencyOfficeName?: string;
+  isNonUsMax?: boolean;
+  createdDateFrom?: string | Date;
+  createdDateTo?: string | Date;
+  opportunityPocName?: string;
+  contractsPocName?: string;
+  relationshipPocName?: string;
+  // Filter preset
+  preset?: 'my-ndas' | 'expiring-soon' | 'drafts' | 'inactive';
 }
 
 /**
@@ -394,6 +407,91 @@ export async function listNdas(
     where.createdById = userContext.contactId;
   }
 
+  // Extended filters (Story 3.7)
+  if (params.companyCity) {
+    where.companyCity = { contains: params.companyCity, mode: 'insensitive' };
+  }
+
+  if (params.companyState) {
+    where.companyState = { contains: params.companyState, mode: 'insensitive' };
+  }
+
+  if (params.stateOfIncorporation) {
+    where.stateOfIncorporation = { contains: params.stateOfIncorporation, mode: 'insensitive' };
+  }
+
+  if (params.agencyOfficeName) {
+    where.agencyOfficeName = { contains: params.agencyOfficeName, mode: 'insensitive' };
+  }
+
+  if (params.isNonUsMax !== undefined) {
+    where.isNonUsMax = params.isNonUsMax;
+  }
+
+  // Created date filters
+  if (params.createdDateFrom || params.createdDateTo) {
+    where.createdAt = {};
+    if (params.createdDateFrom) {
+      where.createdAt.gte = new Date(params.createdDateFrom);
+    }
+    if (params.createdDateTo) {
+      where.createdAt.lte = new Date(params.createdDateTo);
+    }
+  }
+
+  // POC name filters (join with Contact table)
+  if (params.opportunityPocName) {
+    where.opportunityPoc = {
+      OR: [
+        { firstName: { contains: params.opportunityPocName, mode: 'insensitive' } },
+        { lastName: { contains: params.opportunityPocName, mode: 'insensitive' } },
+      ],
+    };
+  }
+
+  if (params.contractsPocName) {
+    where.contractsPoc = {
+      OR: [
+        { firstName: { contains: params.contractsPocName, mode: 'insensitive' } },
+        { lastName: { contains: params.contractsPocName, mode: 'insensitive' } },
+      ],
+    };
+  }
+
+  if (params.relationshipPocName) {
+    where.relationshipPoc = {
+      OR: [
+        { firstName: { contains: params.relationshipPocName, mode: 'insensitive' } },
+        { lastName: { contains: params.relationshipPocName, mode: 'insensitive' } },
+      ],
+    };
+  }
+
+  // Filter presets (Story 3.7)
+  if (params.preset) {
+    switch (params.preset) {
+      case 'my-ndas':
+        where.createdById = userContext.contactId;
+        break;
+      case 'expiring-soon':
+        // NDAs with effective date within next 30 days
+        const thirtyDaysFromNow = new Date();
+        thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
+        where.effectiveDate = {
+          ...(where.effectiveDate as Prisma.DateTimeFilter || {}),
+          lte: thirtyDaysFromNow,
+          gte: new Date(), // Only future/current dates
+        };
+        break;
+      case 'drafts':
+        where.status = 'CREATED';
+        break;
+      case 'inactive':
+        where.status = 'INACTIVE';
+        break;
+    }
+  }
+
   // Handle sort
   const sortBy = params.sortBy || 'createdAt';
   const sortOrder = params.sortOrder || 'desc';
@@ -410,6 +508,9 @@ export async function listNdas(
         agencyGroup: { select: { id: true, name: true, code: true } },
         subagency: { select: { id: true, name: true, code: true } },
         createdBy: { select: { id: true, firstName: true, lastName: true } },
+        opportunityPoc: { select: { id: true, firstName: true, lastName: true } },
+        contractsPoc: { select: { id: true, firstName: true, lastName: true } },
+        relationshipPoc: { select: { id: true, firstName: true, lastName: true } },
       },
     }),
     prisma.nda.count({ where }),
@@ -422,6 +523,54 @@ export async function listNdas(
     limit,
     totalPages: Math.ceil(total / limit),
   };
+}
+
+/**
+ * Filter preset definitions for the NDA list (Story 3.7)
+ */
+export interface FilterPreset {
+  id: string;
+  name: string;
+  description: string;
+  params: Partial<ListNdaParams>;
+}
+
+/**
+ * Get available filter presets
+ */
+export function getFilterPresets(): FilterPreset[] {
+  return [
+    {
+      id: 'my-ndas',
+      name: 'My NDAs',
+      description: 'NDAs created by me',
+      params: { preset: 'my-ndas' },
+    },
+    {
+      id: 'drafts',
+      name: 'Drafts',
+      description: 'NDAs in draft status',
+      params: { preset: 'drafts' },
+    },
+    {
+      id: 'expiring-soon',
+      name: 'Expiring Soon',
+      description: 'NDAs expiring within 30 days',
+      params: { preset: 'expiring-soon' },
+    },
+    {
+      id: 'inactive',
+      name: 'Inactive',
+      description: 'Inactive NDAs',
+      params: { preset: 'inactive', showInactive: true },
+    },
+    {
+      id: 'all',
+      name: 'All NDAs',
+      description: 'All active NDAs',
+      params: {},
+    },
+  ];
 }
 
 /**
