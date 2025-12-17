@@ -330,6 +330,83 @@ export async function getNda(id: string, userContext: UserContext): Promise<any 
 }
 
 /**
+ * Available actions for an NDA based on user permissions (Story 3.8)
+ */
+export interface AvailableActions {
+  canEdit: boolean;
+  canSendEmail: boolean;
+  canUploadDocument: boolean;
+  canChangeStatus: boolean;
+  canDelete: boolean;
+}
+
+/**
+ * NDA Detail Response (Story 3.8)
+ */
+export interface NdaDetailResponse {
+  nda: any;
+  documents: any[];
+  emails: any[];
+  auditTrail: any[];
+  statusHistory: any[];
+  availableActions: AvailableActions;
+}
+
+/**
+ * Get detailed NDA view with all related data (Story 3.8)
+ * Includes documents, audit trail, status history, and permission-based actions
+ */
+export async function getNdaDetail(
+  id: string,
+  userContext: UserContext
+): Promise<NdaDetailResponse | null> {
+  // Get the NDA with all related data
+  const nda = await getNda(id, userContext);
+
+  if (!nda) {
+    return null;
+  }
+
+  // Get audit trail for this NDA
+  const auditTrail = await prisma.auditLog.findMany({
+    where: {
+      entityType: 'nda',
+      entityId: id,
+    },
+    orderBy: { createdAt: 'desc' },
+    take: 100, // Limit to last 100 entries
+  });
+
+  // Format audit trail with user names
+  const formattedAuditTrail = auditTrail.map((entry) => ({
+    action: entry.action,
+    timestamp: entry.createdAt,
+    userId: entry.userId,
+    details: entry.details,
+    ipAddress: entry.ipAddress,
+    userAgent: entry.userAgent,
+  }));
+
+  // Determine available actions based on permissions
+  const availableActions: AvailableActions = {
+    canEdit: userContext.permissions.has('nda:update'),
+    canSendEmail: userContext.permissions.has('nda:send_email'),
+    canUploadDocument: userContext.permissions.has('nda:upload_document'),
+    canChangeStatus: userContext.permissions.has('nda:mark_status'),
+    canDelete: userContext.permissions.has('nda:delete'),
+  };
+
+  return {
+    nda,
+    documents: nda.documents || [],
+    emails: [], // Email history not yet implemented (Story 3-10)
+    auditTrail: formattedAuditTrail,
+    statusHistory: nda.statusHistory || [],
+    availableActions,
+  };
+}
+
+/**
  * List NDAs with filtering, pagination, and row-level security
  */
 export async function listNdas(

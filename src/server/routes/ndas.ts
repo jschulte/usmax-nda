@@ -7,6 +7,7 @@
  * Story 3.5: RTF Document Generation
  * Story 3.6: Draft Management & Auto-Save
  * Story 3.7: NDA List with Filtering
+ * Story 3.8: NDA Detail View
  *
  * REST API endpoints for NDA operations:
  * - GET    /api/ndas                    - List NDAs with pagination and filtering
@@ -38,6 +39,7 @@ import { PERMISSIONS } from '../constants/permissions.js';
 import {
   createNda,
   getNda,
+  getNdaDetail,
   listNdas,
   updateNda,
   changeNdaStatus,
@@ -405,7 +407,15 @@ router.get(
 
 /**
  * GET /api/ndas/:id
- * Get NDA details by ID
+ * Get NDA details by ID (Story 3.8)
+ *
+ * Returns comprehensive NDA data including:
+ * - Full NDA record with relations
+ * - Documents list
+ * - Email history (placeholder for Story 3-10)
+ * - Audit trail
+ * - Status history
+ * - Available actions based on user permissions
  *
  * Requires: nda:view permission (via any NDA permission)
  */
@@ -419,20 +429,20 @@ router.get(
   ]),
   async (req, res) => {
     try {
-      const nda = await getNda(req.params.id, req.userContext!);
+      const detail = await getNdaDetail(req.params.id, req.userContext!);
 
-      if (!nda) {
+      if (!detail) {
         return res.status(404).json({
           error: 'NDA not found or access denied',
           code: 'NOT_FOUND',
         });
       }
 
-      res.json(nda);
+      res.json(detail);
     } catch (error) {
-      console.error('[NDAs] Error getting NDA:', error);
+      console.error('[NDAs] Error getting NDA detail:', error);
       res.status(500).json({
-        error: 'Failed to get NDA',
+        error: 'Failed to get NDA details',
         code: 'INTERNAL_ERROR',
       });
     }

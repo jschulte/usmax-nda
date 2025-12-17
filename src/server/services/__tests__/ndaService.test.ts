@@ -28,6 +28,9 @@ vi.mock('../../db/index.js', () => ({
       findUnique: vi.fn(),
       findFirst: vi.fn(),
     },
+    auditLog: {
+      findMany: vi.fn(),
+    },
   },
 }));
 
@@ -47,6 +50,7 @@ vi.mock('../auditService.js', () => ({
 import {
   createNda,
   getNda,
+  getNdaDetail,
   listNdas,
   updateNda,
   changeNdaStatus,
@@ -1091,6 +1095,127 @@ describe('NDA Service', () => {
           }),
         })
       );
+    });
+  });
+
+  // Story 3.8: NDA Detail View
+  describe('getNdaDetail', () => {
+    const mockNda = {
+      id: 'nda-1',
+      displayId: 1001,
+      companyName: 'Test Company',
+      status: 'CREATED',
+      agencyGroupId: 'agency-1',
+      documents: [
+        { id: 'doc-1', filename: 'test.pdf', uploadedAt: new Date() },
+      ],
+      statusHistory: [
+        { status: 'CREATED', changedAt: new Date(), changedBy: { id: 'user-1', firstName: 'John', lastName: 'Doe' } },
+      ],
+    };
+
+    const mockAuditTrail = [
+      {
+        action: 'nda_created',
+        createdAt: new Date(),
+        userId: 'user-1',
+        details: {},
+        ipAddress: '127.0.0.1',
+        userAgent: 'test',
+      },
+    ];
+
+    beforeEach(() => {
+      vi.clearAllMocks();
+    });
+
+    it('returns full NDA detail with audit trail and available actions', async () => {
+      mockPrisma.nda.findFirst.mockResolvedValue(mockNda);
+      mockPrisma.auditLog.findMany.mockResolvedValue(mockAuditTrail);
+
+      const userContext = createMockUserContext({
+        permissions: new Set(['nda:view', 'nda:update', 'nda:upload_document']),
+      });
+
+      const result = await getNdaDetail('nda-1', userContext);
+
+      expect(result).not.toBeNull();
+      expect(result!.nda).toEqual(mockNda);
+      expect(result!.documents).toEqual(mockNda.documents);
+      expect(result!.statusHistory).toEqual(mockNda.statusHistory);
+      expect(result!.auditTrail).toHaveLength(1);
+      expect(result!.emails).toEqual([]); // Not yet implemented
+    });
+
+    it('returns correct available actions based on permissions', async () => {
+      mockPrisma.nda.findFirst.mockResolvedValue(mockNda);
+      mockPrisma.auditLog.findMany.mockResolvedValue([]);
+
+      const userContext = createMockUserContext({
+        permissions: new Set(['nda:view', 'nda:update']),
+      });
+
+      const result = await getNdaDetail('nda-1', userContext);
+
+      expect(result!.availableActions).toEqual({
+        canEdit: true,
+        canSendEmail: false,
+        canUploadDocument: false,
+        canChangeStatus: false,
+        canDelete: false,
+      });
+    });
+
+    it('returns all actions true for user with all permissions', async () => {
+      mockPrisma.nda.findFirst.mockResolvedValue(mockNda);
+      mockPrisma.auditLog.findMany.mockResolvedValue([]);
+
+      const userContext = createMockUserContext({
+        permissions: new Set([
+          'nda:view',
+          'nda:update',
+          'nda:send_email',
+          'nda:upload_document',
+          'nda:mark_status',
+          'nda:delete',
+        ]),
+      });
+
+      const result = await getNdaDetail('nda-1', userContext);
+
+      expect(result!.availableActions).toEqual({
+        canEdit: true,
+        canSendEmail: true,
+        canUploadDocument: true,
+        canChangeStatus: true,
+        canDelete: true,
+      });
+    });
+
+    it('returns null when NDA not found', async () => {
+      mockPrisma.nda.findFirst.mockResolvedValue(null);
+
+      const result = await getNdaDetail('nonexistent', createMockUserContext());
+
+      expect(result).toBeNull();
+      // Should not query audit log when NDA doesn't exist
+      expect(mockPrisma.auditLog.findMany).not.toHaveBeenCalled();
+    });
+
+    it('queries audit log with correct parameters', async () => {
+      mockPrisma.nda.findFirst.mockResolvedValue(mockNda);
+      mockPrisma.auditLog.findMany.mockResolvedValue([]);
+
+      await getNdaDetail('nda-1', createMockUserContext());
+
+      expect(mockPrisma.auditLog.findMany).toHaveBeenCalledWith({
+        where: {
+          entityType: 'nda',
+          entityId: 'nda-1',
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 100,
+      });
     });
   });
 });

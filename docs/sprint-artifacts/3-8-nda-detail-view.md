@@ -1,6 +1,6 @@
 # Story 3.8: NDA Detail View
 
-Status: backlog
+Status: done
 
 ## Story
 
