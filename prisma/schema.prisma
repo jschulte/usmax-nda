@@ -60,6 +60,10 @@ model Contact {
   // Email relations (Story 3.10)
   emailsSent            NdaEmail[]
 
+  // Notification relations (Story 3.11)
+  notificationPreference NotificationPreference?
+  ndaSubscriptions       NdaSubscription[]
+
   @@map("contacts")
 }
 
@@ -275,6 +279,7 @@ model Nda {
   statusHistory NdaStatusHistory[]
   documents     Document[]
   emails        NdaEmail[]
+  subscriptions NdaSubscription[]
 
   @@index([agencyGroupId])
   @@index([subagencyId])
@@ -356,6 +361,44 @@ model NdaEmail {
   @@index([ndaId])
   @@index([status])
   @@map("nda_emails")
+}
+
+// ============================================================================
+// NOTIFICATIONS - Story 3.11: Email Notifications to Stakeholders
+// ============================================================================
+
+/// NotificationPreference stores user preferences for notification events
+model NotificationPreference {
+  id               String  @id @default(uuid())
+  contactId        String  @unique @map("contact_id")
+  contact          Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  // Event toggles
+  onNdaCreated     Boolean @default(true) @map("on_nda_created")
+  onNdaEmailed     Boolean @default(true) @map("on_nda_emailed")
+  onDocumentUploaded Boolean @default(true) @map("on_document_uploaded")
+  onStatusChanged  Boolean @default(true) @map("on_status_changed")
+  onFullyExecuted  Boolean @default(true) @map("on_fully_executed")
+
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  @@map("notification_preferences")
+}
+
+/// NdaSubscription tracks which users are subscribed to notifications for specific NDAs
+model NdaSubscription {
+  id        String   @id @default(uuid())
+  ndaId     String   @map("nda_id")
+  nda       Nda      @relation(fields: [ndaId], references: [id], onDelete: Cascade)
+  contactId String   @map("contact_id")
+  contact   Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([ndaId, contactId])
+  @@index([ndaId])
+  @@index([contactId])
+  @@map("nda_subscriptions")
 }
 
 // ============================================================================
