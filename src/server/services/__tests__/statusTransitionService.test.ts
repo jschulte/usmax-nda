@@ -15,6 +15,13 @@ import {
   NdaStatus,
   StatusTransitionError,
   VALID_TRANSITIONS,
+  // Story 3.15 additions
+  isHiddenByDefault,
+  canReactivate,
+  getStatusDisplayInfo,
+  getAllStatusDisplayInfo,
+  HIDDEN_BY_DEFAULT_STATUSES,
+  STATUS_DISPLAY,
 } from '../statusTransitionService.js';
 import type { UserContext } from '../../types/auth.js';
 
@@ -408,6 +415,128 @@ describe('Status Transition Service', () => {
       for (const status of allStatuses) {
         expect(VALID_TRANSITIONS).toHaveProperty(status);
       }
+    });
+  });
+
+  // ========================================================================
+  // Story 3.15: Inactive & Cancelled Status Management
+  // ========================================================================
+
+  describe('Story 3.15: Inactive & Cancelled Status Management', () => {
+    describe('isHiddenByDefault', () => {
+      it('should return true for INACTIVE', () => {
+        expect(isHiddenByDefault(NdaStatus.INACTIVE)).toBe(true);
+      });
+
+      it('should return true for CANCELLED', () => {
+        expect(isHiddenByDefault(NdaStatus.CANCELLED)).toBe(true);
+      });
+
+      it('should return false for active statuses', () => {
+        expect(isHiddenByDefault(NdaStatus.CREATED)).toBe(false);
+        expect(isHiddenByDefault(NdaStatus.EMAILED)).toBe(false);
+        expect(isHiddenByDefault(NdaStatus.IN_REVISION)).toBe(false);
+        expect(isHiddenByDefault(NdaStatus.FULLY_EXECUTED)).toBe(false);
+      });
+    });
+
+    describe('canReactivate', () => {
+      it('should return true for INACTIVE (reversible)', () => {
+        expect(canReactivate(NdaStatus.INACTIVE)).toBe(true);
+      });
+
+      it('should return false for CANCELLED (terminal)', () => {
+        expect(canReactivate(NdaStatus.CANCELLED)).toBe(false);
+      });
+
+      it('should return false for other statuses', () => {
+        expect(canReactivate(NdaStatus.CREATED)).toBe(false);
+        expect(canReactivate(NdaStatus.EMAILED)).toBe(false);
+        expect(canReactivate(NdaStatus.FULLY_EXECUTED)).toBe(false);
+      });
+    });
+
+    describe('HIDDEN_BY_DEFAULT_STATUSES', () => {
+      it('should contain INACTIVE and CANCELLED', () => {
+        expect(HIDDEN_BY_DEFAULT_STATUSES).toContain(NdaStatus.INACTIVE);
+        expect(HIDDEN_BY_DEFAULT_STATUSES).toContain(NdaStatus.CANCELLED);
+      });
+
+      it('should not contain active statuses', () => {
+        expect(HIDDEN_BY_DEFAULT_STATUSES).not.toContain(NdaStatus.CREATED);
+        expect(HIDDEN_BY_DEFAULT_STATUSES).not.toContain(NdaStatus.EMAILED);
+        expect(HIDDEN_BY_DEFAULT_STATUSES).not.toContain(NdaStatus.FULLY_EXECUTED);
+      });
+    });
+
+    describe('STATUS_DISPLAY', () => {
+      it('should mark INACTIVE as hidden by default', () => {
+        expect(STATUS_DISPLAY[NdaStatus.INACTIVE].hiddenByDefault).toBe(true);
+        expect(STATUS_DISPLAY[NdaStatus.INACTIVE].canReactivate).toBe(true);
+        expect(STATUS_DISPLAY[NdaStatus.INACTIVE].isTerminal).toBe(false);
+        expect(STATUS_DISPLAY[NdaStatus.INACTIVE].variant).toBe('muted');
+      });
+
+      it('should mark CANCELLED as terminal and hidden', () => {
+        expect(STATUS_DISPLAY[NdaStatus.CANCELLED].hiddenByDefault).toBe(true);
+        expect(STATUS_DISPLAY[NdaStatus.CANCELLED].canReactivate).toBe(false);
+        expect(STATUS_DISPLAY[NdaStatus.CANCELLED].isTerminal).toBe(true);
+        expect(STATUS_DISPLAY[NdaStatus.CANCELLED].variant).toBe('danger');
+      });
+
+      it('should mark active statuses as not hidden', () => {
+        expect(STATUS_DISPLAY[NdaStatus.CREATED].hiddenByDefault).toBe(false);
+        expect(STATUS_DISPLAY[NdaStatus.EMAILED].hiddenByDefault).toBe(false);
+        expect(STATUS_DISPLAY[NdaStatus.FULLY_EXECUTED].hiddenByDefault).toBe(false);
+      });
+
+      it('should have appropriate variants for each status', () => {
+        expect(STATUS_DISPLAY[NdaStatus.CREATED].variant).toBe('default');
+        expect(STATUS_DISPLAY[NdaStatus.EMAILED].variant).toBe('default');
+        expect(STATUS_DISPLAY[NdaStatus.IN_REVISION].variant).toBe('warning');
+        expect(STATUS_DISPLAY[NdaStatus.FULLY_EXECUTED].variant).toBe('success');
+      });
+    });
+
+    describe('getStatusDisplayInfo', () => {
+      it('should return correct display info for each status', () => {
+        const inactiveInfo = getStatusDisplayInfo(NdaStatus.INACTIVE);
+        expect(inactiveInfo.label).toBe('Inactive');
+        expect(inactiveInfo.color).toBe('gray');
+
+        const cancelledInfo = getStatusDisplayInfo(NdaStatus.CANCELLED);
+        expect(cancelledInfo.label).toBe('Cancelled');
+        expect(cancelledInfo.color).toBe('red');
+      });
+    });
+
+    describe('getAllStatusDisplayInfo', () => {
+      it('should return info for all statuses', () => {
+        const allInfo = getAllStatusDisplayInfo();
+        const allStatuses = Object.values(NdaStatus);
+
+        for (const status of allStatuses) {
+          expect(allInfo).toHaveProperty(status);
+          expect(allInfo[status]).toHaveProperty('label');
+          expect(allInfo[status]).toHaveProperty('color');
+          expect(allInfo[status]).toHaveProperty('variant');
+        }
+      });
+    });
+
+    describe('Reactivation transitions', () => {
+      it('should allow INACTIVE to transition back to active statuses', () => {
+        expect(isValidTransition(NdaStatus.INACTIVE, NdaStatus.CREATED)).toBe(true);
+        expect(isValidTransition(NdaStatus.INACTIVE, NdaStatus.EMAILED)).toBe(true);
+        expect(isValidTransition(NdaStatus.INACTIVE, NdaStatus.IN_REVISION)).toBe(true);
+        expect(isValidTransition(NdaStatus.INACTIVE, NdaStatus.FULLY_EXECUTED)).toBe(true);
+      });
+
+      it('should NOT allow CANCELLED to transition anywhere', () => {
+        // CANCELLED is terminal - verify no outgoing transitions
+        const cancelledTransitions = getValidTransitionsFrom(NdaStatus.CANCELLED);
+        expect(cancelledTransitions).toHaveLength(0);
+      });
     });
   });
 });

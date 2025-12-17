@@ -392,10 +392,44 @@ describe('NDA Service', () => {
 
       await listNdas({ showInactive: true }, createMockUserContext());
 
+      // When showInactive=true, only CANCELLED should be excluded
       expect(mockPrisma.nda.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
-            status: { not: 'CANCELLED' },
+            status: { notIn: ['CANCELLED'] },
+          }),
+        })
+      );
+    });
+
+    it('includes cancelled when showCancelled is true', async () => {
+      mockPrisma.nda.findMany.mockResolvedValue([]);
+      mockPrisma.nda.count.mockResolvedValue(0);
+
+      await listNdas({ showCancelled: true }, createMockUserContext());
+
+      // When showCancelled=true, only INACTIVE should be excluded
+      expect(mockPrisma.nda.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            status: { notIn: ['INACTIVE'] },
+          }),
+        })
+      );
+    });
+
+    it('includes both inactive and cancelled when both show flags are true', async () => {
+      mockPrisma.nda.findMany.mockResolvedValue([]);
+      mockPrisma.nda.count.mockResolvedValue(0);
+
+      await listNdas({ showInactive: true, showCancelled: true }, createMockUserContext());
+
+      // When both show flags are true, no status should be excluded
+      // The where clause should not have a status filter
+      expect(mockPrisma.nda.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.not.objectContaining({
+            status: expect.anything(),
           }),
         })
       );

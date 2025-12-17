@@ -82,12 +82,67 @@ import {
   saveEditedDocument,
   TemplateServiceError,
 } from '../services/templateService.js';
+import {
+  getAllStatusDisplayInfo,
+  getValidTransitionsFrom,
+  isTerminalStatus,
+  canReactivate,
+} from '../services/statusTransitionService.js';
 
 const router = Router();
 
 // All routes require authentication and user context
 router.use(authenticateJWT);
 router.use(attachUserContext);
+
+/**
+ * GET /api/ndas/status-info
+ * Get status display information and transitions (Story 3.15)
+ *
+ * Returns status display config (colors, labels, variants)
+ * and valid transitions for UI rendering
+ */
+router.get(
+  '/status-info',
+  requireAnyPermission([PERMISSIONS.NDA_VIEW, PERMISSIONS.NDA_CREATE]),
+  async (_req, res) => {
+    try {
+      const statusInfo = getAllStatusDisplayInfo();
+
+      // Enhance with valid transitions for each status
+      const enhancedInfo = Object.entries(statusInfo).reduce(
+        (acc, [status, info]) => {
+          const enumStatus = status as NdaStatus;
+          acc[enumStatus] = {
+            ...info,
+            validTransitions: getValidTransitionsFrom(enumStatus),
+          };
+          return acc;
+        },
+        {} as Record<NdaStatus, typeof statusInfo[NdaStatus] & { validTransitions: NdaStatus[] }>
+      );
+
+      return res.json({
+        statuses: enhancedInfo,
+        terminalStatuses: Object.entries(statusInfo)
+          .filter(([status]) => isTerminalStatus(status as NdaStatus))
+          .map(([status]) => status),
+        reactivatableStatuses: Object.entries(statusInfo)
+          .filter(([status]) => canReactivate(status as NdaStatus))
+          .map(([status]) => status),
+        hiddenByDefault: Object.entries(statusInfo)
+          .filter(([_, info]) => info.hiddenByDefault)
+          .map(([status]) => status),
+      });
+    } catch (error) {
+      console.error('[NDA] Error getting status info:', error);
+      return res.status(500).json({
+        error: 'Failed to get status info',
+        code: 'INTERNAL_ERROR',
+      });
+    }
+  }
+);
 
 /**
  * GET /api/ndas/filter-presets

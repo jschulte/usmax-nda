@@ -295,3 +295,109 @@ export function isTerminalStatus(status: NdaStatus): boolean {
   const validTargets = VALID_TRANSITIONS[status];
   return !validTargets || validTargets.length === 0;
 }
+
+// ============================================================================
+// STORY 3.15: Inactive & Cancelled Status Management
+// ============================================================================
+
+/**
+ * Statuses that are hidden from default list views
+ */
+export const HIDDEN_BY_DEFAULT_STATUSES: NdaStatus[] = [
+  NdaStatus.INACTIVE,
+  NdaStatus.CANCELLED,
+];
+
+/**
+ * Check if a status is hidden by default in list views
+ */
+export function isHiddenByDefault(status: NdaStatus): boolean {
+  return HIDDEN_BY_DEFAULT_STATUSES.includes(status);
+}
+
+/**
+ * Check if an NDA can be reactivated (only from INACTIVE, not CANCELLED)
+ */
+export function canReactivate(status: NdaStatus): boolean {
+  return status === NdaStatus.INACTIVE;
+}
+
+/**
+ * Status display information for frontend
+ */
+export interface StatusDisplayInfo {
+  label: string;
+  color: string;
+  variant: 'default' | 'muted' | 'danger' | 'success' | 'warning';
+  hiddenByDefault: boolean;
+  isTerminal: boolean;
+  canReactivate: boolean;
+}
+
+/**
+ * Status display configuration
+ */
+export const STATUS_DISPLAY: Record<NdaStatus, StatusDisplayInfo> = {
+  [NdaStatus.CREATED]: {
+    label: 'Created',
+    color: 'blue',
+    variant: 'default',
+    hiddenByDefault: false,
+    isTerminal: false,
+    canReactivate: false,
+  },
+  [NdaStatus.EMAILED]: {
+    label: 'Emailed',
+    color: 'green',
+    variant: 'default',
+    hiddenByDefault: false,
+    isTerminal: false,
+    canReactivate: false,
+  },
+  [NdaStatus.IN_REVISION]: {
+    label: 'In Revision',
+    color: 'yellow',
+    variant: 'warning',
+    hiddenByDefault: false,
+    isTerminal: false,
+    canReactivate: false,
+  },
+  [NdaStatus.FULLY_EXECUTED]: {
+    label: 'Fully Executed',
+    color: 'emerald',
+    variant: 'success',
+    hiddenByDefault: false,
+    isTerminal: false,
+    canReactivate: false,
+  },
+  [NdaStatus.INACTIVE]: {
+    label: 'Inactive',
+    color: 'gray',
+    variant: 'muted',
+    hiddenByDefault: true,
+    isTerminal: false,
+    canReactivate: true,
+  },
+  [NdaStatus.CANCELLED]: {
+    label: 'Cancelled',
+    color: 'red',
+    variant: 'danger',
+    hiddenByDefault: true,
+    isTerminal: true,
+    canReactivate: false,
+  },
+};
+
+/**
+ * Get display information for a status
+ */
+export function getStatusDisplayInfo(status: NdaStatus): StatusDisplayInfo {
+  return STATUS_DISPLAY[status];
+}
+
+/**
+ * Get all status display info (for frontend dropdown population)
+ */
+export function getAllStatusDisplayInfo(): Record<NdaStatus, StatusDisplayInfo> {
+  return { ...STATUS_DISPLAY };
+}

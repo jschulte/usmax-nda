@@ -558,7 +558,23 @@ export async function listNdas(
   }
 
   if (params.status) {
+    // Specific status requested - use it directly (Story 3.15)
     where.status = params.status;
+  } else {
+    // No specific status - apply default inactive/cancelled filtering (Story 3.15)
+    // By default, exclude INACTIVE and CANCELLED unless explicitly requested
+    const excludeStatuses: NdaStatus[] = [];
+
+    if (!params.showInactive) {
+      excludeStatuses.push(NdaStatus.INACTIVE);
+    }
+    if (!params.showCancelled) {
+      excludeStatuses.push(NdaStatus.CANCELLED);
+    }
+
+    if (excludeStatuses.length > 0) {
+      where.status = { notIn: excludeStatuses };
+    }
   }
 
   if (params.createdById) {
@@ -574,15 +590,6 @@ export async function listNdas(
     if (params.effectiveDateTo) {
       where.effectiveDate.lte = new Date(params.effectiveDateTo);
     }
-  }
-
-  // Default: exclude inactive and cancelled unless explicitly requested
-  if (!params.showInactive && !params.showCancelled) {
-    where.status = { notIn: ['INACTIVE', 'CANCELLED'] };
-  } else if (!params.showInactive) {
-    where.status = { not: 'INACTIVE' };
-  } else if (!params.showCancelled) {
-    where.status = { not: 'CANCELLED' };
   }
 
   // Draft filters (Story 3.6)

@@ -1,6 +1,6 @@
 # Story 3.15: Inactive & Cancelled Status Management
 
-Status: backlog
+Status: done
 
 ## Story
 
