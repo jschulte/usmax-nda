@@ -23,6 +23,7 @@ import agencyAccessRouter from './routes/agencyAccess.js';
 import usersRouter from './routes/users.js';
 import ndasRouter from './routes/ndas.js';
 import notificationsRouter from './routes/notifications.js';
+import templatesRouter from './routes/templates.js';
 import { authenticateJWT } from './middleware/authenticateJWT.js';
 import { attachUserContext } from './middleware/attachUserContext.js';
 import type { Express } from 'express';
@@ -91,6 +92,10 @@ app.use('/api/ndas', ndasRouter);
 // Notifications routes (Story 3.11)
 // Handles notification preferences and NDA subscriptions
 app.use('/api', notificationsRouter);
+
+// Templates routes (Story 3.13)
+// RTF template selection and preview
+app.use('/api/rtf-templates', templatesRouter);
 
 // Protected routes example (requires authentication + user context)
 // Middleware pipeline: authenticateJWT → attachUserContext → route handler

@@ -1,6 +1,6 @@
 # Story 3.13: RTF Template Selection & Preview
 
-Status: backlog
+Status: done
 
 ## Story
 

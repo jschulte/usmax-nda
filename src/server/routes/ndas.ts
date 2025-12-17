@@ -77,6 +77,11 @@ import {
   getNdaEmails,
   EmailServiceError,
 } from '../services/emailService.js';
+import {
+  generatePreview,
+  saveEditedDocument,
+  TemplateServiceError,
+} from '../services/templateService.js';
 
 const router = Router();
 
@@ -1158,6 +1163,135 @@ router.get(
       console.error('[NDAs] Error getting email history:', error);
       res.status(500).json({
         error: 'Failed to get email history',
+        code: 'INTERNAL_ERROR',
+      });
+    }
+  }
+);
+
+// ============================================================================
+// Story 3.13: RTF Template Selection & Preview
+// ============================================================================
+
+/**
+ * POST /api/ndas/:id/preview-document
+ * Generate document preview (Story 3.13)
+ *
+ * Body (optional):
+ * - templateId: Template ID to use (uses recommended if not provided)
+ *
+ * Returns:
+ * - previewUrl: Pre-signed S3 URL (expires in 15 min)
+ * - mergedFields: Which fields were merged
+ * - templateUsed: Template info
+ */
+router.post(
+  '/:id/preview-document',
+  requireAnyPermission([
+    PERMISSIONS.NDA_VIEW,
+    PERMISSIONS.NDA_CREATE,
+    PERMISSIONS.NDA_UPDATE,
+  ]),
+  async (req, res) => {
+    try {
+      const { templateId } = req.body;
+
+      const preview = await generatePreview(
+        req.params.id,
+        templateId,
+        req.userContext!,
+        {
+          ipAddress: req.ip,
+          userAgent: req.headers['user-agent'],
+        }
+      );
+
+      res.json({
+        message: 'Document preview generated',
+        preview,
+      });
+    } catch (error) {
+      if (error instanceof TemplateServiceError) {
+        const statusCode =
+          error.code === 'NOT_FOUND' ? 404 :
+          error.code === 'ACCESS_DENIED' ? 403 :
+          error.code === 'VALIDATION_ERROR' ? 400 : 500;
+
+        return res.status(statusCode).json({
+          error: error.message,
+          code: error.code,
+        });
+      }
+
+      console.error('[NDAs] Error generating preview:', error);
+      res.status(500).json({
+        error: 'Failed to generate preview',
+        code: 'INTERNAL_ERROR',
+      });
+    }
+  }
+);
+
+/**
+ * POST /api/ndas/:id/save-edited-document
+ * Save edited document (Story 3.13)
+ *
+ * Body:
+ * - content: base64 encoded document content
+ * - filename: Original filename
+ *
+ * Returns:
+ * - documentId, filename, s3Key
+ */
+router.post(
+  '/:id/save-edited-document',
+  requireAnyPermission([
+    PERMISSIONS.NDA_CREATE,
+    PERMISSIONS.NDA_UPDATE,
+  ]),
+  async (req, res) => {
+    try {
+      const { content, filename } = req.body;
+
+      if (!content || !filename) {
+        return res.status(400).json({
+          error: 'Content and filename are required',
+          code: 'VALIDATION_ERROR',
+        });
+      }
+
+      const contentBuffer = Buffer.from(content, 'base64');
+
+      const result = await saveEditedDocument(
+        req.params.id,
+        contentBuffer,
+        filename,
+        req.userContext!,
+        {
+          ipAddress: req.ip,
+          userAgent: req.headers['user-agent'],
+        }
+      );
+
+      res.status(201).json({
+        message: 'Edited document saved',
+        document: result,
+      });
+    } catch (error) {
+      if (error instanceof TemplateServiceError) {
+        const statusCode =
+          error.code === 'NOT_FOUND' ? 404 :
+          error.code === 'ACCESS_DENIED' ? 403 : 500;
+
+        return res.status(statusCode).json({
+          error: error.message,
+          code: error.code,
+        });
+      }
+
+      console.error('[NDAs] Error saving edited document:', error);
+      res.status(500).json({
+        error: 'Failed to save edited document',
         code: 'INTERNAL_ERROR',
       });
     }

@@ -64,6 +64,9 @@ model Contact {
   notificationPreference NotificationPreference?
   ndaSubscriptions       NdaSubscription[]
 
+  // Template relations (Story 3.13)
+  rtfTemplatesCreated    RtfTemplate[]
+
   @@map("contacts")
 }
 
@@ -146,6 +149,7 @@ model AgencyGroup {
   subagencies        Subagency[]
   agencyGroupGrants  AgencyGroupGrant[]
   ndas               Nda[]
+  rtfTemplates       RtfTemplate[]
 
   @@map("agency_groups")
 }
@@ -399,6 +403,30 @@ model NdaSubscription {
   @@index([ndaId])
   @@index([contactId])
   @@map("nda_subscriptions")
+}
+
+// ============================================================================
+// TEMPLATES - Story 3.13: RTF Template Selection & Preview
+// ============================================================================
+
+/// RtfTemplate stores RTF document templates for NDA generation
+model RtfTemplate {
+  id            String       @id @default(uuid())
+  name          String       // Display name
+  description   String?      // Optional description
+  content       Bytes        // RTF template content
+  agencyGroupId String?      @map("agency_group_id") // null = generic template
+  agencyGroup   AgencyGroup? @relation(fields: [agencyGroupId], references: [id])
+  isDefault     Boolean      @default(false) @map("is_default")
+  isActive      Boolean      @default(true) @map("is_active")
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @updatedAt @map("updated_at")
+  createdById   String?      @map("created_by_id")
+  createdBy     Contact?     @relation(fields: [createdById], references: [id])
+
+  @@index([agencyGroupId])
+  @@index([isActive])
+  @@map("rtf_templates")
 }
 
 // ============================================================================
