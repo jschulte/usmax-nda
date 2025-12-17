@@ -1,6 +1,6 @@
 # Story 3.9: Status Progression Visualization
 
-Status: backlog
+Status: done
 
 ## Story
 
