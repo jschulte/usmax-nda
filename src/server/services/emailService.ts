@@ -8,6 +8,7 @@
 import { SESClient, SendRawEmailCommand } from '@aws-sdk/client-ses';
 import { prisma } from '../db/index.js';
 import { auditService, AuditAction } from './auditService.js';
+import { attemptAutoTransition, StatusTrigger } from './statusTransitionService.js';
 import { EmailStatus } from '../../generated/prisma/index.js';
 import type { UserContext } from '../types/auth.js';
 
@@ -311,22 +312,7 @@ export async function sendEmail(
       },
     });
 
-    // Auto-transition NDA status to EMAILED
-    await prisma.nda.update({
-      where: { id: email.ndaId },
-      data: { status: 'EMAILED' },
-    });
-
-    // Record status change in history
-    await prisma.ndaStatusHistory.create({
-      data: {
-        ndaId: email.ndaId,
-        status: 'EMAILED',
-        changedById: userContext.userId,
-      },
-    });
-
-    // Log success
+    // Log email send success
     await auditService.log({
       action: AuditAction.EMAIL_SENT,
       entityType: 'nda_email',
@@ -337,6 +323,15 @@ export async function sendEmail(
         sesMessageId: result.MessageId,
       },
     });
+
+    // Auto-transition NDA status to EMAILED (Story 3.12)
+    // This will only transition if the NDA is in CREATED status
+    // and properly record the transition in audit log
+    await attemptAutoTransition(
+      email.ndaId,
+      StatusTrigger.EMAIL_SENT,
+      userContext
+    );
   } catch (error) {
     // Update email record with failure
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';

@@ -1,6 +1,6 @@
 # Story 3.12: Status Management & Auto-Transitions
 
-Status: backlog
+Status: done
 
 ## Story
 

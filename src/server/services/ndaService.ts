@@ -11,6 +11,13 @@
 
 import { prisma } from '../db/index.js';
 import { auditService, AuditAction } from './auditService.js';
+import {
+  isValidTransition,
+  transitionStatus,
+  StatusTrigger,
+  StatusTransitionError,
+  getValidTransitionsFrom,
+} from './statusTransitionService.js';
 import { NdaStatus, UsMaxPosition } from '../../generated/prisma/index.js';
 import type { Prisma } from '../../generated/prisma/index.js';
 import type { UserContext } from '../types/auth.js';
@@ -872,21 +879,36 @@ export async function changeNdaStatus(
     throw new NdaServiceError('NDA not found or access denied', 'NOT_FOUND');
   }
 
-  const previousStatus = existing.status;
+  const currentStatus = existing.status as NdaStatus;
 
-  // Update status and add history entry
-  const nda = await prisma.nda.update({
+  // Validate transition is allowed (Story 3.12)
+  if (!isValidTransition(currentStatus, newStatus)) {
+    const validTargets = getValidTransitionsFrom(currentStatus);
+    throw new NdaServiceError(
+      `Invalid status transition from ${currentStatus} to ${newStatus}. Valid transitions: ${validTargets.join(', ') || 'none'}`,
+      'INVALID_TRANSITION'
+    );
+  }
+
+  // Use transition service for consistent handling
+  try {
+    await transitionStatus(
+      id,
+      newStatus,
+      StatusTrigger.MANUAL_CHANGE,
+      userContext,
+      auditMeta
+    );
+  } catch (error) {
+    if (error instanceof StatusTransitionError) {
+      throw new NdaServiceError(error.message, error.code);
+    }
+    throw error;
+  }
+
+  // Fetch updated NDA with status history
+  const nda = await prisma.nda.findUnique({
     where: { id },
-    data: {
-      status: newStatus,
-      fullyExecutedDate: newStatus === 'FULLY_EXECUTED' ? new Date() : existing.fullyExecutedDate,
-      statusHistory: {
-        create: {
-          status: newStatus,
-          changedById: userContext.contactId,
-        },
-      },
-    },
     include: {
       agencyGroup: { select: { id: true, name: true, code: true } },
       subagency: { select: { id: true, name: true, code: true } },
@@ -896,21 +918,6 @@ export async function changeNdaStatus(
           changedBy: { select: { id: true, firstName: true, lastName: true } },
         },
       },
-    },
-  });
-
-  // Audit log
-  await auditService.log({
-    action: AuditAction.NDA_STATUS_CHANGED,
-    entityType: 'nda',
-    entityId: nda.id,
-    userId: userContext.contactId,
-    ipAddress: auditMeta?.ipAddress,
-    userAgent: auditMeta?.userAgent,
-    details: {
-      displayId: nda.displayId,
-      previousStatus,
-      newStatus,
     },
   });
 

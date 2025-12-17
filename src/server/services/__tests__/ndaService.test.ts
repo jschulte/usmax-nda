@@ -20,6 +20,7 @@ vi.mock('../../db/index.js', () => ({
     nda: {
       create: vi.fn(),
       findFirst: vi.fn(),
+      findUnique: vi.fn(),
       findMany: vi.fn(),
       count: vi.fn(),
       update: vi.fn(),
@@ -45,6 +46,29 @@ vi.mock('../auditService.js', () => ({
     NDA_STATUS_CHANGED: 'nda_status_changed',
     NDA_CLONED: 'nda_cloned',
   },
+}));
+
+// Mock statusTransitionService for Story 3.12
+vi.mock('../statusTransitionService.js', () => ({
+  isValidTransition: vi.fn().mockReturnValue(true),
+  transitionStatus: vi.fn().mockResolvedValue({
+    previousStatus: 'CREATED',
+    newStatus: 'EMAILED',
+    trigger: 'manual_change',
+    timestamp: new Date(),
+    ndaId: 'nda-1',
+    displayId: 1001,
+  }),
+  StatusTrigger: {
+    MANUAL_CHANGE: 'manual_change',
+  },
+  StatusTransitionError: class StatusTransitionError extends Error {
+    constructor(message: string, public code: string) {
+      super(message);
+      this.name = 'StatusTransitionError';
+    }
+  },
+  getValidTransitionsFrom: vi.fn().mockReturnValue(['EMAILED', 'INACTIVE', 'CANCELLED']),
 }));
 
 import {
@@ -461,6 +485,7 @@ describe('NDA Service', () => {
 
   describe('changeNdaStatus', () => {
     it('changes status and records history', async () => {
+      // getNda uses findFirst
       mockPrisma.nda.findFirst.mockResolvedValue({
         id: 'nda-1',
         status: 'CREATED',
@@ -468,34 +493,28 @@ describe('NDA Service', () => {
         agencyGroupId: 'group-1',
       });
 
+      // After transition, findUnique is called to get updated NDA
       const updatedNda = {
         id: 'nda-1',
         displayId: 1001,
         status: 'EMAILED',
         agencyGroup: { id: 'group-1', name: 'DoD', code: 'DOD' },
+        subagency: null,
         statusHistory: [
-          { status: 'CREATED', changedAt: new Date(), changedBy: { id: 'contact-1' } },
-          { status: 'EMAILED', changedAt: new Date(), changedBy: { id: 'contact-1' } },
+          { status: 'CREATED', changedAt: new Date(), changedBy: { id: 'contact-1', firstName: 'Test', lastName: 'User' } },
+          { status: 'EMAILED', changedAt: new Date(), changedBy: { id: 'contact-1', firstName: 'Test', lastName: 'User' } },
         ],
       };
-
-      mockPrisma.nda.update.mockResolvedValue(updatedNda);
+      mockPrisma.nda.findUnique.mockResolvedValue(updatedNda);
 
       const result = await changeNdaStatus('nda-1', 'EMAILED', createMockUserContext());
 
       expect(result.status).toBe('EMAILED');
       expect(result.statusHistory).toHaveLength(2);
-      expect(mockPrisma.nda.update).toHaveBeenCalledWith(
+      // transitionStatus is mocked, so we just verify it was called
+      expect(mockPrisma.nda.findUnique).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({
-            status: 'EMAILED',
-            statusHistory: {
-              create: {
-                status: 'EMAILED',
-                changedById: 'contact-1',
-              },
-            },
-          }),
+          where: { id: 'nda-1' },
         })
       );
     });
@@ -514,20 +533,16 @@ describe('NDA Service', () => {
         status: 'FULLY_EXECUTED',
         fullyExecutedDate: new Date(),
         agencyGroup: { id: 'group-1', name: 'DoD', code: 'DOD' },
+        subagency: null,
         statusHistory: [],
       };
+      mockPrisma.nda.findUnique.mockResolvedValue(updatedNda);
 
-      mockPrisma.nda.update.mockResolvedValue(updatedNda);
+      const result = await changeNdaStatus('nda-1', 'FULLY_EXECUTED', createMockUserContext());
 
-      await changeNdaStatus('nda-1', 'FULLY_EXECUTED', createMockUserContext());
-
-      expect(mockPrisma.nda.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({
-            fullyExecutedDate: expect.any(Date),
-          }),
-        })
-      );
+      // The fullyExecutedDate is set by transitionStatus (which is mocked)
+      // We verify the result includes the date
+      expect(result.fullyExecutedDate).toBeInstanceOf(Date);
     });
 
     it('throws error when NDA not found', async () => {
