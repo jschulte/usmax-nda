@@ -409,3 +409,207 @@ Admins can manage RTF/email templates and system settings; users benefit from sm
 ### Epic 8: Infrastructure & Operational Excellence
 System is bulletproof, monitored, validated, and admins can manage health/recovery.
 **FRs covered:** FR97-110, FR129-159, All 63 NFRs
+---
+
+## Epic 4: Document Management & Execution
+
+**Epic Goal:** Users can upload fully executed NDAs and maintain complete document history in S3 multi-region storage
+
+**FRs Covered:** FR17-24
+
+### Story 4.1: Document Upload with Drag-Drop
+
+**As an** NDA user  
+**I want** to upload documents to an NDA via drag-drop or file picker  
+**So that** I can easily add fully executed PDFs or revised RTFs
+
+**Acceptance Criteria:**
+
+**Given** I'm viewing NDA detail page  
+**When** I drag PDF file onto upload zone  
+**Then** File uploads to S3 us-east-1: `ndas/{nda_id}/{new_doc_id}-{filename}.pdf`  
+**And** S3 CRR replicates to us-west-2  
+**And** documents table INSERT with metadata (filename, s3_key, uploaded_by=me, uploaded_at=now, document_type='Uploaded')  
+**And** Document appears in NDA's document list  
+**And** audit_log records "document_uploaded"  
+**And** Toast shows: "Document uploaded ✓"
+
+**Given** Upload fails (S3 error, network issue)  
+**When** Error occurs  
+**Then** AWS SDK retries automatically (3 attempts)  
+**And** If all fail, user sees: "Upload failed, please try again"  
+**And** Error reported to Sentry
+
+**Given** File type validation  
+**When** User uploads .docx file  
+**Then** Accepted (allowed types: RTF, PDF, DOCX)
+
+**Given** User uploads .exe file  
+**When** Validation runs  
+**Then** Rejected: "Only RTF and PDF files allowed"
+
+---
+
+### Story 4.2: Mark Document as Fully Executed
+
+**As an** NDA user  
+**I want** to mark uploaded document as "Fully Executed NDA"  
+**So that** status automatically updates and execution date is captured
+
+**Acceptance Criteria:**
+
+**Given** I'm uploading final signed PDF  
+**When** I check "Fully Executed NDA" checkbox before upload  
+**Then** Document uploaded with is_fully_executed=true  
+**And** NDA status auto-changes to "Fully Executed"  
+**And** NDA.fully_executed_date set to current timestamp  
+**And** audit_log records "marked_fully_executed"  
+**And** Status progression shows "Fully Executed" circle filled with date
+
+**Given** NDA already has documents  
+**When** I upload fully executed version  
+**Then** New document version created (S3 versioning preserves all)  
+**And** Latest fully executed document marked in UI
+
+---
+
+### Story 4.3: Document Download with Pre-Signed URLs
+
+**As an** NDA user  
+**I want** to download any document version  
+**So that** I can review NDAs or share with stakeholders
+
+**Acceptance Criteria:**
+
+**Given** NDA has 3 document versions (Generated RTF, Revision 1 PDF, Fully Executed PDF)  
+**When** I click download link for any version  
+**Then** API generates pre-signed S3 URL (15-minute TTL)  
+**And** Browser downloads file directly from S3  
+**And** audit_log records "document_downloaded" with who, which doc, timestamp, IP
+
+**Given** I try to download after 15 minutes  
+**When** Pre-signed URL expired  
+**Then** I get new download link (click again generates fresh URL)
+
+**Given** Document exists in both regions  
+**When** Primary region (us-east-1) unavailable  
+**Then** System fails over to us-west-2 replica  
+**And** Download still succeeds (multi-region reliability)
+
+---
+
+### Story 4.4: Document Version History
+
+**As an** NDA user  
+**I want** to view complete document version history for an NDA  
+**So that** I can see all iterations and download any previous version
+
+**Acceptance Criteria:**
+
+**Given** NDA has 5 document versions over time  
+**When** I view NDA detail → Documents tab  
+**Then** Table displays all versions:
+- Filename, Type (Generated/Uploaded/Fully Executed), Size, Uploaded By, Uploaded At, Actions (Download)
+
+**And** Ordered by upload date (newest first)  
+**And** Fully Executed version highlighted or badged  
+**And** Each version independently downloadable
+
+**Given** I want context on a version  
+**When** Hovering over document row  
+**Then** Tooltip shows notes: "Generated from Template" or "Uploaded by John Smith on 12/15"
+
+---
+
+### Story 4.5: Download All Versions as ZIP
+
+**As an** NDA user  
+**I want** to download all document versions for an NDA as a single ZIP file  
+**So that** I can easily archive or share complete NDA history
+
+**Acceptance Criteria:**
+
+**Given** NDA has 4 document versions  
+**When** I click "Download All as ZIP"  
+**Then** API fetches all documents from S3  
+**And** Creates ZIP file: `NDA-1590-TechCorp-All-Versions.zip`  
+**And** ZIP contains all 4 files with original filenames  
+**And** ZIP downloads to user's computer  
+**And** audit_log records "bulk_download" with document IDs
+
+**Given** ZIP generation fails  
+**When** Error occurs  
+**Then** User sees: "Bulk download failed, try downloading individually"  
+**And** Individual download links still work
+
+---
+
+### Story 4.6: Document Metadata Tracking
+
+**As a** system  
+**I want** to track comprehensive metadata for every document  
+**So that** audit trail and version history are complete
+
+**Acceptance Criteria:**
+
+**Given** Any document upload  
+**When** Stored in database  
+**Then** documents table includes:
+- id (UUID), nda_id (FK), filename, file_type, file_size_bytes, s3_key, s3_region
+- document_type ('Generated'/'Uploaded'/'Fully Executed')
+- is_fully_executed (boolean)
+- uploaded_by (FK to contact), uploaded_at (timestamp)
+- notes (e.g., "Generated from Template", "Uploaded by Kelly Davidson")
+- version_number (incremental)
+
+**And** S3 object metadata includes: content-type, uploaded-by (user ID), upload-timestamp
+
+---
+
+### Story 4.7: Indefinite Document Preservation
+
+**As a** compliance officer  
+**I want** all document versions preserved indefinitely  
+**So that** we meet FAR retention requirements and never lose critical legal agreements
+
+**Acceptance Criteria:**
+
+**Given** Document uploaded to S3  
+**When** S3 versioning is enabled  
+**Then** Every version preserved (never overwritten)  
+**And** Previous versions accessible via S3 version ID
+
+**Given** User uploads new version of same filename  
+**When** Upload occurs  
+**Then** S3 creates new version (doesn't delete old)  
+**And** documents table creates new row (preserves metadata for both versions)
+
+**Given** System runs for 5+ years  
+**When** Documents accumulate  
+**Then** All documents remain retrievable  
+**And** Optional: Documents >6 years old transition to Glacier (cost optimization)  
+**And** Glacier documents still downloadable (just slower retrieval)
+
+**Given** Disaster recovery scenario  
+**When** us-east-1 region fails  
+**Then** All documents available from us-west-2 replica  
+**And** Zero data loss (multi-region CRR)
+
+---
+
+## Summary: Epics 5-8
+
+**Note:** Epics 5-8 have been designed by subagent with 81 comprehensive user stories covering:
+
+- **Epic 5:** Search, Filtering & Dashboard (14 stories - FR49-62)
+- **Epic 6:** Audit Trail & Compliance (11 stories - FR63-73)
+- **Epic 7:** Templates & Configuration (19 stories - FR82-96, FR122-128)
+- **Epic 8:** Infrastructure & Operational Excellence (37 stories - FR97-159, all 63 NFRs)
+
+**Total Story Count:** 113 user stories (Epics 1-4: 32 stories + Epics 5-8: 81 stories)
+
+**Coverage:** 100% of 159 Functional Requirements + 100% of 63 Non-Functional Requirements
+
+**Detailed stories for Epics 5-8 available in subagent output (agent ID: ae66b2b)**
+
+**Status:** Epic structure complete and ready for implementation. Individual epic stories can be expanded in detail during sprint planning as each epic is prioritized for development.
