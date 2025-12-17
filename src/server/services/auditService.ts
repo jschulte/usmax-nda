@@ -63,6 +63,12 @@ export enum AuditAction {
   NDA_CLONED = 'nda_cloned',
   NDA_STATUS_CHANGED = 'nda_status_changed',
   NDA_DELETED = 'nda_deleted',
+
+  // Document management events (Story 3.5+)
+  DOCUMENT_GENERATED = 'document_generated',
+  DOCUMENT_UPLOADED = 'document_uploaded',
+  DOCUMENT_DOWNLOADED = 'document_downloaded',
+  DOCUMENT_DELETED = 'document_deleted',
 }
 
 export interface AuditLogEntry {

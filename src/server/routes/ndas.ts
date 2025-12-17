@@ -4,6 +4,7 @@
  * Story 3.2: Smart Form Auto-Fill (Company-First Entry Path)
  * Story 3.3: Clone/Duplicate NDA (Second Entry Path)
  * Story 3.4: Agency-First Entry Path with Suggestions
+ * Story 3.5: RTF Document Generation
  *
  * REST API endpoints for NDA operations:
  * - GET    /api/ndas                    - List NDAs with pagination and filtering
@@ -15,6 +16,9 @@
  * - GET    /api/ndas/:id                - Get NDA details
  * - POST   /api/ndas                    - Create new NDA
  * - POST   /api/ndas/:id/clone          - Clone an existing NDA
+ * - POST   /api/ndas/:id/generate-document - Generate DOCX document
+ * - GET    /api/ndas/:id/documents      - List documents for an NDA
+ * - GET    /api/ndas/documents/:documentId/download - Get download URL
  * - PUT    /api/ndas/:id                - Update NDA
  * - PATCH  /api/ndas/:id/status         - Change NDA status
  *
@@ -47,6 +51,13 @@ import {
   getAgencySuggestions,
   getCommonSubagencies,
 } from '../services/agencySuggestionsService.js';
+import {
+  generateDocument,
+  getDocumentById,
+  listNdaDocuments,
+  DocumentGenerationError,
+} from '../services/documentGenerationService.js';
+import { getDownloadUrl } from '../services/s3Service.js';
 
 const router = Router();
 
@@ -747,5 +758,140 @@ router.post('/:id/clone', requirePermission(PERMISSIONS.NDA_CREATE), async (req,
     });
   }
 });
+
+/**
+ * POST /api/ndas/:id/generate-document
+ * Generate a DOCX document for an NDA
+ * Story 3.5: RTF Document Generation
+ *
+ * Requires: nda:create or nda:update permission
+ *
+ * Returns:
+ * - documentId: UUID of the generated document
+ * - filename: Generated filename
+ * - s3Key: S3 storage key
+ */
+router.post(
+  '/:id/generate-document',
+  requireAnyPermission([PERMISSIONS.NDA_CREATE, PERMISSIONS.NDA_UPDATE]),
+  async (req, res) => {
+    try {
+      const result = await generateDocument(
+        { ndaId: req.params.id },
+        req.userContext!,
+        {
+          ipAddress: req.ip,
+          userAgent: req.get('User-Agent'),
+        }
+      );
+
+      res.status(201).json({
+        message: 'Document generated successfully',
+        document: result,
+      });
+    } catch (error) {
+      if (error instanceof DocumentGenerationError) {
+        const statusCode =
+          error.code === 'NDA_NOT_FOUND'
+            ? 404
+            : error.code === 'NON_USMAX_SKIP'
+              ? 400
+              : 500;
+
+        return res.status(statusCode).json({
+          error: error.message,
+          code: error.code,
+        });
+      }
+
+      console.error('[NDAs] Error generating document:', error);
+      res.status(500).json({
+        error: 'Document generation failed, please try again',
+        code: 'GENERATION_FAILED',
+      });
+    }
+  }
+);
+
+/**
+ * GET /api/ndas/:id/documents
+ * List all documents for an NDA
+ * Story 3.5: RTF Document Generation
+ *
+ * Requires: nda:view permission
+ *
+ * Returns: Array of document metadata
+ */
+router.get(
+  '/:id/documents',
+  requireAnyPermission([
+    PERMISSIONS.NDA_VIEW,
+    PERMISSIONS.NDA_CREATE,
+    PERMISSIONS.NDA_UPDATE,
+  ]),
+  async (req, res) => {
+    try {
+      const documents = await listNdaDocuments(req.params.id, req.userContext!);
+      res.json({ documents });
+    } catch (error) {
+      console.error('[NDAs] Error listing documents:', error);
+      res.status(500).json({
+        error: 'Failed to list documents',
+        code: 'INTERNAL_ERROR',
+      });
+    }
+  }
+);
+
+/**
+ * GET /api/ndas/documents/:documentId/download
+ * Get a pre-signed download URL for a document
+ * Story 3.5: RTF Document Generation
+ *
+ * Query params:
+ * - expiresIn: URL expiration in seconds (default: 900 = 15 minutes)
+ *
+ * Requires: nda:view permission
+ *
+ * Returns: Pre-signed S3 URL for download
+ */
+router.get(
+  '/documents/:documentId/download',
+  requireAnyPermission([
+    PERMISSIONS.NDA_VIEW,
+    PERMISSIONS.NDA_CREATE,
+    PERMISSIONS.NDA_UPDATE,
+  ]),
+  async (req, res) => {
+    try {
+      const document = await getDocumentById(req.params.documentId, req.userContext!);
+
+      if (!document) {
+        return res.status(404).json({
+          error: 'Document not found or access denied',
+          code: 'NOT_FOUND',
+        });
+      }
+
+      const expiresIn = req.query.expiresIn
+        ? parseInt(req.query.expiresIn as string, 10)
+        : 900;
+
+      const downloadUrl = await getDownloadUrl(document.s3Key, expiresIn);
+
+      res.json({
+        downloadUrl,
+        filename: document.filename,
+        expiresIn,
+      });
+    } catch (error) {
+      console.error('[NDAs] Error getting download URL:', error);
+      res.status(500).json({
+        error: 'Failed to generate download URL',
+        code: 'INTERNAL_ERROR',
+      });
+    }
+  }
+);
 
 export default router;

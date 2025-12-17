@@ -1,6 +1,6 @@
 # Story 3.5: RTF Document Generation
 
-Status: backlog
+Status: done
 
 ## Story
 

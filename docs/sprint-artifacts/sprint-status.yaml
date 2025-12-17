@@ -59,7 +59,7 @@ development_status:
   3-2-smart-form-auto-fill-company-first-entry-path: done
   3-3-clone-duplicate-nda-second-entry-path: done
   3-4-agency-first-entry-path-with-suggestions: done
-  3-5-rtf-document-generation: backlog
+  3-5-rtf-document-generation: done
   3-6-draft-management-and-auto-save: backlog
   3-7-nda-list-with-filtering: backlog
   3-8-nda-detail-view: backlog
