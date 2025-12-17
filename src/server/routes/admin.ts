@@ -20,6 +20,7 @@ import { requirePermission } from '../middleware/checkPermissions.js';
 import { PERMISSIONS, PERMISSION_DESCRIPTIONS, type Permission } from '../constants/permissions.js';
 import { auditService, AuditAction } from '../services/auditService.js';
 import { invalidateUserContext } from '../services/userContextService.js';
+import { exportAllUsersAccess, convertToCSV } from '../services/accessSummaryService.js';
 
 const router: RouterType = Router();
 
@@ -354,6 +355,47 @@ router.delete('/users/:id/roles/:roleId', async (req: Request, res: Response) =>
     console.error('[Admin] Error removing role:', error);
     return res.status(500).json({
       error: 'Failed to remove role',
+      code: 'INTERNAL_ERROR',
+    });
+  }
+});
+
+/**
+ * GET /api/admin/access-export
+ * Export all users' access for CMMC compliance audit
+ * Story 2.6 Task 2
+ *
+ * Returns CSV file with columns:
+ * User Name, Email, Roles, Agency Groups, Subagencies (Direct), Active
+ */
+router.get('/access-export', async (req: Request, res: Response) => {
+  try {
+    const data = await exportAllUsersAccess();
+    const csv = convertToCSV(data);
+
+    // Audit log the export
+    await auditService.log({
+      action: AuditAction.ACCESS_EXPORT,
+      entityType: 'access_control',
+      entityId: null,
+      userId: req.userContext!.contactId,
+      details: {
+        rowCount: data.length,
+        exportedAt: new Date().toISOString(),
+      },
+      ipAddress: req.ip,
+      userAgent: req.headers['user-agent'],
+    });
+
+    const filename = `access-export-${new Date().toISOString().split('T')[0]}.csv`;
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    return res.send(csv);
+  } catch (error) {
+    console.error('[Admin] Error exporting access:', error);
+    return res.status(500).json({
+      error: 'Failed to export access data',
       code: 'INTERNAL_ERROR',
     });
   }

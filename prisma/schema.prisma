@@ -25,10 +25,13 @@ datasource db {
 /// Contact represents a user in the system (USMax staff member)
 model Contact {
   id             String    @id @default(uuid())
-  cognitoId      String    @unique @map("cognito_id") // AWS Cognito sub claim
+  cognitoId      String?   @unique @map("cognito_id") // AWS Cognito sub claim (null if not yet linked)
   email          String    @unique
   firstName      String?   @map("first_name")
   lastName       String?   @map("last_name")
+  workPhone      String?   @map("work_phone")
+  cellPhone      String?   @map("cell_phone")
+  jobTitle       String?   @map("job_title")
   active         Boolean   @default(true) // Soft delete flag
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @updatedAt @map("updated_at")

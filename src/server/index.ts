@@ -17,6 +17,10 @@ config(); // Also load .env if exists
 
 import authRouter from './routes/auth.js';
 import adminRouter from './routes/admin.js';
+import agencyGroupsRouter from './routes/agencyGroups.js';
+import subagenciesRouter from './routes/subagencies.js';
+import agencyAccessRouter from './routes/agencyAccess.js';
+import usersRouter from './routes/users.js';
 import { authenticateJWT } from './middleware/authenticateJWT.js';
 import { attachUserContext } from './middleware/attachUserContext.js';
 import type { Express } from 'express';
@@ -64,6 +68,20 @@ app.use('/api/auth', authRouter);
 
 // Admin routes (requires admin:manage_users permission - Story 1.3)
 app.use('/api/admin', adminRouter);
+
+// Agency Groups routes (requires admin:manage_agencies permission - Story 2.1)
+app.use('/api/agency-groups', agencyGroupsRouter);
+
+// Subagencies routes (requires admin:manage_agencies permission - Story 2.2)
+// Note: Some routes are under /api/agency-groups/:groupId/subagencies
+app.use('/api', subagenciesRouter);
+
+// Agency Access routes (requires admin:manage_agencies permission - Story 2.3, 2.4)
+// Handles access grants for agency groups and subagencies
+app.use('/api', agencyAccessRouter);
+
+// Users routes (requires admin:manage_users permission - Story 2.5)
+app.use('/api/users', usersRouter);
 
 // Protected routes example (requires authentication + user context)
 // Middleware pipeline: authenticateJWT → attachUserContext → route handler
@@ -151,6 +169,40 @@ app.listen(PORT, () => {
 ║    GET  /api/admin/users/:id/roles - Get user roles       ║
 ║    POST /api/admin/users/:id/roles - Assign role          ║
 ║    DELETE /api/admin/users/:id/roles/:roleId - Remove     ║
+╠═══════════════════════════════════════════════════════════╣
+║  Agency Groups Endpoints (Story 2.1):                     ║
+║    GET    /api/agency-groups      - List all groups       ║
+║    GET    /api/agency-groups/:id  - Get group details     ║
+║    POST   /api/agency-groups      - Create group          ║
+║    PUT    /api/agency-groups/:id  - Update group          ║
+║    DELETE /api/agency-groups/:id  - Delete group          ║
+╠═══════════════════════════════════════════════════════════╣
+║  Subagencies Endpoints (Story 2.2):                       ║
+║    GET  /api/agency-groups/:id/subagencies - List subs    ║
+║    GET  /api/subagencies/:id     - Get subagency          ║
+║    POST /api/agency-groups/:id/subagencies - Create       ║
+║    PUT  /api/subagencies/:id     - Update subagency       ║
+║    DELETE /api/subagencies/:id   - Delete subagency       ║
+╠═══════════════════════════════════════════════════════════╣
+║  Agency Access Endpoints (Story 2.3, 2.4):                ║
+║    GET  /api/agency-groups/:id/access - List group access ║
+║    POST /api/agency-groups/:id/access - Grant group       ║
+║    DEL  /api/agency-groups/:id/access/:cid - Revoke group ║
+║    GET  /api/subagencies/:id/access - List sub access     ║
+║    POST /api/subagencies/:id/access - Grant sub access    ║
+║    DEL  /api/subagencies/:id/access/:cid - Revoke sub     ║
+║    GET  /api/contacts/search?q= - User autocomplete       ║
+╠═══════════════════════════════════════════════════════════╣
+║  Users Endpoints (Story 2.5, 2.6):                        ║
+║    GET    /api/users           - List users (paginated)   ║
+║    GET    /api/users/:id       - Get user details         ║
+║    POST   /api/users           - Create user              ║
+║    PUT    /api/users/:id       - Update user              ║
+║    DELETE /api/users/:id       - Deactivate user          ║
+║    GET    /api/users/:id/access-summary - Access summary  ║
+╠═══════════════════════════════════════════════════════════╣
+║  Access Export (Story 2.6):                               ║
+║    GET    /api/admin/access-export - CSV compliance audit ║
 ╠═══════════════════════════════════════════════════════════╣
 ║  Mock Users (when USE_MOCK_AUTH=true):                    ║
 ║    admin@usmax.com / Admin123!@#$  (MFA: 123456)          ║

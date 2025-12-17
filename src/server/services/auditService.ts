@@ -34,6 +34,28 @@ export enum AuditAction {
 
   // Row-level security events (Story 1.4)
   UNAUTHORIZED_ACCESS_ATTEMPT = 'unauthorized_access_attempt',
+
+  // Agency management events (Story 2.1, 2.2)
+  AGENCY_GROUP_CREATED = 'agency_group_created',
+  AGENCY_GROUP_UPDATED = 'agency_group_updated',
+  AGENCY_GROUP_DELETED = 'agency_group_deleted',
+  SUBAGENCY_CREATED = 'subagency_created',
+  SUBAGENCY_UPDATED = 'subagency_updated',
+  SUBAGENCY_DELETED = 'subagency_deleted',
+
+  // Access management events (Story 2.3, 2.4)
+  AGENCY_GROUP_ACCESS_GRANTED = 'agency_group_access_granted',
+  AGENCY_GROUP_ACCESS_REVOKED = 'agency_group_access_revoked',
+  SUBAGENCY_ACCESS_GRANTED = 'subagency_access_granted',
+  SUBAGENCY_ACCESS_REVOKED = 'subagency_access_revoked',
+
+  // User management events (Story 2.5)
+  USER_CREATED = 'user_created',
+  USER_UPDATED = 'user_updated',
+  USER_DEACTIVATED = 'user_deactivated',
+
+  // Access export events (Story 2.6)
+  ACCESS_EXPORT = 'access_export',
 }
 
 export interface AuditLogEntry {

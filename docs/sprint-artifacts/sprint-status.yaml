@@ -38,20 +38,20 @@ tracking_system: file-system
 story_location: docs/sprint-artifacts
 
 development_status:
-  epic-1: in-progress
-  1-1-aws-cognito-mfa-integration: review
-  1-2-jwt-middleware-and-user-context: review
-  1-3-rbac-permission-system: review
-  1-4-row-level-security-implementation: review
-  epic-1-retrospective: optional
+  epic-1: done
+  1-1-aws-cognito-mfa-integration: done
+  1-2-jwt-middleware-and-user-context: done
+  1-3-rbac-permission-system: done
+  1-4-row-level-security-implementation: done
+  epic-1-retrospective: completed
 
-  epic-2: backlog
-  2-1-agency-groups-crud: backlog
-  2-2-subagencies-crud: backlog
-  2-3-grant-agency-group-access-to-users: backlog
-  2-4-grant-subagency-specific-access: backlog
-  2-5-user-contact-management: backlog
-  2-6-access-control-summary-view: backlog
+  epic-2: done
+  2-1-agency-groups-crud: done
+  2-2-subagencies-crud: done
+  2-3-grant-agency-group-access-to-users: done
+  2-4-grant-subagency-specific-access: done
+  2-5-user-contact-management: done
+  2-6-access-control-summary-view: done
   epic-2-retrospective: optional
 
   epic-3: backlog
