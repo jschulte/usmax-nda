@@ -50,6 +50,8 @@ import {
   listNdas,
   updateNda,
   changeNdaStatus,
+  getIncompleteFields,
+  updateDraft,
   NdaServiceError,
 } from '../ndaService.js';
 import { prisma } from '../../db/index.js';
@@ -716,6 +718,129 @@ describe('NDA Service', () => {
 
       // Audit log should be called (tested via auditService mock)
       expect(mockPrisma.nda.create).toHaveBeenCalled();
+    });
+  });
+
+  describe('getIncompleteFields', () => {
+    it('returns empty array when all required fields present', () => {
+      const result = getIncompleteFields({
+        companyName: 'Test Company',
+        abbreviatedName: 'TC-2024',
+        authorizedPurpose: 'Test Purpose',
+        relationshipPocId: 'poc-1',
+        agencyGroupId: 'agency-1',
+      });
+
+      expect(result).toEqual([]);
+    });
+
+    it('returns missing required fields', () => {
+      const result = getIncompleteFields({
+        companyName: 'Test Company',
+        abbreviatedName: null,
+        authorizedPurpose: '',
+        relationshipPocId: undefined,
+        agencyGroupId: 'agency-1',
+      });
+
+      expect(result).toContain('abbreviatedName');
+      expect(result).toContain('authorizedPurpose');
+      expect(result).toContain('relationshipPocId');
+      expect(result).not.toContain('companyName');
+      expect(result).not.toContain('agencyGroupId');
+    });
+
+    it('treats whitespace-only strings as empty', () => {
+      const result = getIncompleteFields({
+        companyName: '   ',
+        abbreviatedName: 'TC-2024',
+        authorizedPurpose: '\t\n',
+        relationshipPocId: 'poc-1',
+        agencyGroupId: 'agency-1',
+      });
+
+      expect(result).toContain('companyName');
+      expect(result).toContain('authorizedPurpose');
+    });
+  });
+
+  describe('updateDraft', () => {
+    const mockDraftNda = {
+      id: 'nda-1',
+      displayId: 1001,
+      status: 'CREATED',
+      agencyGroupId: 'group-1',
+      companyName: 'Test Co',
+      abbreviatedName: 'TC-2024',
+      authorizedPurpose: 'Testing',
+      relationshipPocId: 'poc-1',
+      agencyGroup: { id: 'group-1', name: 'DoD', code: 'DOD' },
+      opportunityPoc: { id: 'poc-1', firstName: 'John', lastName: 'Doe', email: 'john@test.com' },
+      contractsPoc: null,
+      relationshipPoc: { id: 'poc-1', firstName: 'John', lastName: 'Doe', email: 'john@test.com' },
+      createdBy: { id: 'contact-1', firstName: 'User', lastName: 'One', email: 'user@test.com' },
+    };
+
+    it('updates draft and returns incomplete fields', async () => {
+      mockPrisma.nda.findFirst.mockResolvedValue(mockDraftNda);
+      mockPrisma.nda.update.mockResolvedValue({
+        ...mockDraftNda,
+        companyName: 'Updated Company',
+      });
+
+      const result = await updateDraft(
+        'nda-1',
+        { companyName: 'Updated Company' },
+        createMockUserContext()
+      );
+
+      expect(result.savedAt).toBeInstanceOf(Date);
+      expect(result.incompleteFields).toBeDefined();
+      expect(Array.isArray(result.incompleteFields)).toBe(true);
+    });
+
+    it('rejects updating non-draft NDAs', async () => {
+      mockPrisma.nda.findFirst.mockResolvedValue({
+        ...mockDraftNda,
+        status: 'EMAILED', // Not a draft
+      });
+
+      await expect(
+        updateDraft('nda-1', { companyName: 'Updated' }, createMockUserContext())
+      ).rejects.toThrow('Cannot update draft - NDA is no longer in draft status');
+    });
+
+    it('validates authorizedPurpose length', async () => {
+      mockPrisma.nda.findFirst.mockResolvedValue(mockDraftNda);
+
+      await expect(
+        updateDraft('nda-1', { authorizedPurpose: 'a'.repeat(256) }, createMockUserContext())
+      ).rejects.toThrow('Authorized Purpose must not exceed 255 characters');
+    });
+
+    it('returns correct incomplete fields after partial update', async () => {
+      mockPrisma.nda.findFirst.mockResolvedValue(mockDraftNda);
+      mockPrisma.nda.update.mockResolvedValue({
+        ...mockDraftNda,
+        companyName: 'New Company',
+        abbreviatedName: '', // Now incomplete
+      });
+
+      const result = await updateDraft(
+        'nda-1',
+        { companyName: 'New Company', abbreviatedName: '' },
+        createMockUserContext()
+      );
+
+      expect(result.incompleteFields).toContain('abbreviatedName');
+    });
+
+    it('throws error when NDA not found', async () => {
+      mockPrisma.nda.findFirst.mockResolvedValue(null);
+
+      await expect(
+        updateDraft('nonexistent', { companyName: 'Test' }, createMockUserContext())
+      ).rejects.toThrow('NDA not found or access denied');
     });
   });
 });

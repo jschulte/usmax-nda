@@ -89,6 +89,9 @@ export interface ListNdaParams {
   effectiveDateTo?: string | Date;
   showInactive?: boolean;
   showCancelled?: boolean;
+  // Draft filter (Story 3.6)
+  draftsOnly?: boolean; // Only show CREATED status with incomplete fields
+  myDrafts?: boolean; // Only show drafts created by current user
 }
 
 /**
@@ -377,6 +380,18 @@ export async function listNdas(
     where.status = { not: 'INACTIVE' };
   } else if (!params.showCancelled) {
     where.status = { not: 'CANCELLED' };
+  }
+
+  // Draft filters (Story 3.6)
+  if (params.draftsOnly) {
+    // Override status filter to only show CREATED
+    where.status = 'CREATED';
+  }
+
+  if (params.myDrafts) {
+    // Show only drafts created by current user
+    where.status = 'CREATED';
+    where.createdById = userContext.contactId;
   }
 
   // Handle sort
@@ -741,4 +756,184 @@ export async function cloneNda(
   });
 
   return clonedNda;
+}
+
+/**
+ * Required fields for a complete NDA
+ */
+const REQUIRED_NDA_FIELDS = [
+  'companyName',
+  'abbreviatedName',
+  'authorizedPurpose',
+  'relationshipPocId',
+  'agencyGroupId',
+] as const;
+
+/**
+ * Get list of incomplete required fields for an NDA
+ * Story 3.6: Draft Management & Auto-Save
+ */
+export function getIncompleteFields(nda: {
+  companyName?: string | null;
+  abbreviatedName?: string | null;
+  authorizedPurpose?: string | null;
+  relationshipPocId?: string | null;
+  agencyGroupId?: string | null;
+}): string[] {
+  return REQUIRED_NDA_FIELDS.filter((field) => {
+    const value = nda[field];
+    return !value || (typeof value === 'string' && value.trim() === '');
+  });
+}
+
+/**
+ * Update NDA draft (partial save for auto-save)
+ * Story 3.6: Draft Management & Auto-Save
+ *
+ * Allows partial updates without full validation.
+ * Only validates fields that are being updated.
+ */
+export interface UpdateDraftInput {
+  companyName?: string;
+  companyCity?: string;
+  companyState?: string;
+  stateOfIncorporation?: string;
+  agencyGroupId?: string;
+  subagencyId?: string | null;
+  agencyOfficeName?: string;
+  abbreviatedName?: string;
+  authorizedPurpose?: string;
+  effectiveDate?: string | Date | null;
+  usMaxPosition?: UsMaxPosition;
+  isNonUsMax?: boolean;
+  contractsPocId?: string | null;
+  relationshipPocId?: string;
+}
+
+export interface UpdateDraftResult {
+  savedAt: Date;
+  incompleteFields: string[];
+  nda: any;
+}
+
+export async function updateDraft(
+  id: string,
+  input: UpdateDraftInput,
+  userContext: UserContext,
+  auditMeta?: AuditMeta
+): Promise<UpdateDraftResult> {
+  // Check if NDA exists and user has access
+  const existing = await getNda(id, userContext);
+  if (!existing) {
+    throw new NdaServiceError('NDA not found or access denied', 'NOT_FOUND');
+  }
+
+  // Only allow draft updates on CREATED status NDAs
+  if (existing.status !== 'CREATED') {
+    throw new NdaServiceError(
+      'Cannot update draft - NDA is no longer in draft status',
+      'INVALID_STATUS'
+    );
+  }
+
+  // Validate field lengths if provided
+  if (input.authorizedPurpose && input.authorizedPurpose.length > 255) {
+    throw new NdaServiceError(
+      'Authorized Purpose must not exceed 255 characters',
+      'VALIDATION_ERROR'
+    );
+  }
+
+  // If changing agency, validate new agency access
+  if (input.agencyGroupId && input.agencyGroupId !== existing.agencyGroupId) {
+    await validateAgencyAccess(userContext, input.agencyGroupId, input.subagencyId);
+  }
+
+  // Parse effective date if provided
+  const effectiveDate =
+    input.effectiveDate === null
+      ? null
+      : input.effectiveDate
+        ? typeof input.effectiveDate === 'string'
+          ? new Date(input.effectiveDate)
+          : input.effectiveDate
+        : undefined;
+
+  // Build update data - only include fields that were provided
+  const updateData: Prisma.NdaUpdateInput = {};
+
+  if (input.companyName !== undefined) updateData.companyName = input.companyName.trim();
+  if (input.companyCity !== undefined) updateData.companyCity = input.companyCity?.trim() || null;
+  if (input.companyState !== undefined)
+    updateData.companyState = input.companyState?.trim() || null;
+  if (input.stateOfIncorporation !== undefined)
+    updateData.stateOfIncorporation = input.stateOfIncorporation?.trim() || null;
+  if (input.agencyGroupId !== undefined)
+    updateData.agencyGroup = { connect: { id: input.agencyGroupId } };
+  if (input.subagencyId !== undefined) {
+    updateData.subagency = input.subagencyId
+      ? { connect: { id: input.subagencyId } }
+      : { disconnect: true };
+  }
+  if (input.agencyOfficeName !== undefined)
+    updateData.agencyOfficeName = input.agencyOfficeName?.trim() || null;
+  if (input.abbreviatedName !== undefined)
+    updateData.abbreviatedName = input.abbreviatedName.trim();
+  if (input.authorizedPurpose !== undefined)
+    updateData.authorizedPurpose = input.authorizedPurpose.trim();
+  if (effectiveDate !== undefined) updateData.effectiveDate = effectiveDate;
+  if (input.usMaxPosition !== undefined) updateData.usMaxPosition = input.usMaxPosition;
+  if (input.isNonUsMax !== undefined) updateData.isNonUsMax = input.isNonUsMax;
+  if (input.contractsPocId !== undefined) {
+    updateData.contractsPoc = input.contractsPocId
+      ? { connect: { id: input.contractsPocId } }
+      : { disconnect: true };
+  }
+  if (input.relationshipPocId !== undefined)
+    updateData.relationshipPoc = { connect: { id: input.relationshipPocId } };
+
+  const nda = await prisma.nda.update({
+    where: { id },
+    data: updateData,
+    include: {
+      agencyGroup: { select: { id: true, name: true, code: true } },
+      subagency: { select: { id: true, name: true, code: true } },
+      opportunityPoc: { select: { id: true, firstName: true, lastName: true, email: true } },
+      contractsPoc: { select: { id: true, firstName: true, lastName: true, email: true } },
+      relationshipPoc: { select: { id: true, firstName: true, lastName: true, email: true } },
+      createdBy: { select: { id: true, firstName: true, lastName: true, email: true } },
+    },
+  });
+
+  const savedAt = new Date();
+
+  // Calculate incomplete fields
+  const incompleteFields = getIncompleteFields({
+    companyName: nda.companyName,
+    abbreviatedName: nda.abbreviatedName,
+    authorizedPurpose: nda.authorizedPurpose,
+    relationshipPocId: nda.relationshipPocId,
+    agencyGroupId: nda.agencyGroupId,
+  });
+
+  // Audit log (with flag that this is an auto-save)
+  await auditService.log({
+    action: AuditAction.NDA_UPDATED,
+    entityType: 'nda',
+    entityId: nda.id,
+    userId: userContext.contactId,
+    ipAddress: auditMeta?.ipAddress,
+    userAgent: auditMeta?.userAgent,
+    details: {
+      displayId: nda.displayId,
+      isDraftSave: true,
+      changes: input,
+    },
+  });
+
+  return {
+    savedAt,
+    incompleteFields,
+    nda,
+  };
 }

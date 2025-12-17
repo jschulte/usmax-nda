@@ -5,6 +5,7 @@
  * Story 3.3: Clone/Duplicate NDA (Second Entry Path)
  * Story 3.4: Agency-First Entry Path with Suggestions
  * Story 3.5: RTF Document Generation
+ * Story 3.6: Draft Management & Auto-Save
  *
  * REST API endpoints for NDA operations:
  * - GET    /api/ndas                    - List NDAs with pagination and filtering
@@ -16,6 +17,7 @@
  * - GET    /api/ndas/:id                - Get NDA details
  * - POST   /api/ndas                    - Create new NDA
  * - POST   /api/ndas/:id/clone          - Clone an existing NDA
+ * - PATCH  /api/ndas/:id/draft          - Update draft (auto-save)
  * - POST   /api/ndas/:id/generate-document - Generate DOCX document
  * - GET    /api/ndas/:id/documents      - List documents for an NDA
  * - GET    /api/ndas/documents/:documentId/download - Get download URL
@@ -38,6 +40,8 @@ import {
   updateNda,
   changeNdaStatus,
   cloneNda,
+  updateDraft,
+  getIncompleteFields,
   NdaServiceError,
   NdaStatus,
 } from '../services/ndaService.js';
@@ -83,6 +87,8 @@ router.use(attachUserContext);
  * - effectiveDateTo: Filter by effective date <=
  * - showInactive: Include inactive NDAs (default: false)
  * - showCancelled: Include cancelled NDAs (default: false)
+ * - draftsOnly: Only show CREATED status NDAs (Story 3.6)
+ * - myDrafts: Only show drafts created by current user (Story 3.6)
  *
  * Requires: nda:view permission (via any NDA permission)
  */
@@ -110,6 +116,8 @@ router.get(
         effectiveDateTo: req.query.effectiveDateTo as string | undefined,
         showInactive: req.query.showInactive === 'true',
         showCancelled: req.query.showCancelled === 'true',
+        draftsOnly: req.query.draftsOnly === 'true',
+        myDrafts: req.query.myDrafts === 'true',
       };
 
       const result = await listNdas(params, req.userContext!);
@@ -650,6 +658,58 @@ router.patch('/:id/status', requirePermission(PERMISSIONS.NDA_MARK_STATUS), asyn
     console.error('[NDAs] Error changing NDA status:', error);
     res.status(500).json({
       error: 'Failed to change NDA status',
+      code: 'INTERNAL_ERROR',
+    });
+  }
+});
+
+/**
+ * PATCH /api/ndas/:id/draft
+ * Update NDA draft (auto-save)
+ * Story 3.6: Draft Management & Auto-Save
+ *
+ * Body (all optional - partial save):
+ * - Any NDA fields that need to be saved
+ *
+ * Only works on NDAs with status=CREATED
+ *
+ * Returns:
+ * - savedAt: Timestamp of save
+ * - incompleteFields: Array of required fields that are still empty
+ *
+ * Requires: nda:update permission
+ */
+router.patch('/:id/draft', requirePermission(PERMISSIONS.NDA_UPDATE), async (req, res) => {
+  try {
+    const result = await updateDraft(req.params.id, req.body, req.userContext!, {
+      ipAddress: req.ip,
+      userAgent: req.get('User-Agent'),
+    });
+
+    res.json({
+      savedAt: result.savedAt,
+      incompleteFields: result.incompleteFields,
+    });
+  } catch (error) {
+    if (error instanceof NdaServiceError) {
+      const statusCode =
+        error.code === 'NOT_FOUND'
+          ? 404
+          : error.code === 'INVALID_STATUS'
+            ? 400
+            : error.code === 'VALIDATION_ERROR'
+              ? 400
+              : 500;
+
+      return res.status(statusCode).json({
+        error: error.message,
+        code: error.code,
+      });
+    }
+
+    console.error('[NDAs] Error saving draft:', error);
+    res.status(500).json({
+      error: 'Failed to save draft',
       code: 'INTERNAL_ERROR',
     });
   }

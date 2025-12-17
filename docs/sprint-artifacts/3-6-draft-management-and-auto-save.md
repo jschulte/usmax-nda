@@ -1,6 +1,6 @@
 # Story 3.6: Draft Management & Auto-Save
 
-Status: backlog
+Status: done
 
 ## Story
 
