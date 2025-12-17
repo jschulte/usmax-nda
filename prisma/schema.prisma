@@ -31,8 +31,11 @@ model Contact {
   lastName       String?   @map("last_name")
   workPhone      String?   @map("work_phone")
   cellPhone      String?   @map("cell_phone")
+  fax            String?   // Fax number for external contacts
   jobTitle       String?   @map("job_title")
   active         Boolean   @default(true) // Soft delete flag
+  isInternal     Boolean   @default(false) @map("is_internal") // Story 3.14: True for USMax employees
+  emailSignature String?   @map("email_signature") @db.Text // Story 3.14: Email signature for internal users
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @updatedAt @map("updated_at")
 

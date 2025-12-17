@@ -24,6 +24,7 @@ import usersRouter from './routes/users.js';
 import ndasRouter from './routes/ndas.js';
 import notificationsRouter from './routes/notifications.js';
 import templatesRouter from './routes/templates.js';
+import contactsRouter from './routes/contacts.js';
 import { authenticateJWT } from './middleware/authenticateJWT.js';
 import { attachUserContext } from './middleware/attachUserContext.js';
 import type { Express } from 'express';
@@ -96,6 +97,10 @@ app.use('/api', notificationsRouter);
 // Templates routes (Story 3.13)
 // RTF template selection and preview
 app.use('/api/rtf-templates', templatesRouter);
+
+// Contacts routes (Story 3.14)
+// POC management and internal user lookup
+app.use('/api/contacts', contactsRouter);
 
 // Protected routes example (requires authentication + user context)
 // Middleware pipeline: authenticateJWT → attachUserContext → route handler
