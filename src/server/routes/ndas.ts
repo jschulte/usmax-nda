@@ -8,6 +8,7 @@
  * Story 3.6: Draft Management & Auto-Save
  * Story 3.7: NDA List with Filtering
  * Story 3.8: NDA Detail View
+ * Story 3.10: Email Composition & Sending
  *
  * REST API endpoints for NDA operations:
  * - GET    /api/ndas                    - List NDAs with pagination and filtering
@@ -26,6 +27,9 @@
  * - GET    /api/ndas/documents/:documentId/download - Get download URL
  * - PUT    /api/ndas/:id                - Update NDA
  * - PATCH  /api/ndas/:id/status         - Change NDA status
+ * - GET    /api/ndas/:id/email-preview  - Get email preview data (Story 3.10)
+ * - POST   /api/ndas/:id/send-email     - Queue and send email (Story 3.10)
+ * - GET    /api/ndas/:id/emails         - Get email history (Story 3.10)
  *
  * All endpoints require authentication and appropriate permissions.
  * Row-level security is enforced via agency access grants.
@@ -67,6 +71,12 @@ import {
   DocumentGenerationError,
 } from '../services/documentGenerationService.js';
 import { getDownloadUrl } from '../services/s3Service.js';
+import {
+  getEmailPreview,
+  queueEmail,
+  getNdaEmails,
+  EmailServiceError,
+} from '../services/emailService.js';
 
 const router = Router();
 
@@ -1003,6 +1013,151 @@ router.get(
       console.error('[NDAs] Error getting download URL:', error);
       res.status(500).json({
         error: 'Failed to generate download URL',
+        code: 'INTERNAL_ERROR',
+      });
+    }
+  }
+);
+
+/**
+ * GET /api/ndas/:id/email-preview
+ * Get email preview data for the composer
+ * Story 3.10: Email Composition & Sending
+ *
+ * Returns:
+ * - subject: Pre-filled subject line
+ * - toRecipients: Array of TO recipients
+ * - ccRecipients: Array of CC recipients
+ * - bccRecipients: Array of BCC recipients
+ * - body: Pre-filled email body
+ * - attachments: Array of attachable documents
+ *
+ * Requires: nda:send_email permission
+ */
+router.get(
+  '/:id/email-preview',
+  requirePermission(PERMISSIONS.NDA_SEND_EMAIL),
+  async (req, res) => {
+    try {
+      const preview = await getEmailPreview(req.params.id, req.userContext!);
+      res.json({ preview });
+    } catch (error) {
+      if (error instanceof EmailServiceError) {
+        const statusCode = error.code === 'NDA_NOT_FOUND' ? 404 : 500;
+        return res.status(statusCode).json({
+          error: error.message,
+          code: error.code,
+        });
+      }
+
+      console.error('[NDAs] Error getting email preview:', error);
+      res.status(500).json({
+        error: 'Failed to get email preview',
+        code: 'INTERNAL_ERROR',
+      });
+    }
+  }
+);
+
+/**
+ * POST /api/ndas/:id/send-email
+ * Queue and send email for an NDA
+ * Story 3.10: Email Composition & Sending
+ *
+ * Body:
+ * - subject: string (required)
+ * - toRecipients: string[] (required, at least one)
+ * - ccRecipients: string[] (optional)
+ * - bccRecipients: string[] (optional)
+ * - body: string (required)
+ *
+ * Returns:
+ * - emailId: UUID of created email record
+ * - status: Current email status
+ *
+ * Requires: nda:send_email permission
+ */
+router.post(
+  '/:id/send-email',
+  requirePermission(PERMISSIONS.NDA_SEND_EMAIL),
+  async (req, res) => {
+    try {
+      const { subject, toRecipients, ccRecipients, bccRecipients, body } = req.body;
+
+      // Validate required fields
+      if (!subject || !toRecipients || toRecipients.length === 0 || !body) {
+        return res.status(400).json({
+          error: 'Subject, at least one recipient, and body are required',
+          code: 'VALIDATION_ERROR',
+        });
+      }
+
+      const result = await queueEmail(
+        {
+          ndaId: req.params.id,
+          subject,
+          toRecipients,
+          ccRecipients: ccRecipients || [],
+          bccRecipients: bccRecipients || [],
+          body,
+        },
+        req.userContext!
+      );
+
+      res.status(201).json({
+        message: 'Email queued successfully',
+        emailId: result.emailId,
+        status: result.status,
+      });
+    } catch (error) {
+      if (error instanceof EmailServiceError) {
+        const statusCode =
+          error.code === 'NDA_NOT_FOUND'
+            ? 404
+            : error.code === 'NO_RECIPIENTS'
+              ? 400
+              : 500;
+
+        return res.status(statusCode).json({
+          error: error.message,
+          code: error.code,
+        });
+      }
+
+      console.error('[NDAs] Error sending email:', error);
+      res.status(500).json({
+        error: 'Failed to send email',
+        code: 'INTERNAL_ERROR',
+      });
+    }
+  }
+);
+
+/**
+ * GET /api/ndas/:id/emails
+ * Get email history for an NDA
+ * Story 3.10: Email Composition & Sending
+ *
+ * Returns array of emails with:
+ * - id, subject, toRecipients, sentAt, status, sentBy
+ *
+ * Requires: nda:view permission (via any NDA permission)
+ */
+router.get(
+  '/:id/emails',
+  requireAnyPermission([
+    PERMISSIONS.NDA_VIEW,
+    PERMISSIONS.NDA_CREATE,
+    PERMISSIONS.NDA_UPDATE,
+  ]),
+  async (req, res) => {
+    try {
+      const emails = await getNdaEmails(req.params.id);
+      res.json({ emails });
+    } catch (error) {
+      console.error('[NDAs] Error getting email history:', error);
+      res.status(500).json({
+        error: 'Failed to get email history',
         code: 'INTERNAL_ERROR',
       });
     }

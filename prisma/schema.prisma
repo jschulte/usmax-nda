@@ -57,6 +57,9 @@ model Contact {
   ndaStatusChanges      NdaStatusHistory[]
   documentsUploaded     Document[]
 
+  // Email relations (Story 3.10)
+  emailsSent            NdaEmail[]
+
   @@map("contacts")
 }
 
@@ -271,6 +274,7 @@ model Nda {
   // Relations
   statusHistory NdaStatusHistory[]
   documents     Document[]
+  emails        NdaEmail[]
 
   @@index([agencyGroupId])
   @@index([subagencyId])
@@ -316,6 +320,42 @@ model Document {
 
   @@index([ndaId])
   @@map("documents")
+}
+
+// ============================================================================
+// EMAIL - Story 3.10: Email Composition & Sending
+// ============================================================================
+
+/// Email status for tracking delivery
+enum EmailStatus {
+  QUEUED
+  SENT
+  FAILED
+  DELIVERED
+  BOUNCED
+}
+
+/// NdaEmail represents emails sent for an NDA
+model NdaEmail {
+  id            String      @id @default(uuid())
+  ndaId         String      @map("nda_id")
+  nda           Nda         @relation(fields: [ndaId], references: [id], onDelete: Cascade)
+  subject       String
+  toRecipients  String[]    @map("to_recipients")
+  ccRecipients  String[]    @map("cc_recipients")
+  bccRecipients String[]    @map("bcc_recipients")
+  body          String      @db.Text
+  sentAt        DateTime    @default(now()) @map("sent_at")
+  sentById      String      @map("sent_by_id")
+  sentBy        Contact     @relation(fields: [sentById], references: [id])
+  sesMessageId  String?     @map("ses_message_id")
+  status        EmailStatus @default(QUEUED)
+  retryCount    Int         @default(0) @map("retry_count")
+  lastError     String?     @map("last_error")
+
+  @@index([ndaId])
+  @@index([status])
+  @@map("nda_emails")
 }
 
 // ============================================================================

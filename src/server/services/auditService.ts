@@ -69,6 +69,11 @@ export enum AuditAction {
   DOCUMENT_UPLOADED = 'document_uploaded',
   DOCUMENT_DOWNLOADED = 'document_downloaded',
   DOCUMENT_DELETED = 'document_deleted',
+
+  // Email events (Story 3.10)
+  EMAIL_QUEUED = 'email_queued',
+  EMAIL_SENT = 'email_sent',
+  EMAIL_FAILED = 'email_failed',
 }
 
 export interface AuditLogEntry {
