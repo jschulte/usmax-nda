@@ -1,0 +1,571 @@
+/**
+ * NDA Service
+ * Story 3.1: Create NDA with Basic Form
+ *
+ * Handles NDA CRUD operations with:
+ * - Row-level security (agency-based filtering)
+ * - Validation of required fields
+ * - Audit logging
+ * - Status history tracking
+ */
+
+import { prisma } from '../db/index.js';
+import { auditService, AuditAction } from './auditService.js';
+import type { NdaStatus, UsMaxPosition, Prisma } from '../../generated/prisma/index.js';
+import type { UserContext } from '../types/auth.js';
+
+// Re-export enums for use in other modules
+export { NdaStatus, UsMaxPosition } from '../../generated/prisma/index.js';
+
+/**
+ * Custom error for NDA service operations
+ */
+export class NdaServiceError extends Error {
+  constructor(
+    message: string,
+    public code: string
+  ) {
+    super(message);
+    this.name = 'NdaServiceError';
+  }
+}
+
+/**
+ * Input for creating a new NDA
+ */
+export interface CreateNdaInput {
+  companyName: string;
+  companyCity?: string;
+  companyState?: string;
+  stateOfIncorporation?: string;
+  agencyGroupId: string;
+  subagencyId?: string;
+  agencyOfficeName?: string;
+  abbreviatedName: string;
+  authorizedPurpose: string;
+  effectiveDate?: string | Date;
+  usMaxPosition?: UsMaxPosition;
+  isNonUsMax?: boolean;
+  opportunityPocId?: string; // Defaults to current user
+  contractsPocId?: string;
+  relationshipPocId: string;
+}
+
+/**
+ * Input for updating an NDA
+ */
+export interface UpdateNdaInput {
+  companyName?: string;
+  companyCity?: string;
+  companyState?: string;
+  stateOfIncorporation?: string;
+  agencyGroupId?: string;
+  subagencyId?: string | null;
+  agencyOfficeName?: string;
+  abbreviatedName?: string;
+  authorizedPurpose?: string;
+  effectiveDate?: string | Date | null;
+  usMaxPosition?: UsMaxPosition;
+  isNonUsMax?: boolean;
+  contractsPocId?: string | null;
+  relationshipPocId?: string;
+}
+
+/**
+ * Parameters for listing NDAs
+ */
+export interface ListNdaParams {
+  page?: number;
+  limit?: number;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+  // Filters
+  agencyGroupId?: string;
+  subagencyId?: string;
+  companyName?: string;
+  status?: NdaStatus;
+  createdById?: string;
+  effectiveDateFrom?: string | Date;
+  effectiveDateTo?: string | Date;
+  showInactive?: boolean;
+  showCancelled?: boolean;
+}
+
+/**
+ * Audit metadata for tracking
+ */
+interface AuditMeta {
+  ipAddress?: string;
+  userAgent?: string;
+}
+
+/**
+ * Build row-level security filter for NDA queries
+ * Users can only see NDAs for agencies they have access to
+ */
+function buildSecurityFilter(userContext: UserContext): Prisma.NdaWhereInput {
+  const authorizedAgencyGroups = userContext.authorizedAgencyGroups || [];
+  const authorizedSubagencies = userContext.authorizedSubagencies || [];
+
+  return {
+    OR: [
+      // User has access to the agency group
+      { agencyGroupId: { in: authorizedAgencyGroups } },
+      // User has direct subagency access
+      { subagencyId: { in: authorizedSubagencies } },
+    ],
+  };
+}
+
+/**
+ * Validate that user has access to the agency
+ */
+async function validateAgencyAccess(
+  userContext: UserContext,
+  agencyGroupId: string,
+  subagencyId?: string | null
+): Promise<void> {
+  const hasGroupAccess = userContext.authorizedAgencyGroups?.includes(agencyGroupId);
+
+  if (hasGroupAccess) {
+    // If user has group access, they can access any subagency in that group
+    if (subagencyId) {
+      const subagency = await prisma.subagency.findUnique({
+        where: { id: subagencyId },
+      });
+      if (!subagency || subagency.agencyGroupId !== agencyGroupId) {
+        throw new NdaServiceError(
+          'Subagency does not belong to the selected agency group',
+          'INVALID_SUBAGENCY'
+        );
+      }
+    }
+    return;
+  }
+
+  // Check if user has direct subagency access
+  if (subagencyId && userContext.authorizedSubagencies?.includes(subagencyId)) {
+    // Verify subagency belongs to the agency group
+    const subagency = await prisma.subagency.findUnique({
+      where: { id: subagencyId },
+    });
+    if (!subagency || subagency.agencyGroupId !== agencyGroupId) {
+      throw new NdaServiceError(
+        'Subagency does not belong to the selected agency group',
+        'INVALID_SUBAGENCY'
+      );
+    }
+    return;
+  }
+
+  throw new NdaServiceError(
+    'You do not have access to create NDAs for this agency',
+    'UNAUTHORIZED_AGENCY'
+  );
+}
+
+/**
+ * Validate required NDA fields
+ */
+function validateNdaInput(input: CreateNdaInput): void {
+  if (!input.companyName?.trim()) {
+    throw new NdaServiceError('Company Name is required', 'VALIDATION_ERROR');
+  }
+
+  if (!input.agencyGroupId?.trim()) {
+    throw new NdaServiceError('Agency Group is required', 'VALIDATION_ERROR');
+  }
+
+  if (!input.abbreviatedName?.trim()) {
+    throw new NdaServiceError('Abbreviated Opportunity Name is required', 'VALIDATION_ERROR');
+  }
+
+  if (!input.authorizedPurpose?.trim()) {
+    throw new NdaServiceError('Authorized Purpose is required', 'VALIDATION_ERROR');
+  }
+
+  if (input.authorizedPurpose.length > 255) {
+    throw new NdaServiceError(
+      'Authorized Purpose must not exceed 255 characters',
+      'VALIDATION_ERROR'
+    );
+  }
+
+  if (!input.relationshipPocId?.trim()) {
+    throw new NdaServiceError('Relationship POC is required', 'VALIDATION_ERROR');
+  }
+}
+
+/**
+ * Create a new NDA
+ */
+export async function createNda(
+  input: CreateNdaInput,
+  userContext: UserContext,
+  auditMeta?: AuditMeta
+): Promise<any> {
+  // Validate input
+  validateNdaInput(input);
+
+  // Validate agency access
+  await validateAgencyAccess(userContext, input.agencyGroupId, input.subagencyId);
+
+  // Set defaults
+  const opportunityPocId = input.opportunityPocId || userContext.contactId;
+
+  // Parse effective date if string
+  const effectiveDate = input.effectiveDate
+    ? typeof input.effectiveDate === 'string'
+      ? new Date(input.effectiveDate)
+      : input.effectiveDate
+    : null;
+
+  // Create NDA with initial status history
+  const nda = await prisma.nda.create({
+    data: {
+      companyName: input.companyName.trim(),
+      companyCity: input.companyCity?.trim() || null,
+      companyState: input.companyState?.trim() || null,
+      stateOfIncorporation: input.stateOfIncorporation?.trim() || null,
+      agencyGroupId: input.agencyGroupId,
+      subagencyId: input.subagencyId || null,
+      agencyOfficeName: input.agencyOfficeName?.trim() || null,
+      abbreviatedName: input.abbreviatedName.trim(),
+      authorizedPurpose: input.authorizedPurpose.trim(),
+      effectiveDate,
+      usMaxPosition: input.usMaxPosition || 'PRIME',
+      isNonUsMax: input.isNonUsMax || false,
+      opportunityPocId,
+      contractsPocId: input.contractsPocId || null,
+      relationshipPocId: input.relationshipPocId,
+      createdById: userContext.contactId,
+      status: 'CREATED',
+      // Create initial status history entry
+      statusHistory: {
+        create: {
+          status: 'CREATED',
+          changedById: userContext.contactId,
+        },
+      },
+    },
+    include: {
+      agencyGroup: { select: { id: true, name: true, code: true } },
+      subagency: { select: { id: true, name: true, code: true } },
+      opportunityPoc: { select: { id: true, firstName: true, lastName: true, email: true } },
+      contractsPoc: { select: { id: true, firstName: true, lastName: true, email: true } },
+      relationshipPoc: { select: { id: true, firstName: true, lastName: true, email: true } },
+      createdBy: { select: { id: true, firstName: true, lastName: true, email: true } },
+    },
+  });
+
+  // Audit log
+  await auditService.log({
+    action: AuditAction.NDA_CREATED,
+    entityType: 'nda',
+    entityId: nda.id,
+    userId: userContext.contactId,
+    ipAddress: auditMeta?.ipAddress,
+    userAgent: auditMeta?.userAgent,
+    details: {
+      displayId: nda.displayId,
+      companyName: nda.companyName,
+      agencyGroupId: nda.agencyGroupId,
+      subagencyId: nda.subagencyId,
+    },
+  });
+
+  return nda;
+}
+
+/**
+ * Get a single NDA by ID with row-level security
+ */
+export async function getNda(id: string, userContext: UserContext): Promise<any | null> {
+  const securityFilter = buildSecurityFilter(userContext);
+
+  const nda = await prisma.nda.findFirst({
+    where: {
+      id,
+      ...securityFilter,
+    },
+    include: {
+      agencyGroup: { select: { id: true, name: true, code: true } },
+      subagency: { select: { id: true, name: true, code: true } },
+      opportunityPoc: { select: { id: true, firstName: true, lastName: true, email: true } },
+      contractsPoc: { select: { id: true, firstName: true, lastName: true, email: true } },
+      relationshipPoc: { select: { id: true, firstName: true, lastName: true, email: true } },
+      createdBy: { select: { id: true, firstName: true, lastName: true, email: true } },
+      statusHistory: {
+        orderBy: { changedAt: 'asc' },
+        include: {
+          changedBy: { select: { id: true, firstName: true, lastName: true } },
+        },
+      },
+      documents: {
+        orderBy: { uploadedAt: 'desc' },
+        include: {
+          uploadedBy: { select: { id: true, firstName: true, lastName: true } },
+        },
+      },
+    },
+  });
+
+  return nda;
+}
+
+/**
+ * List NDAs with filtering, pagination, and row-level security
+ */
+export async function listNdas(
+  params: ListNdaParams,
+  userContext: UserContext
+): Promise<{
+  ndas: any[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}> {
+  const page = Math.max(1, params.page || 1);
+  const limit = Math.min(100, Math.max(1, params.limit || 20));
+  const skip = (page - 1) * limit;
+
+  // Build security filter
+  const securityFilter = buildSecurityFilter(userContext);
+
+  // Build where clause
+  const where: Prisma.NdaWhereInput = {
+    ...securityFilter,
+  };
+
+  // Apply filters
+  if (params.agencyGroupId) {
+    where.agencyGroupId = params.agencyGroupId;
+  }
+
+  if (params.subagencyId) {
+    where.subagencyId = params.subagencyId;
+  }
+
+  if (params.companyName) {
+    where.companyName = { contains: params.companyName, mode: 'insensitive' };
+  }
+
+  if (params.status) {
+    where.status = params.status;
+  }
+
+  if (params.createdById) {
+    where.createdById = params.createdById;
+  }
+
+  // Date filters
+  if (params.effectiveDateFrom || params.effectiveDateTo) {
+    where.effectiveDate = {};
+    if (params.effectiveDateFrom) {
+      where.effectiveDate.gte = new Date(params.effectiveDateFrom);
+    }
+    if (params.effectiveDateTo) {
+      where.effectiveDate.lte = new Date(params.effectiveDateTo);
+    }
+  }
+
+  // Default: exclude inactive and cancelled unless explicitly requested
+  if (!params.showInactive && !params.showCancelled) {
+    where.status = { notIn: ['INACTIVE', 'CANCELLED'] };
+  } else if (!params.showInactive) {
+    where.status = { not: 'INACTIVE' };
+  } else if (!params.showCancelled) {
+    where.status = { not: 'CANCELLED' };
+  }
+
+  // Handle sort
+  const sortBy = params.sortBy || 'createdAt';
+  const sortOrder = params.sortOrder || 'desc';
+  const orderBy: Prisma.NdaOrderByWithRelationInput = { [sortBy]: sortOrder };
+
+  // Execute queries
+  const [ndas, total] = await Promise.all([
+    prisma.nda.findMany({
+      where,
+      orderBy,
+      skip,
+      take: limit,
+      include: {
+        agencyGroup: { select: { id: true, name: true, code: true } },
+        subagency: { select: { id: true, name: true, code: true } },
+        createdBy: { select: { id: true, firstName: true, lastName: true } },
+      },
+    }),
+    prisma.nda.count({ where }),
+  ]);
+
+  return {
+    ndas,
+    total,
+    page,
+    limit,
+    totalPages: Math.ceil(total / limit),
+  };
+}
+
+/**
+ * Update an NDA
+ */
+export async function updateNda(
+  id: string,
+  input: UpdateNdaInput,
+  userContext: UserContext,
+  auditMeta?: AuditMeta
+): Promise<any> {
+  // First, check if NDA exists and user has access
+  const existing = await getNda(id, userContext);
+  if (!existing) {
+    throw new NdaServiceError('NDA not found or access denied', 'NOT_FOUND');
+  }
+
+  // If changing agency, validate new agency access
+  if (input.agencyGroupId && input.agencyGroupId !== existing.agencyGroupId) {
+    await validateAgencyAccess(userContext, input.agencyGroupId, input.subagencyId);
+  }
+
+  // Validate field lengths
+  if (input.authorizedPurpose && input.authorizedPurpose.length > 255) {
+    throw new NdaServiceError(
+      'Authorized Purpose must not exceed 255 characters',
+      'VALIDATION_ERROR'
+    );
+  }
+
+  // Parse effective date if provided
+  const effectiveDate =
+    input.effectiveDate === null
+      ? null
+      : input.effectiveDate
+        ? typeof input.effectiveDate === 'string'
+          ? new Date(input.effectiveDate)
+          : input.effectiveDate
+        : undefined;
+
+  // Build update data
+  const updateData: Prisma.NdaUpdateInput = {};
+
+  if (input.companyName !== undefined) updateData.companyName = input.companyName.trim();
+  if (input.companyCity !== undefined) updateData.companyCity = input.companyCity?.trim() || null;
+  if (input.companyState !== undefined)
+    updateData.companyState = input.companyState?.trim() || null;
+  if (input.stateOfIncorporation !== undefined)
+    updateData.stateOfIncorporation = input.stateOfIncorporation?.trim() || null;
+  if (input.agencyGroupId !== undefined)
+    updateData.agencyGroup = { connect: { id: input.agencyGroupId } };
+  if (input.subagencyId !== undefined) {
+    updateData.subagency = input.subagencyId
+      ? { connect: { id: input.subagencyId } }
+      : { disconnect: true };
+  }
+  if (input.agencyOfficeName !== undefined)
+    updateData.agencyOfficeName = input.agencyOfficeName?.trim() || null;
+  if (input.abbreviatedName !== undefined)
+    updateData.abbreviatedName = input.abbreviatedName.trim();
+  if (input.authorizedPurpose !== undefined)
+    updateData.authorizedPurpose = input.authorizedPurpose.trim();
+  if (effectiveDate !== undefined) updateData.effectiveDate = effectiveDate;
+  if (input.usMaxPosition !== undefined) updateData.usMaxPosition = input.usMaxPosition;
+  if (input.isNonUsMax !== undefined) updateData.isNonUsMax = input.isNonUsMax;
+  if (input.contractsPocId !== undefined) {
+    updateData.contractsPoc = input.contractsPocId
+      ? { connect: { id: input.contractsPocId } }
+      : { disconnect: true };
+  }
+  if (input.relationshipPocId !== undefined)
+    updateData.relationshipPoc = { connect: { id: input.relationshipPocId } };
+
+  const nda = await prisma.nda.update({
+    where: { id },
+    data: updateData,
+    include: {
+      agencyGroup: { select: { id: true, name: true, code: true } },
+      subagency: { select: { id: true, name: true, code: true } },
+      opportunityPoc: { select: { id: true, firstName: true, lastName: true, email: true } },
+      contractsPoc: { select: { id: true, firstName: true, lastName: true, email: true } },
+      relationshipPoc: { select: { id: true, firstName: true, lastName: true, email: true } },
+      createdBy: { select: { id: true, firstName: true, lastName: true, email: true } },
+    },
+  });
+
+  // Audit log
+  await auditService.log({
+    action: AuditAction.NDA_UPDATED,
+    entityType: 'nda',
+    entityId: nda.id,
+    userId: userContext.contactId,
+    ipAddress: auditMeta?.ipAddress,
+    userAgent: auditMeta?.userAgent,
+    details: {
+      displayId: nda.displayId,
+      changes: input,
+    },
+  });
+
+  return nda;
+}
+
+/**
+ * Change NDA status with history tracking
+ */
+export async function changeNdaStatus(
+  id: string,
+  newStatus: NdaStatus,
+  userContext: UserContext,
+  auditMeta?: AuditMeta
+): Promise<any> {
+  // Check if NDA exists and user has access
+  const existing = await getNda(id, userContext);
+  if (!existing) {
+    throw new NdaServiceError('NDA not found or access denied', 'NOT_FOUND');
+  }
+
+  const previousStatus = existing.status;
+
+  // Update status and add history entry
+  const nda = await prisma.nda.update({
+    where: { id },
+    data: {
+      status: newStatus,
+      fullyExecutedDate: newStatus === 'FULLY_EXECUTED' ? new Date() : existing.fullyExecutedDate,
+      statusHistory: {
+        create: {
+          status: newStatus,
+          changedById: userContext.contactId,
+        },
+      },
+    },
+    include: {
+      agencyGroup: { select: { id: true, name: true, code: true } },
+      subagency: { select: { id: true, name: true, code: true } },
+      statusHistory: {
+        orderBy: { changedAt: 'asc' },
+        include: {
+          changedBy: { select: { id: true, firstName: true, lastName: true } },
+        },
+      },
+    },
+  });
+
+  // Audit log
+  await auditService.log({
+    action: AuditAction.NDA_STATUS_CHANGED,
+    entityType: 'nda',
+    entityId: nda.id,
+    userId: userContext.contactId,
+    ipAddress: auditMeta?.ipAddress,
+    userAgent: auditMeta?.userAgent,
+    details: {
+      displayId: nda.displayId,
+      previousStatus,
+      newStatus,
+    },
+  });
+
+  return nda;
+}

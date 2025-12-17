@@ -49,6 +49,14 @@ model Contact {
   // Audit logs created by this user
   auditLogs AuditLog[]
 
+  // NDA relations (Story 3.1)
+  ndasCreated           Nda[]              @relation("NdaCreatedBy")
+  ndasAsOpportunityPoc  Nda[]              @relation("NdaOpportunityPoc")
+  ndasAsContractsPoc    Nda[]              @relation("NdaContractsPoc")
+  ndasAsRelationshipPoc Nda[]              @relation("NdaRelationshipPoc")
+  ndaStatusChanges      NdaStatusHistory[]
+  documentsUploaded     Document[]
+
   @@map("contacts")
 }
 
@@ -130,6 +138,7 @@ model AgencyGroup {
   // Relations
   subagencies        Subagency[]
   agencyGroupGrants  AgencyGroupGrant[]
+  ndas               Nda[]
 
   @@map("agency_groups")
 }
@@ -190,23 +199,123 @@ model SubagencyGrant {
 }
 
 // ============================================================================
-// NDA (Minimal model for Story 1.4 - will be expanded in Epic 3)
+// NDA - Story 3.1: Create NDA with Basic Form
 // ============================================================================
 
+/// NDA Status enum for lifecycle tracking
+enum NdaStatus {
+  CREATED
+  EMAILED
+  IN_REVISION
+  FULLY_EXECUTED
+  INACTIVE
+  CANCELLED
+}
+
+/// USMax Position on the contract
+enum UsMaxPosition {
+  PRIME
+  SUB
+  TEAMING
+  OTHER
+}
+
 /// NDA represents a Non-Disclosure Agreement record
-/// This is a minimal model for row-level security foundation
-/// Full NDA model with all fields will be implemented in Epic 3
 model Nda {
-  id          String   @id @default(uuid())
-  subagencyId String   @map("subagency_id") // For row-level security filtering
+  id        String @id @default(uuid())
+  displayId Int    @unique @default(autoincrement()) @map("display_id")
+
+  // Company Information
+  companyName          String  @map("company_name")
+  companyCity          String? @map("company_city")
+  companyState         String? @map("company_state")
+  stateOfIncorporation String? @map("state_of_incorporation")
+
+  // Agency Information (row-level security)
+  agencyGroupId    String       @map("agency_group_id")
+  agencyGroup      AgencyGroup  @relation(fields: [agencyGroupId], references: [id])
+  subagencyId      String?      @map("subagency_id")
+  subagency        Subagency?   @relation(fields: [subagencyId], references: [id])
+  agencyOfficeName String?      @map("agency_office_name")
+
+  // NDA Details
+  abbreviatedName   String        @map("abbreviated_name")
+  authorizedPurpose String        @map("authorized_purpose") @db.VarChar(255)
+  effectiveDate     DateTime?     @map("effective_date")
+  usMaxPosition     UsMaxPosition @default(PRIME) @map("usmax_position")
+  isNonUsMax        Boolean       @default(false) @map("is_non_usmax")
+
+  // Status
+  status            NdaStatus @default(CREATED)
+  fullyExecutedDate DateTime? @map("fully_executed_date")
+
+  // POCs (Points of Contact)
+  opportunityPocId  String   @map("opportunity_poc_id")
+  opportunityPoc    Contact  @relation("NdaOpportunityPoc", fields: [opportunityPocId], references: [id])
+  contractsPocId    String?  @map("contracts_poc_id")
+  contractsPoc      Contact? @relation("NdaContractsPoc", fields: [contractsPocId], references: [id])
+  relationshipPocId String   @map("relationship_poc_id")
+  relationshipPoc   Contact  @relation("NdaRelationshipPoc", fields: [relationshipPocId], references: [id])
+
+  // Clone tracking
+  clonedFromId String? @map("cloned_from_id")
+  clonedFrom   Nda?    @relation("NdaClone", fields: [clonedFromId], references: [id])
+  clones       Nda[]   @relation("NdaClone")
+
+  // Metadata
+  createdById String   @map("created_by_id")
+  createdBy   Contact  @relation("NdaCreatedBy", fields: [createdById], references: [id])
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  // Relation to subagency for row-level security
-  subagency Subagency @relation(fields: [subagencyId], references: [id])
+  // Relations
+  statusHistory NdaStatusHistory[]
+  documents     Document[]
 
+  @@index([agencyGroupId])
   @@index([subagencyId])
+  @@index([status])
+  @@index([companyName])
+  @@index([createdById])
+  @@index([effectiveDate])
   @@map("ndas")
+}
+
+/// NdaStatusHistory tracks status changes for visual progression
+model NdaStatusHistory {
+  id          String    @id @default(uuid())
+  ndaId       String    @map("nda_id")
+  nda         Nda       @relation(fields: [ndaId], references: [id], onDelete: Cascade)
+  status      NdaStatus
+  changedAt   DateTime  @default(now()) @map("changed_at")
+  changedById String    @map("changed_by_id")
+  changedBy   Contact   @relation(fields: [changedById], references: [id])
+
+  @@index([ndaId])
+  @@map("nda_status_history")
+}
+
+/// Document type enum
+enum DocumentType {
+  GENERATED
+  UPLOADED
+  FULLY_EXECUTED
+}
+
+/// Document represents files attached to an NDA
+model Document {
+  id           String       @id @default(uuid())
+  ndaId        String       @map("nda_id")
+  nda          Nda          @relation(fields: [ndaId], references: [id], onDelete: Cascade)
+  filename     String
+  s3Key        String       @map("s3_key")
+  documentType DocumentType @default(UPLOADED) @map("document_type")
+  uploadedById String       @map("uploaded_by_id")
+  uploadedBy   Contact      @relation(fields: [uploadedById], references: [id])
+  uploadedAt   DateTime     @default(now()) @map("uploaded_at")
+
+  @@index([ndaId])
+  @@map("documents")
 }
 
 // ============================================================================

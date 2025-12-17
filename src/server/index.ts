@@ -21,6 +21,7 @@ import agencyGroupsRouter from './routes/agencyGroups.js';
 import subagenciesRouter from './routes/subagencies.js';
 import agencyAccessRouter from './routes/agencyAccess.js';
 import usersRouter from './routes/users.js';
+import ndasRouter from './routes/ndas.js';
 import { authenticateJWT } from './middleware/authenticateJWT.js';
 import { attachUserContext } from './middleware/attachUserContext.js';
 import type { Express } from 'express';
@@ -82,6 +83,9 @@ app.use('/api', agencyAccessRouter);
 
 // Users routes (requires admin:manage_users permission - Story 2.5)
 app.use('/api/users', usersRouter);
+
+// NDAs routes (requires nda:* permissions - Story 3.1+)
+app.use('/api/ndas', ndasRouter);
 
 // Protected routes example (requires authentication + user context)
 // Middleware pipeline: authenticateJWT → attachUserContext → route handler
@@ -203,6 +207,13 @@ app.listen(PORT, () => {
 ╠═══════════════════════════════════════════════════════════╣
 ║  Access Export (Story 2.6):                               ║
 ║    GET    /api/admin/access-export - CSV compliance audit ║
+╠═══════════════════════════════════════════════════════════╣
+║  NDA Endpoints (Story 3.1+):                              ║
+║    GET    /api/ndas             - List NDAs (filtered)    ║
+║    GET    /api/ndas/:id         - Get NDA details         ║
+║    POST   /api/ndas             - Create NDA              ║
+║    PUT    /api/ndas/:id         - Update NDA              ║
+║    PATCH  /api/ndas/:id/status  - Change NDA status       ║
 ╠═══════════════════════════════════════════════════════════╣
 ║  Mock Users (when USE_MOCK_AUTH=true):                    ║
 ║    admin@usmax.com / Admin123!@#$  (MFA: 123456)          ║

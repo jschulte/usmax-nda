@@ -56,6 +56,13 @@ export enum AuditAction {
 
   // Access export events (Story 2.6)
   ACCESS_EXPORT = 'access_export',
+
+  // NDA management events (Story 3.1+)
+  NDA_CREATED = 'nda_created',
+  NDA_UPDATED = 'nda_updated',
+  NDA_CLONED = 'nda_cloned',
+  NDA_STATUS_CHANGED = 'nda_status_changed',
+  NDA_DELETED = 'nda_deleted',
 }
 
 export interface AuditLogEntry {
