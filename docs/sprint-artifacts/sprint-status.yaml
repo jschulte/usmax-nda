@@ -83,7 +83,7 @@ development_status:
   4-7-indefinite-document-preservation: done
   epic-4-retrospective: optional
 
-  epic-5: in-progress
+  epic-5: done
   5-1-global-nda-search: done
   5-2-column-sorting-with-persistence: done
   5-3-advanced-filtering-system: done
@@ -96,22 +96,22 @@ development_status:
   5-10-stale-nda-identification: done
   5-11-waiting-on-3rd-party-tracking: done
   5-12-expiration-alerts: done
-  5-13-email-notification-preferences: backlog
-  5-14-nda-stakeholder-subscriptions: backlog
+  5-13-email-notification-preferences: done
+  5-14-nda-stakeholder-subscriptions: done
   epic-5-retrospective: optional
 
-  epic-6: backlog
-  6-1-comprehensive-action-logging: backlog
-  6-2-field-change-tracking: backlog
-  6-3-document-download-tracking: backlog
-  6-4-login-attempt-tracking: backlog
-  6-5-nda-audit-trail-viewer: backlog
-  6-6-visual-timeline-display: backlog
-  6-7-centralized-audit-log-viewer-admin: backlog
-  6-8-audit-log-filtering: backlog
-  6-9-audit-log-export: backlog
-  6-10-email-event-tracking: backlog
-  6-11-immutable-audit-trail: backlog
+  epic-6: done
+  6-1-comprehensive-action-logging: done
+  6-2-field-change-tracking: done
+  6-3-document-download-tracking: done
+  6-4-login-attempt-tracking: done
+  6-5-nda-audit-trail-viewer: done
+  6-6-visual-timeline-display: done
+  6-7-centralized-audit-log-viewer-admin: done
+  6-8-audit-log-filtering: done
+  6-9-audit-log-export: done
+  6-10-email-event-tracking: done
+  6-11-immutable-audit-trail: done
   epic-6-retrospective: optional
 
   epic-7: backlog

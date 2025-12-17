@@ -26,6 +26,7 @@ import notificationsRouter from './routes/notifications.js';
 import templatesRouter from './routes/templates.js';
 import contactsRouter from './routes/contacts.js';
 import dashboardRouter from './routes/dashboard.js';
+import auditLogsRouter from './routes/auditLogs.js';
 import { authenticateJWT } from './middleware/authenticateJWT.js';
 import { attachUserContext } from './middleware/attachUserContext.js';
 import type { Express } from 'express';
@@ -106,6 +107,10 @@ app.use('/api/contacts', contactsRouter);
 // Dashboard routes (Stories 5.8-5.12)
 // Personalized dashboard, metrics, alerts
 app.use('/api/dashboard', dashboardRouter);
+
+// Audit Log routes (Epic 6: Audit Trail & Compliance)
+// Admin audit log viewer, NDA audit trails, export
+app.use('/api', auditLogsRouter);
 
 // Protected routes example (requires authentication + user context)
 // Middleware pipeline: authenticateJWT → attachUserContext → route handler
