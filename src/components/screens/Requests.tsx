@@ -203,6 +203,8 @@ export function Requests({
   // Filter state
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<NdaStatus | 'all'>('all');
+  const [showInactive, setShowInactive] = useState(false);
+  const [showCancelled, setShowCancelled] = useState(false);
   const [presetFilter, setPresetFilter] = useState<PresetKey>(myDraftsOnly ? 'drafts' : preset);
   const [agencyGroupInput, setAgencyGroupInput] = useState('');
   const [agencyGroupId, setAgencyGroupId] = useState<string | undefined>(undefined);
@@ -485,13 +487,15 @@ export function Requests({
       recordRecentFilters();
 
       try {
-        const params: ListNdasParams = {
+        const params: ListNdasParams & { showInactive?: boolean; showCancelled?: boolean } = {
           page: currentPage,
           limit: pageSize,
           sortBy: SORT_KEY_TO_PARAM[sortBy],
           sortOrder,
           search: debouncedSearchTerm || undefined,
           status: statusFilter !== 'all' ? statusFilter : undefined,
+          showInactive: showInactive ? true : undefined,
+          showCancelled: showCancelled ? true : undefined,
           agencyGroupId: agencyGroupId || undefined,
           subagencyId: subagencyId || undefined,
           companyName: companyName.trim() || undefined,
@@ -535,6 +539,8 @@ export function Requests({
   }, [
     debouncedSearchTerm,
     statusFilter,
+    showInactive,
+    showCancelled,
     agencyGroupId,
     subagencyId,
     companyName,
@@ -565,6 +571,8 @@ export function Requests({
   }, [
     debouncedSearchTerm,
     statusFilter,
+    showInactive,
+    showCancelled,
     agencyGroupId,
     subagencyId,
     companyName,
@@ -698,6 +706,27 @@ export function Requests({
               <SelectItem value="CANCELLED">Cancelled</SelectItem>
             </SelectContent>
           </Select>
+
+          <div className="flex flex-col md:flex-row md:items-center gap-2 text-sm">
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={showInactive}
+                onChange={(e) => setShowInactive(e.target.checked)}
+                className="h-4 w-4"
+              />
+              Show inactive
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={showCancelled}
+                onChange={(e) => setShowCancelled(e.target.checked)}
+                className="h-4 w-4"
+              />
+              Show cancelled
+            </label>
+          </div>
 
           <div className="w-full md:w-56">
             <input
@@ -1044,7 +1073,9 @@ export function Requests({
                 {ndas.map((nda) => (
                   <tr
                     key={nda.id}
-                    className="hover:bg-gray-50 cursor-pointer transition-colors"
+                    className={`hover:bg-gray-50 cursor-pointer transition-colors ${
+                      nda.status === 'INACTIVE' || nda.status === 'CANCELLED' ? 'opacity-70' : ''
+                    }`}
                     onClick={() => handleViewNDA(nda)}
                   >
                     <td className="px-6 py-4">

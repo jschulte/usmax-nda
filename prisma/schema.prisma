@@ -351,6 +351,7 @@ model Document {
   fileSize       Int?         @map("file_size") // File size in bytes
   documentType   DocumentType @default(UPLOADED) @map("document_type")
   isFullyExecuted Boolean     @default(false) @map("is_fully_executed") // Story 4.2
+  isEdited       Boolean      @default(false) @map("is_edited") // Story 3.13
   versionNumber  Int          @default(1) @map("version_number") // Story 4.4
   notes          String?      @db.Text // Story 4.6: metadata notes
   uploadedById   String       @map("uploaded_by_id")

@@ -82,6 +82,7 @@ export interface DocumentResponse {
   fileSize: number | null;
   documentType: DocumentType;
   isFullyExecuted: boolean;
+  isEdited: boolean;
   versionNumber: number;
   notes: string | null;
   uploadedById: string;
@@ -660,6 +661,7 @@ function formatDocumentResponse(document: any): DocumentResponse {
     fileSize: document.fileSize,
     documentType: document.documentType,
     isFullyExecuted: document.isFullyExecuted,
+    isEdited: document.isEdited ?? false,
     versionNumber: document.versionNumber,
     notes: document.notes,
     uploadedById: document.uploadedById,
