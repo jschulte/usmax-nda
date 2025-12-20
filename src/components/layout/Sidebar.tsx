@@ -1,12 +1,10 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { 
-  LayoutDashboard, 
-  FileText, 
-  Inbox, 
-  FolderOpen, 
-  GitBranch, 
-  BarChart3, 
+import {
+  LayoutDashboard,
+  Inbox,
+  FolderOpen,
+  BarChart3,
   Settings,
   X
 } from 'lucide-react';
@@ -19,10 +17,8 @@ interface SidebarProps {
 export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
   const navItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
-    { icon: FileText, label: 'My NDAs', path: '/my-ndas' },
     { icon: Inbox, label: 'Requests', path: '/requests' },
     { icon: FolderOpen, label: 'Templates and Clauses', path: '/templates' },
-    { icon: GitBranch, label: 'Workflows and Approvals', path: '/workflows' },
     { icon: BarChart3, label: 'Reports', path: '/reports' },
     { icon: Settings, label: 'Administration', path: '/administration' }
   ];

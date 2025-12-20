@@ -15,6 +15,42 @@ import type { UserContext } from '../types/auth.js';
 import { ROLE_NAMES } from '../types/auth.js';
 
 // =============================================================================
+// MOCK MODE DETECTION
+// =============================================================================
+
+// Use pure mock mode only when no DATABASE_URL is set
+// If DATABASE_URL is set, always query the database (even with USE_MOCK_AUTH)
+const useMockMode = !process.env.DATABASE_URL;
+
+// Mock user data for development without database
+const MOCK_USERS: Record<string, UserContext> = {
+  'mock-user-001': {
+    id: 'mock-user-001',
+    email: 'admin@usmax.com',
+    contactId: 'mock-contact-001',
+    name: 'Admin User',
+    permissions: new Set([
+      'nda:view', 'nda:create', 'nda:update', 'nda:delete',
+      'admin:manage_users', 'admin:manage_roles', 'admin:view_audit_logs',
+      'admin:bypass'
+    ]),
+    roles: ['Admin'],
+    authorizedAgencyGroups: ['mock-agency-1', 'mock-agency-2'],
+    authorizedSubagencies: ['mock-subagency-1'],
+  },
+  'mock-user-002': {
+    id: 'mock-user-002',
+    email: 'test@usmax.com',
+    contactId: 'mock-contact-002',
+    name: 'Test User',
+    permissions: new Set(['nda:view', 'nda:create', 'nda:update']),
+    roles: ['NDA User'],
+    authorizedAgencyGroups: ['mock-agency-1'],
+    authorizedSubagencies: [],
+  },
+};
+
+// =============================================================================
 // CACHE CONFIGURATION
 // =============================================================================
 
@@ -41,6 +77,28 @@ export async function loadUserContext(cognitoId: string): Promise<UserContext | 
   const cached = getCachedContext(cognitoId);
   if (cached) {
     return cached;
+  }
+
+  // In mock mode, return mock user data
+  if (useMockMode) {
+    const mockUser = MOCK_USERS[cognitoId];
+    if (mockUser) {
+      setCachedContext(cognitoId, mockUser);
+      return mockUser;
+    }
+    // For any unrecognized user in mock mode, create a default context
+    const defaultMockUser: UserContext = {
+      id: cognitoId,
+      email: 'unknown@usmax.com',
+      contactId: `mock-contact-${cognitoId}`,
+      name: 'Unknown User',
+      permissions: new Set(['nda:view']),
+      roles: ['Read-Only'],
+      authorizedAgencyGroups: [],
+      authorizedSubagencies: [],
+    };
+    setCachedContext(cognitoId, defaultMockUser);
+    return defaultMockUser;
   }
 
   // Load from database
@@ -126,7 +184,7 @@ export async function loadUserContextByContactId(contactId: string): Promise<Use
     select: { cognitoId: true },
   });
 
-  if (!contact) {
+  if (!contact || !contact.cognitoId) {
     return null;
   }
 
@@ -145,6 +203,22 @@ export async function createContactForFirstLogin(
   cognitoId: string,
   email: string
 ): Promise<UserContext> {
+  // In mock mode, create a mock user context
+  if (useMockMode) {
+    const mockContext: UserContext = {
+      id: cognitoId,
+      email,
+      contactId: `mock-contact-${Date.now()}`,
+      name: email.split('@')[0],
+      permissions: new Set(['nda:view']),
+      roles: ['Read-Only'],
+      authorizedAgencyGroups: [],
+      authorizedSubagencies: [],
+    };
+    setCachedContext(cognitoId, mockContext);
+    return mockContext;
+  }
+
   // Find the Read-Only role (default for new users)
   const readOnlyRole = await prisma.role.findUnique({
     where: { name: ROLE_NAMES.READ_ONLY },

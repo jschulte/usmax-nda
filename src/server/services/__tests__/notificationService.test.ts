@@ -33,6 +33,7 @@ vi.mock('../../db/index.js', () => ({
       deleteMany: vi.fn(),
     },
     nda: {
+      findFirst: vi.fn(),
       findUnique: vi.fn(),
     },
   },
@@ -58,14 +59,13 @@ const mockPrisma = vi.mocked(prisma);
 
 describe('Notification Service', () => {
   const mockUserContext: UserContext = {
-    userId: 'user-123',
+    id: 'cognito-sub-123',
+    contactId: 'user-123',
     email: 'user@test.com',
     permissions: new Set(['nda:view']),
-    agencyScope: {
-      type: 'all',
-      agencyGroupIds: [],
-      subagencyIds: [],
-    },
+    roles: ['NDA User'],
+    authorizedAgencyGroups: [],
+    authorizedSubagencies: [],
   };
 
   beforeEach(() => {
@@ -143,6 +143,7 @@ describe('Notification Service', () => {
     it('should allow admin to update other user preferences', async () => {
       const adminContext: UserContext = {
         ...mockUserContext,
+        contactId: 'admin-123',
         permissions: new Set(['admin:manage_users']),
       };
 
@@ -170,7 +171,7 @@ describe('Notification Service', () => {
 
   describe('subscribeToNda', () => {
     it('should subscribe user to NDA', async () => {
-      mockPrisma.nda.findUnique.mockResolvedValue({
+      mockPrisma.nda.findFirst.mockResolvedValue({
         id: 'nda-123',
       } as any);
 
@@ -193,7 +194,7 @@ describe('Notification Service', () => {
     });
 
     it('should throw error for non-existent NDA', async () => {
-      mockPrisma.nda.findUnique.mockResolvedValue(null);
+      mockPrisma.nda.findFirst.mockResolvedValue(null);
 
       await expect(subscribeToNda('nonexistent', 'user-123', mockUserContext))
         .rejects.toThrow(NotificationServiceError);
@@ -220,6 +221,14 @@ describe('Notification Service', () => {
 
   describe('getNdaSubscribers', () => {
     it('should return list of subscribers', async () => {
+      mockPrisma.nda.findFirst.mockResolvedValue({
+        id: 'nda-123',
+        createdById: 'user-123',
+        opportunityPocId: 'user-123',
+        contractsPocId: null,
+        relationshipPocId: 'user-999',
+      } as any);
+
       mockPrisma.ndaSubscription.findMany.mockResolvedValue([
         {
           id: 'sub-1',
@@ -243,7 +252,7 @@ describe('Notification Service', () => {
         },
       ] as any);
 
-      const subscribers = await getNdaSubscribers('nda-123');
+      const subscribers = await getNdaSubscribers('nda-123', mockUserContext);
 
       expect(subscribers).toHaveLength(2);
       expect(subscribers[0].contact.email).toBe('user1@test.com');
@@ -448,7 +457,7 @@ describe('Notification Service', () => {
         },
       ] as any);
 
-      const subs = await getUserSubscriptions('user-123');
+      const subs = await getUserSubscriptions('user-123', mockUserContext);
 
       expect(subs).toHaveLength(2);
       expect(subs[0].nda.companyName).toBe('TechCorp');

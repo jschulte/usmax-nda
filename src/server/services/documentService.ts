@@ -19,6 +19,7 @@ import type { Document, DocumentType, NdaStatus } from '../../generated/prisma/i
 import type { UserContext } from '../types/auth.js';
 import archiver from 'archiver';
 import { PassThrough } from 'stream';
+import path from 'node:path';
 
 /**
  * Service error class
@@ -545,7 +546,8 @@ export async function createBulkDownload(
     try {
       const content = await getDocumentContent(doc.s3Key);
       // Prefix filename with version number to avoid duplicates
-      const archiveFilename = `v${doc.versionNumber}_${doc.filename}`;
+      const safeBaseName = sanitizeZipEntryName(doc.filename, `document_${doc.id}`);
+      const archiveFilename = `v${doc.versionNumber}_${safeBaseName}`;
       archive.append(content, { name: archiveFilename });
     } catch (error) {
       console.error(`[Document] Failed to add ${doc.filename} to archive:`, error);
@@ -581,6 +583,26 @@ export async function createBulkDownload(
     filename,
     documentCount: documents.length,
   };
+}
+
+function sanitizeZipEntryName(filename: string, fallback: string): string {
+  const normalized = filename
+    .replace(/[\0\r\n]/g, '') // prevent control chars / header issues
+    .replace(/\\/g, '/'); // normalize Windows separators
+
+  let base = path.posix.basename(normalized).trim();
+  if (!base || base === '.' || base === '..') {
+    base = fallback;
+  }
+
+  // Avoid extremely long names
+  if (base.length > 200) {
+    const ext = path.posix.extname(base);
+    const stem = base.slice(0, 200 - ext.length);
+    base = `${stem}${ext}`;
+  }
+
+  return base;
 }
 
 /**

@@ -21,6 +21,7 @@ import {
 import { NdaStatus, UsMaxPosition } from '../../generated/prisma/index.js';
 import type { Prisma } from '../../generated/prisma/index.js';
 import type { UserContext } from '../types/auth.js';
+import { ROLE_NAMES } from '../types/auth.js';
 
 // Re-export enums for use in other modules
 export { NdaStatus, UsMaxPosition };
@@ -130,15 +131,26 @@ interface AuditMeta {
  * Users can only see NDAs for agencies they have access to
  */
 export function buildSecurityFilter(userContext: UserContext): Prisma.NdaWhereInput {
+  // Admin bypass: no row-level restrictions
+  if (userContext.permissions?.has('admin:bypass') || userContext.roles?.includes(ROLE_NAMES.ADMIN)) {
+    return {};
+  }
+
   const authorizedAgencyGroups = userContext.authorizedAgencyGroups || [];
   const authorizedSubagencies = userContext.authorizedSubagencies || [];
 
+  // Important: wrap the OR in an AND so callers can safely add their own OR clauses
+  // (e.g., search predicates) without accidentally overwriting the security filter.
   return {
-    OR: [
-      // User has access to the agency group
-      { agencyGroupId: { in: authorizedAgencyGroups } },
-      // User has direct subagency access
-      { subagencyId: { in: authorizedSubagencies } },
+    AND: [
+      {
+        OR: [
+          // User has access to the agency group
+          { agencyGroupId: { in: authorizedAgencyGroups } },
+          // User has direct subagency access
+          { subagencyId: { in: authorizedSubagencies } },
+        ],
+      },
     ],
   };
 }

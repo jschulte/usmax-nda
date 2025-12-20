@@ -38,7 +38,7 @@ router.use(attachUserContext);
  */
 router.get('/me/notification-preferences', async (req, res) => {
   try {
-    const preferences = await getNotificationPreferences(req.userContext!.userId);
+    const preferences = await getNotificationPreferences(req.userContext!.contactId);
     res.json({ preferences });
   } catch (error) {
     console.error('[Notifications] Error getting preferences:', error);
@@ -71,7 +71,7 @@ router.put('/me/notification-preferences', async (req, res) => {
     } = req.body;
 
     const preferences = await updateNotificationPreferences(
-      req.userContext!.userId,
+      req.userContext!.contactId,
       {
         onNdaCreated,
         onNdaEmailed,
@@ -108,7 +108,7 @@ router.put('/me/notification-preferences', async (req, res) => {
  */
 router.get('/me/subscriptions', async (req, res) => {
   try {
-    const subscriptions = await getUserSubscriptions(req.userContext!.userId);
+    const subscriptions = await getUserSubscriptions(req.userContext!.contactId, req.userContext!);
     res.json({ subscriptions });
   } catch (error) {
     console.error('[Notifications] Error getting subscriptions:', error);
@@ -134,7 +134,7 @@ router.post(
     try {
       await subscribeToNda(
         req.params.id,
-        req.userContext!.userId,
+        req.userContext!.contactId,
         req.userContext!
       );
 
@@ -168,7 +168,7 @@ router.delete(
     try {
       await unsubscribeFromNda(
         req.params.id,
-        req.userContext!.userId,
+        req.userContext!.contactId,
         req.userContext!
       );
 
@@ -205,9 +205,19 @@ router.get(
   ]),
   async (req, res) => {
     try {
-      const subscribers = await getNdaSubscribers(req.params.id);
+      const subscribers = await getNdaSubscribers(req.params.id, req.userContext!);
       res.json({ subscribers });
     } catch (error) {
+      if (error instanceof NotificationServiceError) {
+        const statusCode =
+          error.code === 'NDA_NOT_FOUND'
+            ? 404
+            : error.code === 'UNAUTHORIZED'
+              ? 403
+              : 500;
+        return res.status(statusCode).json({ error: error.message, code: error.code });
+      }
+
       console.error('[Notifications] Error getting subscribers:', error);
       res.status(500).json({
         error: 'Failed to get NDA subscribers',

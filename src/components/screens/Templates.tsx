@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card } from '../ui/AppCard';
 import { Badge } from '../ui/AppBadge';
 import { Button } from '../ui/AppButton';
 import { Input, Select } from '../ui/AppInput';
-import { Search, Plus, MoreVertical, Edit, Copy, Power, Trash2, FileText, Calendar } from 'lucide-react';
-import { mockTemplates, mockClauses } from '../../data/mockData';
+import { Search, Plus, MoreVertical, Edit, Copy, Power, Trash2, FileText, Calendar, Loader2 } from 'lucide-react';
+import { mockClauses } from '../../data/mockData';
 import {
   Dialog,
   DialogContent,
@@ -21,6 +21,8 @@ import {
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu';
 import { toast } from 'sonner@2.0.3';
+import * as templateService from '../../client/services/templateService';
+import type { RtfTemplate } from '../../client/services/templateService';
 
 export function Templates() {
   const [activeView, setActiveView] = useState<'templates' | 'clauses'>('templates');
@@ -30,16 +32,29 @@ export function Templates() {
   const [showClauseDialog, setShowClauseDialog] = useState(false);
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [templateName, setTemplateName] = useState('');
-  const [templateType, setTemplateType] = useState('');
+  const [templateDescription, setTemplateDescription] = useState('');
+  const [templateContent, setTemplateContent] = useState('');
+  const [templateAgencyGroupId, setTemplateAgencyGroupId] = useState('');
+  const [templateIsDefault, setTemplateIsDefault] = useState(false);
   const [clauseName, setClauseName] = useState('');
   const [clauseTopic, setClauseTopic] = useState('');
-  
+
+  // Backend data state
+  const [templates, setTemplates] = useState<RtfTemplate[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Filters
+  const [agencyGroupFilter, setAgencyGroupFilter] = useState<string>('');
+  const [showInactive, setShowInactive] = useState(false);
+
   // Confirmation dialogs
   const [showDeleteTemplateConfirm, setShowDeleteTemplateConfirm] = useState(false);
   const [showDeleteClauseConfirm, setShowDeleteClauseConfirm] = useState(false);
-  const [templateToDelete, setTemplateToDelete] = useState<any>(null);
+  const [templateToDelete, setTemplateToDelete] = useState<RtfTemplate | null>(null);
   const [clauseToDelete, setClauseToDelete] = useState<any>(null);
-  
+
   // Edit clause dialog
   const [showEditClauseDialog, setShowEditClauseDialog] = useState(false);
   const [editingClause, setEditingClause] = useState<any>(null);
@@ -48,36 +63,88 @@ export function Templates() {
     topic: '',
     text: ''
   });
-  
-  const filteredTemplates = mockTemplates.filter(t => 
+
+  // Load templates on mount and when filters change
+  useEffect(() => {
+    loadTemplates();
+  }, [agencyGroupFilter, showInactive]);
+
+  const loadTemplates = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const data = await templateService.listTemplates(
+        agencyGroupFilter || undefined,
+        showInactive
+      );
+      setTemplates(data.templates);
+    } catch (err: any) {
+      setError(err.message || 'Failed to load templates');
+      toast.error('Failed to load templates', {
+        description: err.message || 'An error occurred'
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const filteredTemplates = templates.filter(t =>
     t.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    t.type.toLowerCase().includes(searchTerm.toLowerCase())
+    (t.description && t.description.toLowerCase().includes(searchTerm.toLowerCase()))
   );
-  
-  const filteredClauses = mockClauses.filter(c => 
+
+  const filteredClauses = mockClauses.filter(c =>
     c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     c.topic.toLowerCase().includes(searchTerm.toLowerCase())
   );
   
   const handleCreateTemplate = () => {
     setTemplateName('');
-    setTemplateType('');
+    setTemplateDescription('');
+    setTemplateContent('');
+    setTemplateAgencyGroupId('');
+    setTemplateIsDefault(false);
     setShowCreateDialog(true);
   };
-  
+
   const handleCreateClause = () => {
     setClauseName('');
     setClauseTopic('');
     setShowCreateDialog(true);
   };
-  
-  const confirmCreate = () => {
+
+  const confirmCreate = async () => {
     if (activeView === 'templates') {
-      if (templateName.trim() && templateType.trim()) {
+      if (!templateName.trim()) {
+        toast.error('Template name is required');
+        return;
+      }
+      if (!templateContent.trim()) {
+        toast.error('Template content is required');
+        return;
+      }
+
+      try {
+        setIsSubmitting(true);
+        await templateService.createTemplate({
+          name: templateName.trim(),
+          description: templateDescription.trim() || undefined,
+          content: templateContent,
+          agencyGroupId: templateAgencyGroupId || undefined,
+          isDefault: templateIsDefault,
+        });
+
         toast.success('Template created', {
           description: `${templateName} has been created successfully.`
         });
         setShowCreateDialog(false);
+        await loadTemplates();
+      } catch (err: any) {
+        toast.error('Failed to create template', {
+          description: err.message || 'An error occurred'
+        });
+      } finally {
+        setIsSubmitting(false);
       }
     } else {
       if (clauseName.trim() && clauseTopic.trim()) {
@@ -88,44 +155,117 @@ export function Templates() {
       }
     }
   };
-  
-  const handleEditTemplate = (template: any) => {
+
+  const handleEditTemplate = async (template: RtfTemplate) => {
     setSelectedItem(template);
     setTemplateName(template.name);
-    setTemplateType(template.type);
+    setTemplateDescription(template.description || '');
+    setTemplateAgencyGroupId(template.agencyGroupId || '');
+    setTemplateIsDefault(template.isDefault);
+    setTemplateContent(''); // Content is only loaded on demand
     setShowEditDialog(true);
   };
-  
-  const confirmEdit = () => {
-    toast.success('Template updated', {
-      description: `${templateName} has been updated successfully.`
-    });
-    setShowEditDialog(false);
+
+  const confirmEdit = async () => {
+    if (!templateName.trim()) {
+      toast.error('Template name is required');
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      await templateService.updateTemplate(selectedItem.id, {
+        name: templateName.trim(),
+        description: templateDescription.trim() || undefined,
+        content: templateContent.trim() || undefined,
+        agencyGroupId: templateAgencyGroupId || null,
+        isDefault: templateIsDefault,
+      });
+
+      toast.success('Template updated', {
+        description: `${templateName} has been updated successfully.`
+      });
+      setShowEditDialog(false);
+      await loadTemplates();
+    } catch (err: any) {
+      toast.error('Failed to update template', {
+        description: err.message || 'An error occurred'
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
-  
-  const handleDuplicateTemplate = (template: any) => {
-    toast.success('Template duplicated', {
-      description: `${template.name} (Copy) has been created.`
-    });
+
+  const handleDuplicateTemplate = async (template: RtfTemplate) => {
+    try {
+      setIsSubmitting(true);
+      // Load full template with content
+      const { template: fullTemplate } = await templateService.getTemplate(template.id);
+
+      // Create duplicate
+      await templateService.createTemplate({
+        name: `${template.name} (Copy)`,
+        description: template.description,
+        content: fullTemplate.content || '',
+        agencyGroupId: template.agencyGroupId || undefined,
+        isDefault: false, // Duplicates are never default
+      });
+
+      toast.success('Template duplicated', {
+        description: `${template.name} (Copy) has been created.`
+      });
+      await loadTemplates();
+    } catch (err: any) {
+      toast.error('Failed to duplicate template', {
+        description: err.message || 'An error occurred'
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
-  
-  const handleToggleTemplate = (template: any) => {
-    const newStatus = !template.active;
-    toast.success(newStatus ? 'Template activated' : 'Template deactivated', {
-      description: `${template.name} is now ${newStatus ? 'active' : 'inactive'}.`
-    });
+
+  const handleToggleTemplate = async (template: RtfTemplate) => {
+    try {
+      const newStatus = !template.isActive;
+      await templateService.updateTemplate(template.id, {
+        isActive: newStatus,
+      });
+
+      toast.success(newStatus ? 'Template activated' : 'Template deactivated', {
+        description: `${template.name} is now ${newStatus ? 'active' : 'inactive'}.`
+      });
+      await loadTemplates();
+    } catch (err: any) {
+      toast.error('Failed to update template status', {
+        description: err.message || 'An error occurred'
+      });
+    }
   };
-  
-  const handleDeleteTemplate = (template: any) => {
+
+  const handleDeleteTemplate = (template: RtfTemplate) => {
     setTemplateToDelete(template);
     setShowDeleteTemplateConfirm(true);
   };
-  
-  const confirmDeleteTemplate = () => {
-    toast.success('Template deleted', {
-      description: `${templateToDelete.name} has been deleted.`
-    });
-    setShowDeleteTemplateConfirm(false);
+
+  const confirmDeleteTemplate = async () => {
+    if (!templateToDelete) return;
+
+    try {
+      setIsSubmitting(true);
+      await templateService.deleteTemplate(templateToDelete.id);
+
+      toast.success('Template deleted', {
+        description: `${templateToDelete.name} has been deleted.`
+      });
+      setShowDeleteTemplateConfirm(false);
+      await loadTemplates();
+    } catch (err: any) {
+      toast.error('Failed to delete template', {
+        description: err.message || 'An error occurred'
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
   
   const handleViewClauseDetails = (clause: any) => {
@@ -195,7 +335,7 @@ export function Templates() {
             Clauses
           </button>
         </div>
-        
+
         <div className="flex-1 max-w-md">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--color-text-muted)]" />
@@ -209,59 +349,126 @@ export function Templates() {
           </div>
         </div>
       </div>
+
+      {/* Filters for Templates */}
+      {activeView === 'templates' && (
+        <div className="flex flex-wrap items-center gap-4 mb-6">
+          <div className="flex items-center gap-2">
+            <label className="text-sm text-[var(--color-text-secondary)]">Agency Group:</label>
+            <input
+              type="text"
+              placeholder="Filter by agency..."
+              value={agencyGroupFilter}
+              onChange={(e) => setAgencyGroupFilter(e.target.value)}
+              className="px-3 py-2 border border-[var(--color-border)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="showInactive"
+              checked={showInactive}
+              onChange={(e) => setShowInactive(e.target.checked)}
+              className="rounded border-[var(--color-border)]"
+            />
+            <label htmlFor="showInactive" className="text-sm text-[var(--color-text-secondary)]">
+              Show inactive templates
+            </label>
+          </div>
+          <div className="text-sm text-[var(--color-text-muted)]">
+            {templates.length} template{templates.length !== 1 ? 's' : ''} found
+          </div>
+        </div>
+      )}
       
       {/* Templates View */}
       {activeView === 'templates' && (
         <>
+        {/* Loading State */}
+        {isLoading && (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-8 h-8 animate-spin text-[var(--color-primary)]" />
+          </div>
+        )}
+
+        {/* Error State */}
+        {error && !isLoading && (
+          <Card className="text-center py-12">
+            <p className="text-[var(--color-error)] mb-4">{error}</p>
+            <Button variant="primary" onClick={loadTemplates}>
+              Retry
+            </Button>
+          </Card>
+        )}
+
+        {/* Empty State */}
+        {!isLoading && !error && filteredTemplates.length === 0 && (
+          <Card className="text-center py-12">
+            <p className="text-[var(--color-text-secondary)] mb-4">
+              {searchTerm ? 'No templates match your search.' : 'No templates found.'}
+            </p>
+            {!searchTerm && (
+              <Button variant="primary" onClick={handleCreateTemplate}>
+                Create your first template
+              </Button>
+            )}
+          </Card>
+        )}
+
         {/* Desktop Table */}
-        <Card padding="none" className="hidden md:block">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b border-[var(--color-border)]">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-[var(--color-text-secondary)]">
-                    Template Name
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-[var(--color-text-secondary)]">
-                    Type
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-[var(--color-text-secondary)]">
-                    Department
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-[var(--color-text-secondary)]">
-                    Last Updated
-                  </th>
-                  <th className="px-6 py-3 text-center text-xs uppercase tracking-wider text-[var(--color-text-secondary)]">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-center text-xs uppercase tracking-wider text-[var(--color-text-secondary)]">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-[var(--color-border)]">
-                {filteredTemplates.map((template) => (
-                  <tr key={template.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4">
-                      <p className="text-sm">{template.name}</p>
-                      <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">{template.description}</p>
-                    </td>
-                    <td className="px-6 py-4">
-                      <Badge variant="type">{template.type}</Badge>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-[var(--color-text-secondary)]">
-                      {template.department}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-[var(--color-text-secondary)]">
-                      {new Date(template.lastUpdated).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      {template.active ? (
-                        <Badge variant="status" status="Executed">Active</Badge>
-                      ) : (
-                        <Badge variant="default">Inactive</Badge>
-                      )}
-                    </td>
+        {!isLoading && !error && filteredTemplates.length > 0 && (
+          <Card padding="none" className="hidden md:block">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50 border-b border-[var(--color-border)]">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-[var(--color-text-secondary)]">
+                      Template Name
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-[var(--color-text-secondary)]">
+                      Agency Group
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-[var(--color-text-secondary)]">
+                      Last Updated
+                    </th>
+                    <th className="px-6 py-3 text-center text-xs uppercase tracking-wider text-[var(--color-text-secondary)]">
+                      Default
+                    </th>
+                    <th className="px-6 py-3 text-center text-xs uppercase tracking-wider text-[var(--color-text-secondary)]">
+                      Status
+                    </th>
+                    <th className="px-6 py-3 text-center text-xs uppercase tracking-wider text-[var(--color-text-secondary)]">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-[var(--color-border)]">
+                  {filteredTemplates.map((template) => (
+                    <tr key={template.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-4">
+                        <p className="text-sm font-medium">{template.name}</p>
+                        {template.description && (
+                          <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">{template.description}</p>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-[var(--color-text-secondary)]">
+                        {template.agencyGroupId || 'All agencies'}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-[var(--color-text-secondary)]">
+                        {new Date(template.updatedAt).toLocaleDateString()}
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        {template.isDefault && (
+                          <Badge variant="info">Default</Badge>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        {template.isActive ? (
+                          <Badge variant="status" status="Executed">Active</Badge>
+                        ) : (
+                          <Badge variant="default">Inactive</Badge>
+                        )}
+                      </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-center gap-2">
                         <button
@@ -310,74 +517,79 @@ export function Templates() {
                       </div>
                     </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Card>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        )}
 
         {/* Mobile Card View */}
-        <div className="md:hidden space-y-3">
-          {filteredTemplates.map((template) => (
-            <Card 
-              key={template.id} 
-              className="p-4"
-            >
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex-1 min-w-0 pr-2">
-                  <p className="font-medium mb-1">{template.name}</p>
-                  <p className="text-sm text-[var(--color-text-secondary)] line-clamp-2">{template.description}</p>
+        {!isLoading && !error && filteredTemplates.length > 0 && (
+          <div className="md:hidden space-y-3">
+            {filteredTemplates.map((template) => (
+              <Card
+                key={template.id}
+                className="p-4"
+              >
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex-1 min-w-0 pr-2">
+                    <p className="font-medium mb-1">{template.name}</p>
+                    {template.description && (
+                      <p className="text-sm text-[var(--color-text-secondary)] line-clamp-2">{template.description}</p>
+                    )}
+                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button className="p-2 hover:bg-gray-100 rounded transition-colors flex-shrink-0">
+                        <MoreVertical className="w-4 h-4 text-[var(--color-text-secondary)]" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => handleEditTemplate(template)}>
+                        <Edit className="w-4 h-4 mr-2" />
+                        Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleDuplicateTemplate(template)}>
+                        <Copy className="w-4 h-4 mr-2" />
+                        Duplicate
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleToggleTemplate(template)}>
+                        <Power className="w-4 h-4 mr-2" />
+                        {template.isActive ? 'Deactivate' : 'Activate'}
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => handleDeleteTemplate(template)} variant="destructive">
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <button className="p-2 hover:bg-gray-100 rounded transition-colors flex-shrink-0">
-                      <MoreVertical className="w-4 h-4 text-[var(--color-text-secondary)]" />
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => handleEditTemplate(template)}>
-                      <Edit className="w-4 h-4 mr-2" />
-                      Edit
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleDuplicateTemplate(template)}>
-                      <Copy className="w-4 h-4 mr-2" />
-                      Duplicate
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleToggleTemplate(template)}>
-                      <Power className="w-4 h-4 mr-2" />
-                      {template.active ? 'Deactivate' : 'Activate'}
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => handleDeleteTemplate(template)} variant="destructive">
-                      <Trash2 className="w-4 h-4 mr-2" />
-                      Delete
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-              
-              <div className="space-y-2 mb-3">
-                <div className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)]">
-                  <FileText className="w-4 h-4 flex-shrink-0" />
-                  <span>{template.department}</span>
+
+                <div className="space-y-2 mb-3">
+                  <div className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)]">
+                    <FileText className="w-4 h-4 flex-shrink-0" />
+                    <span>{template.agencyGroupId || 'All agencies'}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)]">
+                    <Calendar className="w-4 h-4 flex-shrink-0" />
+                    <span>Updated {new Date(template.updatedAt).toLocaleDateString()}</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)]">
-                  <Calendar className="w-4 h-4 flex-shrink-0" />
-                  <span>Updated {new Date(template.lastUpdated).toLocaleDateString()}</span>
+
+                <div className="flex flex-wrap gap-2">
+                  {template.isDefault && <Badge variant="info">Default</Badge>}
+                  {template.isActive ? (
+                    <Badge variant="status" status="Executed">Active</Badge>
+                  ) : (
+                    <Badge variant="default">Inactive</Badge>
+                  )}
                 </div>
-              </div>
-              
-              <div className="flex flex-wrap gap-2">
-                <Badge variant="type">{template.type}</Badge>
-                {template.active ? (
-                  <Badge variant="status" status="Executed">Active</Badge>
-                ) : (
-                  <Badge variant="default">Inactive</Badge>
-                )}
-              </div>
-            </Card>
-          ))}
-        </div>
+              </Card>
+            ))}
+          </div>
+        )}
         </>
       )}
       
@@ -441,31 +653,65 @@ export function Templates() {
           <DialogHeader>
             <DialogTitle>{activeView === 'templates' ? 'Create Template' : 'Add Clause'}</DialogTitle>
             <DialogDescription>
-              {activeView === 'templates' 
-                ? 'Create a new NDA template.' 
+              {activeView === 'templates'
+                ? 'Create a new RTF template for NDAs.'
                 : 'Add a new clause to the library.'}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             {activeView === 'templates' ? (
               <>
-                <input
-                  type="text"
-                  placeholder="Template name..."
-                  className="w-full px-3 py-2 border border-[var(--color-border)] rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
-                  value={templateName}
-                  onChange={(e) => setTemplateName(e.target.value)}
-                />
-                <select
-                  className="w-full px-3 py-2 border border-[var(--color-border)] rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
-                  value={templateType}
-                  onChange={(e) => setTemplateType(e.target.value)}
-                >
-                  <option value="">Select type...</option>
-                  <option value="Mutual">Mutual</option>
-                  <option value="One-way">One-way</option>
-                  <option value="Visitor">Visitor</option>
-                </select>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Template Name *</label>
+                  <input
+                    type="text"
+                    placeholder="e.g., Standard Mutual NDA"
+                    className="w-full px-3 py-2 border border-[var(--color-border)] rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+                    value={templateName}
+                    onChange={(e) => setTemplateName(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Description</label>
+                  <textarea
+                    placeholder="Optional description..."
+                    className="w-full px-3 py-2 border border-[var(--color-border)] rounded-md text-sm min-h-[60px] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+                    value={templateDescription}
+                    onChange={(e) => setTemplateDescription(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Agency Group ID</label>
+                  <input
+                    type="text"
+                    placeholder="Leave blank for all agencies"
+                    className="w-full px-3 py-2 border border-[var(--color-border)] rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+                    value={templateAgencyGroupId}
+                    onChange={(e) => setTemplateAgencyGroupId(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Template Content (Base64 RTF) *</label>
+                  <textarea
+                    placeholder="Base64 encoded RTF content..."
+                    className="w-full px-3 py-2 border border-[var(--color-border)] rounded-md text-sm min-h-[120px] font-mono text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+                    value={templateContent}
+                    onChange={(e) => setTemplateContent(e.target.value)}
+                  />
+                  <p className="text-xs text-[var(--color-text-muted)] mt-1">
+                    Upload an RTF file and convert it to base64 format
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="isDefault"
+                    checked={templateIsDefault}
+                    onChange={(e) => setTemplateIsDefault(e.target.checked)}
+                    className="rounded border-[var(--color-border)]"
+                  />
+                  <label htmlFor="isDefault" className="text-sm">Set as default template</label>
+                </div>
               </>
             ) : (
               <>
@@ -491,11 +737,18 @@ export function Templates() {
             )}
           </div>
           <DialogFooter>
-            <Button variant="secondary" size="sm" onClick={() => setShowCreateDialog(false)}>
+            <Button variant="secondary" size="sm" onClick={() => setShowCreateDialog(false)} disabled={isSubmitting}>
               Cancel
             </Button>
-            <Button variant="primary" size="sm" onClick={confirmCreate}>
-              {activeView === 'templates' ? 'Create' : 'Add'}
+            <Button variant="primary" size="sm" onClick={confirmCreate} disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  {activeView === 'templates' ? 'Creating...' : 'Adding...'}
+                </>
+              ) : (
+                activeView === 'templates' ? 'Create' : 'Add'
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -511,30 +764,71 @@ export function Templates() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <input
-              type="text"
-              placeholder="Template name..."
-              className="w-full px-3 py-2 border border-[var(--color-border)] rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
-              value={templateName}
-              onChange={(e) => setTemplateName(e.target.value)}
-            />
-            <select
-              className="w-full px-3 py-2 border border-[var(--color-border)] rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
-              value={templateType}
-              onChange={(e) => setTemplateType(e.target.value)}
-            >
-              <option value="">Select type...</option>
-              <option value="Mutual">Mutual</option>
-              <option value="One-way">One-way</option>
-              <option value="Visitor">Visitor</option>
-            </select>
+            <div>
+              <label className="block text-sm font-medium mb-1">Template Name *</label>
+              <input
+                type="text"
+                placeholder="Template name..."
+                className="w-full px-3 py-2 border border-[var(--color-border)] rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+                value={templateName}
+                onChange={(e) => setTemplateName(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Description</label>
+              <textarea
+                placeholder="Optional description..."
+                className="w-full px-3 py-2 border border-[var(--color-border)] rounded-md text-sm min-h-[60px] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+                value={templateDescription}
+                onChange={(e) => setTemplateDescription(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Agency Group ID</label>
+              <input
+                type="text"
+                placeholder="Leave blank for all agencies"
+                className="w-full px-3 py-2 border border-[var(--color-border)] rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+                value={templateAgencyGroupId}
+                onChange={(e) => setTemplateAgencyGroupId(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Template Content (Base64 RTF)</label>
+              <textarea
+                placeholder="Leave blank to keep existing content..."
+                className="w-full px-3 py-2 border border-[var(--color-border)] rounded-md text-sm min-h-[120px] font-mono text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+                value={templateContent}
+                onChange={(e) => setTemplateContent(e.target.value)}
+              />
+              <p className="text-xs text-[var(--color-text-muted)] mt-1">
+                Leave blank to keep existing content
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="isDefaultEdit"
+                checked={templateIsDefault}
+                onChange={(e) => setTemplateIsDefault(e.target.checked)}
+                className="rounded border-[var(--color-border)]"
+              />
+              <label htmlFor="isDefaultEdit" className="text-sm">Set as default template</label>
+            </div>
           </div>
           <DialogFooter>
-            <Button variant="secondary" size="sm" onClick={() => setShowEditDialog(false)}>
+            <Button variant="secondary" size="sm" onClick={() => setShowEditDialog(false)} disabled={isSubmitting}>
               Cancel
             </Button>
-            <Button variant="primary" size="sm" onClick={confirmEdit}>
-              Update
+            <Button variant="primary" size="sm" onClick={confirmEdit} disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                'Update'
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -587,15 +881,22 @@ export function Templates() {
           <DialogHeader>
             <DialogTitle>Delete Template</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete this template? This action cannot be undone.
+              Are you sure you want to delete "{templateToDelete?.name}"? This will deactivate the template.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="secondary" size="sm" onClick={() => setShowDeleteTemplateConfirm(false)}>
+            <Button variant="secondary" size="sm" onClick={() => setShowDeleteTemplateConfirm(false)} disabled={isSubmitting}>
               Cancel
             </Button>
-            <Button variant="primary" size="sm" onClick={confirmDeleteTemplate}>
-              Delete
+            <Button variant="primary" size="sm" onClick={confirmDeleteTemplate} disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                'Delete'
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

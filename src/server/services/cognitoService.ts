@@ -55,20 +55,41 @@ const mfaAttempts = new Map<string, number>();
 
 class CognitoService {
   private client: CognitoIdentityProviderClient | null = null;
-  private readonly userPoolId: string;
-  private readonly clientId: string;
-  private readonly useMock: boolean;
+  private _userPoolId: string | null = null;
+  private _clientId: string | null = null;
+  private _useMock: boolean | null = null;
+  private _initialized = false;
 
-  constructor() {
-    this.userPoolId = process.env.COGNITO_USER_POOL_ID || '';
-    this.clientId = process.env.COGNITO_APP_CLIENT_ID || '';
-    this.useMock = process.env.USE_MOCK_AUTH === 'true';
+  // Lazy getters to ensure env vars are loaded before access
+  private get userPoolId(): string {
+    this.ensureInitialized();
+    return this._userPoolId!;
+  }
 
-    if (!this.useMock) {
+  private get clientId(): string {
+    this.ensureInitialized();
+    return this._clientId!;
+  }
+
+  private get useMock(): boolean {
+    this.ensureInitialized();
+    return this._useMock!;
+  }
+
+  private ensureInitialized(): void {
+    if (this._initialized) return;
+
+    this._userPoolId = process.env.COGNITO_USER_POOL_ID || '';
+    this._clientId = process.env.COGNITO_APP_CLIENT_ID || '';
+    this._useMock = process.env.USE_MOCK_AUTH === 'true';
+
+    if (!this._useMock) {
       this.client = new CognitoIdentityProviderClient({
         region: process.env.COGNITO_REGION || 'us-east-1',
       });
     }
+
+    this._initialized = true;
   }
 
   /**

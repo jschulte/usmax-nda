@@ -6,7 +6,6 @@ import {
   ArrowLeft,
   Bell,
   Mail,
-  MessageSquare,
   Save,
   Plus
 } from 'lucide-react';
@@ -72,7 +71,6 @@ export function NotificationSettings() {
   const [generalSettings, setGeneralSettings] = useState({
     enableEmailNotifications: true,
     enableInAppNotifications: true,
-    enableSMSNotifications: false,
     batchNotifications: true,
     batchInterval: '60',
     quietHoursStart: '22:00',
@@ -82,16 +80,16 @@ export function NotificationSettings() {
 
   // Event-specific Settings
   const [eventSettings, setEventSettings] = useState({
-    taskAssigned: { email: true, inApp: true, sms: false },
-    taskCompleted: { email: true, inApp: true, sms: false },
-    taskOverdue: { email: true, inApp: true, sms: false },
-    ndaApproved: { email: true, inApp: true, sms: false },
-    ndaRejected: { email: true, inApp: true, sms: false },
-    ndaExecuted: { email: true, inApp: false, sms: false },
-    workflowStarted: { email: false, inApp: true, sms: false },
-    workflowCompleted: { email: true, inApp: true, sms: false },
-    commentAdded: { email: true, inApp: true, sms: false },
-    deadlineApproaching: { email: true, inApp: true, sms: false }
+    taskAssigned: { email: true, inApp: true },
+    taskCompleted: { email: true, inApp: true },
+    taskOverdue: { email: true, inApp: true },
+    ndaApproved: { email: true, inApp: true },
+    ndaRejected: { email: true, inApp: true },
+    ndaExecuted: { email: true, inApp: false },
+    workflowStarted: { email: false, inApp: true },
+    workflowCompleted: { email: true, inApp: true },
+    commentAdded: { email: true, inApp: true },
+    deadlineApproaching: { email: true, inApp: true }
   });
 
   // Escalation Settings
@@ -210,19 +208,6 @@ export function NotificationSettings() {
                   onCheckedChange={(checked) => setGeneralSettings(prev => ({ ...prev, enableInAppNotifications: checked }))}
                 />
               </div>
-
-              <div className="flex items-center justify-between py-3 border-t border-[var(--color-border)]">
-                <div>
-                  <Label>SMS Notifications</Label>
-                  <p className="text-xs text-[var(--color-text-secondary)] mt-1">
-                    Send critical alerts via SMS (requires Twilio setup)
-                  </p>
-                </div>
-                <Switch
-                  checked={generalSettings.enableSMSNotifications}
-                  onCheckedChange={(checked) => setGeneralSettings(prev => ({ ...prev, enableSMSNotifications: checked }))}
-                />
-              </div>
             </div>
           </Card>
 
@@ -325,10 +310,6 @@ export function NotificationSettings() {
                       <Bell className="w-4 h-4 mx-auto" />
                       <span className="text-xs block mt-1">In-App</span>
                     </th>
-                    <th className="text-center py-3 px-4">
-                      <MessageSquare className="w-4 h-4 mx-auto" />
-                      <span className="text-xs block mt-1">SMS</span>
-                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -351,21 +332,10 @@ export function NotificationSettings() {
                       <td className="py-4 px-4 text-center">
                         <Switch
                           checked={channels.inApp}
-                          onCheckedChange={(checked) => 
+                          onCheckedChange={(checked) =>
                             setEventSettings(prev => ({
                               ...prev,
                               [event]: { ...prev[event as keyof typeof prev], inApp: checked }
-                            }))
-                          }
-                        />
-                      </td>
-                      <td className="py-4 px-4 text-center">
-                        <Switch
-                          checked={channels.sms}
-                          onCheckedChange={(checked) => 
-                            setEventSettings(prev => ({
-                              ...prev,
-                              [event]: { ...prev[event as keyof typeof prev], sms: checked }
                             }))
                           }
                         />
@@ -411,26 +381,10 @@ export function NotificationSettings() {
                       </div>
                       <Switch
                         checked={channels.inApp}
-                        onCheckedChange={(checked) => 
+                        onCheckedChange={(checked) =>
                           setEventSettings(prev => ({
                             ...prev,
                             [event]: { ...prev[event as keyof typeof prev], inApp: checked }
-                          }))
-                        }
-                      />
-                    </div>
-                    
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <MessageSquare className="w-4 h-4 text-[var(--color-text-secondary)]" />
-                        <span className="text-sm">SMS</span>
-                      </div>
-                      <Switch
-                        checked={channels.sms}
-                        onCheckedChange={(checked) => 
-                          setEventSettings(prev => ({
-                            ...prev,
-                            [event]: { ...prev[event as keyof typeof prev], sms: checked }
                           }))
                         }
                       />

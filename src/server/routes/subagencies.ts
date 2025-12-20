@@ -28,15 +28,16 @@ import {
 
 const router: RouterType = Router();
 
-// Apply authentication and permission check to all routes
+// Apply authentication to all routes
 router.use(authenticateJWT);
 router.use(attachUserContext);
-router.use(requirePermission(PERMISSIONS.ADMIN_MANAGE_AGENCIES));
 
 /**
  * GET /api/agency-groups/:groupId/subagencies
  * List all subagencies within an agency group
  * Task 1.2
+ *
+ * Available to all authenticated users (needed for NDA creation)
  */
 router.get('/agency-groups/:groupId/subagencies', async (req: Request, res: Response) => {
   const { groupId } = req.params;
@@ -57,6 +58,8 @@ router.get('/agency-groups/:groupId/subagencies', async (req: Request, res: Resp
  * GET /api/subagencies/:id
  * Get single subagency with its agency group info
  * Task 1.3
+ *
+ * Available to all authenticated users
  */
 router.get('/subagencies/:id', async (req: Request, res: Response) => {
   const { id } = req.params;
@@ -87,8 +90,10 @@ router.get('/subagencies/:id', async (req: Request, res: Response) => {
  * Task 1.4
  *
  * Body: { name: string, code: string, description?: string }
+ *
+ * Requires: admin:manage_agencies permission
  */
-router.post('/agency-groups/:groupId/subagencies', async (req: Request, res: Response) => {
+router.post('/agency-groups/:groupId/subagencies', requirePermission(PERMISSIONS.ADMIN_MANAGE_AGENCIES), async (req: Request, res: Response) => {
   const { groupId } = req.params;
   const { name, code, description } = req.body;
 
@@ -161,8 +166,10 @@ router.post('/agency-groups/:groupId/subagencies', async (req: Request, res: Res
  * Task 1.5
  *
  * Body: { name?: string, code?: string, description?: string }
+ *
+ * Requires: admin:manage_agencies permission
  */
-router.put('/subagencies/:id', async (req: Request, res: Response) => {
+router.put('/subagencies/:id', requirePermission(PERMISSIONS.ADMIN_MANAGE_AGENCIES), async (req: Request, res: Response) => {
   const { id } = req.params;
   const { name, code, description } = req.body;
 
@@ -248,8 +255,10 @@ router.put('/subagencies/:id', async (req: Request, res: Response) => {
  * DELETE /api/subagencies/:id
  * Delete subagency (only if no NDAs exist)
  * Task 1.6
+ *
+ * Requires: admin:manage_agencies permission
  */
-router.delete('/subagencies/:id', async (req: Request, res: Response) => {
+router.delete('/subagencies/:id', requirePermission(PERMISSIONS.ADMIN_MANAGE_AGENCIES), async (req: Request, res: Response) => {
   const { id } = req.params;
 
   try {

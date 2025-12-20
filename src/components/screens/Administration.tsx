@@ -2,43 +2,36 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '../ui/AppCard';
 import { Button } from '../ui/AppButton';
-import { Settings, Users, Shield, Database, Bell, FileText } from 'lucide-react';
+import { Settings, Users, Shield, Bell, FileText } from 'lucide-react';
 
 export function Administration() {
   const navigate = useNavigate();
   
   const adminSections = [
-    { 
-      icon: Users, 
-      title: 'User Management', 
+    {
+      icon: Users,
+      title: 'User Management',
       description: 'Manage users, roles, and permissions',
       color: 'bg-blue-100 text-blue-600',
       path: '/administration/users'
     },
-    { 
-      icon: Shield, 
-      title: 'Security Settings', 
+    {
+      icon: Shield,
+      title: 'Security Settings',
       description: 'Configure security policies and access controls',
       color: 'bg-purple-100 text-purple-600',
       path: '/administration/security'
     },
-    { 
-      icon: Database, 
-      title: 'System Configuration', 
-      description: 'General system settings and integrations',
-      color: 'bg-green-100 text-green-600',
-      path: '/administration/system'
-    },
-    { 
-      icon: Bell, 
-      title: 'Notifications', 
+    {
+      icon: Bell,
+      title: 'Notifications',
       description: 'Configure email and system notifications',
       color: 'bg-amber-100 text-amber-600',
       path: '/administration/notifications'
     },
-    { 
-      icon: FileText, 
-      title: 'Audit Logs', 
+    {
+      icon: FileText,
+      title: 'Audit Logs',
       description: 'View system activity and audit trails',
       color: 'bg-teal-100 text-teal-600',
       path: '/administration/audit-logs'

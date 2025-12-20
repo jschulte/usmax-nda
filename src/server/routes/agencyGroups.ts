@@ -28,15 +28,16 @@ import {
 
 const router: RouterType = Router();
 
-// Apply authentication and permission check to all routes
+// Apply authentication to all routes
 router.use(authenticateJWT);
 router.use(attachUserContext);
-router.use(requirePermission(PERMISSIONS.ADMIN_MANAGE_AGENCIES));
 
 /**
  * GET /api/agency-groups
  * List all agency groups with subagency counts
  * Task 1.4
+ *
+ * Available to all authenticated users (needed for NDA creation)
  */
 router.get('/', async (req: Request, res: Response) => {
   try {
@@ -55,6 +56,8 @@ router.get('/', async (req: Request, res: Response) => {
  * GET /api/agency-groups/:id
  * Get single agency group with its subagencies
  * Task 1.5
+ *
+ * Available to all authenticated users
  */
 router.get('/:id', async (req: Request, res: Response) => {
   const { id } = req.params;
@@ -85,8 +88,10 @@ router.get('/:id', async (req: Request, res: Response) => {
  * Task 1.1, 1.2, 1.3
  *
  * Body: { name: string, code: string, description?: string }
+ *
+ * Requires: admin:manage_agencies permission
  */
-router.post('/', async (req: Request, res: Response) => {
+router.post('/', requirePermission(PERMISSIONS.ADMIN_MANAGE_AGENCIES), async (req: Request, res: Response) => {
   const { name, code, description } = req.body;
 
   // Validate required fields
@@ -151,8 +156,10 @@ router.post('/', async (req: Request, res: Response) => {
  * Task 1.6
  *
  * Body: { name?: string, code?: string, description?: string }
+ *
+ * Requires: admin:manage_agencies permission
  */
-router.put('/:id', async (req: Request, res: Response) => {
+router.put('/:id', requirePermission(PERMISSIONS.ADMIN_MANAGE_AGENCIES), async (req: Request, res: Response) => {
   const { id } = req.params;
   const { name, code, description } = req.body;
 
@@ -238,8 +245,10 @@ router.put('/:id', async (req: Request, res: Response) => {
  * DELETE /api/agency-groups/:id
  * Delete agency group (only if no subagencies exist)
  * Task 1.7, 1.8
+ *
+ * Requires: admin:manage_agencies permission
  */
-router.delete('/:id', async (req: Request, res: Response) => {
+router.delete('/:id', requirePermission(PERMISSIONS.ADMIN_MANAGE_AGENCIES), async (req: Request, res: Response) => {
   const { id } = req.params;
 
   try {

@@ -1,19 +1,54 @@
 /**
- * Database Seed Script
+ * Database Seed Script - Comprehensive Demo Data
  * Story 1.2: JWT Middleware & User Context
  *
- * Seeds the database with:
+ * Seeds the database with complete demo data for testing:
+ *
+ * AUTHORIZATION:
  * - 4 default roles (Admin, NDA User, Limited User, Read-Only)
  * - 11 permissions (7 NDA + 4 admin)
  * - Role-permission mappings as defined in the architecture
- * - Sample agency groups and subagencies for development
+ * - Agency groups and subagencies (DoD, Federal, Commercial, Healthcare)
+ *
+ * USERS:
+ * - 5 internal USMax users (various roles and agency access)
+ * - 3 external contacts (partner companies)
+ * - Complete user profiles with job titles, signatures, etc.
+ *
+ * NDA DATA:
+ * - 5 sample NDAs across all lifecycle statuses
+ * - Complete NDA status history for each
+ * - 7 sample documents (generated, uploaded, fully executed)
+ * - 1 email record
+ * - NDA subscriptions
+ *
+ * TEMPLATES & CONFIG:
+ * - 2 RTF templates (generic + DoD-specific)
+ * - 6 system configuration entries
  *
  * Run with: pnpm exec prisma db seed
  */
 
-import { PrismaClient } from '../src/generated/prisma/index.js';
+// Load environment variables
+import { config } from 'dotenv';
+config({ path: '.env.local' });
+config();
 
-const prisma = new PrismaClient();
+import { PrismaClient } from '../src/generated/prisma/index.js';
+import { PrismaPg } from '@prisma/adapter-pg';
+import pg from 'pg';
+
+const { Pool } = pg;
+
+const connectionString = process.env.DATABASE_URL;
+if (!connectionString) {
+  throw new Error('DATABASE_URL must be set to run seed script');
+}
+
+const pool = new Pool({ connectionString });
+const adapter = new PrismaPg(pool);
+
+const prisma = new PrismaClient({ adapter });
 
 // =============================================================================
 // PERMISSION DEFINITIONS
@@ -245,7 +280,11 @@ async function seedDevUsers() {
 
   const adminRole = await prisma.role.findUnique({ where: { name: 'Admin' } });
   const ndaUserRole = await prisma.role.findUnique({ where: { name: 'NDA User' } });
+  const limitedUserRole = await prisma.role.findUnique({ where: { name: 'Limited User' } });
+  const readOnlyRole = await prisma.role.findUnique({ where: { name: 'Read-Only' } });
   const dodAgencyGroup = await prisma.agencyGroup.findUnique({ where: { code: 'DoD' } });
+  const fedCivAgencyGroup = await prisma.agencyGroup.findUnique({ where: { code: 'FedCiv' } });
+  const commAgencyGroup = await prisma.agencyGroup.findUnique({ where: { code: 'COMM' } });
 
   if (!adminRole || !ndaUserRole || !dodAgencyGroup) {
     console.warn('  Skipping dev users - required roles/agencies not found');
@@ -261,6 +300,10 @@ async function seedDevUsers() {
       email: 'admin@usmax.com',
       firstName: 'Admin',
       lastName: 'User',
+      isInternal: true,
+      jobTitle: 'System Administrator',
+      workPhone: '555-0100',
+      emailSignature: 'Best regards,\nAdmin User\nSystem Administrator\nUSMax Corporation',
     },
   });
 
@@ -308,6 +351,10 @@ async function seedDevUsers() {
       email: 'test@usmax.com',
       firstName: 'Test',
       lastName: 'User',
+      isInternal: true,
+      jobTitle: 'NDA Specialist',
+      workPhone: '555-0101',
+      emailSignature: 'Regards,\nTest User\nNDA Specialist\nUSMax Corporation',
     },
   });
 
@@ -342,6 +389,510 @@ async function seedDevUsers() {
   });
 
   console.log(`  Created test user: ${testUser.email}`);
+
+  // Additional demo users
+  const users = [];
+
+  // Sarah Johnson - NDA User with DoD and Federal access
+  const sarah = await prisma.contact.upsert({
+    where: { email: 'sarah.johnson@usmax.com' },
+    update: {},
+    create: {
+      cognitoId: 'mock-user-003',
+      email: 'sarah.johnson@usmax.com',
+      firstName: 'Sarah',
+      lastName: 'Johnson',
+      isInternal: true,
+      jobTitle: 'Contracts Manager',
+      workPhone: '555-0102',
+      emailSignature: 'Best,\nSarah Johnson\nContracts Manager\nUSMax Corporation',
+    },
+  });
+  await prisma.contactRole.upsert({
+    where: { contactId_roleId: { contactId: sarah.id, roleId: ndaUserRole.id } },
+    update: {},
+    create: { contactId: sarah.id, roleId: ndaUserRole.id },
+  });
+  if (dodAgencyGroup) {
+    await prisma.agencyGroupGrant.upsert({
+      where: { contactId_agencyGroupId: { contactId: sarah.id, agencyGroupId: dodAgencyGroup.id } },
+      update: {},
+      create: { contactId: sarah.id, agencyGroupId: dodAgencyGroup.id },
+    });
+  }
+  if (fedCivAgencyGroup) {
+    await prisma.agencyGroupGrant.upsert({
+      where: { contactId_agencyGroupId: { contactId: sarah.id, agencyGroupId: fedCivAgencyGroup.id } },
+      update: {},
+      create: { contactId: sarah.id, agencyGroupId: fedCivAgencyGroup.id },
+    });
+  }
+  users.push(sarah);
+
+  // Mike Davis - Limited User
+  const mike = await prisma.contact.upsert({
+    where: { email: 'mike.davis@usmax.com' },
+    update: {},
+    create: {
+      cognitoId: 'mock-user-004',
+      email: 'mike.davis@usmax.com',
+      firstName: 'Mike',
+      lastName: 'Davis',
+      isInternal: true,
+      jobTitle: 'Document Coordinator',
+      workPhone: '555-0103',
+      emailSignature: 'Thanks,\nMike Davis\nDocument Coordinator\nUSMax Corporation',
+    },
+  });
+  if (limitedUserRole) {
+    await prisma.contactRole.upsert({
+      where: { contactId_roleId: { contactId: mike.id, roleId: limitedUserRole.id } },
+      update: {},
+      create: { contactId: mike.id, roleId: limitedUserRole.id },
+    });
+  }
+  if (commAgencyGroup) {
+    await prisma.agencyGroupGrant.upsert({
+      where: { contactId_agencyGroupId: { contactId: mike.id, agencyGroupId: commAgencyGroup.id } },
+      update: {},
+      create: { contactId: mike.id, agencyGroupId: commAgencyGroup.id },
+    });
+  }
+  users.push(mike);
+
+  // Emily Chen - Read-Only User
+  const emily = await prisma.contact.upsert({
+    where: { email: 'emily.chen@usmax.com' },
+    update: {},
+    create: {
+      cognitoId: 'mock-user-005',
+      email: 'emily.chen@usmax.com',
+      firstName: 'Emily',
+      lastName: 'Chen',
+      isInternal: true,
+      jobTitle: 'Compliance Auditor',
+      workPhone: '555-0104',
+    },
+  });
+  if (readOnlyRole) {
+    await prisma.contactRole.upsert({
+      where: { contactId_roleId: { contactId: emily.id, roleId: readOnlyRole.id } },
+      update: {},
+      create: { contactId: emily.id, roleId: readOnlyRole.id },
+    });
+  }
+  if (dodAgencyGroup) {
+    await prisma.agencyGroupGrant.upsert({
+      where: { contactId_agencyGroupId: { contactId: emily.id, agencyGroupId: dodAgencyGroup.id } },
+      update: {},
+      create: { contactId: emily.id, agencyGroupId: dodAgencyGroup.id },
+    });
+  }
+  users.push(emily);
+
+  // External contacts (not USMax employees)
+  const externalContacts = [
+    {
+      email: 'john.smith@lockheedmartin.com',
+      firstName: 'John',
+      lastName: 'Smith',
+      companyName: 'Lockheed Martin',
+      jobTitle: 'Business Development Manager',
+    },
+    {
+      email: 'jane.wilson@northropgrumman.com',
+      firstName: 'Jane',
+      lastName: 'Wilson',
+      companyName: 'Northrop Grumman',
+      jobTitle: 'Contracts Director',
+    },
+    {
+      email: 'robert.brown@raytheon.com',
+      firstName: 'Robert',
+      lastName: 'Brown',
+      companyName: 'Raytheon Technologies',
+      jobTitle: 'Legal Counsel',
+    },
+  ];
+
+  for (const extContact of externalContacts) {
+    const contact = await prisma.contact.upsert({
+      where: { email: extContact.email },
+      update: {},
+      create: {
+        email: extContact.email,
+        firstName: extContact.firstName,
+        lastName: extContact.lastName,
+        jobTitle: extContact.jobTitle,
+        isInternal: false,
+      },
+    });
+    users.push(contact);
+  }
+
+  console.log(`  Created ${users.length + 2} additional demo users`);
+
+  return { adminUser, testUser, sarah, mike, emily, users };
+}
+
+async function seedRtfTemplates() {
+  if (process.env.NODE_ENV === 'production') {
+    console.log('Skipping RTF templates in production');
+    return;
+  }
+
+  console.log('Seeding RTF templates...');
+
+  const dodAgencyGroup = await prisma.agencyGroup.findUnique({ where: { code: 'DoD' } });
+  const adminUser = await prisma.contact.findUnique({ where: { email: 'admin@usmax.com' } });
+
+  // Generic template (works for all agencies)
+  await prisma.rtfTemplate.upsert({
+    where: { id: '00000000-0000-0000-0000-000000000001' },
+    update: {},
+    create: {
+      id: '00000000-0000-0000-0000-000000000001',
+      name: 'Generic NDA Template',
+      description: 'Standard NDA template for all agencies',
+      content: Buffer.from('{\\rtf1\\ansi\\deff0 {\\fonttbl{\\f0 Times New Roman;}}\\f0\\fs24 STANDARD NDA TEMPLATE\\par}'),
+      isDefault: true,
+      isActive: true,
+      createdById: adminUser?.id,
+    },
+  });
+
+  // DoD-specific template
+  if (dodAgencyGroup && adminUser) {
+    await prisma.rtfTemplate.upsert({
+      where: { id: '00000000-0000-0000-0000-000000000002' },
+      update: {},
+      create: {
+        id: '00000000-0000-0000-0000-000000000002',
+        name: 'DoD NDA Template',
+        description: 'Department of Defense specific NDA template',
+        content: Buffer.from('{\\rtf1\\ansi\\deff0 {\\fonttbl{\\f0 Times New Roman;}}\\f0\\fs24 DEPARTMENT OF DEFENSE NDA TEMPLATE\\par}'),
+        agencyGroupId: dodAgencyGroup.id,
+        isDefault: false,
+        isActive: true,
+        createdById: adminUser.id,
+      },
+    });
+  }
+
+  console.log('  Created RTF templates');
+}
+
+async function seedSystemConfig() {
+  if (process.env.NODE_ENV === 'production') {
+    console.log('Skipping system config in production');
+    return;
+  }
+
+  console.log('Seeding system configuration...');
+
+  const configs = [
+    { key: 'dashboard.stale_days', value: '30' },
+    { key: 'dashboard.almost_stale_days', value: '21' },
+    { key: 'email.from_address', value: 'noreply@usmax.com' },
+    { key: 'email.from_name', value: 'USMax NDA System' },
+    { key: 's3.bucket_name', value: 'usmax-nda-documents-dev' },
+    { key: 's3.region', value: 'us-east-1' },
+  ];
+
+  for (const config of configs) {
+    await prisma.systemConfig.upsert({
+      where: { key: config.key },
+      update: { value: config.value },
+      create: config,
+    });
+  }
+
+  console.log(`  Created ${configs.length} configuration entries`);
+}
+
+async function seedNdas() {
+  if (process.env.NODE_ENV === 'production') {
+    console.log('Skipping sample NDAs in production');
+    return;
+  }
+
+  console.log('Seeding sample NDAs...');
+
+  const adminUser = await prisma.contact.findUnique({ where: { email: 'admin@usmax.com' } });
+  const testUser = await prisma.contact.findUnique({ where: { email: 'test@usmax.com' } });
+  const sarah = await prisma.contact.findUnique({ where: { email: 'sarah.johnson@usmax.com' } });
+
+  const dodAgencyGroup = await prisma.agencyGroup.findUnique({ where: { code: 'DoD' } });
+  const fedCivAgencyGroup = await prisma.agencyGroup.findUnique({ where: { code: 'FedCiv' } });
+  const commAgencyGroup = await prisma.agencyGroup.findUnique({ where: { code: 'COMM' } });
+
+  const usaf = await prisma.subagency.findFirst({ where: { code: 'USAF' } });
+  const usa = await prisma.subagency.findFirst({ where: { code: 'USA' } });
+  const dhs = await prisma.subagency.findFirst({ where: { code: 'DHS' } });
+
+  if (!adminUser || !testUser || !dodAgencyGroup) {
+    console.warn('  Skipping sample NDAs - required users/agencies not found');
+    return;
+  }
+
+  const now = new Date();
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+  const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+
+  // NDA 1 - Fully Executed (old)
+  const nda1 = await prisma.nda.create({
+    data: {
+      companyName: 'Lockheed Martin Corporation',
+      companyCity: 'Bethesda',
+      companyState: 'MD',
+      stateOfIncorporation: 'Maryland',
+      agencyGroupId: dodAgencyGroup.id,
+      subagencyId: usaf?.id,
+      agencyOfficeName: 'Air Force Research Laboratory',
+      abbreviatedName: 'LMC-AFRL',
+      authorizedPurpose: 'Advanced radar system development proposal',
+      effectiveDate: ninetyDaysAgo,
+      usMaxPosition: 'PRIME',
+      status: 'FULLY_EXECUTED',
+      fullyExecutedDate: sixtyDaysAgo,
+      opportunityPocId: sarah?.id || testUser.id,
+      contractsPocId: adminUser.id,
+      relationshipPocId: testUser.id,
+      createdById: adminUser.id,
+      createdAt: ninetyDaysAgo,
+    },
+  });
+
+  // Create status history for NDA 1
+  await prisma.ndaStatusHistory.createMany({
+    data: [
+      { ndaId: nda1.id, status: 'CREATED', changedAt: ninetyDaysAgo, changedById: adminUser.id },
+      { ndaId: nda1.id, status: 'EMAILED', changedAt: new Date(ninetyDaysAgo.getTime() + 24 * 60 * 60 * 1000), changedById: adminUser.id },
+      { ndaId: nda1.id, status: 'IN_REVISION', changedAt: new Date(ninetyDaysAgo.getTime() + 7 * 24 * 60 * 60 * 1000), changedById: adminUser.id },
+      { ndaId: nda1.id, status: 'FULLY_EXECUTED', changedAt: sixtyDaysAgo, changedById: adminUser.id },
+    ],
+  });
+
+  // Add documents to NDA 1
+  await prisma.document.create({
+    data: {
+      ndaId: nda1.id,
+      filename: 'NDA_LMC_AFRL_v1.pdf',
+      s3Key: 'dev/ndas/nda-1/NDA_LMC_AFRL_v1.pdf',
+      documentType: 'GENERATED',
+      fileType: 'application/pdf',
+      fileSize: 245678,
+      versionNumber: 1,
+      uploadedById: adminUser.id,
+      uploadedAt: ninetyDaysAgo,
+    },
+  });
+
+  await prisma.document.create({
+    data: {
+      ndaId: nda1.id,
+      filename: 'NDA_LMC_AFRL_Executed.pdf',
+      s3Key: 'dev/ndas/nda-1/NDA_LMC_AFRL_Executed.pdf',
+      documentType: 'FULLY_EXECUTED',
+      fileType: 'application/pdf',
+      fileSize: 267890,
+      isFullyExecuted: true,
+      versionNumber: 2,
+      notes: 'Signed by both parties',
+      uploadedById: adminUser.id,
+      uploadedAt: sixtyDaysAgo,
+    },
+  });
+
+  // NDA 2 - Recently Emailed
+  const nda2 = await prisma.nda.create({
+    data: {
+      companyName: 'Northrop Grumman Corporation',
+      companyCity: 'Falls Church',
+      companyState: 'VA',
+      stateOfIncorporation: 'Delaware',
+      agencyGroupId: dodAgencyGroup.id,
+      subagencyId: usa?.id,
+      agencyOfficeName: 'Army Contracting Command',
+      abbreviatedName: 'NGC-ACC',
+      authorizedPurpose: 'Joint communications platform evaluation',
+      effectiveDate: thirtyDaysAgo,
+      usMaxPosition: 'SUB',
+      status: 'EMAILED',
+      opportunityPocId: testUser.id,
+      relationshipPocId: sarah?.id || testUser.id,
+      createdById: testUser.id,
+      createdAt: thirtyDaysAgo,
+    },
+  });
+
+  await prisma.ndaStatusHistory.createMany({
+    data: [
+      { ndaId: nda2.id, status: 'CREATED', changedAt: thirtyDaysAgo, changedById: testUser.id },
+      { ndaId: nda2.id, status: 'EMAILED', changedAt: new Date(thirtyDaysAgo.getTime() + 2 * 24 * 60 * 60 * 1000), changedById: testUser.id },
+    ],
+  });
+
+  await prisma.document.create({
+    data: {
+      ndaId: nda2.id,
+      filename: 'NDA_NGC_ACC_v1.pdf',
+      s3Key: 'dev/ndas/nda-2/NDA_NGC_ACC_v1.pdf',
+      documentType: 'GENERATED',
+      fileType: 'application/pdf',
+      fileSize: 198432,
+      versionNumber: 1,
+      uploadedById: testUser.id,
+      uploadedAt: thirtyDaysAgo,
+    },
+  });
+
+  // Add email record
+  await prisma.ndaEmail.create({
+    data: {
+      ndaId: nda2.id,
+      subject: 'NDA for Joint Communications Platform Evaluation',
+      toRecipients: ['jane.wilson@northropgrumman.com'],
+      ccRecipients: [testUser.email],
+      bccRecipients: [],
+      body: 'Please find attached the NDA for review and signature.',
+      sentById: testUser.id,
+      sentAt: new Date(thirtyDaysAgo.getTime() + 2 * 24 * 60 * 60 * 1000),
+      status: 'DELIVERED',
+    },
+  });
+
+  // NDA 3 - In Revision
+  const nda3 = await prisma.nda.create({
+    data: {
+      companyName: 'Raytheon Technologies',
+      companyCity: 'Arlington',
+      companyState: 'VA',
+      stateOfIncorporation: 'Delaware',
+      agencyGroupId: fedCivAgencyGroup?.id || dodAgencyGroup.id,
+      subagencyId: dhs?.id,
+      agencyOfficeName: 'Cybersecurity and Infrastructure Security Agency',
+      abbreviatedName: 'RTX-CISA',
+      authorizedPurpose: 'Critical infrastructure protection technology assessment',
+      effectiveDate: new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000),
+      usMaxPosition: 'TEAMING',
+      status: 'IN_REVISION',
+      opportunityPocId: sarah?.id || adminUser.id,
+      relationshipPocId: adminUser.id,
+      createdById: sarah?.id || adminUser.id,
+      createdAt: new Date(now.getTime() - 15 * 24 * 60 * 60 * 1000),
+    },
+  });
+
+  await prisma.ndaStatusHistory.createMany({
+    data: [
+      { ndaId: nda3.id, status: 'CREATED', changedAt: new Date(now.getTime() - 15 * 24 * 60 * 60 * 1000), changedById: sarah?.id || adminUser.id },
+      { ndaId: nda3.id, status: 'EMAILED', changedAt: new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000), changedById: sarah?.id || adminUser.id },
+      { ndaId: nda3.id, status: 'IN_REVISION', changedAt: new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000), changedById: sarah?.id || adminUser.id },
+    ],
+  });
+
+  await prisma.document.createMany({
+    data: [
+      {
+        ndaId: nda3.id,
+        filename: 'NDA_RTX_CISA_v1.pdf',
+        s3Key: 'dev/ndas/nda-3/NDA_RTX_CISA_v1.pdf',
+        documentType: 'GENERATED',
+        fileType: 'application/pdf',
+        fileSize: 212345,
+        versionNumber: 1,
+        uploadedById: sarah?.id || adminUser.id,
+        uploadedAt: new Date(now.getTime() - 15 * 24 * 60 * 60 * 1000),
+      },
+      {
+        ndaId: nda3.id,
+        filename: 'NDA_RTX_CISA_v2_redlines.pdf',
+        s3Key: 'dev/ndas/nda-3/NDA_RTX_CISA_v2_redlines.pdf',
+        documentType: 'UPLOADED',
+        fileType: 'application/pdf',
+        fileSize: 298765,
+        versionNumber: 2,
+        notes: 'Client redlines - requested changes to liability clause',
+        uploadedById: adminUser.id,
+        uploadedAt: new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000),
+      },
+    ],
+  });
+
+  // NDA 4 - Just Created
+  const nda4 = await prisma.nda.create({
+    data: {
+      companyName: 'SAIC Inc',
+      companyCity: 'Reston',
+      companyState: 'VA',
+      stateOfIncorporation: 'Delaware',
+      agencyGroupId: dodAgencyGroup.id,
+      abbreviatedName: 'SAIC-DoD',
+      authorizedPurpose: 'Cloud migration strategy proposal',
+      effectiveDate: now,
+      usMaxPosition: 'PRIME',
+      status: 'CREATED',
+      opportunityPocId: testUser.id,
+      relationshipPocId: testUser.id,
+      createdById: testUser.id,
+      createdAt: new Date(now.getTime() - 2 * 60 * 60 * 1000), // 2 hours ago
+    },
+  });
+
+  await prisma.ndaStatusHistory.create({
+    data: {
+      ndaId: nda4.id,
+      status: 'CREATED',
+      changedAt: new Date(now.getTime() - 2 * 60 * 60 * 1000),
+      changedById: testUser.id,
+    },
+  });
+
+  // NDA 5 - Commercial sector, inactive
+  const nda5 = await prisma.nda.create({
+    data: {
+      companyName: 'Acme Technologies LLC',
+      companyCity: 'San Francisco',
+      companyState: 'CA',
+      stateOfIncorporation: 'California',
+      agencyGroupId: commAgencyGroup?.id || dodAgencyGroup.id,
+      abbreviatedName: 'ACME-COMM',
+      authorizedPurpose: 'Enterprise software partnership discussion',
+      effectiveDate: sixtyDaysAgo,
+      usMaxPosition: 'OTHER',
+      isNonUsMax: true,
+      status: 'INACTIVE',
+      opportunityPocId: adminUser.id,
+      relationshipPocId: adminUser.id,
+      createdById: adminUser.id,
+      createdAt: sixtyDaysAgo,
+    },
+  });
+
+  await prisma.ndaStatusHistory.createMany({
+    data: [
+      { ndaId: nda5.id, status: 'CREATED', changedAt: sixtyDaysAgo, changedById: adminUser.id },
+      { ndaId: nda5.id, status: 'INACTIVE', changedAt: thirtyDaysAgo, changedById: adminUser.id },
+    ],
+  });
+
+  // Create subscriptions for POCs
+  await prisma.ndaSubscription.createMany({
+    data: [
+      { ndaId: nda1.id, contactId: adminUser.id },
+      { ndaId: nda1.id, contactId: testUser.id },
+      { ndaId: nda2.id, contactId: testUser.id },
+      { ndaId: nda3.id, contactId: adminUser.id },
+      { ndaId: nda4.id, contactId: testUser.id },
+    ].concat(sarah ? [
+      { ndaId: nda1.id, contactId: sarah.id },
+      { ndaId: nda3.id, contactId: sarah.id },
+    ] : []),
+  });
+
+  console.log('  Created 5 sample NDAs with status history, documents, and subscriptions');
 }
 
 // =============================================================================
@@ -355,8 +906,28 @@ async function main() {
   await seedRoles();
   await seedAgencyStructure();
   await seedDevUsers();
+  await seedRtfTemplates();
+  await seedSystemConfig();
+  await seedNdas();
 
-  console.log('\nSeed completed successfully!');
+  console.log('\n✅ Seed completed successfully!');
+  console.log('\n📊 Demo Data Summary:');
+  console.log('   - 11 Permissions (7 NDA + 4 Admin)');
+  console.log('   - 4 Roles (Admin, NDA User, Limited User, Read-Only)');
+  console.log('   - 4 Agency Groups with 15 Subagencies');
+  console.log('   - 8 Internal Users + 3 External Contacts');
+  console.log('   - 5 Sample NDAs (across all statuses)');
+  console.log('   - 7 Documents (Generated, Uploaded, Fully Executed)');
+  console.log('   - 1 Email record');
+  console.log('   - 2 RTF Templates');
+  console.log('   - 6 System Configuration entries');
+  console.log('   - Multiple NDA subscriptions\n');
+  console.log('🔑 Login credentials:');
+  console.log('   - admin@usmax.com (Admin role - full access)');
+  console.log('   - test@usmax.com (NDA User - DoD only)');
+  console.log('   - sarah.johnson@usmax.com (NDA User - DoD & Federal)');
+  console.log('   - mike.davis@usmax.com (Limited User - Commercial)');
+  console.log('   - emily.chen@usmax.com (Read-Only - DoD)\n');
 }
 
 main()

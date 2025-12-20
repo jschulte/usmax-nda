@@ -27,7 +27,7 @@ import templatesRouter from './routes/templates.js';
 import contactsRouter from './routes/contacts.js';
 import dashboardRouter from './routes/dashboard.js';
 import auditLogsRouter from './routes/auditLogs.js';
-import adminConfigRouter from './routes/adminConfig.js';
+// adminConfig removed - out of scope per PRD
 import { authenticateJWT } from './middleware/authenticateJWT.js';
 import { attachUserContext } from './middleware/attachUserContext.js';
 import type { Express } from 'express';
@@ -113,9 +113,8 @@ app.use('/api/dashboard', dashboardRouter);
 // Admin audit log viewer, NDA audit trails, export
 app.use('/api', auditLogsRouter);
 
-// Admin Configuration routes (Epic 7: Templates & Configuration)
-// Dashboard thresholds, email defaults, dropdown values
-app.use('/api/admin/config', adminConfigRouter);
+// Admin Configuration routes removed - out of scope per PRD
+// (System Configuration UI marked as "dangerous if misconfigured")
 
 // Protected routes example (requires authentication + user context)
 // Middleware pipeline: authenticateJWT → attachUserContext → route handler

@@ -9,7 +9,7 @@
  */
 
 import prisma from '../db/index.js';
-import type { UserContext } from '../middleware/attachUserContext.js';
+import type { UserContext } from '../types/auth.js';
 import type { UsMaxPosition, Prisma } from '../../generated/prisma/index.js';
 
 export interface AgencySuggestions {

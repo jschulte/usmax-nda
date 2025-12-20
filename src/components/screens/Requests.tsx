@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '../ui/AppCard';
 import { Badge } from '../ui/AppBadge';
@@ -17,9 +17,10 @@ import {
   Eye,
   Edit,
   Copy,
-  Trash2
+  Trash2,
+  AlertCircle,
+  Loader2
 } from 'lucide-react';
-import { mockNDAs } from '../../data/mockData';
 import { toast } from 'sonner@2.0.3';
 import {
   DropdownMenu,
@@ -43,65 +44,148 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../ui/select';
+import {
+  listNDAs,
+  cloneNDA,
+  updateNDAStatus,
+  type NdaListItem,
+  type NdaStatus,
+  type ListNdasParams
+} from '../../client/services/ndaService';
 
 export function Requests() {
   const navigate = useNavigate();
+
+  // Filter state
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [typeFilter, setTypeFilter] = useState<string>('all');
-  const [riskFilter, setRiskFilter] = useState<string>('all');
-  
+  const [statusFilter, setStatusFilter] = useState<NdaStatus | 'all'>('all');
+  const [agencyGroupFilter, setAgencyGroupFilter] = useState<string>('all');
+
+  // Data state
+  const [ndas, setNdas] = useState<NdaListItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [totalCount, setTotalCount] = useState(0);
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(25);
+  const [totalPages, setTotalPages] = useState(1);
+
   // Confirmation dialog state
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [ndaToDelete, setNdaToDelete] = useState<any>(null);
-  
-  // Edit dialog state
-  const [showEditDialog, setShowEditDialog] = useState(false);
-  const [editingNDA, setEditingNDA] = useState<any>(null);
-  const [editForm, setEditForm] = useState({
-    title: '',
-    counterparty: '',
-    type: '',
-    riskLevel: ''
-  });
-  
-  const filteredNDAs = mockNDAs.filter(nda => {
-    const matchesSearch = nda.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         nda.counterparty.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || nda.status === statusFilter;
-    const matchesType = typeFilter === 'all' || nda.type === typeFilter;
-    const matchesRisk = riskFilter === 'all' || nda.riskLevel === riskFilter;
-    
-    return matchesSearch && matchesStatus && matchesType && matchesRisk;
-  });
-  
-  const handleViewNDA = (nda: any) => {
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [ndaToCancel, setNdaToCancel] = useState<NdaListItem | null>(null);
+  const [isCancelling, setIsCancelling] = useState(false);
+
+  // Debounce search term
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  // Fetch NDAs whenever filters or pagination changes
+  useEffect(() => {
+    const fetchNDAs = async () => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const params: ListNdasParams = {
+          page: currentPage,
+          limit: pageSize,
+          search: debouncedSearchTerm || undefined,
+          status: statusFilter !== 'all' ? statusFilter : undefined,
+          agencyGroupId: agencyGroupFilter !== 'all' ? agencyGroupFilter : undefined,
+          showInactive: true, // Show all NDAs including inactive
+          showCancelled: true, // Show cancelled NDAs
+        };
+
+        const response = await listNDAs(params);
+        setNdas(response.ndas);
+        setTotalCount(response.pagination.total);
+        setTotalPages(response.pagination.totalPages);
+      } catch (err) {
+        console.error('Failed to fetch NDAs:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load NDAs');
+        toast.error('Failed to load NDAs', {
+          description: 'Please try again later.'
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchNDAs();
+  }, [debouncedSearchTerm, statusFilter, agencyGroupFilter, currentPage, pageSize]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearchTerm, statusFilter, agencyGroupFilter]);
+
+  const handleViewNDA = (nda: NdaListItem) => {
     navigate(`/nda/${nda.id}`);
   };
-  
-  const handleEditNDA = (nda: any, e: React.MouseEvent) => {
+
+  const handleEditNDA = (nda: NdaListItem, e: React.MouseEvent) => {
     e.stopPropagation();
-    navigate('/request-wizard', { 
-      state: { 
-        editMode: true, 
-        nda: nda 
-      } 
-    });
+    navigate(`/nda/${nda.id}/edit`);
   };
-  
-  const handleDuplicateNDA = (nda: any, e: React.MouseEvent) => {
+
+  const handleDuplicateNDA = async (nda: NdaListItem, e: React.MouseEvent) => {
     e.stopPropagation();
-    toast.success('NDA duplicated', {
-      description: `${nda.title} (Copy) has been created.`
-    });
+
+    try {
+      const result = await cloneNDA(nda.id);
+      toast.success('NDA duplicated', {
+        description: `${nda.companyName} NDA has been cloned.`
+      });
+
+      // Refresh the list to show the new NDA
+      setCurrentPage(1);
+    } catch (err) {
+      console.error('Failed to duplicate NDA:', err);
+      toast.error('Failed to duplicate NDA', {
+        description: err instanceof Error ? err.message : 'Please try again later.'
+      });
+    }
   };
-  
-  const handleDeleteNDA = (nda: any, e: React.MouseEvent) => {
+
+  const handleCancelNDA = (nda: NdaListItem, e: React.MouseEvent) => {
     e.stopPropagation();
-    setNdaToDelete(nda);
-    setShowDeleteConfirm(true);
+    setNdaToCancel(nda);
+    setShowCancelConfirm(true);
   };
-  
+
+  const confirmCancelNDA = async () => {
+    if (!ndaToCancel) return;
+
+    setIsCancelling(true);
+    try {
+      await updateNDAStatus(ndaToCancel.id, 'CANCELLED', 'Cancelled by user');
+      toast.success('NDA cancelled', {
+        description: `${ndaToCancel.companyName} NDA has been cancelled.`
+      });
+      setShowCancelConfirm(false);
+      setNdaToCancel(null);
+
+      // Refresh the list
+      setCurrentPage(1);
+    } catch (err) {
+      console.error('Failed to cancel NDA:', err);
+      toast.error('Failed to cancel NDA', {
+        description: err instanceof Error ? err.message : 'Please try again later.'
+      });
+    } finally {
+      setIsCancelling(false);
+    }
+  };
+
   const handleMoreFilters = () => {
     toast.info('More filters', {
       description: 'Advanced filter options coming soon.'
@@ -144,44 +228,26 @@ export function Requests() {
           <Select
             label=""
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+            onChange={(e) => setStatusFilter(e.target.value as NdaStatus | 'all')}
             options={[
               { value: 'all', label: 'All Statuses' },
-              { value: 'Draft', label: 'Draft' },
-              { value: 'In legal review', label: 'In legal review' },
-              { value: 'Pending approval', label: 'Pending approval' },
-              { value: 'Waiting for signature', label: 'Waiting for signature' },
-              { value: 'Executed', label: 'Executed' },
-              { value: 'Expired', label: 'Expired' }
+              { value: 'CREATED', label: 'Created' },
+              { value: 'EMAILED', label: 'Emailed' },
+              { value: 'IN_REVISION', label: 'In Revision' },
+              { value: 'FULLY_EXECUTED', label: 'Fully Executed' },
+              { value: 'INACTIVE', label: 'Inactive' },
+              { value: 'CANCELLED', label: 'Cancelled' }
             ]}
             className="w-full md:w-48"
           />
-          
+
           <Select
             label=""
-            value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value)}
+            value={agencyGroupFilter}
+            onChange={(e) => setAgencyGroupFilter(e.target.value)}
             options={[
-              { value: 'all', label: 'All Types' },
-              { value: 'Mutual', label: 'Mutual' },
-              { value: 'One-way government disclosing', label: 'One-way (Gov)' },
-              { value: 'One-way counterparty disclosing', label: 'One-way (Counter)' },
-              { value: 'Visitor', label: 'Visitor' },
-              { value: 'Research', label: 'Research' },
-              { value: 'Vendor access', label: 'Vendor access' }
-            ]}
-            className="w-full md:w-48"
-          />
-          
-          <Select
-            label=""
-            value={riskFilter}
-            onChange={(e) => setRiskFilter(e.target.value)}
-            options={[
-              { value: 'all', label: 'All Risk Levels' },
-              { value: 'Low', label: 'Low Risk' },
-              { value: 'Medium', label: 'Medium Risk' },
-              { value: 'High', label: 'High Risk' }
+              { value: 'all', label: 'All Agencies' }
+              // TODO: Populate from API or context
             ]}
             className="w-full md:w-48"
           />
@@ -195,200 +261,283 @@ export function Requests() {
       {/* Results Summary */}
       <div className="mb-4">
         <p className="text-sm text-[var(--color-text-secondary)]">
-          Showing {filteredNDAs.length} of {mockNDAs.length} requests
+          {loading ? (
+            'Loading...'
+          ) : (
+            `Showing ${ndas.length} of ${totalCount} requests`
+          )}
         </p>
       </div>
+
+      {/* Loading State */}
+      {loading && (
+        <Card className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-[var(--color-primary)]" />
+            <p className="text-[var(--color-text-secondary)]">Loading NDAs...</p>
+          </div>
+        </Card>
+      )}
+
+      {/* Error State */}
+      {error && !loading && (
+        <Card className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <AlertCircle className="w-8 h-8 mx-auto mb-4 text-red-500" />
+            <p className="text-[var(--color-text-secondary)] mb-4">{error}</p>
+            <Button variant="outline" onClick={() => setCurrentPage(1)}>
+              Try Again
+            </Button>
+          </div>
+        </Card>
+      )}
+
+      {/* Empty State */}
+      {!loading && !error && ndas.length === 0 && (
+        <Card className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <p className="text-[var(--color-text-secondary)] mb-4">No NDAs found</p>
+            <Button variant="primary" icon={<Plus className="w-5 h-5" />} onClick={() => navigate('/request-wizard')}>
+              Create your first NDA
+            </Button>
+          </div>
+        </Card>
+      )}
       
       {/* Desktop Table */}
-      <Card padding="none" className="hidden md:block">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b border-[var(--color-border)]">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-[var(--color-text-secondary)]">
-                  Request Title
-                </th>
-                <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-[var(--color-text-secondary)]">
-                  Counterparty
-                </th>
-                <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-[var(--color-text-secondary)]">
-                  Type
-                </th>
-                <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-[var(--color-text-secondary)]">
-                  Risk Level
-                </th>
-                <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-[var(--color-text-secondary)]">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-[var(--color-text-secondary)]">
-                  Created
-                </th>
-                <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-[var(--color-text-secondary)]">
-                  Last Updated
-                </th>
-                <th className="px-6 py-3 text-center text-xs uppercase tracking-wider text-[var(--color-text-secondary)]">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-[var(--color-border)]">
-              {filteredNDAs.map((nda) => (
-                <tr 
-                  key={nda.id}
-                  className="hover:bg-gray-50 cursor-pointer transition-colors"
-                  onClick={() => handleViewNDA(nda)}
-                >
-                  <td className="px-6 py-4">
-                    <p className="text-sm">{nda.title}</p>
-                    <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">{nda.department}</p>
-                  </td>
-                  <td className="px-6 py-4">
-                    <p className="text-sm">{nda.counterparty}</p>
-                    <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">{nda.counterpartyContact}</p>
-                  </td>
-                  <td className="px-6 py-4">
-                    <Badge variant="type">{nda.type}</Badge>
-                  </td>
-                  <td className="px-6 py-4">
-                    <Badge variant="risk" risk={nda.riskLevel}>{nda.riskLevel}</Badge>
-                  </td>
-                  <td className="px-6 py-4">
-                    <Badge variant="status" status={nda.status}>{nda.status}</Badge>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-[var(--color-text-secondary)]">
-                    {new Date(nda.createdDate).toLocaleDateString()}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-[var(--color-text-secondary)]">
-                    {new Date(nda.lastUpdated).toLocaleDateString()}
-                  </td>
-                  <td className="px-6 py-4 text-center">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger 
-                        className="p-1 hover:bg-gray-200 rounded transition-colors"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <MoreVertical className="w-4 h-4 text-[var(--color-text-secondary)]" />
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent>
-                        <DropdownMenuItem onClick={(e) => handleEditNDA(nda, e)}>
-                          <Edit className="w-4 h-4 mr-2" />
-                          Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={(e) => handleDuplicateNDA(nda, e)}>
-                          <Copy className="w-4 h-4 mr-2" />
-                          Duplicate
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={(e) => handleDeleteNDA(nda, e)}>
-                          <Trash2 className="w-4 h-4 mr-2" />
-                          Delete
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => handleViewNDA(nda)}>
-                          <Eye className="w-4 h-4 mr-2" />
-                          View
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </td>
+      {!loading && !error && ndas.length > 0 && (
+        <Card padding="none" className="hidden md:block">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50 border-b border-[var(--color-border)]">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-[var(--color-text-secondary)]">
+                    NDA ID
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-[var(--color-text-secondary)]">
+                    Company
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-[var(--color-text-secondary)]">
+                    Agency
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-[var(--color-text-secondary)]">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-[var(--color-text-secondary)]">
+                    Effective Date
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-[var(--color-text-secondary)]">
+                    Created
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-[var(--color-text-secondary)]">
+                    Last Updated
+                  </th>
+                  <th className="px-6 py-3 text-center text-xs uppercase tracking-wider text-[var(--color-text-secondary)]">
+                    Actions
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Card>
+              </thead>
+              <tbody className="bg-white divide-y divide-[var(--color-border)]">
+                {ndas.map((nda) => (
+                  <tr
+                    key={nda.id}
+                    className="hover:bg-gray-50 cursor-pointer transition-colors"
+                    onClick={() => handleViewNDA(nda)}
+                  >
+                    <td className="px-6 py-4">
+                      <p className="text-sm font-medium">{nda.displayId}</p>
+                    </td>
+                    <td className="px-6 py-4">
+                      <p className="text-sm">{nda.companyName}</p>
+                    </td>
+                    <td className="px-6 py-4">
+                      <p className="text-sm">{nda.agencyGroup.name}</p>
+                      {nda.subagency && (
+                        <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">{nda.subagency.name}</p>
+                      )}
+                    </td>
+                    <td className="px-6 py-4">
+                      <Badge variant="status" status={nda.status}>{nda.status}</Badge>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-[var(--color-text-secondary)]">
+                      {nda.effectiveDate ? new Date(nda.effectiveDate).toLocaleDateString() : '—'}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-[var(--color-text-secondary)]">
+                      {new Date(nda.createdAt).toLocaleDateString()}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-[var(--color-text-secondary)]">
+                      {new Date(nda.updatedAt).toLocaleDateString()}
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger
+                          className="p-1 hover:bg-gray-200 rounded transition-colors"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <MoreVertical className="w-4 h-4 text-[var(--color-text-secondary)]" />
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                          <DropdownMenuItem onClick={(e) => handleEditNDA(nda, e)}>
+                            <Edit className="w-4 h-4 mr-2" />
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={(e) => handleDuplicateNDA(nda, e)}>
+                            <Copy className="w-4 h-4 mr-2" />
+                            Duplicate
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={(e) => handleCancelNDA(nda, e)}>
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Cancel
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={() => handleViewNDA(nda)}>
+                            <Eye className="w-4 h-4 mr-2" />
+                            View
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
 
       {/* Mobile Card View */}
-      <div className="md:hidden space-y-3">
-        {filteredNDAs.map((nda) => (
-          <Card 
-            key={nda.id} 
-            className="p-4 active:bg-gray-50 transition-colors cursor-pointer"
-            onClick={() => handleViewNDA(nda)}
-          >
-            <div className="flex items-start justify-between mb-3">
-              <div className="flex-1 min-w-0 pr-2">
-                <p className="font-medium mb-1 truncate">{nda.title}</p>
-                <p className="text-sm text-[var(--color-text-secondary)] truncate">{nda.department}</p>
+      {!loading && !error && ndas.length > 0 && (
+        <div className="md:hidden space-y-3">
+          {ndas.map((nda) => (
+            <Card
+              key={nda.id}
+              className="p-4 active:bg-gray-50 transition-colors cursor-pointer"
+              onClick={() => handleViewNDA(nda)}
+            >
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex-1 min-w-0 pr-2">
+                  <p className="font-medium mb-1 truncate">{nda.displayId}</p>
+                  <p className="text-sm text-[var(--color-text-secondary)] truncate">{nda.companyName}</p>
+                </div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    className="p-2 hover:bg-gray-100 rounded transition-colors flex-shrink-0"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <MoreVertical className="w-4 h-4 text-[var(--color-text-secondary)]" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={(e) => handleEditNDA(nda, e)}>
+                      <Edit className="w-4 h-4 mr-2" />
+                      Edit
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={(e) => handleDuplicateNDA(nda, e)}>
+                      <Copy className="w-4 h-4 mr-2" />
+                      Duplicate
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={(e) => handleCancelNDA(nda, e)}>
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Cancel
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => handleViewNDA(nda)}>
+                      <Eye className="w-4 h-4 mr-2" />
+                      View
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
-              <DropdownMenu>
-                <DropdownMenuTrigger 
-                  className="p-2 hover:bg-gray-100 rounded transition-colors flex-shrink-0"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <MoreVertical className="w-4 h-4 text-[var(--color-text-secondary)]" />
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={(e) => handleEditNDA(nda, e)}>
-                    <Edit className="w-4 h-4 mr-2" />
-                    Edit
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={(e) => handleDuplicateNDA(nda, e)}>
-                    <Copy className="w-4 h-4 mr-2" />
-                    Duplicate
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={(e) => handleDeleteNDA(nda, e)}>
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    Delete
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => handleViewNDA(nda)}>
-                    <Eye className="w-4 h-4 mr-2" />
-                    View
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-            
-            <div className="space-y-2 mb-3">
-              <div className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)]">
-                <Building className="w-4 h-4 flex-shrink-0" />
-                <span className="truncate">{nda.counterparty}</span>
+
+              <div className="space-y-2 mb-3">
+                <div className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)]">
+                  <Building className="w-4 h-4 flex-shrink-0" />
+                  <span className="truncate">{nda.agencyGroup.name}</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)]">
+                  <Calendar className="w-4 h-4 flex-shrink-0" />
+                  <span>Created {new Date(nda.createdAt).toLocaleDateString()}</span>
+                </div>
               </div>
-              <div className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)]">
-                <Calendar className="w-4 h-4 flex-shrink-0" />
-                <span>Created {new Date(nda.createdDate).toLocaleDateString()}</span>
+
+              <div className="flex flex-wrap gap-2">
+                <Badge variant="status" status={nda.status}>{nda.status}</Badge>
+                {nda.effectiveDate && (
+                  <span className="text-xs text-[var(--color-text-secondary)]">
+                    Effective: {new Date(nda.effectiveDate).toLocaleDateString()}
+                  </span>
+                )}
               </div>
-            </div>
-            
-            <div className="flex flex-wrap gap-2">
-              <Badge variant="status" status={nda.status}>{nda.status}</Badge>
-              <Badge variant="type">{nda.type}</Badge>
-              <Badge variant="risk" risk={nda.riskLevel}>{nda.riskLevel}</Badge>
-            </div>
-          </Card>
-        ))}
-      </div>
+            </Card>
+          ))}
+        </div>
+      )}
       
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+      {/* Cancel Confirmation Dialog */}
+      <Dialog open={showCancelConfirm} onOpenChange={setShowCancelConfirm}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Delete NDA</DialogTitle>
+            <DialogTitle>Cancel NDA</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete this NDA? This action cannot be undone.
+              Are you sure you want to cancel this NDA? The NDA will be marked as cancelled but can be viewed in the system.
             </DialogDescription>
           </DialogHeader>
+          {ndaToCancel && (
+            <div className="py-4">
+              <p className="text-sm">
+                <span className="font-medium">Company:</span> {ndaToCancel.companyName}
+              </p>
+              <p className="text-sm mt-1">
+                <span className="font-medium">Agency:</span> {ndaToCancel.agencyGroup.name}
+              </p>
+            </div>
+          )}
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => setShowDeleteConfirm(false)}
+              onClick={() => {
+                setShowCancelConfirm(false);
+                setNdaToCancel(null);
+              }}
+              disabled={isCancelling}
             >
-              Cancel
+              Close
             </Button>
             <Button
               variant="destructive"
-              onClick={() => {
-                toast.success('NDA deleted', {
-                  description: `${ndaToDelete.title} has been deleted.`
-                });
-                setShowDeleteConfirm(false);
-              }}
+              onClick={confirmCancelNDA}
+              disabled={isCancelling}
+              icon={isCancelling ? <Loader2 className="w-4 h-4 animate-spin" /> : undefined}
             >
-              Delete
+              {isCancelling ? 'Cancelling...' : 'Cancel NDA'}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Pagination */}
+      {!loading && !error && totalPages > 1 && (
+        <div className="flex items-center justify-between mt-6">
+          <p className="text-sm text-[var(--color-text-secondary)]">
+            Page {currentPage} of {totalPages}
+          </p>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+            >
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

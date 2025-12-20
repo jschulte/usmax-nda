@@ -187,7 +187,7 @@ export async function transitionStatus(
     statusHistory: {
       create: {
         status: NdaStatus;
-        changedById: string | undefined;
+        changedById: string;
       };
     };
   } = {

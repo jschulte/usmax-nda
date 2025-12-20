@@ -23,4 +23,4 @@ agent_vibes_cumbia_v1_loop.mp3:5.717823
 agent_vibes_chillwave_v2_loop.mp3:5.183764
 agentvibes_soft_flamenco_loop.mp3:4.998005
 agent_vibes_arabic_v2_loop.mp3:.00000000000000000006132724
-agent_vibes_bossa_nova_v2_loop.mp3:9.578503
+agent_vibes_bossa_nova_v2_loop.mp3:4.429116

@@ -11,6 +11,8 @@ import { auditService, AuditAction } from './auditService.js';
 import { attemptAutoTransition, StatusTrigger } from './statusTransitionService.js';
 import { EmailStatus } from '../../generated/prisma/index.js';
 import type { UserContext } from '../types/auth.js';
+import { buildSecurityFilter } from './ndaService.js';
+import { POC_PATTERNS } from '../validators/pocValidator.js';
 
 // Re-export for use in other modules
 export { EmailStatus };
@@ -76,6 +78,57 @@ const sesClient = new SESClient({
 const DEFAULT_CC_RECIPIENTS: string[] = [];
 const DEFAULT_BCC_RECIPIENTS: string[] = [];
 
+function assertNoCrlf(value: string, fieldName: string): void {
+  if (/[\r\n]/.test(value)) {
+    throw new EmailServiceError(`${fieldName} contains invalid characters`, 'VALIDATION_ERROR');
+  }
+}
+
+function normalizeRecipientList(value: unknown, fieldName: string): string[] {
+  const rawList = Array.isArray(value) ? value : value ? [value] : [];
+
+  const recipients = rawList
+    .map((v) => String(v).trim())
+    .filter((v) => v.length > 0);
+
+  if (recipients.length === 0) return [];
+
+  for (const addr of recipients) {
+    assertNoCrlf(addr, fieldName);
+    if (!POC_PATTERNS.email.test(addr)) {
+      throw new EmailServiceError(`Invalid email address in ${fieldName}`, 'VALIDATION_ERROR');
+    }
+  }
+
+  // Avoid accidental abuse (SES has limits; keep conservative here)
+  if (recipients.length > 50) {
+    throw new EmailServiceError(`Too many recipients in ${fieldName}`, 'VALIDATION_ERROR');
+  }
+
+  return recipients;
+}
+
+async function getAccessibleNdaOrThrow<T extends object>(
+  ndaId: string,
+  userContext: UserContext,
+  opts: { include?: T; select?: T } = {}
+): Promise<any> {
+  const nda = await prisma.nda.findFirst({
+    where: {
+      id: ndaId,
+      ...buildSecurityFilter(userContext),
+    },
+    ...(opts as any),
+  });
+
+  if (!nda) {
+    // Return 404-style error to avoid leaking NDA existence across agencies.
+    throw new EmailServiceError('NDA not found', 'NDA_NOT_FOUND');
+  }
+
+  return nda;
+}
+
 /**
  * Generate email subject line from NDA data
  */
@@ -125,8 +178,7 @@ export async function getEmailPreview(
   userContext: UserContext
 ): Promise<EmailPreview> {
   // Fetch NDA with related data
-  const nda = await prisma.nda.findUnique({
-    where: { id: ndaId },
+  const nda = await getAccessibleNdaOrThrow(ndaId, userContext, {
     include: {
       agencyGroup: true,
       relationshipPoc: true,
@@ -138,10 +190,6 @@ export async function getEmailPreview(
     },
   });
 
-  if (!nda) {
-    throw new EmailServiceError('NDA not found', 'NDA_NOT_FOUND');
-  }
-
   // Get relationship POC email for TO field
   const toRecipients: string[] = [];
   if (nda.relationshipPoc?.email) {
@@ -150,7 +198,7 @@ export async function getEmailPreview(
 
   // Get current user for CC
   const currentUser = await prisma.contact.findUnique({
-    where: { id: userContext.userId },
+    where: { id: userContext.contactId },
     select: { email: true },
   });
 
@@ -188,31 +236,41 @@ export async function queueEmail(
 ): Promise<{ emailId: string; status: EmailStatus }> {
   const { ndaId, subject, toRecipients, ccRecipients, bccRecipients, body } = params;
 
-  // Validate NDA exists
-  const nda = await prisma.nda.findUnique({
-    where: { id: ndaId },
+  // Validate NDA exists and is accessible
+  const nda = await getAccessibleNdaOrThrow(ndaId, userContext, {
     select: { id: true, displayId: true },
   });
 
-  if (!nda) {
-    throw new EmailServiceError('NDA not found', 'NDA_NOT_FOUND');
+  const safeSubject = String(subject ?? '').trim();
+  if (!safeSubject) {
+    throw new EmailServiceError('Subject is required', 'VALIDATION_ERROR');
+  }
+  assertNoCrlf(safeSubject, 'Subject');
+  if (safeSubject.length > 255) {
+    throw new EmailServiceError('Subject is too long', 'VALIDATION_ERROR');
   }
 
+  const safeTo = normalizeRecipientList(toRecipients, 'To');
+  const safeCc = normalizeRecipientList(ccRecipients, 'Cc');
+  const safeBcc = normalizeRecipientList(bccRecipients, 'Bcc');
+
   // Validate recipients
-  if (toRecipients.length === 0) {
+  if (safeTo.length === 0) {
     throw new EmailServiceError('At least one recipient is required', 'NO_RECIPIENTS');
   }
+
+  const safeBody = String(body ?? '');
 
   // Create email record
   const email = await prisma.ndaEmail.create({
     data: {
       ndaId,
-      subject,
-      toRecipients,
-      ccRecipients,
-      bccRecipients,
-      body,
-      sentById: userContext.userId,
+      subject: safeSubject,
+      toRecipients: safeTo,
+      ccRecipients: safeCc,
+      bccRecipients: safeBcc,
+      body: safeBody,
+      sentById: userContext.contactId,
       status: 'QUEUED',
     },
   });
@@ -222,7 +280,7 @@ export async function queueEmail(
     action: AuditAction.EMAIL_QUEUED,
     entityType: 'nda_email',
     entityId: email.id,
-    userId: userContext.userId,
+    userId: userContext.contactId,
     details: {
       ndaId,
       ndaDisplayId: nda.displayId,
@@ -272,6 +330,14 @@ export async function sendEmail(
 
   // Build MIME message
   const fromEmail = process.env.SES_FROM_EMAIL || 'nda@usmax.com';
+  assertNoCrlf(fromEmail, 'From');
+  assertNoCrlf(email.subject, 'Subject');
+  for (const addr of [...email.toRecipients, ...email.ccRecipients, ...email.bccRecipients]) {
+    assertNoCrlf(addr, 'Recipient');
+    if (!POC_PATTERNS.email.test(addr)) {
+      throw new EmailServiceError('Invalid recipient email address', 'VALIDATION_ERROR');
+    }
+  }
   const boundary = `----=_Part_${Date.now()}_${Math.random().toString(36).substring(2)}`;
 
   let rawMessage = `From: ${fromEmail}\r\n`;
@@ -317,7 +383,7 @@ export async function sendEmail(
       action: AuditAction.EMAIL_SENT,
       entityType: 'nda_email',
       entityId: emailId,
-      userId: userContext.userId,
+      userId: userContext.contactId,
       details: {
         ndaId: email.ndaId,
         sesMessageId: result.MessageId,
@@ -350,7 +416,7 @@ export async function sendEmail(
       action: AuditAction.EMAIL_FAILED,
       entityType: 'nda_email',
       entityId: emailId,
-      userId: userContext.userId,
+      userId: userContext.contactId,
       details: {
         ndaId: email.ndaId,
         error: errorMessage,
@@ -364,7 +430,10 @@ export async function sendEmail(
 /**
  * Get emails for an NDA
  */
-export async function getNdaEmails(ndaId: string): Promise<
+export async function getNdaEmails(
+  ndaId: string,
+  userContext: UserContext
+): Promise<
   Array<{
     id: string;
     subject: string;
@@ -374,6 +443,9 @@ export async function getNdaEmails(ndaId: string): Promise<
     sentBy: { id: string; firstName: string | null; lastName: string | null };
   }>
 > {
+  // Validate NDA exists and is accessible
+  await getAccessibleNdaOrThrow(ndaId, userContext, { select: { id: true } });
+
   const emails = await prisma.ndaEmail.findMany({
     where: { ndaId },
     orderBy: { sentAt: 'desc' },
@@ -417,10 +489,13 @@ export async function retryFailedEmails(): Promise<number> {
     try {
       // Create a system context for retry
       const systemContext: UserContext = {
-        userId: email.sentById,
+        id: '', // System user
+        contactId: email.sentById,
         email: '',
         permissions: new Set(['nda:send_email']),
-        agencyScope: { type: 'all' as const, agencyGroupIds: [], subagencyIds: [] },
+        roles: [],
+        authorizedAgencyGroups: [],
+        authorizedSubagencies: [],
       };
 
       await sendEmail(email.id, systemContext);

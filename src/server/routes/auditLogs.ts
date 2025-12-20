@@ -15,7 +15,7 @@ import { attachUserContext } from '../middleware/attachUserContext.js';
 import { requirePermission, requireAnyPermission } from '../middleware/checkPermissions.js';
 import { PERMISSIONS } from '../constants/permissions.js';
 import { prisma } from '../db/index.js';
-import { Prisma } from '@prisma/client';
+import { Prisma } from '../../generated/prisma/index.js';
 import { auditService, AuditAction } from '../services/auditService.js';
 import { buildSecurityFilter } from '../services/ndaService.js';
 

@@ -9,6 +9,8 @@ import { prisma } from '../db/index.js';
 import { queueEmail } from './emailService.js';
 import { auditService, AuditAction } from './auditService.js';
 import type { UserContext } from '../types/auth.js';
+import { ROLE_NAMES } from '../types/auth.js';
+import { buildSecurityFilter } from './ndaService.js';
 
 /**
  * Notification event types
@@ -98,7 +100,7 @@ export async function updateNotificationPreferences(
   userContext: UserContext
 ): Promise<NotificationPreferences> {
   // Verify user can update these preferences (must be self or admin)
-  if (contactId !== userContext.userId && !userContext.permissions.has('admin:manage_users')) {
+  if (contactId !== userContext.contactId && !userContext.permissions.has('admin:manage_users')) {
     throw new NotificationServiceError(
       'Cannot update preferences for another user',
       'UNAUTHORIZED'
@@ -141,9 +143,12 @@ export async function subscribeToNda(
   contactId: string,
   userContext: UserContext
 ): Promise<void> {
-  // Verify the NDA exists
-  const nda = await prisma.nda.findUnique({
-    where: { id: ndaId },
+  // Verify the NDA exists and user can access it
+  const nda = await prisma.nda.findFirst({
+    where: {
+      id: ndaId,
+      ...buildSecurityFilter(userContext),
+    },
     select: { id: true },
   });
 
@@ -170,7 +175,7 @@ export async function unsubscribeFromNda(
   userContext: UserContext
 ): Promise<void> {
   // Verify user can unsubscribe (must be self or admin)
-  if (contactId !== userContext.userId && !userContext.permissions.has('admin:manage_users')) {
+  if (contactId !== userContext.contactId && !userContext.permissions.has('admin:manage_users')) {
     throw new NotificationServiceError(
       'Cannot unsubscribe another user',
       'UNAUTHORIZED'
@@ -185,7 +190,54 @@ export async function unsubscribeFromNda(
 /**
  * Get subscriptions for an NDA
  */
-export async function getNdaSubscribers(ndaId: string): Promise<
+export async function getNdaSubscribers(
+  ndaId: string,
+  userContext: UserContext
+): Promise<
+  Array<{
+    id: string;
+    contactId: string;
+    contact: { id: string; email: string; firstName: string | null; lastName: string | null };
+  }>
+> {
+  // Verify NDA exists and is within user's access scope
+  const nda = await prisma.nda.findFirst({
+    where: {
+      id: ndaId,
+      ...buildSecurityFilter(userContext),
+    },
+    select: {
+      id: true,
+      createdById: true,
+      opportunityPocId: true,
+      contractsPocId: true,
+      relationshipPocId: true,
+    },
+  });
+
+  if (!nda) {
+    throw new NotificationServiceError('NDA not found', 'NDA_NOT_FOUND');
+  }
+
+  const isAdmin =
+    userContext.permissions.has('admin:bypass') ||
+    userContext.roles.includes(ROLE_NAMES.ADMIN) ||
+    userContext.permissions.has('admin:manage_users');
+
+  const isPocOrCreator =
+    userContext.contactId === nda.createdById ||
+    userContext.contactId === nda.opportunityPocId ||
+    userContext.contactId === nda.relationshipPocId ||
+    (nda.contractsPocId ? userContext.contactId === nda.contractsPocId : false);
+
+  if (!isAdmin && !isPocOrCreator) {
+    throw new NotificationServiceError('Access denied', 'UNAUTHORIZED');
+  }
+
+  return listNdaSubscribers(ndaId);
+}
+
+async function listNdaSubscribers(ndaId: string): Promise<
   Array<{
     id: string;
     contactId: string;
@@ -320,7 +372,7 @@ export async function notifyStakeholders(
   userContext: UserContext
 ): Promise<{ notified: number; skipped: number }> {
   // Get all subscribers for this NDA
-  const subscribers = await getNdaSubscribers(details.ndaId);
+  const subscribers = await listNdaSubscribers(details.ndaId);
 
   // Filter out the person who made the change (they don't need notification)
   const filteredSubscribers = subscribers.filter(
@@ -369,7 +421,7 @@ export async function notifyStakeholders(
     action: AuditAction.NDA_STATUS_CHANGED,
     entityType: 'notification',
     entityId: details.ndaId,
-    userId: userContext.userId,
+    userId: userContext.contactId,
     details: {
       event: details.event,
       notified,
@@ -384,7 +436,8 @@ export async function notifyStakeholders(
  * Get subscriptions for a user
  */
 export async function getUserSubscriptions(
-  contactId: string
+  contactId: string,
+  userContext: UserContext
 ): Promise<
   Array<{
     id: string;
@@ -394,7 +447,12 @@ export async function getUserSubscriptions(
   }>
 > {
   return prisma.ndaSubscription.findMany({
-    where: { contactId },
+    where: {
+      contactId,
+      nda: {
+        ...buildSecurityFilter(userContext),
+      },
+    },
     select: {
       id: true,
       ndaId: true,

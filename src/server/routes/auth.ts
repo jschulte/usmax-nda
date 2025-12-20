@@ -13,6 +13,7 @@
 import { Router, type Request, type Response, type Router as RouterType } from 'express';
 import { cognitoService } from '../services/cognitoService.js';
 import { auditService, AuditAction } from '../services/auditService.js';
+import { authenticateJWT } from '../middleware/authenticateJWT.js';
 
 const router: RouterType = Router();
 
@@ -261,26 +262,15 @@ router.post('/logout', async (req: Request, res: Response) => {
  * Returns current authenticated user info
  * Requires valid access token
  */
-router.get('/me', (req: Request, res: Response) => {
-  const accessToken = req.cookies.access_token;
-
-  if (!accessToken) {
-    return res.status(401).json({
-      error: 'Not authenticated',
-      code: 'NOT_AUTHENTICATED',
+router.get('/me', authenticateJWT, (req: Request, res: Response) => {
+  if (!req.user) {
+    return res.status(500).json({
+      error: 'Authentication context missing',
+      code: 'AUTH_CONTEXT_MISSING',
     });
   }
 
-  const userInfo = extractUserFromToken(accessToken);
-
-  if (!userInfo) {
-    return res.status(401).json({
-      error: 'Invalid token',
-      code: 'INVALID_TOKEN',
-    });
-  }
-
-  return res.json({ user: userInfo });
+  return res.json({ user: req.user });
 });
 
 // === Helper Functions ===
@@ -301,8 +291,10 @@ function extractUserFromToken(token: string): { id: string; email: string } | nu
   try {
     // Handle mock tokens
     if (token.startsWith('mock.')) {
+      if (process.env.USE_MOCK_AUTH !== 'true') return null;
       const payloadBase64 = token.split('.')[1];
       const payload = JSON.parse(Buffer.from(payloadBase64, 'base64').toString());
+      if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) return null;
       return {
         id: payload.sub,
         email: payload.email,

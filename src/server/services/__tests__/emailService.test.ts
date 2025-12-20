@@ -18,7 +18,7 @@ import type { UserContext } from '../../types/auth.js';
 vi.mock('../../db/index.js', () => ({
   prisma: {
     nda: {
-      findUnique: vi.fn(),
+      findFirst: vi.fn(),
     },
     contact: {
       findUnique: vi.fn(),
@@ -60,14 +60,13 @@ const mockPrisma = vi.mocked(prisma);
 
 describe('Email Service', () => {
   const mockUserContext: UserContext = {
-    userId: 'user-123',
+    id: 'user-123',
     email: 'user@test.com',
+    contactId: 'contact-123',
     permissions: new Set(['nda:send_email']),
-    agencyScope: {
-      type: 'all',
-      agencyGroupIds: [],
-      subagencyIds: [],
-    },
+    roles: [],
+    authorizedAgencyGroups: ['ag-1'],
+    authorizedSubagencies: [],
   };
 
   beforeEach(() => {
@@ -153,7 +152,7 @@ describe('Email Service', () => {
 
   describe('getEmailPreview', () => {
     it('should return preview with pre-filled data', async () => {
-      mockPrisma.nda.findUnique.mockResolvedValue({
+      mockPrisma.nda.findFirst.mockResolvedValue({
         id: 'nda-123',
         companyName: 'TechCorp',
         abbreviatedName: 'OREM TMA 2025',
@@ -186,7 +185,7 @@ describe('Email Service', () => {
     });
 
     it('should throw error when NDA not found', async () => {
-      mockPrisma.nda.findUnique.mockResolvedValue(null);
+      mockPrisma.nda.findFirst.mockResolvedValue(null);
 
       await expect(getEmailPreview('nonexistent', mockUserContext))
         .rejects.toThrow(EmailServiceError);
@@ -195,7 +194,7 @@ describe('Email Service', () => {
 
   describe('queueEmail', () => {
     it('should create email record and return status', async () => {
-      mockPrisma.nda.findUnique.mockResolvedValue({
+      mockPrisma.nda.findFirst.mockResolvedValue({
         id: 'nda-123',
         displayId: 1590,
       } as any);
@@ -249,7 +248,7 @@ describe('Email Service', () => {
     });
 
     it('should throw error when NDA not found', async () => {
-      mockPrisma.nda.findUnique.mockResolvedValue(null);
+      mockPrisma.nda.findFirst.mockResolvedValue(null);
 
       await expect(
         queueEmail(
@@ -267,7 +266,7 @@ describe('Email Service', () => {
     });
 
     it('should throw error when no recipients', async () => {
-      mockPrisma.nda.findUnique.mockResolvedValue({
+      mockPrisma.nda.findFirst.mockResolvedValue({
         id: 'nda-123',
         displayId: 1590,
       } as any);
@@ -290,6 +289,7 @@ describe('Email Service', () => {
 
   describe('getNdaEmails', () => {
     it('should return email history for NDA', async () => {
+      mockPrisma.nda.findFirst.mockResolvedValue({ id: 'nda-123' } as any);
       mockPrisma.ndaEmail.findMany.mockResolvedValue([
         {
           id: 'email-1',
@@ -317,7 +317,7 @@ describe('Email Service', () => {
         },
       ] as any);
 
-      const emails = await getNdaEmails('nda-123');
+      const emails = await getNdaEmails('nda-123', mockUserContext);
 
       expect(emails).toHaveLength(2);
       expect(emails[0].subject).toBe('First Email');
@@ -325,9 +325,10 @@ describe('Email Service', () => {
     });
 
     it('should return empty array when no emails', async () => {
+      mockPrisma.nda.findFirst.mockResolvedValue({ id: 'nda-123' } as any);
       mockPrisma.ndaEmail.findMany.mockResolvedValue([]);
 
-      const emails = await getNdaEmails('nda-123');
+      const emails = await getNdaEmails('nda-123', mockUserContext);
 
       expect(emails).toHaveLength(0);
     });

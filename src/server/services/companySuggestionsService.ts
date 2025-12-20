@@ -9,8 +9,8 @@
  */
 
 import prisma from '../db/index.js';
-import type { UserContext } from '../middleware/attachUserContext.js';
-import type { Prisma } from '@prisma/client';
+import type { UserContext } from '../types/auth.js';
+import { Prisma } from '../../generated/prisma/index.js';
 
 export interface CompanyDefaults {
   companyCity?: string;
@@ -188,39 +188,33 @@ export async function getCompanyDefaults(
         },
       ],
     },
-    select: {
-      companyCity: true,
-      companyState: true,
-      stateOfIncorporation: true,
-      relationshipPocId: true,
+    include: {
       relationshipPoc: {
         select: {
           id: true,
-          name: true,
+          firstName: true,
+          lastName: true,
         },
       },
-      contractsPocId: true,
       contractsPoc: {
         select: {
           id: true,
-          name: true,
+          firstName: true,
+          lastName: true,
         },
       },
-      agencyGroupId: true,
       agencyGroup: {
         select: {
           id: true,
           name: true,
         },
       },
-      subagencyId: true,
       subagency: {
         select: {
           id: true,
           name: true,
         },
       },
-      createdAt: true,
     },
     orderBy: { createdAt: 'desc' },
     take: 10, // Last 10 NDAs for this company
@@ -245,14 +239,18 @@ export async function getCompanyDefaults(
 
   for (const nda of historicalNdas) {
     if (nda.relationshipPocId === lastRelationshipPocId && nda.relationshipPoc) {
-      lastRelationshipPocName = nda.relationshipPoc.name;
+      lastRelationshipPocName = [nda.relationshipPoc.firstName, nda.relationshipPoc.lastName]
+        .filter(Boolean)
+        .join(' ') || undefined;
       break;
     }
   }
 
   for (const nda of historicalNdas) {
     if (nda.contractsPocId === lastContractsPocId && nda.contractsPoc) {
-      lastContractsPocName = nda.contractsPoc.name;
+      lastContractsPocName = [nda.contractsPoc.firstName, nda.contractsPoc.lastName]
+        .filter(Boolean)
+        .join(' ') || undefined;
       break;
     }
   }

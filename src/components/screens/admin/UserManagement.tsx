@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '../../ui/AppCard';
 import { Button } from '../../ui/AppButton';
@@ -10,13 +10,13 @@ import {
   Edit,
   Trash2,
   Shield,
-  Mail,
   Calendar,
   MoreVertical,
-  UserPlus,
   Key,
-  User as UserIcon,
-  Briefcase
+  Briefcase,
+  Building,
+  Loader2,
+  X
 } from 'lucide-react';
 import { toast } from 'sonner@2.0.3';
 import {
@@ -42,209 +42,266 @@ import {
 } from '../../ui/dropdown-menu';
 import { Badge } from '../../ui/Badge';
 import { Label } from '../../ui/label';
-import { Switch } from '../../ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../ui/tabs';
+import * as userService from '../../../client/services/userService';
+import * as adminService from '../../../client/services/adminService';
+import * as agencyService from '../../../client/services/agencyService';
+import { ApiError } from '../../../client/services/api';
 
-interface User {
-  id: string;
-  username: string;
-  email: string;
-  full_name: string;
-  department: string;
-  job_title: string;
-  roles: string[];
-  status: 'active' | 'inactive' | 'suspended';
-  last_login: string;
-  created_at: string;
-}
+// Using backend types
+type User = userService.User & {
+  fullName?: string;
+  roles?: adminService.UserRole[];
+};
 
-interface Role {
-  id: string;
-  name: string;
-  description: string;
-  permissions: string[];
-  user_count: number;
-}
-
-const mockUsers: User[] = [
-  {
-    id: '1',
-    username: 'sarah.johnson',
-    email: 'sarah.johnson@agency.gov',
-    full_name: 'Sarah Johnson',
-    department: 'Legal',
-    job_title: 'Senior Legal Counsel',
-    roles: ['legal_reviewer', 'admin'],
-    status: 'active',
-    last_login: '2025-12-08T09:30:00',
-    created_at: '2024-01-15T10:00:00'
-  },
-  {
-    id: '2',
-    username: 'michael.chen',
-    email: 'michael.chen@agency.gov',
-    full_name: 'Michael Chen',
-    department: 'IT Services',
-    job_title: 'IT Manager',
-    roles: ['manager', 'requester'],
-    status: 'active',
-    last_login: '2025-12-07T16:45:00',
-    created_at: '2024-02-20T10:00:00'
-  },
-  {
-    id: '3',
-    username: 'emily.rodriguez',
-    email: 'emily.rodriguez@agency.gov',
-    full_name: 'Emily Rodriguez',
-    department: 'HR',
-    job_title: 'HR Specialist',
-    roles: ['requester'],
-    status: 'active',
-    last_login: '2025-12-08T08:15:00',
-    created_at: '2024-03-10T10:00:00'
-  },
-  {
-    id: '4',
-    username: 'james.wilson',
-    email: 'james.wilson@agency.gov',
-    full_name: 'James Wilson',
-    department: 'Legal',
-    job_title: 'Legal Assistant',
-    roles: ['legal_reviewer'],
-    status: 'inactive',
-    last_login: '2025-11-20T14:30:00',
-    created_at: '2024-04-05T10:00:00'
-  }
-];
-
-const mockRoles: Role[] = [
-  {
-    id: 'r1',
-    name: 'Super Admin',
-    description: 'Full system access and control',
-    permissions: ['all'],
-    user_count: 2
-  },
-  {
-    id: 'r2',
-    name: 'Admin',
-    description: 'Administrative access to most system features',
-    permissions: ['users.manage', 'workflows.manage', 'templates.manage', 'settings.manage'],
-    user_count: 5
-  },
-  {
-    id: 'r3',
-    name: 'Legal Reviewer',
-    description: 'Review and approve NDAs, manage templates',
-    permissions: ['ndas.review', 'ndas.approve', 'templates.create', 'clauses.manage'],
-    user_count: 8
-  },
-  {
-    id: 'r4',
-    name: 'Manager',
-    description: 'Approve department NDAs and view team tasks',
-    permissions: ['ndas.approve.department', 'tasks.view.team', 'reports.view.department'],
-    user_count: 12
-  },
-  {
-    id: 'r5',
-    name: 'Requester',
-    description: 'Create and submit NDA requests',
-    permissions: ['ndas.create', 'ndas.view.own', 'ndas.submit'],
-    user_count: 45
-  }
-];
+type Role = adminService.Role;
+type AgencyGroup = agencyService.AgencyGroup;
 
 export function UserManagement() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('users');
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterStatus, setFilterStatus] = useState('all');
-  const [filterDepartment, setFilterDepartment] = useState('all');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
   const [showUserDialog, setShowUserDialog] = useState(false);
-  const [showRoleDialog, setShowRoleDialog] = useState(false);
+  const [showAccessDialog, setShowAccessDialog] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
-  const [editingRole, setEditingRole] = useState<Role | null>(null);
-  
+  const [viewingAccessUser, setViewingAccessUser] = useState<User | null>(null);
+
   // Confirmation dialogs
   const [showDeleteUserConfirm, setShowDeleteUserConfirm] = useState(false);
-  const [showDeleteRoleConfirm, setShowDeleteRoleConfirm] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
-  const [roleToDelete, setRoleToDelete] = useState<Role | null>(null);
+
+  // Data state
+  const [users, setUsers] = useState<User[]>([]);
+  const [roles, setRoles] = useState<Role[]>([]);
+  const [agencyGroups, setAgencyGroups] = useState<AgencyGroup[]>([]);
+  const [userAccessSummary, setUserAccessSummary] = useState<userService.UserAccessSummary | null>(null);
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 20,
+    total: 0,
+    totalPages: 0
+  });
+
+  // Loading and error states
+  const [loading, setLoading] = useState(true);
+  const [savingUser, setSavingUser] = useState(false);
+  const [loadingAccess, setLoadingAccess] = useState(false);
+  const [loadingRoles, setLoadingRoles] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const [userForm, setUserForm] = useState({
-    username: '',
+    firstName: '',
+    lastName: '',
     email: '',
-    full_name: '',
-    department: '',
-    job_title: '',
-    roles: [] as string[],
-    status: 'active' as User['status']
+    workPhone: '',
+    cellPhone: '',
+    jobTitle: '',
+    selectedRoles: [] as string[]
   });
 
-  const [roleForm, setRoleForm] = useState({
-    name: '',
-    description: '',
-    permissions: [] as string[]
-  });
+  // Load users on mount and when filters change
+  useEffect(() => {
+    loadUsers();
+  }, [pagination.page, searchQuery, filterStatus]);
 
-  const departments = ['Legal', 'IT Services', 'HR', 'Finance', 'Operations', 'Infrastructure'];
-  const availableRoles = ['admin', 'legal_reviewer', 'manager', 'approver', 'requester'];
-  const availablePermissions = [
-    'ndas.create', 'ndas.view.own', 'ndas.view.all', 'ndas.edit', 'ndas.delete',
-    'ndas.approve', 'ndas.review', 'workflows.manage', 'templates.manage',
-    'users.manage', 'settings.manage', 'reports.view', 'audit.view'
-  ];
+  // Load roles and agency groups on mount
+  useEffect(() => {
+    loadRoles();
+    loadAgencyGroups();
+  }, []);
 
-  const filteredUsers = mockUsers.filter(user => {
-    const matchesSearch = user.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         user.username.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = filterStatus === 'all' || user.status === filterStatus;
-    const matchesDepartment = filterDepartment === 'all' || user.department === filterDepartment;
-    return matchesSearch && matchesStatus && matchesDepartment;
-  });
+  const loadUsers = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await userService.listUsers({
+        page: pagination.page,
+        limit: pagination.limit,
+        search: searchQuery || undefined,
+        active: filterStatus === 'all' ? undefined : filterStatus === 'active'
+      });
+
+      // Add computed fullName field
+      const usersWithFullName = response.users.map(user => ({
+        ...user,
+        fullName: `${user.firstName} ${user.lastName}`
+      }));
+
+      setUsers(usersWithFullName);
+      setPagination(prev => ({
+        ...prev,
+        total: response.pagination.total,
+        totalPages: response.pagination.totalPages
+      }));
+    } catch (err) {
+      const errorMessage = err instanceof ApiError ? err.message : 'Failed to load users';
+      setError(errorMessage);
+      toast.error('Error loading users', { description: errorMessage });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadRoles = async () => {
+    try {
+      setLoadingRoles(true);
+      const response = await adminService.listRoles();
+      setRoles(response.roles);
+    } catch (err) {
+      const errorMessage = err instanceof ApiError ? err.message : 'Failed to load roles';
+      toast.error('Error loading roles', { description: errorMessage });
+    } finally {
+      setLoadingRoles(false);
+    }
+  };
+
+  const loadAgencyGroups = async () => {
+    try {
+      const response = await agencyService.listAgencyGroups();
+      setAgencyGroups(response.agencyGroups);
+    } catch (err) {
+      const errorMessage = err instanceof ApiError ? err.message : 'Failed to load agency groups';
+      toast.error('Error loading agency groups', { description: errorMessage });
+    }
+  };
+
+  const loadUserAccess = async (userId: string) => {
+    try {
+      setLoadingAccess(true);
+      const [accessSummary, userRoles] = await Promise.all([
+        userService.getUserAccessSummary(userId),
+        adminService.getUserRoles(userId)
+      ]);
+
+      setUserAccessSummary(accessSummary);
+
+      // Update the viewing user with loaded roles
+      if (viewingAccessUser) {
+        setViewingAccessUser({
+          ...viewingAccessUser,
+          roles: userRoles.roles
+        });
+      }
+    } catch (err) {
+      const errorMessage = err instanceof ApiError ? err.message : 'Failed to load user access';
+      toast.error('Error loading user access', { description: errorMessage });
+    } finally {
+      setLoadingAccess(false);
+    }
+  };
 
   const handleAddUser = () => {
     setUserForm({
-      username: '',
+      firstName: '',
+      lastName: '',
       email: '',
-      full_name: '',
-      department: '',
-      job_title: '',
-      roles: [],
-      status: 'active'
+      workPhone: '',
+      cellPhone: '',
+      jobTitle: '',
+      selectedRoles: []
     });
     setEditingUser(null);
     setShowUserDialog(true);
   };
 
-  const handleEditUser = (user: User) => {
+  const handleEditUser = async (user: User) => {
     setUserForm({
-      username: user.username,
+      firstName: user.firstName,
+      lastName: user.lastName,
       email: user.email,
-      full_name: user.full_name,
-      department: user.department,
-      job_title: user.job_title,
-      roles: user.roles,
-      status: user.status
+      workPhone: user.workPhone || '',
+      cellPhone: user.cellPhone || '',
+      jobTitle: user.jobTitle || '',
+      selectedRoles: []
     });
+
+    // Load user's current roles
+    try {
+      const userRoles = await adminService.getUserRoles(user.id);
+      setUserForm(prev => ({
+        ...prev,
+        selectedRoles: userRoles.roles.map(r => r.id)
+      }));
+    } catch (err) {
+      console.error('Failed to load user roles:', err);
+    }
+
     setEditingUser(user);
     setShowUserDialog(true);
   };
 
-  const handleSaveUser = () => {
-    if (!userForm.username || !userForm.email || !userForm.full_name) {
+  const handleSaveUser = async () => {
+    if (!userForm.firstName || !userForm.lastName || !userForm.email) {
       toast.error('Validation error', {
-        description: 'Please fill in all required fields'
+        description: 'Please fill in all required fields (first name, last name, email)'
       });
       return;
     }
 
-    toast.success(editingUser ? 'User updated' : 'User created', {
-      description: `${userForm.full_name} has been ${editingUser ? 'updated' : 'created'} successfully`
-    });
-    setShowUserDialog(false);
+    try {
+      setSavingUser(true);
+
+      if (editingUser) {
+        // Update existing user
+        await userService.updateUser(editingUser.id, {
+          firstName: userForm.firstName,
+          lastName: userForm.lastName,
+          email: userForm.email,
+          workPhone: userForm.workPhone || undefined,
+          cellPhone: userForm.cellPhone || undefined,
+          jobTitle: userForm.jobTitle || undefined
+        });
+
+        // Handle role changes
+        const currentRoleIds = editingUser.roles?.map(r => r.id) || [];
+        const rolesToAdd = userForm.selectedRoles.filter(rid => !currentRoleIds.includes(rid));
+        const rolesToRemove = currentRoleIds.filter(rid => !userForm.selectedRoles.includes(rid));
+
+        // Add new roles
+        for (const roleId of rolesToAdd) {
+          await adminService.assignRole(editingUser.id, roleId);
+        }
+
+        // Remove old roles
+        for (const roleId of rolesToRemove) {
+          await adminService.removeRole(editingUser.id, roleId);
+        }
+
+        toast.success('User updated', {
+          description: `${userForm.firstName} ${userForm.lastName} has been updated successfully`
+        });
+      } else {
+        // Create new user
+        const response = await userService.createUser({
+          firstName: userForm.firstName,
+          lastName: userForm.lastName,
+          email: userForm.email,
+          workPhone: userForm.workPhone || undefined,
+          cellPhone: userForm.cellPhone || undefined,
+          jobTitle: userForm.jobTitle || undefined
+        });
+
+        // Assign roles to new user
+        if (response.user.id && userForm.selectedRoles.length > 0) {
+          for (const roleId of userForm.selectedRoles) {
+            await adminService.assignRole(response.user.id, roleId);
+          }
+        }
+
+        toast.success('User created', {
+          description: `${userForm.firstName} ${userForm.lastName} has been created successfully`
+        });
+      }
+
+      setShowUserDialog(false);
+      loadUsers(); // Refresh the list
+    } catch (err) {
+      const errorMessage = err instanceof ApiError ? err.message : 'Failed to save user';
+      toast.error('Error saving user', { description: errorMessage });
+    } finally {
+      setSavingUser(false);
+    }
   };
 
   const handleDeleteUser = (user: User) => {
@@ -252,75 +309,65 @@ export function UserManagement() {
     setShowDeleteUserConfirm(true);
   };
 
-  const confirmDeleteUser = () => {
-    toast.success('User deleted', {
-      description: `${userToDelete?.full_name} has been removed from the system`
-    });
-    setShowDeleteUserConfirm(false);
-  };
+  const confirmDeleteUser = async () => {
+    if (!userToDelete) return;
 
-  const handleResetPassword = (user: User) => {
-    toast.success('Password reset', {
-      description: `Password reset email sent to ${user.email}`
-    });
-  };
-
-  const handleSuspendUser = (user: User) => {
-    toast.success('User suspended', {
-      description: `${user.full_name}'s account has been suspended`
-    });
-  };
-
-  const handleAddRole = () => {
-    setRoleForm({
-      name: '',
-      description: '',
-      permissions: []
-    });
-    setEditingRole(null);
-    setShowRoleDialog(true);
-  };
-
-  const handleEditRole = (role: Role) => {
-    setRoleForm({
-      name: role.name,
-      description: role.description,
-      permissions: role.permissions
-    });
-    setEditingRole(role);
-    setShowRoleDialog(true);
-  };
-
-  const handleSaveRole = () => {
-    if (!roleForm.name || !roleForm.description) {
-      toast.error('Validation error', {
-        description: 'Please fill in all required fields'
+    try {
+      await userService.deactivateUser(userToDelete.id);
+      toast.success('User deactivated', {
+        description: `${userToDelete.fullName} has been deactivated`
       });
-      return;
+      setShowDeleteUserConfirm(false);
+      loadUsers(); // Refresh the list
+    } catch (err) {
+      const errorMessage = err instanceof ApiError ? err.message : 'Failed to deactivate user';
+      toast.error('Error deactivating user', { description: errorMessage });
     }
-
-    toast.success(editingRole ? 'Role updated' : 'Role created', {
-      description: `${roleForm.name} has been ${editingRole ? 'updated' : 'created'} successfully`
-    });
-    setShowRoleDialog(false);
   };
 
-  const handleDeleteRole = (role: Role) => {
-    toast.success('Role deleted', {
-      description: `${role.name} role has been removed`
-    });
+  const handleViewAccess = async (user: User) => {
+    setViewingAccessUser(user);
+    setShowAccessDialog(true);
+    await loadUserAccess(user.id);
   };
 
-  const togglePermission = (permission: string) => {
-    setRoleForm(prev => ({
-      ...prev,
-      permissions: prev.permissions.includes(permission)
-        ? prev.permissions.filter(p => p !== permission)
-        : [...prev.permissions, permission]
-    }));
+  const handleAssignRole = async (userId: string, roleId: string) => {
+    try {
+      await adminService.assignRole(userId, roleId);
+      toast.success('Role assigned successfully');
+      if (viewingAccessUser?.id === userId) {
+        await loadUserAccess(userId);
+      }
+      loadUsers(); // Refresh the list
+    } catch (err) {
+      const errorMessage = err instanceof ApiError ? err.message : 'Failed to assign role';
+      toast.error('Error assigning role', { description: errorMessage });
+    }
+  };
+
+  const handleRemoveRole = async (userId: string, roleId: string) => {
+    try {
+      await adminService.removeRole(userId, roleId);
+      toast.success('Role removed successfully');
+      if (viewingAccessUser?.id === userId) {
+        await loadUserAccess(userId);
+      }
+      loadUsers(); // Refresh the list
+    } catch (err) {
+      const errorMessage = err instanceof ApiError ? err.message : 'Failed to remove role';
+      toast.error('Error removing role', { description: errorMessage });
+    }
   };
 
   const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
+  const formatDateTime = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
@@ -334,9 +381,9 @@ export function UserManagement() {
     <div className="p-8">
       {/* Header */}
       <div className="mb-8">
-        <Button 
-          variant="subtle" 
-          size="sm" 
+        <Button
+          variant="subtle"
+          size="sm"
           icon={<ArrowLeft className="w-4 h-4" />}
           onClick={() => navigate('/administration')}
           className="mb-4"
@@ -352,6 +399,13 @@ export function UserManagement() {
           </div>
         </div>
       </div>
+
+      {/* Error State */}
+      {error && (
+        <Card className="mb-6 p-4 bg-red-50 border-red-200">
+          <p className="text-red-800">{error}</p>
+        </Card>
+      )}
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -369,14 +423,14 @@ export function UserManagement() {
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[var(--color-text-muted)]" />
                   <Input
-                    placeholder="Search users by name, email, or username..."
+                    placeholder="Search users by name or email..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="pl-10"
                   />
                 </div>
               </div>
-              <Select value={filterStatus} onValueChange={setFilterStatus}>
+              <Select value={filterStatus} onValueChange={(v) => setFilterStatus(v as any)}>
                 <SelectTrigger className="w-full sm:w-40">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
@@ -384,18 +438,6 @@ export function UserManagement() {
                   <SelectItem value="all">All Status</SelectItem>
                   <SelectItem value="active">Active</SelectItem>
                   <SelectItem value="inactive">Inactive</SelectItem>
-                  <SelectItem value="suspended">Suspended</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={filterDepartment} onValueChange={setFilterDepartment}>
-                <SelectTrigger className="w-full sm:w-48">
-                  <SelectValue placeholder="Department" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Departments</SelectItem>
-                  {departments.map(dept => (
-                    <SelectItem key={dept} value={dept}>{dept}</SelectItem>
-                  ))}
                 </SelectContent>
               </Select>
               <Button variant="primary" icon={<Plus className="w-4 h-4" />} onClick={handleAddUser}>
@@ -403,56 +445,107 @@ export function UserManagement() {
               </Button>
             </div>
 
+            {/* Loading State */}
+            {loading && (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-8 h-8 animate-spin text-[var(--color-primary)]" />
+              </div>
+            )}
+
             {/* Users Table */}
-            <div className="overflow-x-auto hidden md:block">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-[var(--color-border)]">
-                    <th className="text-left py-3 px-4 text-sm">User</th>
-                    <th className="text-left py-3 px-4 text-sm">Department</th>
-                    <th className="text-left py-3 px-4 text-sm">Roles</th>
-                    <th className="text-left py-3 px-4 text-sm">Status</th>
-                    <th className="text-left py-3 px-4 text-sm">Last Login</th>
-                    <th className="text-right py-3 px-4 text-sm">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredUsers.map(user => (
-                    <tr key={user.id} className="border-b border-[var(--color-border)] hover:bg-gray-50">
-                      <td className="py-4 px-4">
-                        <div>
-                          <p className="font-medium">{user.full_name}</p>
-                          <p className="text-sm text-[var(--color-text-secondary)]">{user.email}</p>
-                          <p className="text-xs text-[var(--color-text-muted)]">{user.job_title}</p>
-                        </div>
-                      </td>
-                      <td className="py-4 px-4">
-                        <span className="text-sm">{user.department}</span>
-                      </td>
-                      <td className="py-4 px-4">
-                        <div className="flex flex-wrap gap-1">
-                          {user.roles.map(role => (
-                            <Badge key={role} variant="default" className="text-xs">
-                              {role.replace('_', ' ')}
+            {!loading && (
+              <>
+                <div className="overflow-x-auto hidden md:block">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-[var(--color-border)]">
+                        <th className="text-left py-3 px-4 text-sm">User</th>
+                        <th className="text-left py-3 px-4 text-sm">Contact</th>
+                        <th className="text-left py-3 px-4 text-sm">Status</th>
+                        <th className="text-left py-3 px-4 text-sm">Created</th>
+                        <th className="text-right py-3 px-4 text-sm">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {users.map(user => (
+                        <tr key={user.id} className="border-b border-[var(--color-border)] hover:bg-gray-50">
+                          <td className="py-4 px-4">
+                            <div>
+                              <p className="font-medium">{user.fullName}</p>
+                              <p className="text-sm text-[var(--color-text-secondary)]">{user.email}</p>
+                              {user.jobTitle && (
+                                <p className="text-xs text-[var(--color-text-muted)]">{user.jobTitle}</p>
+                              )}
+                            </div>
+                          </td>
+                          <td className="py-4 px-4">
+                            <div className="text-sm text-[var(--color-text-secondary)]">
+                              {user.workPhone && <p>Work: {user.workPhone}</p>}
+                              {user.cellPhone && <p>Cell: {user.cellPhone}</p>}
+                            </div>
+                          </td>
+                          <td className="py-4 px-4">
+                            <Badge
+                              variant="status"
+                              status={user.isActive ? 'Executed' : 'Expired'}
+                            >
+                              {user.isActive ? 'Active' : 'Inactive'}
                             </Badge>
-                          ))}
+                          </td>
+                          <td className="py-4 px-4 text-sm text-[var(--color-text-secondary)]">
+                            {formatDate(user.createdAt)}
+                          </td>
+                          <td className="py-4 px-4 text-right">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <button className="p-1 hover:bg-gray-100 rounded">
+                                  <MoreVertical className="w-4 h-4" />
+                                </button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => handleEditUser(user)}>
+                                  <Edit className="w-4 h-4 mr-2" />
+                                  Edit User
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleViewAccess(user)}>
+                                  <Shield className="w-4 h-4 mr-2" />
+                                  Manage Access
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => handleDeleteUser(user)}
+                                  className="text-[var(--color-danger)]"
+                                  disabled={!user.isActive}
+                                >
+                                  <Trash2 className="w-4 h-4 mr-2" />
+                                  Deactivate User
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Mobile Card View */}
+                <div className="md:hidden space-y-3">
+                  {users.map(user => (
+                    <div
+                      key={user.id}
+                      className="p-4 border border-[var(--color-border)] rounded-lg"
+                    >
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex-1">
+                          <p className="font-medium mb-1">{user.fullName}</p>
+                          <p className="text-sm text-[var(--color-text-secondary)] mb-0.5">{user.email}</p>
+                          {user.jobTitle && (
+                            <p className="text-xs text-[var(--color-text-muted)]">{user.jobTitle}</p>
+                          )}
                         </div>
-                      </td>
-                      <td className="py-4 px-4">
-                        <Badge 
-                          variant="status" 
-                          status={user.status === 'active' ? 'Executed' : user.status === 'inactive' ? 'Expired' : 'Rejected'}
-                        >
-                          {user.status}
-                        </Badge>
-                      </td>
-                      <td className="py-4 px-4 text-sm text-[var(--color-text-secondary)]">
-                        {formatDate(user.last_login)}
-                      </td>
-                      <td className="py-4 px-4 text-right">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <button className="p-1 hover:bg-gray-100 rounded">
+                            <button className="p-2 hover:bg-gray-100 rounded flex-shrink-0">
                               <MoreVertical className="w-4 h-4" />
                             </button>
                           </DropdownMenuTrigger>
@@ -461,105 +554,84 @@ export function UserManagement() {
                               <Edit className="w-4 h-4 mr-2" />
                               Edit User
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleResetPassword(user)}>
-                              <Key className="w-4 h-4 mr-2" />
-                              Reset Password
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleSuspendUser(user)}>
+                            <DropdownMenuItem onClick={() => handleViewAccess(user)}>
                               <Shield className="w-4 h-4 mr-2" />
-                              Suspend User
+                              Manage Access
                             </DropdownMenuItem>
-                            <DropdownMenuItem 
+                            <DropdownMenuItem
                               onClick={() => handleDeleteUser(user)}
                               className="text-[var(--color-danger)]"
+                              disabled={!user.isActive}
                             >
                               <Trash2 className="w-4 h-4 mr-2" />
-                              Delete User
+                              Deactivate User
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                      </div>
 
-            {/* Mobile Card View */}
-            <div className="md:hidden space-y-3">
-              {filteredUsers.map(user => (
-                <div 
-                  key={user.id}
-                  className="p-4 border border-[var(--color-border)] rounded-lg"
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex-1">
-                      <p className="font-medium mb-1">{user.full_name}</p>
-                      <p className="text-sm text-[var(--color-text-secondary)] mb-0.5">{user.email}</p>
-                      <p className="text-xs text-[var(--color-text-muted)]">{user.job_title}</p>
-                    </div>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <button className="p-2 hover:bg-gray-100 rounded flex-shrink-0">
-                          <MoreVertical className="w-4 h-4" />
-                        </button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => handleEditUser(user)}>
-                          <Edit className="w-4 h-4 mr-2" />
-                          Edit User
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleResetPassword(user)}>
-                          <Key className="w-4 h-4 mr-2" />
-                          Reset Password
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleSuspendUser(user)}>
-                          <Shield className="w-4 h-4 mr-2" />
-                          Suspend User
-                        </DropdownMenuItem>
-                        <DropdownMenuItem 
-                          onClick={() => handleDeleteUser(user)}
-                          className="text-[var(--color-danger)]"
+                      <div className="space-y-2 mb-3">
+                        {user.workPhone && (
+                          <div className="text-sm text-[var(--color-text-secondary)]">
+                            Work: {user.workPhone}
+                          </div>
+                        )}
+                        {user.cellPhone && (
+                          <div className="text-sm text-[var(--color-text-secondary)]">
+                            Cell: {user.cellPhone}
+                          </div>
+                        )}
+                        <div className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)]">
+                          <Calendar className="w-4 h-4 flex-shrink-0" />
+                          <span>Created: {formatDate(user.createdAt)}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2">
+                        <Badge
+                          variant="status"
+                          status={user.isActive ? 'Executed' : 'Expired'}
                         >
-                          <Trash2 className="w-4 h-4 mr-2" />
-                          Delete User
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                  
-                  <div className="space-y-2 mb-3">
-                    <div className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)]">
-                      <Briefcase className="w-4 h-4 flex-shrink-0" />
-                      <span>{user.department}</span>
+                          {user.isActive ? 'Active' : 'Inactive'}
+                        </Badge>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)]">
-                      <Calendar className="w-4 h-4 flex-shrink-0" />
-                      <span>Last login: {formatDate(user.last_login)}</span>
-                    </div>
-                  </div>
-                  
-                  <div className="flex flex-wrap gap-2">
-                    <Badge 
-                      variant="status" 
-                      status={user.status === 'active' ? 'Executed' : user.status === 'inactive' ? 'Expired' : 'Rejected'}
-                    >
-                      {user.status}
-                    </Badge>
-                    {user.roles.map(role => (
-                      <Badge key={role} variant="default" className="text-xs">
-                        {role.replace('_', ' ')}
-                      </Badge>
-                    ))}
-                  </div>
+                  ))}
                 </div>
-              ))}
-            </div>
 
-            {filteredUsers.length === 0 && (
-              <div className="text-center py-12">
-                <p className="text-[var(--color-text-secondary)]">No users found matching your filters</p>
-              </div>
+                {users.length === 0 && (
+                  <div className="text-center py-12">
+                    <p className="text-[var(--color-text-secondary)]">No users found matching your filters</p>
+                  </div>
+                )}
+
+                {/* Pagination */}
+                {pagination.totalPages > 1 && (
+                  <div className="flex items-center justify-between mt-6 pt-6 border-t border-[var(--color-border)]">
+                    <p className="text-sm text-[var(--color-text-secondary)]">
+                      Showing {((pagination.page - 1) * pagination.limit) + 1} to {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} users
+                    </p>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
+                        disabled={pagination.page === 1}
+                      >
+                        Previous
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
+                        disabled={pagination.page >= pagination.totalPages}
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </Card>
         </TabsContent>
@@ -574,60 +646,58 @@ export function UserManagement() {
                   Configure role-based access control
                 </p>
               </div>
-              <Button variant="primary" icon={<Plus className="w-4 h-4" />} onClick={handleAddRole}>
-                Add Role
-              </Button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {mockRoles.map(role => (
-                <div 
-                  key={role.id}
-                  className="p-4 border border-[var(--color-border)] rounded-lg hover:border-[var(--color-primary)] transition-colors"
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-[var(--color-primary-light)] rounded-lg flex items-center justify-center">
-                        <Shield className="w-5 h-5 text-[var(--color-primary)]" />
-                      </div>
-                      <div>
-                        <h4>{role.name}</h4>
-                        <p className="text-sm text-[var(--color-text-secondary)]">{role.description}</p>
+            {loadingRoles ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-8 h-8 animate-spin text-[var(--color-primary)]" />
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {roles.map(role => (
+                  <div
+                    key={role.id}
+                    className="p-4 border border-[var(--color-border)] rounded-lg hover:border-[var(--color-primary)] transition-colors"
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-[var(--color-primary-light)] rounded-lg flex items-center justify-center">
+                          <Shield className="w-5 h-5 text-[var(--color-primary)]" />
+                        </div>
+                        <div>
+                          <h4>{role.name}</h4>
+                          {role.description && (
+                            <p className="text-sm text-[var(--color-text-secondary)]">{role.description}</p>
+                          )}
+                          {role.isSystemRole && (
+                            <Badge variant="default" className="text-xs mt-1">System Role</Badge>
+                          )}
+                        </div>
                       </div>
                     </div>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <button className="p-1 hover:bg-gray-100 rounded">
-                          <MoreVertical className="w-4 h-4" />
-                        </button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => handleEditRole(role)}>
-                          <Edit className="w-4 h-4 mr-2" />
-                          Edit Role
-                        </DropdownMenuItem>
-                        <DropdownMenuItem 
-                          onClick={() => handleDeleteRole(role)}
-                          className="text-[var(--color-danger)]"
-                        >
-                          <Trash2 className="w-4 h-4 mr-2" />
-                          Delete Role
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+
+                    <div className="text-sm text-[var(--color-text-secondary)]">
+                      {role.permissions.length} permission{role.permissions.length !== 1 ? 's' : ''}
+                    </div>
+
+                    {role.permissions.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        {role.permissions.slice(0, 3).map(perm => (
+                          <Badge key={perm.id} variant="default" className="text-xs">
+                            {perm.name}
+                          </Badge>
+                        ))}
+                        {role.permissions.length > 3 && (
+                          <Badge variant="default" className="text-xs">
+                            +{role.permissions.length - 3} more
+                          </Badge>
+                        )}
+                      </div>
+                    )}
                   </div>
-                  
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-[var(--color-text-secondary)]">
-                      {role.permissions.length === 1 && role.permissions[0] === 'all' 
-                        ? 'All permissions' 
-                        : `${role.permissions.length} permissions`}
-                    </span>
-                    <Badge variant="default">{role.user_count} users</Badge>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </Card>
         </TabsContent>
       </Tabs>
@@ -645,182 +715,278 @@ export function UserManagement() {
           <div className="space-y-4 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="username">Username *</Label>
+                <Label htmlFor="firstName">First Name *</Label>
                 <Input
-                  id="username"
-                  value={userForm.username}
-                  onChange={(e) => setUserForm(prev => ({ ...prev, username: e.target.value }))}
-                  placeholder="john.doe"
+                  id="firstName"
+                  value={userForm.firstName}
+                  onChange={(e) => setUserForm(prev => ({ ...prev, firstName: e.target.value }))}
+                  placeholder="John"
                   className="mt-1"
                 />
               </div>
               <div>
-                <Label htmlFor="email">Email *</Label>
+                <Label htmlFor="lastName">Last Name *</Label>
                 <Input
-                  id="email"
-                  type="email"
-                  value={userForm.email}
-                  onChange={(e) => setUserForm(prev => ({ ...prev, email: e.target.value }))}
-                  placeholder="john.doe@agency.gov"
+                  id="lastName"
+                  value={userForm.lastName}
+                  onChange={(e) => setUserForm(prev => ({ ...prev, lastName: e.target.value }))}
+                  placeholder="Doe"
                   className="mt-1"
                 />
               </div>
             </div>
 
             <div>
-              <Label htmlFor="full_name">Full Name *</Label>
+              <Label htmlFor="email">Email *</Label>
               <Input
-                id="full_name"
-                value={userForm.full_name}
-                onChange={(e) => setUserForm(prev => ({ ...prev, full_name: e.target.value }))}
-                placeholder="John Doe"
+                id="email"
+                type="email"
+                value={userForm.email}
+                onChange={(e) => setUserForm(prev => ({ ...prev, email: e.target.value }))}
+                placeholder="john.doe@agency.gov"
                 className="mt-1"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="department">Department</Label>
-                <Select
-                  value={userForm.department}
-                  onValueChange={(value) => setUserForm(prev => ({ ...prev, department: value }))}
-                >
-                  <SelectTrigger id="department" className="mt-1">
-                    <SelectValue placeholder="Select department" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {departments.map(dept => (
-                      <SelectItem key={dept} value={dept}>{dept}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="workPhone">Work Phone</Label>
+                <Input
+                  id="workPhone"
+                  value={userForm.workPhone}
+                  onChange={(e) => setUserForm(prev => ({ ...prev, workPhone: e.target.value }))}
+                  placeholder="(555) 123-4567"
+                  className="mt-1"
+                />
               </div>
               <div>
-                <Label htmlFor="job_title">Job Title</Label>
+                <Label htmlFor="cellPhone">Cell Phone</Label>
                 <Input
-                  id="job_title"
-                  value={userForm.job_title}
-                  onChange={(e) => setUserForm(prev => ({ ...prev, job_title: e.target.value }))}
-                  placeholder="e.g., Legal Counsel"
+                  id="cellPhone"
+                  value={userForm.cellPhone}
+                  onChange={(e) => setUserForm(prev => ({ ...prev, cellPhone: e.target.value }))}
+                  placeholder="(555) 987-6543"
                   className="mt-1"
                 />
               </div>
             </div>
 
             <div>
-              <Label>Roles</Label>
-              <div className="mt-2 space-y-2">
-                {availableRoles.map(role => (
-                  <label key={role} className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={userForm.roles.includes(role)}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setUserForm(prev => ({ ...prev, roles: [...prev.roles, role] }));
-                        } else {
-                          setUserForm(prev => ({ ...prev, roles: prev.roles.filter(r => r !== role) }));
-                        }
-                      }}
-                      className="rounded"
-                    />
-                    <span className="text-sm">{role.replace('_', ' ')}</span>
-                  </label>
-                ))}
-              </div>
+              <Label htmlFor="jobTitle">Job Title</Label>
+              <Input
+                id="jobTitle"
+                value={userForm.jobTitle}
+                onChange={(e) => setUserForm(prev => ({ ...prev, jobTitle: e.target.value }))}
+                placeholder="e.g., Legal Counsel"
+                className="mt-1"
+              />
             </div>
 
-            <div className="flex items-center justify-between pt-2">
-              <Label htmlFor="user_status">Account Status</Label>
-              <Select
-                value={userForm.status}
-                onValueChange={(value) => setUserForm(prev => ({ ...prev, status: value as User['status'] }))}
-              >
-                <SelectTrigger id="user_status" className="w-40">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
-                  <SelectItem value="suspended">Suspended</SelectItem>
-                </SelectContent>
-              </Select>
+            <div>
+              <Label>Roles</Label>
+              <div className="mt-2 space-y-2 max-h-48 overflow-y-auto border border-[var(--color-border)] rounded-lg p-3">
+                {loadingRoles ? (
+                  <div className="flex items-center justify-center py-4">
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  </div>
+                ) : (
+                  roles.map(role => (
+                    <label key={role.id} className="flex items-start gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={userForm.selectedRoles.includes(role.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setUserForm(prev => ({ ...prev, selectedRoles: [...prev.selectedRoles, role.id] }));
+                          } else {
+                            setUserForm(prev => ({ ...prev, selectedRoles: prev.selectedRoles.filter(r => r !== role.id) }));
+                          }
+                        }}
+                        className="rounded mt-1"
+                      />
+                      <div>
+                        <span className="text-sm font-medium">{role.name}</span>
+                        {role.description && (
+                          <p className="text-xs text-[var(--color-text-secondary)]">{role.description}</p>
+                        )}
+                      </div>
+                    </label>
+                  ))
+                )}
+              </div>
             </div>
           </div>
 
           <DialogFooter>
-            <Button variant="secondary" onClick={() => setShowUserDialog(false)}>
+            <Button variant="secondary" onClick={() => setShowUserDialog(false)} disabled={savingUser}>
               Cancel
             </Button>
-            <Button variant="primary" onClick={handleSaveUser}>
-              {editingUser ? 'Update User' : 'Create User'}
+            <Button variant="primary" onClick={handleSaveUser} disabled={savingUser}>
+              {savingUser ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                editingUser ? 'Update User' : 'Create User'
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Add/Edit Role Dialog */}
-      <Dialog open={showRoleDialog} onOpenChange={setShowRoleDialog}>
-        <DialogContent className="max-w-2xl">
+      {/* User Access Management Dialog */}
+      <Dialog open={showAccessDialog} onOpenChange={setShowAccessDialog}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editingRole ? 'Edit Role' : 'Add New Role'}</DialogTitle>
+            <DialogTitle>Manage Access - {viewingAccessUser?.fullName}</DialogTitle>
             <DialogDescription>
-              {editingRole ? 'Update role configuration and permissions' : 'Create a new role with permissions'}
+              Manage roles and agency access for this user
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-4">
-            <div>
-              <Label htmlFor="role_name">Role Name *</Label>
-              <Input
-                id="role_name"
-                value={roleForm.name}
-                onChange={(e) => setRoleForm(prev => ({ ...prev, name: e.target.value }))}
-                placeholder="e.g., Compliance Officer"
-                className="mt-1"
-              />
+          {loadingAccess ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-[var(--color-primary)]" />
             </div>
-
-            <div>
-              <Label htmlFor="role_description">Description *</Label>
-              <Input
-                id="role_description"
-                value={roleForm.description}
-                onChange={(e) => setRoleForm(prev => ({ ...prev, description: e.target.value }))}
-                placeholder="Describe the role's responsibilities"
-                className="mt-1"
-              />
-            </div>
-
-            <div>
-              <Label className="mb-3 block">Permissions</Label>
-              <div className="max-h-64 overflow-y-auto border border-[var(--color-border)] rounded-lg p-4">
+          ) : userAccessSummary ? (
+            <div className="space-y-6 py-4">
+              {/* Roles Section */}
+              <div>
+                <h4 className="mb-3 flex items-center gap-2">
+                  <Shield className="w-5 h-5" />
+                  Assigned Roles
+                </h4>
                 <div className="space-y-2">
-                  {availablePermissions.map(permission => (
-                    <label key={permission} className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={roleForm.permissions.includes(permission)}
-                        onChange={() => togglePermission(permission)}
-                        className="rounded"
-                      />
-                      <span className="text-sm">{permission}</span>
-                    </label>
+                  {viewingAccessUser?.roles && viewingAccessUser.roles.length > 0 ? (
+                    viewingAccessUser.roles.map(role => (
+                      <div
+                        key={role.id}
+                        className="flex items-center justify-between p-3 border border-[var(--color-border)] rounded-lg"
+                      >
+                        <div>
+                          <p className="font-medium">{role.name}</p>
+                          {role.description && (
+                            <p className="text-sm text-[var(--color-text-secondary)]">{role.description}</p>
+                          )}
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {role.permissions.map(perm => (
+                              <Badge key={perm.code} variant="default" className="text-xs">
+                                {perm.name}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                        {!role.isSystemRole && (
+                          <Button
+                            variant="subtle"
+                            size="sm"
+                            icon={<X className="w-4 h-4" />}
+                            onClick={() => viewingAccessUser && handleRemoveRole(viewingAccessUser.id, role.id)}
+                          >
+                            Remove
+                          </Button>
+                        )}
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-[var(--color-text-secondary)]">No roles assigned</p>
+                  )}
+
+                  {/* Add Role Dropdown */}
+                  <div className="mt-3">
+                    <Select
+                      value=""
+                      onValueChange={(roleId) => viewingAccessUser && handleAssignRole(viewingAccessUser.id, roleId)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Assign a role..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {roles
+                          .filter(role => !viewingAccessUser?.roles?.some(ur => ur.id === role.id))
+                          .map(role => (
+                            <SelectItem key={role.id} value={role.id}>
+                              {role.name}
+                            </SelectItem>
+                          ))
+                        }
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Agency Access Section */}
+              <div>
+                <h4 className="mb-3 flex items-center gap-2">
+                  <Building className="w-5 h-5" />
+                  Agency Access
+                </h4>
+                <div className="space-y-3">
+                  {/* Agency Group Access */}
+                  {userAccessSummary.agencyGroupAccess.length > 0 && (
+                    <div>
+                      <p className="text-sm font-medium mb-2">Agency Groups</p>
+                      {userAccessSummary.agencyGroupAccess.map(ag => (
+                        <div
+                          key={ag.agencyGroupId}
+                          className="p-3 border border-[var(--color-border)] rounded-lg mb-2"
+                        >
+                          <p className="font-medium">{ag.agencyGroupName}</p>
+                          <p className="text-sm text-[var(--color-text-secondary)]">
+                            {ag.subagencies.length} subagenc{ag.subagencies.length !== 1 ? 'ies' : 'y'}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Direct Subagency Access */}
+                  {userAccessSummary.directSubagencyAccess.length > 0 && (
+                    <div>
+                      <p className="text-sm font-medium mb-2">Direct Subagency Access</p>
+                      {userAccessSummary.directSubagencyAccess.map(sa => (
+                        <div
+                          key={sa.subagencyId}
+                          className="p-3 border border-[var(--color-border)] rounded-lg mb-2"
+                        >
+                          <p className="font-medium">{sa.subagencyName}</p>
+                          <p className="text-xs text-[var(--color-text-muted)]">
+                            Part of {sa.agencyGroupName}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {userAccessSummary.agencyGroupAccess.length === 0 &&
+                   userAccessSummary.directSubagencyAccess.length === 0 && (
+                    <p className="text-sm text-[var(--color-text-secondary)]">No agency access configured</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Effective Permissions */}
+              <div>
+                <h4 className="mb-3 flex items-center gap-2">
+                  <Key className="w-5 h-5" />
+                  Effective Permissions
+                </h4>
+                <div className="flex flex-wrap gap-1">
+                  {userAccessSummary.effectivePermissions.map(perm => (
+                    <Badge key={perm} variant="default" className="text-xs">
+                      {perm}
+                    </Badge>
                   ))}
                 </div>
               </div>
-              <p className="text-xs text-[var(--color-text-secondary)] mt-2">
-                {roleForm.permissions.length} permissions selected
-              </p>
             </div>
-          </div>
+          ) : null}
 
           <DialogFooter>
-            <Button variant="secondary" onClick={() => setShowRoleDialog(false)}>
-              Cancel
-            </Button>
-            <Button variant="primary" onClick={handleSaveRole}>
-              {editingRole ? 'Update Role' : 'Create Role'}
+            <Button variant="secondary" onClick={() => setShowAccessDialog(false)}>
+              Close
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -830,9 +996,9 @@ export function UserManagement() {
       <Dialog open={showDeleteUserConfirm} onOpenChange={setShowDeleteUserConfirm}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Confirm Delete User</DialogTitle>
+            <DialogTitle>Confirm Deactivate User</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete this user? This action cannot be undone.
+              Are you sure you want to deactivate {userToDelete?.fullName}? This will prevent them from accessing the system.
             </DialogDescription>
           </DialogHeader>
 
@@ -841,7 +1007,7 @@ export function UserManagement() {
               Cancel
             </Button>
             <Button variant="primary" onClick={confirmDeleteUser}>
-              Delete User
+              Deactivate User
             </Button>
           </DialogFooter>
         </DialogContent>

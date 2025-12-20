@@ -149,7 +149,7 @@ export async function setConfig(
       action: AuditAction.NDA_UPDATED, // Could add SYSTEM_CONFIG_CHANGED
       entityType: 'system_config',
       entityId: key,
-      userId: userContext.id,
+      userId: userContext.contactId,
       details: { key, newValue: value },
     });
   } catch (error) {
@@ -179,7 +179,7 @@ export async function setConfigs(
     await auditService.log({
       action: AuditAction.NDA_UPDATED,
       entityType: 'system_config',
-      userId: userContext.id,
+      userId: userContext.contactId,
       details: { keys: Object.keys(configs) },
     });
   } catch (error) {

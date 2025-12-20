@@ -267,8 +267,8 @@ describe('Auth Routes Integration', () => {
         .get('/api/auth/me');
 
       expect(response.status).toBe(401);
-      expect(response.body.error).toBe('Not authenticated');
-      expect(response.body.code).toBe('NOT_AUTHENTICATED');
+      expect(response.body.error).toBe('Authentication required');
+      expect(response.body.code).toBe('NO_TOKEN');
     });
   });
 });

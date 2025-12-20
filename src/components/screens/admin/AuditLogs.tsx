@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '../../ui/AppCard';
 import { Button } from '../../ui/AppButton';
@@ -12,7 +12,9 @@ import {
   User,
   FileText,
   Eye,
-  Globe
+  Globe,
+  Loader2,
+  AlertCircle
 } from 'lucide-react';
 import { toast } from 'sonner@2.0.3';
 import {
@@ -31,7 +33,14 @@ import {
   DialogTitle,
 } from '../../ui/dialog';
 import { Label } from '../../ui/Label';
+import {
+  listAuditLogs,
+  exportAuditLogs,
+  type AuditLogEntry,
+  type ListAuditLogsResponse
+} from '../../../client/services/auditService';
 
+// Map backend AuditLogEntry to display format
 interface AuditEvent {
   id: string;
   timestamp: string;
@@ -48,195 +57,226 @@ interface AuditEvent {
   details: any;
 }
 
-const mockAuditEvents: AuditEvent[] = [
-  {
-    id: 'ae-001',
-    timestamp: '2025-12-08T10:30:15Z',
-    event_type: 'nda_approved',
-    actor: 'Sarah Johnson',
-    actor_email: 'sarah.johnson@agency.gov',
-    action: 'Approved NDA workflow step',
-    resource_type: 'nda',
-    resource_id: 'nda-2025-0145',
-    resource_name: 'Vendor Access NDA - Tech Corp',
-    ip_address: '192.168.1.105',
-    user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
-    status: 'success',
-    details: {
-      decision: 'approved',
-      comments: 'Legal review complete',
-      step_name: 'Legal Review'
-    }
-  },
-  {
-    id: 'ae-002',
-    timestamp: '2025-12-08T10:15:42Z',
-    event_type: 'user_login',
-    actor: 'Michael Chen',
-    actor_email: 'michael.chen@agency.gov',
-    action: 'User logged in',
-    resource_type: 'session',
-    resource_id: 'sess-abc123',
-    resource_name: 'User Session',
-    ip_address: '192.168.1.87',
-    user_agent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)',
-    status: 'success',
-    details: {
-      auth_method: 'ldap',
-      mfa_verified: true
-    }
-  },
-  {
-    id: 'ae-003',
-    timestamp: '2025-12-08T09:45:20Z',
-    event_type: 'workflow_created',
-    actor: 'Sarah Johnson',
-    actor_email: 'sarah.johnson@agency.gov',
-    action: 'Created new workflow',
-    resource_type: 'workflow',
-    resource_id: 'wf-005',
-    resource_name: 'High-Value Contract Review',
-    ip_address: '192.168.1.105',
-    user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
-    status: 'success',
-    details: {
-      steps: 5,
-      rules: 3
-    }
-  },
-  {
-    id: 'ae-004',
-    timestamp: '2025-12-08T09:30:10Z',
-    event_type: 'nda_rejected',
-    actor: 'James Wilson',
-    actor_email: 'james.wilson@agency.gov',
-    action: 'Rejected NDA workflow step',
-    resource_type: 'nda',
-    resource_id: 'nda-2025-0142',
-    resource_name: 'Research Collaboration NDA',
-    ip_address: '192.168.1.92',
-    user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
-    status: 'warning',
-    details: {
-      decision: 'rejected',
-      comments: 'Missing required clauses',
-      step_name: 'Legal Review'
-    }
-  },
-  {
-    id: 'ae-005',
-    timestamp: '2025-12-08T09:15:33Z',
-    event_type: 'user_login_failed',
-    actor: 'unknown',
-    actor_email: 'test@example.com',
-    action: 'Failed login attempt',
-    resource_type: 'session',
-    resource_id: '',
-    resource_name: 'Login Attempt',
-    ip_address: '203.0.113.45',
-    user_agent: 'curl/7.68.0',
-    status: 'failure',
-    details: {
-      reason: 'invalid_credentials',
-      attempt_count: 3
-    }
-  },
-  {
-    id: 'ae-006',
-    timestamp: '2025-12-08T08:50:18Z',
-    event_type: 'user_created',
-    actor: 'Admin User',
-    actor_email: 'admin@agency.gov',
-    action: 'Created new user account',
-    resource_type: 'user',
-    resource_id: 'usr-789',
-    resource_name: 'John Smith',
-    ip_address: '192.168.1.10',
-    user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
-    status: 'success',
-    details: {
-      email: 'john.smith@agency.gov',
-      department: 'Legal',
-      roles: ['legal_reviewer']
-    }
-  },
-  {
-    id: 'ae-007',
-    timestamp: '2025-12-08T08:30:05Z',
-    event_type: 'template_modified',
-    actor: 'Sarah Johnson',
-    actor_email: 'sarah.johnson@agency.gov',
-    action: 'Modified NDA template',
-    resource_type: 'template',
-    resource_id: 'tmpl-003',
-    resource_name: 'Mutual NDA Template',
-    ip_address: '192.168.1.105',
-    user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
-    status: 'success',
-    details: {
-      changes: ['Updated liability clause', 'Added notice period'],
-      version: 3
-    }
-  },
-  {
-    id: 'ae-008',
-    timestamp: '2025-12-08T08:00:22Z',
-    event_type: 'settings_changed',
-    actor: 'Admin User',
-    actor_email: 'admin@agency.gov',
-    action: 'Updated security settings',
-    resource_type: 'settings',
-    resource_id: 'security',
-    resource_name: 'Security Configuration',
-    ip_address: '192.168.1.10',
-    user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
-    status: 'success',
-    details: {
-      setting: 'session_timeout',
-      old_value: '30',
-      new_value: '60'
-    }
+function mapAuditLogToEvent(log: AuditLogEntry): AuditEvent {
+  const userName = log.user
+    ? `${log.user.firstName} ${log.user.lastName}`
+    : 'System';
+  const userEmail = log.user?.email || 'system@agency.gov';
+
+  return {
+    id: log.id,
+    timestamp: log.createdAt,
+    event_type: log.action,
+    actor: userName,
+    actor_email: userEmail,
+    action: formatAction(log.action),
+    resource_type: log.entityType,
+    resource_id: log.entityId || '',
+    resource_name: formatResourceName(log.entityType, log.details),
+    ip_address: log.ipAddress || 'N/A',
+    user_agent: log.userAgent || 'N/A',
+    status: determineStatus(log.action, log.details),
+    details: log.details || {}
+  };
+}
+
+function formatAction(action: string): string {
+  return action
+    .split('_')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+}
+
+function formatResourceName(entityType: string, details?: Record<string, unknown>): string {
+  if (details?.name) return String(details.name);
+  if (details?.title) return String(details.title);
+  if (details?.companyName) return String(details.companyName);
+  return entityType.charAt(0).toUpperCase() + entityType.slice(1);
+}
+
+function determineStatus(action: string, details?: Record<string, unknown>): 'success' | 'failure' | 'warning' {
+  if (action.includes('failed') || action.includes('rejected') || action.includes('error')) {
+    return 'failure';
   }
-];
+  if (action.includes('pending') || action.includes('warning')) {
+    return 'warning';
+  }
+  return 'success';
+}
 
 export function AuditLogs() {
   const navigate = useNavigate();
+
+  // Search and filter state
   const [searchQuery, setSearchQuery] = useState('');
   const [filterEventType, setFilterEventType] = useState('all');
-  const [filterStatus, setFilterStatus] = useState('all');
-  const [dateRange, setDateRange] = useState('today');
+  const [filterEntityType, setFilterEntityType] = useState('all');
+  const [dateRange, setDateRange] = useState('week');
+  const [customStartDate, setCustomStartDate] = useState('');
+  const [customEndDate, setCustomEndDate] = useState('');
+
+  // Data state
+  const [auditEvents, setAuditEvents] = useState<AuditEvent[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalEvents, setTotalEvents] = useState(0);
+  const pageSize = 20;
+
+  // Available filters from backend
+  const [availableActions, setAvailableActions] = useState<string[]>([]);
+  const [availableEntityTypes, setAvailableEntityTypes] = useState<string[]>([]);
+
+  // UI state
   const [selectedEvent, setSelectedEvent] = useState<AuditEvent | null>(null);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
 
-  const eventTypes = [
-    'nda_created', 'nda_updated', 'nda_approved', 'nda_rejected', 'nda_executed',
-    'workflow_created', 'workflow_modified', 'workflow_started', 'workflow_completed',
-    'user_created', 'user_updated', 'user_deleted', 'user_login', 'user_login_failed',
-    'template_created', 'template_modified', 'settings_changed', 'role_assigned'
-  ];
+  // Calculate date range based on selection
+  const getDateRange = () => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-  const filteredEvents = mockAuditEvents.filter(event => {
-    const matchesSearch = 
-      event.actor.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      event.action.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      event.resource_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      event.resource_id.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    const matchesEventType = filterEventType === 'all' || event.event_type === filterEventType;
-    const matchesStatus = filterStatus === 'all' || event.status === filterStatus;
-    
-    return matchesSearch && matchesEventType && matchesStatus;
+    switch (dateRange) {
+      case 'today':
+        return { startDate: today.toISOString(), endDate: now.toISOString() };
+      case 'yesterday': {
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+        return { startDate: yesterday.toISOString(), endDate: today.toISOString() };
+      }
+      case 'week': {
+        const weekAgo = new Date(today);
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        return { startDate: weekAgo.toISOString(), endDate: now.toISOString() };
+      }
+      case 'month': {
+        const monthAgo = new Date(today);
+        monthAgo.setDate(monthAgo.getDate() - 30);
+        return { startDate: monthAgo.toISOString(), endDate: now.toISOString() };
+      }
+      case 'custom':
+        return {
+          startDate: customStartDate || undefined,
+          endDate: customEndDate || undefined
+        };
+      default:
+        return {};
+    }
+  };
+
+  // Fetch audit logs
+  const fetchAuditLogs = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const dateFilter = getDateRange();
+      const response = await listAuditLogs({
+        page: currentPage,
+        limit: pageSize,
+        action: filterEventType !== 'all' ? filterEventType : undefined,
+        entityType: filterEntityType !== 'all' ? filterEntityType : undefined,
+        startDate: dateFilter.startDate,
+        endDate: dateFilter.endDate
+      });
+
+      const mappedEvents = response.auditLogs.map(mapAuditLogToEvent);
+      setAuditEvents(mappedEvents);
+      setTotalPages(response.pagination.totalPages);
+      setTotalEvents(response.pagination.total);
+
+      // Update available filters
+      if (response.filters.availableActions.length > 0) {
+        setAvailableActions(response.filters.availableActions);
+      }
+      if (response.filters.availableEntityTypes.length > 0) {
+        setAvailableEntityTypes(response.filters.availableEntityTypes);
+      }
+    } catch (err) {
+      console.error('Failed to fetch audit logs:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load audit logs');
+      toast.error('Failed to load audit logs', {
+        description: err instanceof Error ? err.message : 'An error occurred'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load data on mount and when filters change
+  useEffect(() => {
+    fetchAuditLogs();
+  }, [currentPage, filterEventType, filterEntityType, dateRange, customStartDate, customEndDate]);
+
+  // Client-side search filtering (applies to current page results)
+  const filteredEvents = auditEvents.filter(event => {
+    if (!searchQuery) return true;
+
+    const query = searchQuery.toLowerCase();
+    return (
+      event.actor.toLowerCase().includes(query) ||
+      event.action.toLowerCase().includes(query) ||
+      event.resource_name.toLowerCase().includes(query) ||
+      event.resource_id.toLowerCase().includes(query) ||
+      event.actor_email.toLowerCase().includes(query)
+    );
   });
 
-  const handleExport = () => {
-    toast.success('Exporting audit logs', {
-      description: 'Your audit log export will be downloaded shortly'
-    });
+  const handleExport = async () => {
+    try {
+      setExporting(true);
+
+      const dateFilter = getDateRange();
+      const blob = await exportAuditLogs({
+        action: filterEventType !== 'all' ? filterEventType : undefined,
+        entityType: filterEntityType !== 'all' ? filterEntityType : undefined,
+        startDate: dateFilter.startDate,
+        endDate: dateFilter.endDate,
+        format: 'csv'
+      });
+
+      // Download the file
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `audit-logs-${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast.success('Audit logs exported', {
+        description: 'Your export has been downloaded successfully'
+      });
+    } catch (err) {
+      console.error('Failed to export audit logs:', err);
+      toast.error('Export failed', {
+        description: err instanceof Error ? err.message : 'Failed to export audit logs'
+      });
+    } finally {
+      setExporting(false);
+    }
   };
 
   const handleViewDetails = (event: AuditEvent) => {
     setSelectedEvent(event);
     setShowDetailsDialog(true);
+  };
+
+  const handlePreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
   };
 
   const formatTimestamp = (timestamp: string) => {
@@ -259,6 +299,16 @@ export function AuditLogs() {
     return statusMap[status];
   };
 
+  // Calculate stats from current data
+  const stats = {
+    totalEvents: totalEvents,
+    successRate: auditEvents.length > 0
+      ? ((auditEvents.filter(e => e.status === 'success').length / auditEvents.length) * 100).toFixed(1)
+      : '0.0',
+    failedLogins: auditEvents.filter(e => e.event_type.includes('login') && e.status === 'failure').length,
+    activeUsers: new Set(auditEvents.map(e => e.actor_email)).size
+  };
+
   return (
     <div className="p-8">
       {/* Header */}
@@ -279,8 +329,13 @@ export function AuditLogs() {
               View system activity and audit trails
             </p>
           </div>
-          <Button variant="primary" icon={<Download className="w-5 h-5" />} onClick={handleExport}>
-            Export Logs
+          <Button
+            variant="primary"
+            icon={exporting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Download className="w-5 h-5" />}
+            onClick={handleExport}
+            disabled={exporting || loading}
+          >
+            {exporting ? 'Exporting...' : 'Export Logs'}
           </Button>
         </div>
       </div>
@@ -290,8 +345,8 @@ export function AuditLogs() {
         <Card>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-[var(--color-text-secondary)] mb-1">Total Events (24h)</p>
-              <p className="text-2xl">1,247</p>
+              <p className="text-sm text-[var(--color-text-secondary)] mb-1">Total Events</p>
+              <p className="text-2xl">{loading ? '...' : stats.totalEvents.toLocaleString()}</p>
             </div>
             <FileText className="w-8 h-8 text-[var(--color-primary)]" />
           </div>
@@ -300,7 +355,7 @@ export function AuditLogs() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-[var(--color-text-secondary)] mb-1">Success Rate</p>
-              <p className="text-2xl text-green-600">98.5%</p>
+              <p className="text-2xl text-green-600">{loading ? '...' : `${stats.successRate}%`}</p>
             </div>
             <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
               <svg className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -313,7 +368,7 @@ export function AuditLogs() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-[var(--color-text-secondary)] mb-1">Failed Logins</p>
-              <p className="text-2xl text-red-600">12</p>
+              <p className="text-2xl text-red-600">{loading ? '...' : stats.failedLogins}</p>
             </div>
             <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
               <svg className="w-5 h-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -326,12 +381,33 @@ export function AuditLogs() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-[var(--color-text-secondary)] mb-1">Active Users</p>
-              <p className="text-2xl">87</p>
+              <p className="text-2xl">{loading ? '...' : stats.activeUsers}</p>
             </div>
             <User className="w-8 h-8 text-[var(--color-primary)]" />
           </div>
         </Card>
       </div>
+
+      {/* Error State */}
+      {error && (
+        <Card className="mb-6 border-red-200 bg-red-50">
+          <div className="flex items-center gap-3 text-red-800">
+            <AlertCircle className="w-5 h-5 flex-shrink-0" />
+            <div>
+              <p className="font-medium">Failed to load audit logs</p>
+              <p className="text-sm text-red-600">{error}</p>
+            </div>
+            <Button
+              variant="subtle"
+              size="sm"
+              onClick={fetchAuditLogs}
+              className="ml-auto"
+            >
+              Retry
+            </Button>
+          </div>
+        </Card>
+      )}
 
       <Card>
         {/* Filters */}
@@ -344,10 +420,11 @@ export function AuditLogs() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10"
+                disabled={loading}
               />
             </div>
           </div>
-          <Select value={dateRange} onValueChange={setDateRange}>
+          <Select value={dateRange} onValueChange={setDateRange} disabled={loading}>
             <SelectTrigger className="w-full sm:w-40">
               <SelectValue placeholder="Date Range" />
             </SelectTrigger>
@@ -359,48 +436,59 @@ export function AuditLogs() {
               <SelectItem value="custom">Custom Range</SelectItem>
             </SelectContent>
           </Select>
-          <Select value={filterEventType} onValueChange={setFilterEventType}>
+          <Select value={filterEventType} onValueChange={setFilterEventType} disabled={loading}>
             <SelectTrigger className="w-full sm:w-48">
-              <SelectValue placeholder="Event Type" />
+              <SelectValue placeholder="Action Type" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Events</SelectItem>
-              {eventTypes.map(type => (
+              <SelectItem value="all">All Actions</SelectItem>
+              {availableActions.map(type => (
                 <SelectItem key={type} value={type}>
-                  {type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                  {formatAction(type)}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
-          <Select value={filterStatus} onValueChange={setFilterStatus}>
+          <Select value={filterEntityType} onValueChange={setFilterEntityType} disabled={loading}>
             <SelectTrigger className="w-full sm:w-40">
-              <SelectValue placeholder="Status" />
+              <SelectValue placeholder="Entity Type" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="success">Success</SelectItem>
-              <SelectItem value="failure">Failure</SelectItem>
-              <SelectItem value="warning">Warning</SelectItem>
+              <SelectItem value="all">All Entities</SelectItem>
+              {availableEntityTypes.map(type => (
+                <SelectItem key={type} value={type}>
+                  {type.charAt(0).toUpperCase() + type.slice(1)}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
 
+        {/* Loading State */}
+        {loading && (
+          <div className="flex flex-col items-center justify-center py-12">
+            <Loader2 className="w-8 h-8 animate-spin text-[var(--color-primary)] mb-3" />
+            <p className="text-[var(--color-text-secondary)]">Loading audit logs...</p>
+          </div>
+        )}
+
         {/* Audit Log Table */}
-        <div className="overflow-x-auto hidden md:block">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-[var(--color-border)]">
-                <th className="text-left py-3 px-4 text-sm">Timestamp</th>
-                <th className="text-left py-3 px-4 text-sm">User</th>
-                <th className="text-left py-3 px-4 text-sm">Event</th>
-                <th className="text-left py-3 px-4 text-sm">Resource</th>
-                <th className="text-left py-3 px-4 text-sm">IP Address</th>
-                <th className="text-left py-3 px-4 text-sm">Status</th>
-                <th className="text-right py-3 px-4 text-sm">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredEvents.map(event => (
+        {!loading && (
+          <div className="overflow-x-auto hidden md:block">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-[var(--color-border)]">
+                  <th className="text-left py-3 px-4 text-sm">Timestamp</th>
+                  <th className="text-left py-3 px-4 text-sm">User</th>
+                  <th className="text-left py-3 px-4 text-sm">Event</th>
+                  <th className="text-left py-3 px-4 text-sm">Resource</th>
+                  <th className="text-left py-3 px-4 text-sm">IP Address</th>
+                  <th className="text-left py-3 px-4 text-sm">Status</th>
+                  <th className="text-right py-3 px-4 text-sm">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredEvents.map(event => (
                 <tr key={event.id} className="border-b border-[var(--color-border)] hover:bg-gray-50">
                   <td className="py-4 px-4">
                     <div className="flex items-center gap-2">
@@ -449,14 +537,16 @@ export function AuditLogs() {
                     </Button>
                   </td>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
 
         {/* Mobile Card View */}
-        <div className="md:hidden space-y-3">
-          {filteredEvents.map(event => (
+        {!loading && (
+          <div className="md:hidden space-y-3">
+            {filteredEvents.map(event => (
             <div 
               key={event.id}
               className="p-4 border border-[var(--color-border)] rounded-lg"
@@ -501,25 +591,62 @@ export function AuditLogs() {
                 </Button>
               </div>
             </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
 
-        {filteredEvents.length === 0 && (
+        {/* Empty State */}
+        {!loading && filteredEvents.length === 0 && (
           <div className="text-center py-12">
+            <FileText className="w-12 h-12 text-[var(--color-text-muted)] mx-auto mb-3" />
             <p className="text-[var(--color-text-secondary)]">No audit events found matching your filters</p>
+            {(searchQuery || filterEventType !== 'all' || filterEntityType !== 'all') && (
+              <Button
+                variant="subtle"
+                size="sm"
+                onClick={() => {
+                  setSearchQuery('');
+                  setFilterEventType('all');
+                  setFilterEntityType('all');
+                }}
+                className="mt-3"
+              >
+                Clear filters
+              </Button>
+            )}
           </div>
         )}
 
         {/* Pagination */}
-        <div className="flex items-center justify-between mt-6 pt-4 border-t border-[var(--color-border)]">
-          <p className="text-sm text-[var(--color-text-secondary)]">
-            Showing {filteredEvents.length} of {mockAuditEvents.length} events
-          </p>
-          <div className="flex gap-2">
-            <Button variant="secondary" size="sm">Previous</Button>
-            <Button variant="secondary" size="sm">Next</Button>
+        {!loading && filteredEvents.length > 0 && (
+          <div className="flex items-center justify-between mt-6 pt-4 border-t border-[var(--color-border)]">
+            <p className="text-sm text-[var(--color-text-secondary)]">
+              Showing {((currentPage - 1) * pageSize) + 1} - {Math.min(currentPage * pageSize, totalEvents)} of {totalEvents.toLocaleString()} events
+              {searchQuery && ` (filtered to ${filteredEvents.length})`}
+            </p>
+            <div className="flex gap-2 items-center">
+              <span className="text-sm text-[var(--color-text-secondary)] mr-2">
+                Page {currentPage} of {totalPages}
+              </span>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={handlePreviousPage}
+                disabled={currentPage === 1}
+              >
+                Previous
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={handleNextPage}
+                disabled={currentPage >= totalPages}
+              >
+                Next
+              </Button>
+            </div>
           </div>
-        </div>
+        )}
       </Card>
 
       {/* Event Details Dialog */}

@@ -316,7 +316,7 @@ describe('NDA Service', () => {
         expect.objectContaining({
           where: expect.objectContaining({
             id: 'nda-1',
-            OR: expect.any(Array), // Security filter
+            AND: expect.any(Array), // Security filter
           }),
         })
       );

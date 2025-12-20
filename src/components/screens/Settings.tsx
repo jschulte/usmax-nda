@@ -1,15 +1,10 @@
 import React, { useState } from 'react';
 import { Card } from '../ui/AppCard';
 import { Button } from '../ui/AppButton';
-import { Input } from '../ui/AppInput';
 import {
   Bell,
   Moon,
-  Globe,
   Mail,
-  MessageSquare,
-  Calendar,
-  Eye,
   Save,
   Download,
   Trash2
@@ -33,16 +28,9 @@ export function Settings() {
   const [notificationSettings, setNotificationSettings] = useState({
     emailNotifications: true,
     inAppNotifications: true,
-    taskAssigned: true,
-    taskCompleted: false,
-    taskOverdue: true,
     ndaApproved: true,
     ndaRejected: true,
-    ndaExecuted: true,
-    workflowCompleted: true,
-    commentMentions: true,
-    weeklyDigest: true,
-    monthlyReport: false
+    ndaExecuted: true
   });
 
   // Display Preferences
@@ -119,16 +107,16 @@ export function Settings() {
           <Card>
             <div className="flex items-center justify-between mb-4">
               <h3>Display Preferences</h3>
-              <Button 
-                variant="primary" 
-                size="sm" 
+              <Button
+                variant="primary"
+                size="sm"
                 icon={<Save className="w-4 h-4" />}
                 onClick={handleSavePreferences}
               >
                 Save Changes
               </Button>
             </div>
-            
+
             <div className="space-y-4">
               <div>
                 <Label htmlFor="theme">Theme</Label>
@@ -286,9 +274,9 @@ export function Settings() {
           <Card>
             <div className="flex items-center justify-between mb-4">
               <h3>Notification Preferences</h3>
-              <Button 
-                variant="primary" 
-                size="sm" 
+              <Button
+                variant="primary"
+                size="sm"
                 icon={<Save className="w-4 h-4" />}
                 onClick={handleSaveNotifications}
               >
@@ -332,37 +320,13 @@ export function Settings() {
           </Card>
 
           <Card>
-            <h3 className="mb-4">Event Notifications</h3>
+            <h3 className="mb-4">NDA Notifications</h3>
             <p className="text-sm text-[var(--color-text-secondary)] mb-4">
-              Choose which events trigger notifications
+              Choose which NDA events trigger notifications
             </p>
 
             <div className="space-y-3">
               <div className="flex items-center justify-between py-2">
-                <span className="text-sm">Task assigned to me</span>
-                <Switch
-                  checked={notificationSettings.taskAssigned}
-                  onCheckedChange={(checked) => setNotificationSettings(prev => ({ ...prev, taskAssigned: checked }))}
-                />
-              </div>
-
-              <div className="flex items-center justify-between py-2 border-t border-[var(--color-border)]">
-                <span className="text-sm">Task completed</span>
-                <Switch
-                  checked={notificationSettings.taskCompleted}
-                  onCheckedChange={(checked) => setNotificationSettings(prev => ({ ...prev, taskCompleted: checked }))}
-                />
-              </div>
-
-              <div className="flex items-center justify-between py-2 border-t border-[var(--color-border)]">
-                <span className="text-sm">Task overdue</span>
-                <Switch
-                  checked={notificationSettings.taskOverdue}
-                  onCheckedChange={(checked) => setNotificationSettings(prev => ({ ...prev, taskOverdue: checked }))}
-                />
-              </div>
-
-              <div className="flex items-center justify-between py-2 border-t border-[var(--color-border)]">
                 <span className="text-sm">NDA approved</span>
                 <Switch
                   checked={notificationSettings.ndaApproved}
@@ -383,53 +347,6 @@ export function Settings() {
                 <Switch
                   checked={notificationSettings.ndaExecuted}
                   onCheckedChange={(checked) => setNotificationSettings(prev => ({ ...prev, ndaExecuted: checked }))}
-                />
-              </div>
-
-              <div className="flex items-center justify-between py-2 border-t border-[var(--color-border)]">
-                <span className="text-sm">Workflow completed</span>
-                <Switch
-                  checked={notificationSettings.workflowCompleted}
-                  onCheckedChange={(checked) => setNotificationSettings(prev => ({ ...prev, workflowCompleted: checked }))}
-                />
-              </div>
-
-              <div className="flex items-center justify-between py-2 border-t border-[var(--color-border)]">
-                <span className="text-sm">Comment mentions (@username)</span>
-                <Switch
-                  checked={notificationSettings.commentMentions}
-                  onCheckedChange={(checked) => setNotificationSettings(prev => ({ ...prev, commentMentions: checked }))}
-                />
-              </div>
-            </div>
-          </Card>
-
-          <Card>
-            <h3 className="mb-4">Digest & Summary</h3>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label>Weekly Activity Digest</Label>
-                  <p className="text-xs text-[var(--color-text-secondary)] mt-1">
-                    Receive a weekly summary of your activity
-                  </p>
-                </div>
-                <Switch
-                  checked={notificationSettings.weeklyDigest}
-                  onCheckedChange={(checked) => setNotificationSettings(prev => ({ ...prev, weeklyDigest: checked }))}
-                />
-              </div>
-
-              <div className="flex items-center justify-between py-3 border-t border-[var(--color-border)]">
-                <div>
-                  <Label>Monthly Report</Label>
-                  <p className="text-xs text-[var(--color-text-secondary)] mt-1">
-                    Receive a monthly report of NDAs and tasks
-                  </p>
-                </div>
-                <Switch
-                  checked={notificationSettings.monthlyReport}
-                  onCheckedChange={(checked) => setNotificationSettings(prev => ({ ...prev, monthlyReport: checked }))}
                 />
               </div>
             </div>
@@ -540,45 +457,6 @@ export function Settings() {
                   Export Data
                 </Button>
               </div>
-
-              <div className="flex items-center justify-between p-4 border border-[var(--color-border)] rounded-lg">
-                <div className="flex items-center gap-3">
-                  <Eye className="w-5 h-5 text-[var(--color-text-secondary)]" />
-                  <div>
-                    <p className="font-medium">Privacy Settings</p>
-                    <p className="text-sm text-[var(--color-text-secondary)]">
-                      Control who can see your information
-                    </p>
-                  </div>
-                </div>
-                <Button variant="secondary" size="sm">
-                  Manage
-                </Button>
-              </div>
-            </div>
-          </Card>
-
-          <Card>
-            <h3 className="mb-4">Activity & Storage</h3>
-            <div className="space-y-4">
-              <div className="p-4 bg-gray-50 rounded-lg">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm">NDAs Created</span>
-                  <span className="font-medium">23</span>
-                </div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm">Tasks Completed</span>
-                  <span className="font-medium">147</span>
-                </div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm">Comments Posted</span>
-                  <span className="font-medium">89</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">Storage Used</span>
-                  <span className="font-medium">2.3 GB</span>
-                </div>
-              </div>
             </div>
           </Card>
 
@@ -595,8 +473,8 @@ export function Settings() {
                     </p>
                   </div>
                 </div>
-                <Button 
-                  variant="secondary" 
+                <Button
+                  variant="secondary"
                   size="sm"
                   className="border-red-300 text-red-700 hover:bg-red-100"
                   onClick={handleDeleteAccount}

@@ -158,7 +158,7 @@ export async function getTemplate(
     id: template.id,
     name: template.name,
     description: template.description,
-    content: Buffer.from(template.content),
+    content: Buffer.from(template.content as Uint8Array),
     agencyGroupId: template.agencyGroupId,
     isDefault: template.isDefault,
     isActive: template.isActive,
@@ -337,7 +337,7 @@ export async function saveEditedDocument(
     action: AuditAction.DOCUMENT_GENERATED, // Or add DOCUMENT_EDITED action
     entityType: 'document',
     entityId: document.id,
-    userId: userContext.id,
+    userId: userContext.contactId,
     details: {
       ndaId,
       ndaDisplayId: nda.displayId,
@@ -384,7 +384,7 @@ export async function createTemplate(
     data: {
       name: data.name,
       description: data.description,
-      content: data.content,
+      content: new Uint8Array(data.content),
       agencyGroupId: data.agencyGroupId,
       isDefault: data.isDefault || false,
       createdById: userContext.contactId,
@@ -433,7 +433,7 @@ export async function updateTemplate(
     data: {
       name: data.name,
       description: data.description,
-      content: data.content,
+      content: data.content ? new Uint8Array(data.content) : undefined,
       agencyGroupId: data.agencyGroupId,
       isDefault: data.isDefault,
       isActive: data.isActive,

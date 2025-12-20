@@ -1108,8 +1108,8 @@ router.get(
       // Use new documentService for richer response (Story 4.4)
       const documents = await getNdaDocuments(req.params.id, req.userContext!);
       res.json({ documents });
-    } catch (error) {
-      if (error instanceof DocumentServiceError) {
+	    } catch (error) {
+	      if (error instanceof DocumentServiceError) {
         const statusCode = error.code === 'NDA_NOT_FOUND' ? 404 : 500;
         return res.status(statusCode).json({
           error: error.message,
@@ -1193,13 +1193,29 @@ router.post(
           error: error.message,
           code: error.code,
         });
-      }
+	      }
 
-      // Handle multer errors
-      if (error instanceof Error && error.message.includes('Invalid file')) {
-        return res.status(400).json({
-          error: error.message,
-          code: 'INVALID_FILE_TYPE',
+	      // Handle multer errors
+	      if (error && typeof error === 'object' && (error as any).name === 'MulterError') {
+	        const code = (error as any).code as string | undefined;
+	        if (code === 'LIMIT_FILE_SIZE') {
+	          return res.status(400).json({
+	            error: 'File too large',
+	            code: 'FILE_TOO_LARGE',
+	          });
+	        }
+
+	        return res.status(400).json({
+	          error: 'Invalid upload',
+	          code: code || 'INVALID_UPLOAD',
+	        });
+	      }
+
+	      // Handle multer errors
+	      if (error instanceof Error && error.message.includes('Invalid file')) {
+	        return res.status(400).json({
+	          error: error.message,
+	          code: 'INVALID_FILE_TYPE',
         });
       }
 
@@ -1538,6 +1554,8 @@ router.post(
         const statusCode =
           error.code === 'NDA_NOT_FOUND'
             ? 404
+            : error.code === 'VALIDATION_ERROR'
+              ? 400
             : error.code === 'NO_RECIPIENTS'
               ? 400
               : 500;
@@ -1576,9 +1594,12 @@ router.get(
   ]),
   async (req, res) => {
     try {
-      const emails = await getNdaEmails(req.params.id);
+      const emails = await getNdaEmails(req.params.id, req.userContext!);
       res.json({ emails });
     } catch (error) {
+      if (error instanceof EmailServiceError && error.code === 'NDA_NOT_FOUND') {
+        return res.status(404).json({ error: error.message, code: error.code });
+      }
       console.error('[NDAs] Error getting email history:', error);
       res.status(500).json({
         error: 'Failed to get email history',
