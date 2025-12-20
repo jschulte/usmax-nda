@@ -13,6 +13,7 @@ import { uploadDocument, getDownloadUrl } from './s3Service.js';
 import { auditService, AuditAction } from './auditService.js';
 import type { UserContext } from '../types/auth.js';
 import { findNdaWithScope } from '../utils/scopedQuery.js';
+import { validateFileType } from './documentService.js';
 
 /**
  * Custom error for template service operations
@@ -276,6 +277,7 @@ export async function saveEditedDocument(
   content: Buffer,
   filename: string,
   userContext: UserContext,
+  contentType?: string,
   auditMeta?: AuditMeta
 ): Promise<{
   documentId: string;
@@ -307,12 +309,20 @@ export async function saveEditedDocument(
   });
   const nextVersion = (lastDoc?.versionNumber ?? 0) + 1;
 
+  const resolvedContentType = resolveContentType(filename, contentType);
+  try {
+    validateFileType(filename, resolvedContentType);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Invalid file type';
+    throw new TemplateServiceError(message, 'VALIDATION_ERROR');
+  }
+
   // Upload to S3
   const uploadResult = await uploadDocument({
     ndaId,
     filename: editedFilename,
     content,
-    contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    contentType: resolvedContentType,
   });
 
   // Create document record
@@ -323,10 +333,11 @@ export async function saveEditedDocument(
       filename: editedFilename,
       s3Key: uploadResult.s3Key,
       documentType: 'GENERATED', // Still generated, just edited
-      fileType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      fileType: resolvedContentType,
       fileSize: content.length,
       versionNumber: nextVersion,
       notes: 'Edited from template preview',
+      isEdited: true,
       uploadedById: userContext.contactId,
     },
   });
@@ -484,6 +495,26 @@ function mergeTemplateContent(
     text = text.split(`{{${key}}}`).join(safeValue);
   }
   return Buffer.from(text, 'utf-8');
+}
+
+function resolveContentType(filename: string, provided?: string): string {
+  if (provided) {
+    return provided;
+  }
+
+  const extension = filename.split('.').pop()?.toLowerCase();
+  switch (extension) {
+    case 'rtf':
+      return 'application/rtf';
+    case 'pdf':
+      return 'application/pdf';
+    case 'doc':
+      return 'application/msword';
+    case 'docx':
+      return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    default:
+      return 'application/octet-stream';
+  }
 }
 
 /**

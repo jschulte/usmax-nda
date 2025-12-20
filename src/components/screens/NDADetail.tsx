@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card } from '../ui/AppCard';
 import { Badge } from '../ui/AppBadge';
@@ -79,6 +79,8 @@ import {
   type EmailTemplateSummary,
 } from '../../client/services/emailTemplateService';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+
 export function NDADetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -105,6 +107,8 @@ export function NDADetail() {
   const [templates, setTemplates] = useState<RtfTemplate[]>([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
   const [previewing, setPreviewing] = useState(false);
+  const [savingEdited, setSavingEdited] = useState(false);
+  const editedFileInputRef = useRef<HTMLInputElement | null>(null);
 
   // UI state
   const [activeTab, setActiveTab] = useState<'overview' | 'document' | 'activity'>('overview');
@@ -452,20 +456,10 @@ export function NDADetail() {
   const confirmApproval = async () => {
     if (!id) return;
 
-    try {
-      setStatusUpdating(true);
-      await updateNDAStatus(id, 'EMAILED', 'Approved and ready for signature');
-      toast.success('NDA approved', {
-        description: 'The NDA has been approved and can now be sent for signature.'
-      });
-      await refreshNdaDetail();
-      setShowApprovalDialog(false);
-    } catch (err) {
-      console.error('Failed to approve NDA:', err);
-      toast.error('Failed to approve NDA');
-    } finally {
-      setStatusUpdating(false);
-    }
+    toast.success('NDA approved', {
+      description: 'The NDA is ready to send for signature.',
+    });
+    setShowApprovalDialog(false);
   };
 
   const handleStatusSelect = async (newStatus: NdaStatus) => {
@@ -526,6 +520,23 @@ export function NDADetail() {
   };
 
 
+  const readFileAsBase64 = (file: File): Promise<string> => (
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result;
+        if (typeof result === 'string') {
+          const base64 = result.split(',')[1] ?? '';
+          resolve(base64);
+        } else {
+          reject(new Error('Failed to read file'));
+        }
+      };
+      reader.onerror = () => reject(reader.error ?? new Error('Failed to read file'));
+      reader.readAsDataURL(file);
+    })
+  );
+
   // Document handlers
   const handleFileSelect = async (files: FileList | null) => {
     if (!canUploadDocument) {
@@ -577,6 +588,76 @@ export function NDADetail() {
       });
     } finally {
       setUploading(false);
+    }
+  };
+
+  const handleEditTemplate = () => {
+    if (!canEdit) {
+      toast.error("You don't have permission to edit documents.");
+      return;
+    }
+    editedFileInputRef.current?.click();
+  };
+
+  const handleEditedFileSelect = async (files: FileList | null) => {
+    if (!files || files.length === 0 || !id) return;
+
+    const file = files[0];
+    if (editedFileInputRef.current) {
+      editedFileInputRef.current.value = '';
+    }
+
+    const allowedTypes = [
+      'application/pdf',
+      'application/rtf',
+      'text/rtf',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/msword'
+    ];
+
+    const extension = file.name.split('.').pop()?.toLowerCase();
+    const allowedExtensions = ['pdf', 'rtf', 'doc', 'docx'];
+    const hasValidType = allowedTypes.includes(file.type) || (extension && allowedExtensions.includes(extension));
+
+    if (!hasValidType) {
+      toast.error('Invalid file type', {
+        description: 'Only PDF, RTF, and DOC/DOCX files are supported.'
+      });
+      return;
+    }
+
+    setSavingEdited(true);
+    try {
+      const base64 = await readFileAsBase64(file);
+      const response = await fetch(`${API_URL}/api/ndas/${id}/save-edited-document`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          content: base64,
+          filename: file.name,
+          contentType: file.type || undefined,
+        }),
+      });
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload.error || 'Failed to save edited document');
+      }
+
+      toast.success('Edited document saved', {
+        description: 'The edited version has been stored for this NDA only.',
+      });
+      await refreshNdaDetail();
+    } catch (err) {
+      console.error('Failed to save edited document:', err);
+      toast.error('Failed to save edited document', {
+        description: err instanceof Error ? err.message : 'Please try again later.',
+      });
+    } finally {
+      setSavingEdited(false);
     }
   };
 
@@ -1195,6 +1276,19 @@ export function NDADetail() {
                           {previewing ? 'Previewing...' : 'Preview RTF'}
                         </Button>
                       )}
+                      {templates.length > 0 && renderPermissionedButton(
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          icon={savingEdited ? <Loader2 className="w-4 h-4 animate-spin" /> : <Edit className="w-4 h-4" />}
+                          onClick={handleEditTemplate}
+                          disabled={savingEdited || !canEdit}
+                        >
+                          {savingEdited ? 'Saving...' : 'Edit Template'}
+                        </Button>,
+                        !canEdit,
+                        "You don't have permission to edit documents"
+                      )}
                       {!nda.isNonUsMax && renderPermissionedButton(
                         <Button
                           variant="secondary"
@@ -1210,6 +1304,13 @@ export function NDADetail() {
                       )}
                     </div>
                   </div>
+                  <input
+                    ref={editedFileInputRef}
+                    type="file"
+                    className="hidden"
+                    accept=".pdf,.rtf,.doc,.docx"
+                    onChange={(e) => handleEditedFileSelect(e.target.files)}
+                  />
 
                   {/* Upload area with drag and drop */}
                   <div

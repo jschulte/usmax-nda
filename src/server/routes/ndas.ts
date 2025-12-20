@@ -1855,6 +1855,7 @@ router.post(
  * Body:
  * - content: base64 encoded document content
  * - filename: Original filename
+ * - contentType: Optional MIME type for the edited document
  *
  * Returns:
  * - documentId, filename, s3Key
@@ -1867,7 +1868,7 @@ router.post(
   ]),
   async (req, res) => {
     try {
-      const { content, filename } = req.body;
+      const { content, filename, contentType } = req.body;
 
       if (!content || !filename) {
         return res.status(400).json({
@@ -1882,6 +1883,7 @@ router.post(
         req.params.id,
         contentBuffer,
         filename,
+        contentType,
         req.userContext!,
         {
           ipAddress: req.ip,
@@ -1897,7 +1899,8 @@ router.post(
       if (error instanceof TemplateServiceError) {
         const statusCode =
           error.code === 'NOT_FOUND' ? 404 :
-          error.code === 'ACCESS_DENIED' ? 403 : 500;
+          error.code === 'ACCESS_DENIED' ? 403 :
+          error.code === 'VALIDATION_ERROR' ? 400 : 500;
 
         return res.status(statusCode).json({
           error: error.message,
