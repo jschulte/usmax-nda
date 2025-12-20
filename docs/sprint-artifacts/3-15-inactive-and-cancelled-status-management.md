@@ -37,20 +37,20 @@ so that **I can archive deals that didn't proceed or expired agreements**.
 ## Tasks / Subtasks
 
 - [ ] **Task 1: Inactive Status Logic** (AC: 1, 2, 3)
-  - [ ] 1.1: Implement inactive status transition
-  - [ ] 1.2: Update list filtering to exclude inactive by default
-  - [ ] 1.3: Add "Show Inactive" filter option
-  - [ ] 1.4: Allow status change back from Inactive
+  - [x] 1.1: Implement inactive status transition
+  - [x] 1.2: Update list filtering to exclude inactive by default
+  - [x] 1.3: Add "Show Inactive" filter option
+  - [x] 1.4: Allow status change back from Inactive
 
-- [ ] **Task 2: Cancelled Status Logic** (AC: 4)
-  - [ ] 2.1: Implement cancelled status (terminal)
-  - [ ] 2.2: Add "Show Cancelled" filter option
-  - [ ] 2.3: Prevent reactivation from Cancelled
+- [x] **Task 2: Cancelled Status Logic** (AC: 4)
+  - [x] 2.1: Implement cancelled status (terminal)
+  - [x] 2.2: Add "Show Cancelled" filter option
+  - [x] 2.3: Prevent reactivation from Cancelled
 
-- [ ] **Task 3: List View Updates** (AC: 2, 4)
-  - [ ] 3.1: Add status badge/indicator for Inactive
-  - [ ] 3.2: Add status badge/indicator for Cancelled
-  - [ ] 3.3: Apply default filtering in API
+- [x] **Task 3: List View Updates** (AC: 2, 4)
+  - [x] 3.1: Add status badge/indicator for Inactive
+  - [x] 3.2: Add status badge/indicator for Cancelled
+  - [x] 3.3: Apply default filtering in API
 
 - [ ] **Task 4: Testing** (AC: All)
   - [ ] 4.1: Test inactive transition and filtering
@@ -62,7 +62,19 @@ so that **I can archive deals that didn't proceed or expired agreements**.
 - [x] [AI-Review][HIGH] Default list view includes inactive/cancelled because Requests always sets `showInactive`/`showCancelled` to true, violating default hidden requirement. [src/components/screens/Requests.tsx:98]
 - [x] [AI-Review][HIGH] No UI to mark an NDA Inactive or reactivate it; there is no status dropdown or action for INACTIVE in detail view. [src/components/screens/NDADetail.tsx:1060]
 - [x] [AI-Review][MEDIUM] “Show Inactive” / “Show Cancelled” filter toggles are not present; only a status dropdown exists. [src/components/screens/Requests.tsx:228]
-- [ ] [AI-Review][MEDIUM] Story marked done but Tasks/Subtasks are all unchecked and no Dev Agent Record/File List exists to verify changes. [docs/sprint-artifacts/3-15-inactive-and-cancelled-status-management.md:1]
+- [x] [AI-Review][MEDIUM] Story marked done but Tasks/Subtasks are all unchecked and no Dev Agent Record/File List exists to verify changes. [docs/sprint-artifacts/3-15-inactive-and-cancelled-status-management.md:1]
+
+## Dev Agent Record
+
+### File List
+- src/components/screens/Requests.tsx
+- src/components/screens/NDADetail.tsx
+- src/server/services/statusTransitionService.ts
+- src/server/routes/ndas.ts
+- src/client/services/ndaService.ts
+
+### Change Log
+- 2025-12-21: Added inactive/cancelled default filtering with opt-in toggles, surfaced status controls in NDA detail, and enforced terminal behavior for cancelled statuses.
 
 ## Dev Notes
 

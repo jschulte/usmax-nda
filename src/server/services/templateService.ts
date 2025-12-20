@@ -204,6 +204,13 @@ export async function generatePreview(
     if (!template || !template.isActive) {
       throw new TemplateServiceError('Template not found or inactive', 'NOT_FOUND');
     }
+  } else if (nda.rtfTemplateId) {
+    template = await prisma.rtfTemplate.findUnique({
+      where: { id: nda.rtfTemplateId },
+    });
+    if (!template || !template.isActive) {
+      template = null;
+    }
   } else {
     // Find recommended template
     template = await prisma.rtfTemplate.findFirst({
@@ -219,10 +226,10 @@ export async function generatePreview(
         { isDefault: 'desc' },
       ],
     });
+  }
 
-    if (!template) {
-      throw new TemplateServiceError('No active templates available', 'NOT_FOUND');
-    }
+  if (!template) {
+    throw new TemplateServiceError('No active templates available', 'NOT_FOUND');
   }
 
   // Extract merged fields for display

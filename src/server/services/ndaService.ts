@@ -90,6 +90,7 @@ export interface CreateNdaInput {
   contractsPocId?: string;
   relationshipPocId: string;
   contactsPocId?: string;
+  rtfTemplateId?: string | null;
 }
 
 /**
@@ -112,6 +113,7 @@ export interface UpdateNdaInput {
   contractsPocId?: string | null;
   relationshipPocId?: string;
   contactsPocId?: string | null;
+  rtfTemplateId?: string | null;
 }
 
 /**
@@ -258,6 +260,25 @@ function validateNdaInput(input: CreateNdaInput): void {
   }
 }
 
+async function validateTemplateSelection(
+  agencyGroupId: string,
+  rtfTemplateId?: string | null
+): Promise<void> {
+  if (!rtfTemplateId) return;
+
+  const template = await prisma.rtfTemplate.findFirst({
+    where: {
+      id: rtfTemplateId,
+      isActive: true,
+      OR: [{ agencyGroupId }, { agencyGroupId: null }],
+    },
+  });
+
+  if (!template) {
+    throw new NdaServiceError('Template not found or inactive', 'INVALID_TEMPLATE');
+  }
+}
+
 /**
  * Create a new NDA
  */
@@ -271,6 +292,8 @@ export async function createNda(
 
   // Validate agency access
   await validateAgencyAccess(userContext, input.agencyGroupId, input.subagencyId);
+
+  await validateTemplateSelection(input.agencyGroupId, input.rtfTemplateId);
 
   // Set defaults
   const opportunityPocId = input.opportunityPocId || userContext.contactId;
@@ -302,6 +325,7 @@ export async function createNda(
       contractsPocId: input.contractsPocId || null,
       relationshipPocId: input.relationshipPocId,
       contactsPocId: input.contactsPocId || null,
+      rtfTemplate: input.rtfTemplateId ? { connect: { id: input.rtfTemplateId } } : undefined,
       createdById: userContext.contactId,
       status: 'CREATED',
       // Create initial status history entry
@@ -954,6 +978,9 @@ export async function updateNda(
     await validateAgencyAccess(userContext, input.agencyGroupId, input.subagencyId);
   }
 
+  const targetAgencyGroupId = input.agencyGroupId ?? existing.agencyGroupId;
+  await validateTemplateSelection(targetAgencyGroupId, input.rtfTemplateId);
+
   // Validate field lengths
   if (input.authorizedPurpose && input.authorizedPurpose.length > 255) {
     throw new NdaServiceError(
@@ -1008,6 +1035,11 @@ export async function updateNda(
   if (input.contactsPocId !== undefined) {
     updateData.contactsPoc = input.contactsPocId
       ? { connect: { id: input.contactsPocId } }
+      : { disconnect: true };
+  }
+  if (input.rtfTemplateId !== undefined) {
+    updateData.rtfTemplate = input.rtfTemplateId
+      ? { connect: { id: input.rtfTemplateId } }
       : { disconnect: true };
   }
 
@@ -1334,6 +1366,7 @@ export interface UpdateDraftInput {
   contractsPocId?: string | null;
   relationshipPocId?: string;
   contactsPocId?: string | null;
+  rtfTemplateId?: string | null;
 }
 
 export interface UpdateDraftResult {
@@ -1374,6 +1407,9 @@ export async function updateDraft(
   if (input.agencyGroupId && input.agencyGroupId !== existing.agencyGroupId) {
     await validateAgencyAccess(userContext, input.agencyGroupId, input.subagencyId);
   }
+
+  const targetAgencyGroupId = input.agencyGroupId ?? existing.agencyGroupId;
+  await validateTemplateSelection(targetAgencyGroupId, input.rtfTemplateId);
 
   // Parse effective date if provided
   const effectiveDate =
@@ -1421,6 +1457,11 @@ export async function updateDraft(
   if (input.contactsPocId !== undefined) {
     updateData.contactsPoc = input.contactsPocId
       ? { connect: { id: input.contactsPocId } }
+      : { disconnect: true };
+  }
+  if (input.rtfTemplateId !== undefined) {
+    updateData.rtfTemplate = input.rtfTemplateId
+      ? { connect: { id: input.rtfTemplateId } }
       : { disconnect: true };
   }
 

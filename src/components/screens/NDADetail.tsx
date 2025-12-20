@@ -164,8 +164,11 @@ export function NDADetail() {
       try {
         const data = await listTemplates(nda.agencyGroup.id);
         setTemplates(data.templates);
-        const recommended = data.templates.find((t) => t.isRecommended);
-        setSelectedTemplateId(recommended?.id || data.templates[0]?.id || '');
+        const selected = nda.rtfTemplateId && data.templates.some((template) => template.id === nda.rtfTemplateId)
+          ? nda.rtfTemplateId
+          : undefined;
+        const recommended = data.templates.find((t) => t.isRecommended)?.id;
+        setSelectedTemplateId(selected || recommended || data.templates[0]?.id || '');
       } catch (err) {
         console.error('Failed to load templates:', err);
       }

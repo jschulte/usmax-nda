@@ -286,6 +286,10 @@ model Nda {
   contactsPocId     String?  @map("contacts_poc_id")
   contactsPoc       Contact? @relation("NdaContactsPoc", fields: [contactsPocId], references: [id])
 
+  // Template Selection
+  rtfTemplateId String?      @map("rtf_template_id")
+  rtfTemplate   RtfTemplate? @relation(fields: [rtfTemplateId], references: [id])
+
   // Clone tracking
   clonedFromId String? @map("cloned_from_id")
   clonedFrom   Nda?    @relation("NdaClone", fields: [clonedFromId], references: [id])
@@ -309,6 +313,7 @@ model Nda {
   @@index([companyName])
   @@index([createdById])
   @@index([effectiveDate])
+  @@index([rtfTemplateId])
   @@map("ndas")
 }
 
@@ -471,6 +476,7 @@ model RtfTemplate {
   updatedAt     DateTime     @updatedAt @map("updated_at")
   createdById   String?      @map("created_by_id")
   createdBy     Contact?     @relation(fields: [createdById], references: [id])
+  ndas          Nda[]
 
   @@index([agencyGroupId])
   @@index([isActive])

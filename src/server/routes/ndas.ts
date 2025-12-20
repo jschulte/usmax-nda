@@ -701,6 +701,7 @@ router.get(
  * - companyCity: string (optional)
  * - companyState: string (optional)
  * - stateOfIncorporation: string (optional)
+ * - rtfTemplateId: string (optional)
  *
  * Requires: nda:create permission
  */
@@ -724,6 +725,7 @@ router.post('/', requirePermission(PERMISSIONS.NDA_CREATE), async (req, res) => 
       contractsPocId,
       relationshipPocId,
       contactsPocId,
+      rtfTemplateId,
     } = req.body;
 
     const nda = await createNda(
@@ -745,6 +747,7 @@ router.post('/', requirePermission(PERMISSIONS.NDA_CREATE), async (req, res) => 
         contractsPocId,
         relationshipPocId,
         contactsPocId,
+        rtfTemplateId,
       },
       req.userContext!,
       {
@@ -794,7 +797,9 @@ router.post('/', requirePermission(PERMISSIONS.NDA_CREATE), async (req, res) => 
             ? 403
             : error.code === 'INVALID_SUBAGENCY'
               ? 400
-              : 500;
+              : error.code === 'INVALID_TEMPLATE'
+                ? 400
+                : 500;
 
       return res.status(statusCode).json({
         error: error.message,
@@ -829,6 +834,7 @@ router.post('/', requirePermission(PERMISSIONS.NDA_CREATE), async (req, res) => 
  * - companyCity: string
  * - companyState: string
  * - stateOfIncorporation: string
+ * - rtfTemplateId: string | null
  *
  * Requires: nda:update permission
  */
@@ -851,6 +857,7 @@ router.put('/:id', requirePermission(PERMISSIONS.NDA_UPDATE), async (req, res) =
       contractsPocId,
       relationshipPocId,
       contactsPocId,
+      rtfTemplateId,
     } = req.body;
 
     const nda = await updateNda(
@@ -872,6 +879,7 @@ router.put('/:id', requirePermission(PERMISSIONS.NDA_UPDATE), async (req, res) =
         contractsPocId,
         relationshipPocId,
         contactsPocId,
+        rtfTemplateId,
       },
       req.userContext!,
       {
@@ -901,7 +909,9 @@ router.put('/:id', requirePermission(PERMISSIONS.NDA_UPDATE), async (req, res) =
             ? 400
             : error.code === 'UNAUTHORIZED_AGENCY'
               ? 403
-              : 500;
+              : error.code === 'INVALID_TEMPLATE'
+                ? 400
+                : 500;
 
       return res.status(statusCode).json({
         error: error.message,
@@ -1047,7 +1057,9 @@ router.patch('/:id/draft', requirePermission(PERMISSIONS.NDA_UPDATE), async (req
             ? 400
             : error.code === 'VALIDATION_ERROR'
               ? 400
-              : 500;
+              : error.code === 'INVALID_TEMPLATE'
+                ? 400
+                : 500;
 
       return res.status(statusCode).json({
         error: error.message,
