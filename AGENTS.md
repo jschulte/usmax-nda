@@ -1,8 +1,6 @@
 # Repository Guidelines
 
-This project uses the BMAD method and you MUST load the metadata file for BMAD from .bmad/pm.xml before proceeding.
-
-You can also load it from https://raw.githubusercontent.com/bmad-code-org/bmad-bundles/main/bmm/agents/pm.xml if necessary.
+This project uses the BMAD method for development workflow. See the "BMad Method (BMAD)" section below for available workflows.
 
 ## Project Structure & Module Organization
 - `src/` holds application code.
