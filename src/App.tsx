@@ -33,6 +33,7 @@ import { AuthProvider, useAuth } from './client/contexts/AuthContext';
 import { LoginPage } from './client/pages/LoginPage';
 import { MFAChallengePage } from './client/pages/MFAChallengePage';
 import { SessionWarningModal } from './client/components/SessionWarningModal';
+import { AgencyGroupsPage } from './client/pages/admin/AgencyGroupsPage';
 
 /**
  * Protected Route Component
@@ -125,6 +126,7 @@ export default function App() {
           <Route path="/templates" element={<MainLayout><Templates /></MainLayout>} />
           <Route path="/reports" element={<MainLayout><Reports /></MainLayout>} />
           <Route path="/administration" element={<MainLayout><Administration /></MainLayout>} />
+          <Route path="/administration/agency-groups" element={<MainLayout><AgencyGroupsPage /></MainLayout>} />
           <Route path="/administration/users" element={<MainLayout><UserManagement /></MainLayout>} />
           <Route path="/administration/security" element={<MainLayout><SecuritySettings /></MainLayout>} />
           <Route path="/administration/notifications" element={<MainLayout><NotificationSettings /></MainLayout>} />

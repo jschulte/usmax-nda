@@ -50,8 +50,47 @@ const MOCK_USERS = new Map([
 
 const MOCK_MFA_CODE = '123456';
 
-// Track failed MFA attempts per session
-const mfaAttempts = new Map<string, number>();
+// MFA attempt tracking and lockout (per email)
+const MFA_MAX_ATTEMPTS = 3;
+const MFA_LOCKOUT_MS = 5 * 60 * 1000; // 5 minutes
+const mfaAttemptsByEmail = new Map<string, { attempts: number; lockedUntil?: number }>();
+const activeMfaSessions = new Set<string>();
+
+function getMfaState(email: string): { attempts: number; lockedUntil?: number } {
+  const existing = mfaAttemptsByEmail.get(email);
+  if (!existing) return { attempts: 0 };
+
+  // Clear expired lockout
+  if (existing.lockedUntil && existing.lockedUntil <= Date.now()) {
+    mfaAttemptsByEmail.delete(email);
+    return { attempts: 0 };
+  }
+
+  return existing;
+}
+
+function registerMfaFailure(email: string): { attemptsRemaining: number; locked: boolean } {
+  const state = getMfaState(email);
+  const attempts = state.attempts + 1;
+  const locked = attempts >= MFA_MAX_ATTEMPTS;
+
+  mfaAttemptsByEmail.set(email, {
+    attempts,
+    lockedUntil: locked ? Date.now() + MFA_LOCKOUT_MS : state.lockedUntil,
+  });
+
+  return {
+    attemptsRemaining: Math.max(0, MFA_MAX_ATTEMPTS - attempts),
+    locked,
+  };
+}
+
+function resetMfaState(email: string): void {
+  mfaAttemptsByEmail.delete(email);
+}
+
+const INVALID_MFA_MESSAGE = 'Invalid MFA code, please try again';
+const LOCKOUT_MESSAGE = 'Account temporarily locked. Please try again in 5 minutes.';
 
 class CognitoService {
   private client: CognitoIdentityProviderClient | null = null;
@@ -102,7 +141,7 @@ class CognitoService {
     }
 
     const command = new InitiateAuthCommand({
-      AuthFlow: 'USER_SRP_AUTH',
+      AuthFlow: 'USER_PASSWORD_AUTH',
       ClientId: this.clientId,
       AuthParameters: {
         USERNAME: email,
@@ -122,6 +161,11 @@ class CognitoService {
     mfaCode: string,
     email: string
   ): Promise<{ success: boolean; tokens?: AuthTokens; attemptsRemaining?: number; error?: string }> {
+    const state = getMfaState(email);
+    if (state.lockedUntil) {
+      return { success: false, attemptsRemaining: 0, error: LOCKOUT_MESSAGE };
+    }
+
     if (this.useMock) {
       return this.mockRespondToMFA(session, mfaCode, email);
     }
@@ -140,6 +184,7 @@ class CognitoService {
       const response = await this.client!.send(command);
 
       if (response.AuthenticationResult) {
+        resetMfaState(email);
         return {
           success: true,
           tokens: {
@@ -155,15 +200,12 @@ class CognitoService {
     } catch (error: any) {
       // Handle specific Cognito errors
       if (error.name === 'CodeMismatchException') {
-        const attempts = (mfaAttempts.get(session) || 0) + 1;
-        mfaAttempts.set(session, attempts);
-
-        if (attempts >= 3) {
-          mfaAttempts.delete(session);
-          return { success: false, attemptsRemaining: 0, error: 'Account temporarily locked' };
-        }
-
-        return { success: false, attemptsRemaining: 3 - attempts, error: 'Invalid MFA code' };
+        const { attemptsRemaining, locked } = registerMfaFailure(email);
+        return {
+          success: false,
+          attemptsRemaining,
+          error: locked ? LOCKOUT_MESSAGE : INVALID_MFA_MESSAGE,
+        };
       }
 
       throw error;
@@ -215,7 +257,7 @@ class CognitoService {
 
     // Always require MFA in mock mode (per FR32)
     const mockSession = `mock-session-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    mfaAttempts.set(mockSession, 0);
+    activeMfaSessions.add(mockSession);
 
     return {
       type: 'mfa_required',
@@ -237,25 +279,23 @@ class CognitoService {
     }
 
     // Check if session is valid
-    if (!mfaAttempts.has(session)) {
+    if (!activeMfaSessions.has(session)) {
       return { success: false, error: 'Invalid or expired session' };
     }
 
     // Check MFA code
     if (mfaCode !== MOCK_MFA_CODE) {
-      const attempts = (mfaAttempts.get(session) || 0) + 1;
-      mfaAttempts.set(session, attempts);
-
-      if (attempts >= 3) {
-        mfaAttempts.delete(session);
-        return { success: false, attemptsRemaining: 0, error: 'Account temporarily locked' };
-      }
-
-      return { success: false, attemptsRemaining: 3 - attempts, error: 'Invalid MFA code' };
+      const { attemptsRemaining, locked } = registerMfaFailure(email);
+      return {
+        success: false,
+        attemptsRemaining,
+        error: locked ? LOCKOUT_MESSAGE : INVALID_MFA_MESSAGE,
+      };
     }
 
     // Success - generate mock tokens
-    mfaAttempts.delete(session);
+    resetMfaState(email);
+    activeMfaSessions.delete(session);
 
     const now = Math.floor(Date.now() / 1000);
     const expiresIn = 4 * 60 * 60; // 4 hours

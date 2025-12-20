@@ -10,7 +10,8 @@
  */
 
 import { prisma } from '../db/index.js';
-import { getUserAgencyScope, type AgencyScope } from '../services/agencyScopeService.js';
+import { scopeNDAsToUser, type AgencyScope } from '../services/agencyScopeService.js';
+import type { UserContext } from '../types/auth.js';
 import { auditService, AuditAction } from '../services/auditService.js';
 
 /**
@@ -19,12 +20,12 @@ import { auditService, AuditAction } from '../services/auditService.js';
  * This implements the 404 pattern (AC3) - no information leakage.
  *
  * @param ndaId - The NDA ID to find
- * @param contactId - The user's contact ID
+ * @param userContext - The user's context
  * @param options - Optional include/select configuration
  * @returns The NDA if found and authorized, null otherwise
  *
  * @example
- * const nda = await findNdaWithScope(req.params.id, req.userContext.contactId);
+ * const nda = await findNdaWithScope(req.params.id, req.userContext);
  * if (!nda) {
  *   return res.status(404).json({ error: 'NDA not found', code: 'NOT_FOUND' });
  * }
@@ -32,14 +33,15 @@ import { auditService, AuditAction } from '../services/auditService.js';
  */
 export async function findNdaWithScope(
   ndaId: string,
-  contactId: string,
+  userContext: UserContext,
   options?: {
     include?: Record<string, boolean | object>;
+    select?: Record<string, boolean | object>;
     ipAddress?: string;
     userAgent?: string;
   }
 ): Promise<any | null> {
-  const scope = await getUserAgencyScope(contactId);
+  const scope = await scopeNDAsToUser(userContext);
 
   // Query with both ID and agency scope
   const nda = await prisma.nda.findFirst({
@@ -48,11 +50,12 @@ export async function findNdaWithScope(
       ...scope,
     },
     ...(options?.include && { include: options.include }),
+    ...(options?.select && { select: options.select }),
   });
 
   // If not found via scoped query, check if it exists at all (for audit)
-  if (!nda) {
-    await logUnauthorizedAccessIfExists(ndaId, contactId, scope, options);
+  if (!nda && 'subagencyId' in scope) {
+    await logUnauthorizedAccessIfExists(ndaId, userContext.contactId, scope, options);
   }
 
   return nda;
@@ -101,13 +104,13 @@ async function logUnauthorizedAccessIfExists(
  * Find multiple NDAs with agency scope applied.
  * Convenience wrapper that ensures scope is always applied.
  *
- * @param contactId - The user's contact ID
+ * @param userContext - The user's context
  * @param where - Additional where conditions
  * @param options - Prisma findMany options
  * @returns Array of authorized NDAs
  */
 export async function findManyNdasWithScope(
-  contactId: string,
+  userContext: UserContext,
   where?: Record<string, unknown>,
   options?: {
     include?: Record<string, boolean | object>;
@@ -116,7 +119,7 @@ export async function findManyNdasWithScope(
     skip?: number;
   }
 ): Promise<any[]> {
-  const scope = await getUserAgencyScope(contactId);
+  const scope = await scopeNDAsToUser(userContext);
 
   return prisma.nda.findMany({
     where: {
@@ -133,15 +136,15 @@ export async function findManyNdasWithScope(
 /**
  * Count NDAs with agency scope applied.
  *
- * @param contactId - The user's contact ID
+ * @param userContext - The user's context
  * @param where - Additional where conditions
  * @returns Count of authorized NDAs matching criteria
  */
 export async function countNdasWithScope(
-  contactId: string,
+  userContext: UserContext,
   where?: Record<string, unknown>
 ): Promise<number> {
-  const scope = await getUserAgencyScope(contactId);
+  const scope = await scopeNDAsToUser(userContext);
 
   return prisma.nda.count({
     where: {
@@ -156,14 +159,14 @@ export async function countNdasWithScope(
  * Use this for pre-flight authorization checks.
  *
  * @param ndaId - The NDA ID to check
- * @param contactId - The user's contact ID
+ * @param userContext - The user's context
  * @returns true if user is authorized, false otherwise
  */
 export async function isAuthorizedForNda(
   ndaId: string,
-  contactId: string
+  userContext: UserContext
 ): Promise<boolean> {
-  const nda = await findNdaWithScope(ndaId, contactId);
+  const nda = await findNdaWithScope(ndaId, userContext);
   return nda !== null;
 }
 

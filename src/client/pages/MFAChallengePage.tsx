@@ -61,14 +61,11 @@ export function MFAChallengePage() {
       // AC1: Redirect to dashboard on success
       navigate('/', { replace: true });
     } catch (err: any) {
-      // AC2: Parse attempts remaining from error message
-      const match = err.message?.match(/\((\d+) attempts remaining\)/);
-      if (match) {
-        setAttemptsRemaining(parseInt(match[1], 10));
-        setLocalError(err.message.replace(/\s*\(\d+ attempts remaining\)/, ''));
-      } else {
-        setLocalError(err.message || 'Invalid MFA code');
+      // AC2: Use attemptsRemaining from server response when available
+      if (typeof err.attemptsRemaining === 'number') {
+        setAttemptsRemaining(err.attemptsRemaining);
       }
+      setLocalError(err.message || 'Invalid MFA code, please try again');
       setMfaCode('');
       inputRef.current?.focus();
     }

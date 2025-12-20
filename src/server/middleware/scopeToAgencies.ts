@@ -57,21 +57,19 @@ export async function scopeToAgencies(
     // otherwise compute it fresh
     let scope: AgencyScope;
 
-    if (
-      req.userContext.authorizedSubagencies &&
-      req.userContext.authorizedSubagencies.length > 0
-    ) {
-      // Use cached scope from userContext (preferred for performance)
-      scope = { subagencyId: { in: req.userContext.authorizedSubagencies } };
-    } else if (
-      req.userContext.authorizedAgencyGroups &&
-      req.userContext.authorizedAgencyGroups.length === 0 &&
-      req.userContext.authorizedSubagencies?.length === 0
-    ) {
+    const hasGroupAccess =
+      (req.userContext.authorizedAgencyGroups?.length ?? 0) > 0;
+    const hasDirectSubagencyAccess =
+      (req.userContext.authorizedSubagencies?.length ?? 0) > 0;
+
+    if (!hasGroupAccess && !hasDirectSubagencyAccess) {
       // User explicitly has no agency access
       scope = { subagencyId: { in: [] } };
+    } else if (!hasGroupAccess && hasDirectSubagencyAccess) {
+      // Use cached direct subagency access when no groups are assigned
+      scope = { subagencyId: { in: req.userContext.authorizedSubagencies } };
     } else {
-      // Fall back to computing scope from database
+      // Compute full scope (expands group access and unions with direct grants)
       scope = await getUserAgencyScope(req.userContext.contactId);
     }
 

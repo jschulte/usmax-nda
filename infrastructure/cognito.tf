@@ -46,6 +46,13 @@ variable "app_name" {
   default     = "usmax-nda"
 }
 
+# Optional: IAM role ARN for SMS MFA (required for SMS fallback)
+variable "cognito_sms_role_arn" {
+  description = "IAM role ARN for Cognito to send SMS (required for SMS MFA fallback)"
+  type        = string
+  default     = ""
+}
+
 # Cognito User Pool
 # Satisfies: FR32 (MFA enforcement), Story 1.1 AC1-5
 resource "aws_cognito_user_pool" "main" {
@@ -68,6 +75,16 @@ resource "aws_cognito_user_pool" "main" {
 
   software_token_mfa_configuration {
     enabled = true  # TOTP authenticator apps (preferred)
+  }
+
+  # SMS MFA fallback (AC1)
+  # NOTE: Requires cognito_sms_role_arn to be set for production
+  dynamic "sms_configuration" {
+    for_each = var.cognito_sms_role_arn != "" ? [1] : []
+    content {
+      external_id    = "${var.app_name}-${var.environment}"
+      sns_caller_arn = var.cognito_sms_role_arn
+    }
   }
 
   # Account Recovery
@@ -142,6 +159,7 @@ resource "aws_cognito_user_pool_client" "spa" {
   # Auth Flows
   explicit_auth_flows = [
     "ALLOW_USER_SRP_AUTH",
+    "ALLOW_USER_PASSWORD_AUTH",
     "ALLOW_REFRESH_TOKEN_AUTH"
   ]
 

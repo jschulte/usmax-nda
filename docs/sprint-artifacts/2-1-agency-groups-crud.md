@@ -1,6 +1,6 @@
 # Story 2.1: Agency Groups CRUD
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -42,35 +42,35 @@ so that **I can organize subagencies into logical groupings**.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: Agency Groups API Routes** (AC: 1, 2, 3, 4, 5)
-  - [ ] 1.1: Create `src/server/routes/agencyGroups.ts`
-  - [ ] 1.2: Implement `GET /api/agency-groups` - List all groups with subagency counts
-  - [ ] 1.3: Implement `GET /api/agency-groups/:id` - Get single group with subagencies
-  - [ ] 1.4: Implement `POST /api/agency-groups` - Create new group
-  - [ ] 1.5: Implement `PUT /api/agency-groups/:id` - Update group
-  - [ ] 1.6: Implement `DELETE /api/agency-groups/:id` - Delete (with subagency check)
-  - [ ] 1.7: Add unique name validation
-  - [ ] 1.8: Protect all routes with `requirePermission(ADMIN_MANAGE_AGENCIES)`
+- [x] **Task 1: Agency Groups API Routes** (AC: 1, 2, 3, 4, 5)
+  - [x] 1.1: Create `src/server/routes/agencyGroups.ts`
+  - [x] 1.2: Implement `GET /api/agency-groups` - List all groups with subagency counts
+  - [x] 1.3: Implement `GET /api/agency-groups/:id` - Get single group with subagencies
+  - [x] 1.4: Implement `POST /api/agency-groups` - Create new group
+  - [x] 1.5: Implement `PUT /api/agency-groups/:id` - Update group
+  - [x] 1.6: Implement `DELETE /api/agency-groups/:id` - Delete (with subagency check)
+  - [x] 1.7: Add unique name validation
+  - [x] 1.8: Protect all routes with `requirePermission(ADMIN_MANAGE_AGENCIES)`
 
-- [ ] **Task 2: Agency Groups Service** (AC: 1, 2, 3, 4)
-  - [ ] 2.1: Create `src/server/services/agencyGroupService.ts`
-  - [ ] 2.2: Implement CRUD operations with Prisma
-  - [ ] 2.3: Implement subagency count for list view
-  - [ ] 2.4: Implement delete prevention check
-  - [ ] 2.5: Add audit logging for all operations
+- [x] **Task 2: Agency Groups Service** (AC: 1, 2, 3, 4)
+  - [x] 2.1: Create `src/server/services/agencyGroupService.ts`
+  - [x] 2.2: Implement CRUD operations with Prisma
+  - [x] 2.3: Implement subagency count for list view
+  - [x] 2.4: Implement delete prevention check
+  - [x] 2.5: Add audit logging for all operations
 
-- [ ] **Task 3: Frontend Agency Groups Page** (AC: 1, 2, 3, 4, 5)
-  - [ ] 3.1: Create `src/client/pages/admin/AgencyGroupsPage.tsx`
-  - [ ] 3.2: Implement list view with DataTable component
-  - [ ] 3.3: Implement create/edit modal form
-  - [ ] 3.4: Implement delete confirmation with blocking subagency count
-  - [ ] 3.5: Add form validation for unique names
+- [x] **Task 3: Frontend Agency Groups Page** (AC: 1, 2, 3, 4, 5)
+  - [x] 3.1: Create `src/client/pages/admin/AgencyGroupsPage.tsx`
+  - [x] 3.2: Implement list view with table component
+  - [x] 3.3: Implement create/edit modal form
+  - [x] 3.4: Implement delete confirmation with blocking subagency count
+  - [x] 3.5: Add form validation for unique names
 
-- [ ] **Task 4: Testing** (AC: All)
-  - [ ] 4.1: Unit tests for agencyGroupService
-  - [ ] 4.2: API integration tests for all endpoints
-  - [ ] 4.3: Test delete prevention with subagencies
-  - [ ] 4.4: Test unique name validation
+- [x] **Task 4: Testing** (AC: All)
+  - [x] 4.1: Unit tests for agencyGroupService
+  - [x] 4.2: API integration tests for all endpoints
+  - [x] 4.3: Test delete prevention with subagencies
+  - [x] 4.4: Test unique name validation
 
 ## Dev Notes
 
@@ -123,14 +123,23 @@ N/A
 ### Completion Notes List
 - First admin management story
 - Forms foundation for subagencies CRUD
+- Added full Agency Groups admin UI with create/edit/delete flows
+- Aligned API error contracts with ACs and surfaced subagency blocking counts
+- Noted unrelated auth/Cognito working tree changes outside this story scope
 
 ### File List
 Files to create:
 - `src/server/routes/agencyGroups.ts`
 - `src/server/services/agencyGroupService.ts`
 - `src/client/pages/admin/AgencyGroupsPage.tsx`
-- Test files
+- `src/components/screens/admin/AgencyGroups.tsx`
+- `src/server/routes/__tests__/agencyGroups.test.ts`
 
 Files to modify:
 - `src/server/index.ts` - Register routes
 - `src/server/services/auditService.ts` - Add new audit actions
+- `src/server/routes/agencyGroups.ts` - Enforce permissions and error contract
+- `src/server/services/agencyGroupService.ts` - Fix duplicate handling and delete messaging
+- `src/server/services/__tests__/agencyGroupService.test.ts` - Align error codes and details
+- `src/components/screens/Administration.tsx` - Add Agency Groups entry
+- `src/App.tsx` - Add Agency Groups route

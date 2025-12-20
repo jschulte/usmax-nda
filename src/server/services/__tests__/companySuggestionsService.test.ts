@@ -10,7 +10,8 @@ import {
   getMostCommonAgency,
   searchCompanies,
 } from '../companySuggestionsService.js';
-import type { UserContext } from '../../middleware/attachUserContext.js';
+import type { UserContext } from '../../types/auth.js';
+import { ROLE_NAMES } from '../../types/auth.js';
 
 // Mock Prisma
 vi.mock('../../db/index.js', () => ({
@@ -21,7 +22,12 @@ vi.mock('../../db/index.js', () => ({
   },
 }));
 
+vi.mock('../ndaService.js', () => ({
+  buildSecurityFilter: vi.fn().mockResolvedValue({}),
+}));
+
 import prisma from '../../db/index.js';
+import { buildSecurityFilter } from '../ndaService.js';
 
 const mockPrisma = prisma as any;
 
@@ -32,7 +38,7 @@ describe('companySuggestionsService', () => {
     email: 'test@example.com',
     contactId: 'contact-1',
     name: 'Test User',
-    roles: ['nda_user'],
+    roles: [ROLE_NAMES.NDA_USER],
     permissions: new Set(['nda:create', 'nda:view', 'nda:update']),
     authorizedAgencyGroups: ['agency-1', 'agency-2'],
     authorizedSubagencies: ['sub-1'],
@@ -41,8 +47,8 @@ describe('companySuggestionsService', () => {
   // Admin context (bypasses row-level security)
   const adminContext: UserContext = {
     ...mockUserContext,
-    roles: ['admin'],
-    permissions: new Set(['admin:bypass']),
+    roles: [ROLE_NAMES.ADMIN],
+    permissions: new Set(),
   };
 
   beforeEach(() => {
@@ -89,17 +95,11 @@ describe('companySuggestionsService', () => {
 
       await getRecentCompanies(mockUserContext);
 
+      expect(buildSecurityFilter).toHaveBeenCalledWith(mockUserContext);
       expect(mockPrisma.nda.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
-            AND: expect.arrayContaining([
-              expect.objectContaining({
-                OR: [
-                  { agencyGroupId: { in: mockUserContext.authorizedAgencyGroups } },
-                  { subagencyId: { in: mockUserContext.authorizedSubagencies } },
-                ],
-              }),
-            ]),
+            AND: expect.arrayContaining([expect.any(Object)]),
           }),
         })
       );
@@ -328,17 +328,11 @@ describe('companySuggestionsService', () => {
 
       await searchCompanies('Tech', mockUserContext);
 
+      expect(buildSecurityFilter).toHaveBeenCalledWith(mockUserContext);
       expect(mockPrisma.nda.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
-            AND: expect.arrayContaining([
-              expect.objectContaining({
-                OR: [
-                  { agencyGroupId: { in: mockUserContext.authorizedAgencyGroups } },
-                  { subagencyId: { in: mockUserContext.authorizedSubagencies } },
-                ],
-              }),
-            ]),
+            AND: expect.arrayContaining([expect.any(Object)]),
           }),
         })
       );

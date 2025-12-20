@@ -11,16 +11,13 @@
 
 import type { Request, Response, NextFunction } from 'express';
 import { CognitoJwtVerifier } from 'aws-jwt-verify';
+import type { RequestUser } from '../types/auth.js';
 
 // Extend Express Request type to include user
 declare global {
   namespace Express {
     interface Request {
-      user?: {
-        id: string;
-        email: string;
-        // Permissions will be added in Story 1.3
-      };
+      user?: RequestUser;
     }
   }
 }
@@ -105,7 +102,7 @@ export async function authenticateJWT(
     req.user = {
       id: payload.sub,
       email: (payload as any).email || (payload as any)['cognito:username'],
-      // permissions will be loaded in Story 1.3
+      // permissions/roles are attached by attachUserContext
     };
 
     next();

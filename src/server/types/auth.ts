@@ -22,6 +22,9 @@ export interface UserContext {
   /** User's full name (optional) */
   name?: string;
 
+  /** Whether the user account is active (optional) */
+  active?: boolean;
+
   /** Set of permission codes the user has (aggregated from all roles) */
   permissions: Set<string>;
 
@@ -44,12 +47,18 @@ export interface JWTUser {
   email: string;
 }
 
+/**
+ * Request user shape that starts as JWTUser and is later
+ * enriched by attachUserContext with full context fields.
+ */
+export type RequestUser = JWTUser & Partial<Omit<UserContext, 'id' | 'email'>>;
+
 // Extend Express Request type to include user context
 declare global {
   namespace Express {
     interface Request {
       /** User info from JWT (set by authenticateJWT) */
-      user?: JWTUser;
+      user?: RequestUser;
 
       /** Full user context (set by attachUserContext) */
       userContext?: UserContext;

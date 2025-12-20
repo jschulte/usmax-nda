@@ -59,10 +59,19 @@ vi.mock('../statusTransitionService.js', () => ({
   },
 }));
 
+vi.mock('../utils/scopedQuery.js', () => ({
+  findNdaWithScope: vi.fn(),
+}));
+
+vi.mock('../ndaService.js', () => ({
+  buildSecurityFilter: vi.fn().mockResolvedValue({}),
+}));
+
 import { prisma } from '../../db/index.js';
 import { uploadDocument, getDownloadUrl } from '../s3Service.js';
 import { auditService } from '../auditService.js';
 import { transitionStatus } from '../statusTransitionService.js';
+import { findNdaWithScope } from '../utils/scopedQuery.js';
 import {
   uploadNdaDocument,
   getNdaDocuments,
@@ -227,7 +236,7 @@ describe('Document Service', () => {
 
   describe('uploadNdaDocument', () => {
     it('should upload document successfully', async () => {
-      vi.mocked(prisma.nda.findUnique).mockResolvedValue(mockNda as any);
+      vi.mocked(findNdaWithScope).mockResolvedValue(mockNda as any);
       vi.mocked(prisma.document.findFirst).mockResolvedValue(null);
       vi.mocked(uploadDocument).mockResolvedValue({
         s3Key: 'documents/nda-123/test.pdf',
@@ -262,7 +271,7 @@ describe('Document Service', () => {
     });
 
     it('should increment version number for subsequent uploads', async () => {
-      vi.mocked(prisma.nda.findUnique).mockResolvedValue(mockNda as any);
+      vi.mocked(findNdaWithScope).mockResolvedValue(mockNda as any);
       vi.mocked(prisma.document.findFirst).mockResolvedValue({ versionNumber: 3 } as any);
       vi.mocked(uploadDocument).mockResolvedValue({
         s3Key: 'documents/nda-123/test.pdf',
@@ -288,7 +297,7 @@ describe('Document Service', () => {
     });
 
     it('should reject upload to non-existent NDA', async () => {
-      vi.mocked(prisma.nda.findUnique).mockResolvedValue(null);
+      vi.mocked(findNdaWithScope).mockResolvedValue(null);
 
       await expect(
         uploadNdaDocument(
@@ -304,11 +313,8 @@ describe('Document Service', () => {
       ).rejects.toThrow('NDA not found');
     });
 
-    it('should reject upload without agency access', async () => {
-      vi.mocked(prisma.nda.findUnique).mockResolvedValue({
-        ...mockNda,
-        agencyGroupId: 'other-agency-group',
-      } as any);
+    it('should reject upload when NDA is not accessible', async () => {
+      vi.mocked(findNdaWithScope).mockResolvedValue(null);
 
       await expect(
         uploadNdaDocument(
@@ -321,11 +327,11 @@ describe('Document Service', () => {
           },
           mockUserContext
         )
-      ).rejects.toThrow('Access denied');
+      ).rejects.toThrow('NDA not found');
     });
 
     it('should allow admin to upload to any NDA', async () => {
-      vi.mocked(prisma.nda.findUnique).mockResolvedValue({
+      vi.mocked(findNdaWithScope).mockResolvedValue({
         ...mockNda,
         agencyGroupId: 'other-agency-group',
       } as any);
@@ -351,7 +357,7 @@ describe('Document Service', () => {
     });
 
     it('should mark document as fully executed when flag is set', async () => {
-      vi.mocked(prisma.nda.findUnique).mockResolvedValue(mockNda as any);
+      vi.mocked(findNdaWithScope).mockResolvedValue(mockNda as any);
       vi.mocked(prisma.document.findFirst).mockResolvedValue(null);
       vi.mocked(uploadDocument).mockResolvedValue({
         s3Key: 'documents/nda-123/test.pdf',
@@ -413,7 +419,7 @@ describe('Document Service', () => {
 
   describe('getNdaDocuments', () => {
     it('should return documents for accessible NDA', async () => {
-      vi.mocked(prisma.nda.findUnique).mockResolvedValue(mockNda as any);
+      vi.mocked(findNdaWithScope).mockResolvedValue(mockNda as any);
       vi.mocked(prisma.document.findMany).mockResolvedValue([mockDocument] as any);
 
       const result = await getNdaDocuments('nda-123', mockUserContext);
@@ -423,7 +429,7 @@ describe('Document Service', () => {
     });
 
     it('should order documents by upload date descending', async () => {
-      vi.mocked(prisma.nda.findUnique).mockResolvedValue(mockNda as any);
+      vi.mocked(findNdaWithScope).mockResolvedValue(mockNda as any);
       vi.mocked(prisma.document.findMany).mockResolvedValue([mockDocument] as any);
 
       await getNdaDocuments('nda-123', mockUserContext);
@@ -436,24 +442,21 @@ describe('Document Service', () => {
     });
 
     it('should reject access to non-existent NDA', async () => {
-      vi.mocked(prisma.nda.findUnique).mockResolvedValue(null);
+      vi.mocked(findNdaWithScope).mockResolvedValue(null);
 
       await expect(getNdaDocuments('nda-invalid', mockUserContext)).rejects.toThrow('NDA not found');
     });
 
-    it('should reject access without agency authorization', async () => {
-      vi.mocked(prisma.nda.findUnique).mockResolvedValue({
-        ...mockNda,
-        agencyGroupId: 'other-agency',
-      } as any);
+    it('should reject access when NDA is not accessible', async () => {
+      vi.mocked(findNdaWithScope).mockResolvedValue(null);
 
-      await expect(getNdaDocuments('nda-123', mockUserContext)).rejects.toThrow('Access denied');
+      await expect(getNdaDocuments('nda-123', mockUserContext)).rejects.toThrow('NDA not found');
     });
   });
 
   describe('getDocumentDownloadUrl', () => {
     it('should return pre-signed URL for accessible document', async () => {
-      vi.mocked(prisma.document.findUnique).mockResolvedValue({
+      vi.mocked(prisma.document.findFirst).mockResolvedValue({
         ...mockDocument,
         nda: mockNda,
       } as any);
@@ -467,7 +470,7 @@ describe('Document Service', () => {
     });
 
     it('should log audit entry for download', async () => {
-      vi.mocked(prisma.document.findUnique).mockResolvedValue({
+      vi.mocked(prisma.document.findFirst).mockResolvedValue({
         ...mockDocument,
         nda: mockNda,
       } as any);
@@ -488,28 +491,25 @@ describe('Document Service', () => {
     });
 
     it('should reject access to non-existent document', async () => {
-      vi.mocked(prisma.document.findUnique).mockResolvedValue(null);
+      vi.mocked(prisma.document.findFirst).mockResolvedValue(null);
 
       await expect(getDocumentDownloadUrl('doc-invalid', mockUserContext)).rejects.toThrow(
         'Document not found'
       );
     });
 
-    it('should reject access without agency authorization', async () => {
-      vi.mocked(prisma.document.findUnique).mockResolvedValue({
-        ...mockDocument,
-        nda: { ...mockNda, agencyGroupId: 'other-agency' },
-      } as any);
+    it('should reject access when document is not accessible', async () => {
+      vi.mocked(prisma.document.findFirst).mockResolvedValue(null);
 
       await expect(getDocumentDownloadUrl('doc-123', mockUserContext)).rejects.toThrow(
-        'Access denied'
+        'Document not found'
       );
     });
   });
 
   describe('getDocument', () => {
     it('should return document for accessible document', async () => {
-      vi.mocked(prisma.document.findUnique).mockResolvedValue({
+      vi.mocked(prisma.document.findFirst).mockResolvedValue({
         ...mockDocument,
         nda: mockNda,
       } as any);
@@ -521,26 +521,25 @@ describe('Document Service', () => {
     });
 
     it('should return null for non-existent document', async () => {
-      vi.mocked(prisma.document.findUnique).mockResolvedValue(null);
+      vi.mocked(prisma.document.findFirst).mockResolvedValue(null);
 
       const result = await getDocument('doc-invalid', mockUserContext);
 
       expect(result).toBeNull();
     });
 
-    it('should reject access without agency authorization', async () => {
-      vi.mocked(prisma.document.findUnique).mockResolvedValue({
-        ...mockDocument,
-        nda: { ...mockNda, agencyGroupId: 'other-agency' },
-      } as any);
+    it('should return null when document is not accessible', async () => {
+      vi.mocked(prisma.document.findFirst).mockResolvedValue(null);
 
-      await expect(getDocument('doc-123', mockUserContext)).rejects.toThrow('Access denied');
+      const result = await getDocument('doc-123', mockUserContext);
+
+      expect(result).toBeNull();
     });
   });
 
   describe('markDocumentFullyExecuted', () => {
     it('should mark document as fully executed', async () => {
-      vi.mocked(prisma.document.findUnique).mockResolvedValue({
+      vi.mocked(prisma.document.findFirst).mockResolvedValue({
         ...mockDocument,
         nda: mockNda,
       } as any);
@@ -566,7 +565,7 @@ describe('Document Service', () => {
     });
 
     it('should trigger NDA status transition', async () => {
-      vi.mocked(prisma.document.findUnique).mockResolvedValue({
+      vi.mocked(prisma.document.findFirst).mockResolvedValue({
         ...mockDocument,
         nda: mockNda,
       } as any);
@@ -589,7 +588,7 @@ describe('Document Service', () => {
     });
 
     it('should log audit entry', async () => {
-      vi.mocked(prisma.document.findUnique).mockResolvedValue({
+      vi.mocked(prisma.document.findFirst).mockResolvedValue({
         ...mockDocument,
         nda: mockNda,
       } as any);
@@ -615,26 +614,23 @@ describe('Document Service', () => {
     });
 
     it('should reject for non-existent document', async () => {
-      vi.mocked(prisma.document.findUnique).mockResolvedValue(null);
+      vi.mocked(prisma.document.findFirst).mockResolvedValue(null);
 
       await expect(markDocumentFullyExecuted('doc-invalid', mockUserContext)).rejects.toThrow(
         'Document not found'
       );
     });
 
-    it('should reject access without agency authorization', async () => {
-      vi.mocked(prisma.document.findUnique).mockResolvedValue({
-        ...mockDocument,
-        nda: { ...mockNda, agencyGroupId: 'other-agency' },
-      } as any);
+    it('should reject access when document is not accessible', async () => {
+      vi.mocked(prisma.document.findFirst).mockResolvedValue(null);
 
       await expect(markDocumentFullyExecuted('doc-123', mockUserContext)).rejects.toThrow(
-        'Access denied'
+        'Document not found'
       );
     });
 
     it('should not fail if status transition fails', async () => {
-      vi.mocked(prisma.document.findUnique).mockResolvedValue({
+      vi.mocked(prisma.document.findFirst).mockResolvedValue({
         ...mockDocument,
         nda: mockNda,
       } as any);
@@ -659,7 +655,7 @@ describe('Document Service', () => {
         authorizedSubagencies: ['subagency-1'],
       };
 
-      vi.mocked(prisma.nda.findUnique).mockResolvedValue({
+      vi.mocked(findNdaWithScope).mockResolvedValue({
         ...mockNda,
         agencyGroupId: 'other-agency',
         subagencyId: 'subagency-1',
@@ -671,20 +667,16 @@ describe('Document Service', () => {
       expect(result).toHaveLength(1);
     });
 
-    it('should deny access when no matching authorization', async () => {
+    it('should deny access when no NDA is accessible', async () => {
       const userWithNoAccess: UserContext = {
         ...mockUserContext,
         authorizedAgencyGroups: ['different-agency'],
         authorizedSubagencies: ['different-subagency'],
       };
 
-      vi.mocked(prisma.nda.findUnique).mockResolvedValue({
-        ...mockNda,
-        agencyGroupId: 'agency-group-1',
-        subagencyId: 'subagency-1',
-      } as any);
+      vi.mocked(findNdaWithScope).mockResolvedValue(null);
 
-      await expect(getNdaDocuments('nda-123', userWithNoAccess)).rejects.toThrow('Access denied');
+      await expect(getNdaDocuments('nda-123', userWithNoAccess)).rejects.toThrow('NDA not found');
     });
   });
 });

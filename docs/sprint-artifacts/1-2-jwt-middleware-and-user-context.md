@@ -1,6 +1,6 @@
 # Story 1.2: JWT Middleware & User Context
 
-Status: review
+Status: done
 
 ## Story
 
@@ -42,28 +42,28 @@ so that **all endpoints are protected and have access to user permissions**.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: Database Schema for Authorization** (AC: 1, 4)
-  - [ ] 1.1: Create `roles` table with default roles (Admin, NDA User, Limited User, Read-Only)
-  - [ ] 1.2: Create `permissions` table with 11 permissions (7 NDA + 4 admin)
-  - [ ] 1.3: Create `role_permissions` junction table
-  - [ ] 1.4: Create `contact_roles` junction table (contacts ↔ roles)
-  - [ ] 1.5: Create `agency_group_grants` table (user → agency group access)
-  - [ ] 1.6: Create `subagency_grants` table (user → specific subagency access)
-  - [ ] 1.7: Create Prisma schema and migration
-  - [ ] 1.8: Create seed data for default roles and permissions
+- [x] **Task 1: Database Schema for Authorization** (AC: 1, 4)
+  - [x] 1.1: Create `roles` table with default roles (Admin, NDA User, Limited User, Read-Only)
+  - [x] 1.2: Create `permissions` table with 11 permissions (7 NDA + 4 admin)
+  - [x] 1.3: Create `role_permissions` junction table
+  - [x] 1.4: Create `contact_roles` junction table (contacts ↔ roles)
+  - [x] 1.5: Create `agency_group_grants` table (user → agency group access)
+  - [x] 1.6: Create `subagency_grants` table (user → specific subagency access)
+  - [x] 1.7: Create Prisma schema and migration
+  - [x] 1.8: Create seed data for default roles and permissions
 
-- [ ] **Task 2: User Context Service** (AC: 1, 4)
-  - [ ] 2.1: Create `src/server/services/userContextService.ts`
-  - [ ] 2.2: Implement `loadUserById(userId)` - fetches contact + roles + permissions
-  - [ ] 2.3: Implement `loadUserPermissions(userId)` - aggregates permissions from roles
-  - [ ] 2.4: Implement `loadUserAgencyAccess(userId)` - returns authorized agency groups and subagencies
-  - [ ] 2.5: Cache user context with TTL (5 minutes recommended)
-  - [ ] 2.6: Add cache invalidation on role/permission changes
+- [x] **Task 2: User Context Service** (AC: 1, 4)
+  - [x] 2.1: Create `src/server/services/userContextService.ts`
+  - [x] 2.2: Implement `loadUserById(userId)` - fetches contact + roles + permissions
+  - [x] 2.3: Implement `loadUserPermissions(userId)` - aggregates permissions from roles
+  - [x] 2.4: Implement `loadUserAgencyAccess(userId)` - returns authorized agency groups and subagencies
+  - [x] 2.5: Cache user context with TTL (5 minutes recommended)
+  - [x] 2.6: Add cache invalidation on role/permission changes
 
-- [ ] **Task 3: Attach User Context Middleware** (AC: 1, 4)
-  - [ ] 3.1: Create `src/server/middleware/attachUserContext.ts`
-  - [ ] 3.2: Load full user context after JWT validation
-  - [ ] 3.3: Populate `req.user` with complete context:
+- [x] **Task 3: Attach User Context Middleware** (AC: 1, 4)
+  - [x] 3.1: Create `src/server/middleware/attachUserContext.ts`
+  - [x] 3.2: Load full user context after JWT validation
+  - [x] 3.3: Populate `req.user` with complete context:
     - `id`: Cognito sub (user ID)
     - `email`: User's email
     - `contactId`: Database contact ID
@@ -71,29 +71,29 @@ so that **all endpoints are protected and have access to user permissions**.
     - `roles`: Array of role names
     - `authorizedAgencyGroups`: Array of agency group IDs
     - `authorizedSubagencies`: Array of subagency IDs
-  - [ ] 3.4: Handle case where user exists in Cognito but not in database (first login)
+  - [x] 3.4: Handle case where user exists in Cognito but not in database (first login)
 
-- [ ] **Task 4: Update JWT Middleware for Real Tokens** (AC: 1, 2, 3)
-  - [ ] 4.1: Update `authenticateJWT.ts` to use `aws-jwt-verify` with real Cognito when `USE_MOCK_AUTH=false`
-  - [ ] 4.2: Configure CognitoJwtVerifier with User Pool ID and Client ID
-  - [ ] 4.3: Implement JWKS caching (aws-jwt-verify handles automatically)
-  - [ ] 4.4: Extract user ID (`sub` claim) and email from validated token
-  - [ ] 4.5: Ensure mock mode still works for development
+- [x] **Task 4: Update JWT Middleware for Real Tokens** (AC: 1, 2, 3)
+  - [x] 4.1: Update `authenticateJWT.ts` to use `aws-jwt-verify` with real Cognito when `USE_MOCK_AUTH=false`
+  - [x] 4.2: Configure CognitoJwtVerifier with User Pool ID and Client ID
+  - [x] 4.3: Implement JWKS caching (aws-jwt-verify handles automatically)
+  - [x] 4.4: Extract user ID (`sub` claim) and email from validated token
+  - [x] 4.5: Ensure mock mode still works for development
 
-- [ ] **Task 5: Middleware Pipeline Integration** (AC: All)
-  - [ ] 5.1: Update `src/server/index.ts` with proper middleware order:
+- [x] **Task 5: Middleware Pipeline Integration** (AC: All)
+  - [x] 5.1: Update `src/server/index.ts` with proper middleware order:
     1. authenticateJWT
     2. attachUserContext
     3. (Future: checkPermissions, scopeToAgencies)
-  - [ ] 5.2: Create TypeScript types for extended Request object
-  - [ ] 5.3: Update Express Request type declaration with `user` property
+  - [x] 5.2: Create TypeScript types for extended Request object
+  - [x] 5.3: Update Express Request type declaration with `user` property
 
-- [ ] **Task 6: Testing** (AC: All)
-  - [ ] 6.1: Unit tests for userContextService
-  - [ ] 6.2: Unit tests for attachUserContext middleware
-  - [ ] 6.3: Integration tests for full middleware pipeline
-  - [ ] 6.4: Test cache invalidation behavior
-  - [ ] 6.5: Test first-login scenario (Cognito user, no DB contact)
+- [x] **Task 6: Testing** (AC: All)
+  - [x] 6.1: Unit tests for userContextService
+  - [x] 6.2: Unit tests for attachUserContext middleware
+  - [x] 6.3: Integration tests for full middleware pipeline
+  - [x] 6.4: Test cache invalidation behavior
+  - [x] 6.5: Test first-login scenario (Cognito user, no DB contact)
 
 ## Dev Notes
 
@@ -270,17 +270,24 @@ N/A
 - This story provides the foundation for RBAC (Story 1.3) and Row-Level Security (Story 1.4)
 - The `req.user.permissions` set will be used by `checkPermissions` middleware in Story 1.3
 - The `req.user.authorizedAgencyGroups/authorizedSubagencies` will be used by `scopeToAgencies` middleware in Story 1.4
+- Middleware now merges full user context into `req.user` and blocks inactive users
+- Added unit and integration tests for user context service/middleware and cache invalidation
 
 ### File List
-Files to create:
+Files created:
+- `src/server/middleware/__tests__/attachUserContext.test.ts`
+- `src/server/middleware/__tests__/middlewarePipeline.test.ts`
+- `src/server/services/__tests__/userContextService.test.ts`
+
+Files modified:
 - `prisma/schema.prisma` updates (roles, permissions tables)
 - `prisma/migrations/` - Migration for auth tables
 - `prisma/seed.ts` - Seed data for roles/permissions
 - `src/server/services/userContextService.ts`
 - `src/server/middleware/attachUserContext.ts`
 - `src/server/types/auth.ts` - TypeScript types
-- Test files for new services/middleware
-
-Files to modify:
 - `src/server/middleware/authenticateJWT.ts` - Add real Cognito support
 - `src/server/index.ts` - Update middleware pipeline
+- `src/server/services/__tests__/companySuggestionsService.test.ts` - Fix UserContext type import
+- `src/server/services/__tests__/agencySuggestionsService.test.ts` - Fix UserContext type import
+- `src/server/services/__tests__/documentGenerationService.test.ts` - Fix UserContext type import

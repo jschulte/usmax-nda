@@ -13,17 +13,26 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+const mockTx = {
+  agencyGroup: {
+    findMany: vi.fn(),
+    findUnique: vi.fn(),
+    findFirst: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+  },
+  auditLog: {
+    create: vi.fn(),
+  },
+};
+
 // Mock prisma - must be defined before imports
 vi.mock('../../db/index.js', () => ({
   prisma: {
-    agencyGroup: {
-      findMany: vi.fn(),
-      findUnique: vi.fn(),
-      findFirst: vi.fn(),
-      create: vi.fn(),
-      update: vi.fn(),
-      delete: vi.fn(),
-    },
+    agencyGroup: mockTx.agencyGroup,
+    auditLog: mockTx.auditLog,
+    $transaction: vi.fn(async (callback: (tx: typeof mockTx) => Promise<unknown>) => callback(mockTx)),
   },
 }));
 
@@ -39,18 +48,6 @@ import { prisma } from '../../db/index.js';
 
 // Get the mocked prisma for assertions
 const mockPrisma = vi.mocked(prisma);
-
-// Mock audit service
-vi.mock('../auditService.js', () => ({
-  auditService: {
-    log: vi.fn().mockResolvedValue(undefined),
-  },
-  AuditAction: {
-    AGENCY_GROUP_CREATED: 'agency_group_created',
-    AGENCY_GROUP_UPDATED: 'agency_group_updated',
-    AGENCY_GROUP_DELETED: 'agency_group_deleted',
-  },
-}));
 
 describe('Agency Group Service', () => {
   beforeEach(() => {
@@ -171,6 +168,7 @@ describe('Agency Group Service', () => {
           description: 'Commercial clients',
         },
       });
+      expect(mockPrisma.auditLog.create).toHaveBeenCalled();
       expect(result).toEqual(mockGroup);
     });
 
@@ -208,6 +206,24 @@ describe('Agency Group Service', () => {
         await createAgencyGroup({ name: 'New Name', code: 'COMMERCIAL' }, 'user-123');
       } catch (error) {
         expect(error).toBeInstanceOf(AgencyGroupError);
+        expect((error as AgencyGroupError).code).toBe('DUPLICATE_CODE');
+      }
+    });
+
+    it('maps unique constraint errors to duplicate name', async () => {
+      mockPrisma.$transaction.mockRejectedValueOnce({
+        code: 'P2002',
+        meta: { target: ['name'] },
+      });
+
+      await expect(
+        createAgencyGroup({ name: 'DoD', code: 'DOD' }, 'user-123')
+      ).rejects.toThrow(AgencyGroupError);
+
+      try {
+        await createAgencyGroup({ name: 'DoD', code: 'DOD' }, 'user-123');
+      } catch (error) {
+        expect(error).toBeInstanceOf(AgencyGroupError);
         expect((error as AgencyGroupError).code).toBe('DUPLICATE_NAME');
       }
     });
@@ -242,6 +258,7 @@ describe('Agency Group Service', () => {
         'user-123'
       );
 
+      expect(mockPrisma.auditLog.create).toHaveBeenCalled();
       expect(result).toEqual(updatedGroup);
     });
 
@@ -310,6 +327,7 @@ describe('Agency Group Service', () => {
       expect(mockPrisma.agencyGroup.delete).toHaveBeenCalledWith({
         where: { id: 'group-1' },
       });
+      expect(mockPrisma.auditLog.create).toHaveBeenCalled();
     });
 
     it('throws error when group not found', async () => {
@@ -344,7 +362,10 @@ describe('Agency Group Service', () => {
       } catch (error) {
         expect(error).toBeInstanceOf(AgencyGroupError);
         expect((error as AgencyGroupError).code).toBe('HAS_SUBAGENCIES');
-        expect((error as AgencyGroupError).message).toContain('5 existing subagencies');
+        expect((error as AgencyGroupError).message).toBe(
+          'Cannot delete agency group with existing subagencies'
+        );
+        expect((error as AgencyGroupError).details).toEqual({ subagencyCount: 5 });
       }
     });
   });

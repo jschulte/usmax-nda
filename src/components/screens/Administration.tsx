@@ -2,12 +2,19 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '../ui/AppCard';
 import { Button } from '../ui/AppButton';
-import { Settings, Users, Shield, Bell, FileText } from 'lucide-react';
+import { Settings, Users, Shield, Bell, FileText, Building } from 'lucide-react';
 
 export function Administration() {
   const navigate = useNavigate();
   
   const adminSections = [
+    {
+      icon: Building,
+      title: 'Agency Groups',
+      description: 'Manage agency group hierarchy and organization',
+      color: 'bg-indigo-100 text-indigo-600',
+      path: '/administration/agency-groups'
+    },
     {
       icon: Users,
       title: 'User Management',

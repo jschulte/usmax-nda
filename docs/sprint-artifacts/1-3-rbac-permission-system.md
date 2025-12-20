@@ -300,24 +300,36 @@ router.get('/api/admin/users',
 - Dependencies: Story 1.1 (completed), Story 1.2 (user context)
 
 ### Agent Model Used
-Claude Opus 4.5 (claude-opus-4-5-20250929)
+Codex (GPT-5)
 
 ### Debug Log References
 N/A
 
 ### Completion Notes List
-- This middleware works with Story 1.2's user context
-- Story 1.4 (Row-Level Security) handles agency-based data filtering
-- Permission checks occur BEFORE agency filtering in middleware pipeline
+- Replaced `admin:bypass` checks in services with Admin role checks for row-level security
+- Ensured `req.user.permissions` and `req.user.roles` are populated after user context load
+- Aligned template admin routes and content gating to `admin:manage_templates`
+- Updated mock user permissions to match permission constants
+- Added permission mapping documentation and admin role-management route tests
 
 ### File List
-Files to create:
-- `src/server/constants/permissions.ts`
-- `src/server/middleware/checkPermissions.ts`
-- `src/server/routes/admin/roles.ts`
-- Test files for middleware and routes
+Files created:
+- `docs/permission-mapping.md`
+- `src/server/routes/__tests__/admin.test.ts`
 
-Files to modify:
-- `prisma/seed.ts` - Add role-permission matrix
-- `src/server/index.ts` - Wire up admin routes
-- `src/server/services/auditService.ts` - Add new audit actions
+Files modified:
+- `docs/sprint-artifacts/1-3-rbac-permission-system.md`
+- `src/server/middleware/attachUserContext.ts`
+- `src/server/middleware/authenticateJWT.ts`
+- `src/server/routes/templates.ts`
+- `src/server/services/agencyScopeService.ts`
+- `src/server/services/agencySuggestionsService.ts`
+- `src/server/services/companySuggestionsService.ts`
+- `src/server/services/documentGenerationService.ts`
+- `src/server/services/ndaService.ts`
+- `src/server/services/notificationService.ts`
+- `src/server/services/templateService.ts`
+- `src/server/services/userContextService.ts`
+- `src/server/services/__tests__/agencySuggestionsService.test.ts`
+- `src/server/services/__tests__/companySuggestionsService.test.ts`
+- `src/server/services/__tests__/documentGenerationService.test.ts`

@@ -1,6 +1,6 @@
 # Story 1.4: Row-Level Security Implementation
 
-Status: review
+Status: done
 
 ## Story
 
@@ -42,48 +42,47 @@ so that **I don't access NDAs outside my scope (compliance requirement)**.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: scopeToAgencies Middleware** (AC: 1, 2, 3)
-  - [ ] 1.1: Create `src/server/middleware/scopeToAgencies.ts`
-  - [ ] 1.2: Read user's authorizedAgencyGroups and authorizedSubagencies from req.user
-  - [ ] 1.3: Compute complete list of authorized subagency IDs
-  - [ ] 1.4: Attach `req.agencyScope` with Prisma where clause
-  - [ ] 1.5: Handle case where user has no agency access (return empty results)
+- [x] **Task 1: scopeToAgencies Middleware** (AC: 1, 2, 3)
+  - [x] 1.1: Create `src/server/middleware/scopeToAgencies.ts`
+  - [x] 1.2: Read user's authorizedAgencyGroups and authorizedSubagencies from req.user
+  - [x] 1.3: Compute complete list of authorized subagency IDs
+  - [x] 1.4: Attach `req.agencyScope` with Prisma where clause
+  - [x] 1.5: Handle case where user has no agency access (return empty results)
 
-- [ ] **Task 2: getUserAgencyScope Helper** (AC: 4, 5)
-  - [ ] 2.1: Create `src/server/services/agencyScopeService.ts`
-  - [ ] 2.2: Implement `getUserAgencyScope(userId)` function
-  - [ ] 2.3: Query subagency_grants for direct subagency access
-  - [ ] 2.4: Query agency_group_grants and expand to all subagencies in each group
-  - [ ] 2.5: Return `{ subagencyId: { in: [...authorizedIds] } }` Prisma clause
-  - [ ] 2.6: Cache authorized IDs with TTL (reuse from userContextService)
+- [x] **Task 2: getUserAgencyScope Helper** (AC: 4, 5)
+  - [x] 2.1: Create `src/server/services/agencyScopeService.ts`
+  - [x] 2.2: Implement `getUserAgencyScope(userId)` function
+  - [x] 2.3: Query subagency_grants for direct subagency access
+  - [x] 2.4: Query agency_group_grants and expand to all subagencies in each group
+  - [x] 2.5: Return `{ subagencyId: { in: [...authorizedIds] } }` Prisma clause
+  - [x] 2.6: Cache authorized IDs with TTL (reuse from userContextService)
 
-- [ ] **Task 3: Scope Helper Integration** (AC: 1, 2, 4)
-  - [ ] 3.1: Create `applyAgencyScope(baseWhere, req.user)` wrapper function
-  - [ ] 3.2: Document mandatory usage pattern in code comments
-  - [ ] 3.3: Create ESLint rule or code review checklist for scope enforcement
+- [x] **Task 3: Scope Helper Integration** (AC: 1, 2, 4)
+  - [x] 3.1: Create `applyAgencyScope(baseWhere, req.user)` wrapper function
+  - [x] 3.2: Document mandatory usage pattern in code comments
+  - [x] 3.3: Create ESLint rule or code review checklist for scope enforcement
 
-- [ ] **Task 4: 404 Not Found Pattern** (AC: 3)
-  - [ ] 4.1: Create `withAgencyScope` wrapper for findUnique/findFirst
-  - [ ] 4.2: Return null when NDA exists but user not authorized (becomes 404)
-  - [ ] 4.3: Ensure no information leakage in error responses
-  - [ ] 4.4: Log unauthorized access attempts to audit log (silently)
+- [x] **Task 4: 404 Not Found Pattern** (AC: 3)
+  - [x] 4.1: Create `withAgencyScope` wrapper for findUnique/findFirst
+  - [x] 4.2: Return null when NDA exists but user not authorized (becomes 404)
+  - [x] 4.3: Ensure no information leakage in error responses
+  - [x] 4.4: Log unauthorized access attempts to audit log (silently)
 
-- [ ] **Task 5: Apply to NDA Routes** (AC: All)
-  - [ ] 5.1: Update `GET /api/ndas` to use agency scope
-  - [ ] 5.2: Update `GET /api/ndas/:id` to use agency scope with 404 pattern
-  - [ ] 5.3: Update `GET /api/ndas/:id/documents` to scope by NDA
-  - [ ] 5.4: Update `GET /api/ndas/:id/history` to scope by NDA
-  - [ ] 5.5: Update any count/aggregation queries
+- [x] **Task 5: Apply to NDA Routes** (AC: All)
+  - [x] 5.1: Update `GET /api/ndas` to use agency scope
+  - [x] 5.2: Update `GET /api/ndas/:id` to use agency scope with 404 pattern
+  - [x] 5.3: Update `GET /api/ndas/:id/documents` to scope by NDA
+  - [x] 5.4: Update `GET /api/ndas/:id/history` to scope by NDA
+  - [x] 5.5: Update any count/aggregation queries
 
-- [ ] **Task 6: Testing** (AC: All)
-  - [ ] 6.1: Unit tests for getUserAgencyScope helper
-  - [ ] 6.2: Test agency group access (all subagencies visible)
-  - [ ] 6.3: Test specific subagency access (only that subagency visible)
-  - [ ] 6.4: Test combined access (union of both)
-  - [ ] 6.5: Test 404 response for unauthorized NDA access
-  - [ ] 6.6: Test no agency access returns empty results
-  - [ ] 6.7: Integration tests for scoped NDA endpoints
-
+- [x] **Task 6: Testing** (AC: All)
+  - [x] 6.1: Unit tests for getUserAgencyScope helper
+  - [x] 6.2: Test agency group access (all subagencies visible)
+  - [x] 6.3: Test specific subagency access (only that subagency visible)
+  - [x] 6.4: Test combined access (union of both)
+  - [x] 6.5: Test 404 response for unauthorized NDA access
+  - [x] 6.6: Test no agency access returns empty results
+  - [x] 6.7: Integration tests for scoped NDA endpoints
 ## Dev Notes
 
 ### Row-Level Security SQL Pattern
@@ -336,25 +335,45 @@ Note: scopeToAgencies runs AFTER checkPermissions. User must have the required p
 - Dependencies: Story 1.1 (completed), Story 1.2 (user context), Story 1.3 (permissions)
 
 ### Agent Model Used
-Claude Opus 4.5 (claude-opus-4-5-20250929)
+- Claude Opus 4.5 (claude-opus-4-5-20250929)
+- OpenAI Codex (GPT-5) - review fixes
 
 ### Debug Log References
 N/A
 
 ### Completion Notes List
-- This is the final layer of authorization (after permissions)
-- All NDA queries MUST use agency scope - no exceptions
-- 404 pattern prevents information leakage about unauthorized NDAs
-- Audit logging captures unauthorized access attempts silently
+- Added cached agency scope expansion and contactId-aware lookup for scope computation
+- Scoped NDA data access through buildSecurityFilter/findNdaWithScope, including 404 pattern and audit logging
+- Fixed combined agency group + direct subagency access in middleware
+- Added row-level security checklist and expanded tests (scope helper, NDA route integration, updated service tests)
 
 ### File List
 Files to create:
-- `src/server/middleware/scopeToAgencies.ts`
-- `src/server/services/agencyScopeService.ts`
-- `src/server/utils/scopedQuery.ts`
-- Test files for middleware and services
+- `docs/checklists/nda-scope-checklist.md`
+- `src/server/services/__tests__/agencyScopeService.test.ts`
+- `src/server/routes/__tests__/ndas.test.ts`
 
 Files to modify:
-- `src/server/index.ts` - Add scopeToAgencies to middleware pipeline
-- `src/server/types/auth.ts` - Extend Request type with agencyScope
-- `src/server/services/auditService.ts` - Add UNAUTHORIZED_ACCESS_ATTEMPT action
+- `src/server/services/userContextService.ts`
+- `src/server/services/agencyScopeService.ts`
+- `src/server/middleware/scopeToAgencies.ts`
+- `src/server/routes/ndas.ts`
+- `src/server/services/ndaService.ts`
+- `src/server/services/emailService.ts`
+- `src/server/services/notificationService.ts`
+- `src/server/routes/auditLogs.ts`
+- `src/server/services/companySuggestionsService.ts`
+- `src/server/services/agencySuggestionsService.ts`
+- `src/server/services/dashboardService.ts`
+- `src/server/utils/scopedQuery.ts`
+- `src/server/services/documentService.ts`
+- `src/server/services/documentGenerationService.ts`
+- `src/server/services/templateService.ts`
+- `src/server/middleware/__tests__/scopeToAgencies.test.ts`
+- `src/server/services/__tests__/documentService.test.ts`
+- `src/server/services/__tests__/ndaService.test.ts`
+- `src/server/services/__tests__/documentGenerationService.test.ts`
+- `src/server/services/__tests__/agencySuggestionsService.test.ts`
+- `src/server/services/__tests__/companySuggestionsService.test.ts`
+- `src/server/services/__tests__/emailService.test.ts`
+- `src/server/services/__tests__/notificationService.test.ts`

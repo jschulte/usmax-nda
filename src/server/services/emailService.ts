@@ -113,10 +113,11 @@ async function getAccessibleNdaOrThrow<T extends object>(
   userContext: UserContext,
   opts: { include?: T; select?: T } = {}
 ): Promise<any> {
+  const securityFilter = await buildSecurityFilter(userContext);
   const nda = await prisma.nda.findFirst({
     where: {
       id: ndaId,
-      ...buildSecurityFilter(userContext),
+      ...securityFilter,
     },
     ...(opts as any),
   });

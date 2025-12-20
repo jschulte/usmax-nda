@@ -66,12 +66,8 @@ export async function attachUserContext(
         userAgent: req.headers['user-agent'],
       });
 
-      console.log(`[User Context] Auto-provisioned new user: ${req.user.email}`);
     }
 
-    // Check if user is active
-    // Note: We need to verify the contact is still active
-    // The userContextService doesn't filter inactive users, so we check here
     if (!userContext) {
       return res.status(401).json({
         error: 'User account not found',
@@ -79,8 +75,23 @@ export async function attachUserContext(
       });
     }
 
+    // Block inactive users (soft-deactivated)
+    if (userContext.active === false) {
+      return res.status(401).json({
+        error: 'User account is inactive',
+        code: 'USER_INACTIVE',
+      });
+    }
+
     // Attach full context to request
     req.userContext = userContext;
+    req.user = {
+      ...req.user,
+      ...userContext,
+      // Explicitly surface permissions/roles on req.user (AC2)
+      permissions: userContext.permissions,
+      roles: userContext.roles,
+    };
 
     next();
   } catch (error) {
@@ -109,8 +120,14 @@ export async function attachUserContextOptional(
 
   try {
     const userContext = await loadUserContext(req.user.id);
-    if (userContext) {
+    if (userContext && userContext.active !== false) {
       req.userContext = userContext;
+      req.user = {
+        ...req.user,
+        ...userContext,
+        permissions: userContext.permissions,
+        roles: userContext.roles,
+      };
     }
   } catch (error) {
     console.warn('[User Context] Optional context load failed:', error);

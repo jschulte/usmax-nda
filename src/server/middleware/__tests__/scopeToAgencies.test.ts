@@ -91,7 +91,7 @@ describe('scopeToAgencies Middleware', () => {
     it('uses pre-computed subagencies from userContext', async () => {
       const authorizedSubagencies = ['sub-1', 'sub-2', 'sub-3'];
       const req = createMockRequest({
-        authorizedAgencyGroups: ['group-1'],
+        authorizedAgencyGroups: [],
         authorizedSubagencies,
       }) as Request;
       const res = createMockResponse() as Response;
@@ -128,12 +128,17 @@ describe('scopeToAgencies Middleware', () => {
       }) as Request;
       const res = createMockResponse() as Response;
 
+      vi.mocked(getUserAgencyScope).mockResolvedValue({
+        subagencyId: { in: ['dod-sub-1', 'dod-sub-2', 'commercial-sub-1', 'group-sub-1'] },
+      });
+
       await scopeToAgencies(req, res, mockNext);
 
       expect(req.agencyScope).toEqual({
-        subagencyId: { in: ['dod-sub-1', 'dod-sub-2', 'commercial-sub-1'] },
+        subagencyId: { in: ['dod-sub-1', 'dod-sub-2', 'commercial-sub-1', 'group-sub-1'] },
       });
       expect(mockNext).toHaveBeenCalled();
+      expect(getUserAgencyScope).toHaveBeenCalled();
     });
   });
 

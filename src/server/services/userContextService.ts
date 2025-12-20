@@ -13,6 +13,7 @@
 import prisma from '../db/index.js';
 import type { UserContext } from '../types/auth.js';
 import { ROLE_NAMES } from '../types/auth.js';
+import { PERMISSIONS } from '../constants/permissions.js';
 
 // =============================================================================
 // MOCK MODE DETECTION
@@ -29,12 +30,9 @@ const MOCK_USERS: Record<string, UserContext> = {
     email: 'admin@usmax.com',
     contactId: 'mock-contact-001',
     name: 'Admin User',
-    permissions: new Set([
-      'nda:view', 'nda:create', 'nda:update', 'nda:delete',
-      'admin:manage_users', 'admin:manage_roles', 'admin:view_audit_logs',
-      'admin:bypass'
-    ]),
-    roles: ['Admin'],
+    active: true,
+    permissions: new Set(Object.values(PERMISSIONS)),
+    roles: [ROLE_NAMES.ADMIN],
     authorizedAgencyGroups: ['mock-agency-1', 'mock-agency-2'],
     authorizedSubagencies: ['mock-subagency-1'],
   },
@@ -43,8 +41,13 @@ const MOCK_USERS: Record<string, UserContext> = {
     email: 'test@usmax.com',
     contactId: 'mock-contact-002',
     name: 'Test User',
-    permissions: new Set(['nda:view', 'nda:create', 'nda:update']),
-    roles: ['NDA User'],
+    active: true,
+    permissions: new Set([
+      PERMISSIONS.NDA_VIEW,
+      PERMISSIONS.NDA_CREATE,
+      PERMISSIONS.NDA_UPDATE,
+    ]),
+    roles: [ROLE_NAMES.NDA_USER],
     authorizedAgencyGroups: ['mock-agency-1'],
     authorizedSubagencies: [],
   },
@@ -59,8 +62,15 @@ interface CachedContext {
   expires: number;
 }
 
+interface CachedScope {
+  ids: string[];
+  expires: number;
+}
+
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 const userContextCache = new Map<string, CachedContext>();
+const agencyScopeCache = new Map<string, CachedScope>();
+const contactIdCache = new Map<string, string>();
 
 // =============================================================================
 // PUBLIC API
@@ -84,6 +94,7 @@ export async function loadUserContext(cognitoId: string): Promise<UserContext | 
     const mockUser = MOCK_USERS[cognitoId];
     if (mockUser) {
       setCachedContext(cognitoId, mockUser);
+      contactIdCache.set(mockUser.contactId, cognitoId);
       return mockUser;
     }
     // For any unrecognized user in mock mode, create a default context
@@ -92,12 +103,14 @@ export async function loadUserContext(cognitoId: string): Promise<UserContext | 
       email: 'unknown@usmax.com',
       contactId: `mock-contact-${cognitoId}`,
       name: 'Unknown User',
-      permissions: new Set(['nda:view']),
-      roles: ['Read-Only'],
+      active: true,
+      permissions: new Set([PERMISSIONS.NDA_VIEW]),
+      roles: [ROLE_NAMES.READ_ONLY],
       authorizedAgencyGroups: [],
       authorizedSubagencies: [],
     };
     setCachedContext(cognitoId, defaultMockUser);
+    contactIdCache.set(defaultMockUser.contactId, cognitoId);
     return defaultMockUser;
   }
 
@@ -160,6 +173,7 @@ export async function loadUserContext(cognitoId: string): Promise<UserContext | 
     email: contact.email,
     contactId: contact.id,
     name: [contact.firstName, contact.lastName].filter(Boolean).join(' ') || undefined,
+    active: contact.active,
     permissions,
     roles,
     authorizedAgencyGroups,
@@ -168,6 +182,7 @@ export async function loadUserContext(cognitoId: string): Promise<UserContext | 
 
   // Cache the result
   setCachedContext(cognitoId, userContext);
+  contactIdCache.set(userContext.contactId, cognitoId);
 
   return userContext;
 }
@@ -179,6 +194,11 @@ export async function loadUserContext(cognitoId: string): Promise<UserContext | 
  * @returns UserContext or null if user not found
  */
 export async function loadUserContextByContactId(contactId: string): Promise<UserContext | null> {
+  const cachedCognitoId = contactIdCache.get(contactId);
+  if (cachedCognitoId) {
+    return loadUserContext(cachedCognitoId);
+  }
+
   const contact = await prisma.contact.findUnique({
     where: { id: contactId },
     select: { cognitoId: true },
@@ -210,12 +230,14 @@ export async function createContactForFirstLogin(
       email,
       contactId: `mock-contact-${Date.now()}`,
       name: email.split('@')[0],
+      active: true,
       permissions: new Set(['nda:view']),
       roles: ['Read-Only'],
       authorizedAgencyGroups: [],
       authorizedSubagencies: [],
     };
     setCachedContext(cognitoId, mockContext);
+    contactIdCache.set(mockContext.contactId, cognitoId);
     return mockContext;
   }
 
@@ -223,6 +245,10 @@ export async function createContactForFirstLogin(
   const readOnlyRole = await prisma.role.findUnique({
     where: { name: ROLE_NAMES.READ_ONLY },
   });
+
+  if (!readOnlyRole) {
+    throw new Error('Default role not found: Read-Only');
+  }
 
   // Create contact with default Read-Only role
   const contact = await prisma.contact.create({
@@ -267,6 +293,7 @@ export async function createContactForFirstLogin(
     id: cognitoId,
     email,
     contactId: contact.id,
+    active: contact.active,
     permissions,
     roles,
     authorizedAgencyGroups: [],
@@ -275,6 +302,7 @@ export async function createContactForFirstLogin(
 
   // Cache the new context
   setCachedContext(cognitoId, userContext);
+  contactIdCache.set(userContext.contactId, cognitoId);
 
   return userContext;
 }
@@ -286,36 +314,26 @@ export async function createContactForFirstLogin(
  * @param userId - Either Cognito ID or contact ID
  * @returns Array of authorized subagency IDs
  */
-export async function getAuthorizedSubagencyIds(userId: string): Promise<string[]> {
-  // Try to get from cache first
-  const cached = getCachedContext(userId);
-  if (cached) {
-    // Combine direct subagency access with expanded agency group access
-    const directSubagencies = cached.authorizedSubagencies;
-
-    // Get all subagencies from authorized agency groups
-    const groupSubagencies = await prisma.subagency.findMany({
-      where: {
-        agencyGroupId: { in: cached.authorizedAgencyGroups },
-      },
-      select: { id: true },
-    });
-
-    const allSubagencyIds = new Set([
-      ...directSubagencies,
-      ...groupSubagencies.map((s) => s.id),
-    ]);
-
-    return Array.from(allSubagencyIds);
+export async function getAuthorizedSubagencyIds(cognitoId: string): Promise<string[]> {
+  const cachedScope = getCachedScope(cognitoId);
+  if (cachedScope) {
+    return cachedScope.ids;
   }
 
-  // Load fresh context and get subagencies
-  const context = await loadUserContext(userId);
+  const context = await loadUserContext(cognitoId);
   if (!context) {
     return [];
   }
 
-  // Get all subagencies from authorized agency groups
+  const directSubagencies = context.authorizedSubagencies || [];
+
+  // In mock mode, skip database expansion
+  if (useMockMode) {
+    const deduped = Array.from(new Set(directSubagencies));
+    setCachedScope(cognitoId, deduped);
+    return deduped;
+  }
+
   const groupSubagencies = await prisma.subagency.findMany({
     where: {
       agencyGroupId: { in: context.authorizedAgencyGroups },
@@ -324,11 +342,41 @@ export async function getAuthorizedSubagencyIds(userId: string): Promise<string[
   });
 
   const allSubagencyIds = new Set([
-    ...context.authorizedSubagencies,
+    ...directSubagencies,
     ...groupSubagencies.map((s) => s.id),
   ]);
 
-  return Array.from(allSubagencyIds);
+  const expanded = Array.from(allSubagencyIds);
+  setCachedScope(cognitoId, expanded);
+
+  return expanded;
+}
+
+/**
+ * Get authorized subagency IDs using a contact ID (UUID)
+ * Reuses the user context cache for TTL behavior.
+ */
+export async function getAuthorizedSubagencyIdsByContactId(contactId: string): Promise<string[]> {
+  const cachedCognitoId = contactIdCache.get(contactId);
+  if (cachedCognitoId) {
+    return getAuthorizedSubagencyIds(cachedCognitoId);
+  }
+
+  if (useMockMode) {
+    // In mock mode, there may not be a database contact record
+    return [];
+  }
+
+  const contact = await prisma.contact.findUnique({
+    where: { id: contactId },
+    select: { cognitoId: true },
+  });
+
+  if (!contact?.cognitoId) {
+    return [];
+  }
+
+  return getAuthorizedSubagencyIds(contact.cognitoId);
 }
 
 /**
@@ -339,6 +387,13 @@ export async function getAuthorizedSubagencyIds(userId: string): Promise<string[
  */
 export function invalidateUserContext(cognitoId: string): void {
   userContextCache.delete(cognitoId);
+  agencyScopeCache.delete(cognitoId);
+  // Best-effort cleanup for reverse lookup
+  for (const [contactId, cachedCognitoId] of contactIdCache.entries()) {
+    if (cachedCognitoId === cognitoId) {
+      contactIdCache.delete(contactId);
+    }
+  }
 }
 
 /**
@@ -347,6 +402,8 @@ export function invalidateUserContext(cognitoId: string): void {
  */
 export function clearAllUserContextCache(): void {
   userContextCache.clear();
+  agencyScopeCache.clear();
+  contactIdCache.clear();
 }
 
 // =============================================================================
@@ -368,6 +425,25 @@ function getCachedContext(cognitoId: string): UserContext | null {
 function setCachedContext(cognitoId: string, context: UserContext): void {
   userContextCache.set(cognitoId, {
     context,
+    expires: Date.now() + CACHE_TTL_MS,
+  });
+  contactIdCache.set(context.contactId, cognitoId);
+}
+
+function getCachedScope(cognitoId: string): CachedScope | null {
+  const cached = agencyScopeCache.get(cognitoId);
+  if (cached && cached.expires > Date.now()) {
+    return cached;
+  }
+  if (cached) {
+    agencyScopeCache.delete(cognitoId);
+  }
+  return null;
+}
+
+function setCachedScope(cognitoId: string, ids: string[]): void {
+  agencyScopeCache.set(cognitoId, {
+    ids,
     expires: Date.now() + CACHE_TTL_MS,
   });
 }

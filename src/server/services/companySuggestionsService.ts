@@ -10,7 +10,7 @@
 
 import prisma from '../db/index.js';
 import type { UserContext } from '../types/auth.js';
-import { Prisma } from '../../generated/prisma/index.js';
+import { buildSecurityFilter } from './ndaService.js';
 
 export interface CompanyDefaults {
   companyCity?: string;
@@ -76,36 +76,6 @@ function getMostFrequentValue<T>(ndas: any[], field: string): T | undefined {
 }
 
 /**
- * Build security filter for NDA queries based on user's authorized agencies
- */
-function buildSecurityFilter(userContext: UserContext): Prisma.NdaWhereInput {
-  // Admins can see all NDAs
-  if (userContext.permissions.has('admin:bypass')) {
-    return {};
-  }
-
-  const agencyGroups = userContext.authorizedAgencyGroups || [];
-  const subagencies = userContext.authorizedSubagencies || [];
-
-  // If no access granted, return impossible filter
-  if (agencyGroups.length === 0 && subagencies.length === 0) {
-    return { id: 'no-access-impossible-id' };
-  }
-
-  const conditions: Prisma.NdaWhereInput[] = [];
-
-  if (agencyGroups.length > 0) {
-    conditions.push({ agencyGroupId: { in: agencyGroups } });
-  }
-
-  if (subagencies.length > 0) {
-    conditions.push({ subagencyId: { in: subagencies } });
-  }
-
-  return { OR: conditions };
-}
-
-/**
  * Get recent companies used by a user
  * Returns last 10 unique companies used, sorted by most recent first
  */
@@ -113,7 +83,7 @@ export async function getRecentCompanies(
   userContext: UserContext,
   limit: number = 10
 ): Promise<RecentCompany[]> {
-  const securityFilter = buildSecurityFilter(userContext);
+  const securityFilter = await buildSecurityFilter(userContext);
 
   // Get NDAs created by this user (or accessible to them)
   const ndas = await prisma.nda.findMany({
@@ -173,7 +143,7 @@ export async function getCompanyDefaults(
   companyName: string,
   userContext: UserContext
 ): Promise<CompanyDefaults> {
-  const securityFilter = buildSecurityFilter(userContext);
+  const securityFilter = await buildSecurityFilter(userContext);
 
   // Get historical NDAs for this company
   const historicalNdas = await prisma.nda.findMany({
@@ -300,7 +270,7 @@ export async function getMostCommonAgency(
   companyName: string,
   userContext: UserContext
 ): Promise<{ agencyGroupId?: string; agencyGroupName?: string; frequency?: number } | null> {
-  const securityFilter = buildSecurityFilter(userContext);
+  const securityFilter = await buildSecurityFilter(userContext);
 
   const historicalNdas = await prisma.nda.findMany({
     where: {
@@ -371,7 +341,7 @@ export async function searchCompanies(
   userContext: UserContext,
   limit: number = 20
 ): Promise<{ companyName: string; count: number }[]> {
-  const securityFilter = buildSecurityFilter(userContext);
+  const securityFilter = await buildSecurityFilter(userContext);
 
   const ndas = await prisma.nda.findMany({
     where: {

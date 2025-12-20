@@ -39,6 +39,7 @@ import { Router } from 'express';
 import { authenticateJWT } from '../middleware/authenticateJWT.js';
 import { attachUserContext } from '../middleware/attachUserContext.js';
 import { requirePermission, requireAnyPermission } from '../middleware/checkPermissions.js';
+import { scopeToAgencies } from '../middleware/scopeToAgencies.js';
 import { PERMISSIONS } from '../constants/permissions.js';
 import {
   createNda,
@@ -104,6 +105,7 @@ const router = Router();
 // All routes require authentication and user context
 router.use(authenticateJWT);
 router.use(attachUserContext);
+router.use(scopeToAgencies);
 
 /**
  * GET /api/ndas/status-info

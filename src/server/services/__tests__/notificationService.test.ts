@@ -54,6 +54,10 @@ vi.mock('../auditService.js', () => ({
   },
 }));
 
+vi.mock('../ndaService.js', () => ({
+  buildSecurityFilter: vi.fn().mockResolvedValue({}),
+}));
+
 import { prisma } from '../../db/index.js';
 const mockPrisma = vi.mocked(prisma);
 

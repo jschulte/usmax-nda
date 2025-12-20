@@ -25,6 +25,8 @@ import { uploadDocument } from './s3Service.js';
 import { auditService, AuditAction } from './auditService.js';
 import type { UserContext } from '../types/auth.js';
 import type { Nda, DocumentType } from '../../generated/prisma/index.js';
+import { buildSecurityFilter } from './ndaService.js';
+import { findNdaWithScope } from '../utils/scopedQuery.js';
 
 // Re-export DocumentType
 export { DocumentType } from '../../generated/prisma/index.js';
@@ -218,8 +220,7 @@ async function getNdaWithRelations(
   contractsPoc?: { firstName?: string | null; lastName?: string | null } | null;
   relationshipPoc: { firstName?: string | null; lastName?: string | null };
 } | null> {
-  const nda = await prisma.nda.findUnique({
-    where: { id: ndaId },
+  return findNdaWithScope(ndaId, userContext, {
     include: {
       agencyGroup: { select: { name: true } },
       subagency: { select: { name: true } },
@@ -228,40 +229,6 @@ async function getNdaWithRelations(
       relationshipPoc: { select: { firstName: true, lastName: true } },
     },
   });
-
-  if (!nda) return null;
-
-  // Security check: verify user has access to this NDA's agency
-  const hasAccess = await checkAgencyAccess(nda.agencyGroupId, nda.subagencyId, userContext);
-  if (!hasAccess) return null;
-
-  return nda;
-}
-
-/**
- * Check if user has access to NDA's agency
- */
-async function checkAgencyAccess(
-  agencyGroupId: string,
-  subagencyId: string | null,
-  userContext: UserContext
-): Promise<boolean> {
-  // Admins have full access
-  if (userContext.permissions.has('admin:bypass')) {
-    return true;
-  }
-
-  // Check agency group access
-  if (userContext.authorizedAgencyGroups.includes(agencyGroupId)) {
-    return true;
-  }
-
-  // Check subagency access
-  if (subagencyId && userContext.authorizedSubagencies.includes(subagencyId)) {
-    return true;
-  }
-
-  return false;
 }
 
 /**
@@ -726,27 +693,15 @@ export async function getDocumentById(
   documentType: DocumentType;
   uploadedAt: Date;
 } | null> {
-  const document = await prisma.document.findUnique({
-    where: { id: documentId },
-    include: {
-      nda: {
-        select: {
-          agencyGroupId: true,
-          subagencyId: true,
-        },
-      },
+  const securityFilter = await buildSecurityFilter(userContext);
+  const document = await prisma.document.findFirst({
+    where: {
+      id: documentId,
+      nda: securityFilter,
     },
   });
 
   if (!document) return null;
-
-  // Security check
-  const hasAccess = await checkAgencyAccess(
-    document.nda.agencyGroupId,
-    document.nda.subagencyId,
-    userContext
-  );
-  if (!hasAccess) return null;
 
   return {
     id: document.id,
@@ -773,15 +728,11 @@ export async function listNdaDocuments(
   uploadedBy: { firstName?: string | null; lastName?: string | null };
 }>> {
   // First verify access to the NDA
-  const nda = await prisma.nda.findUnique({
-    where: { id: ndaId },
-    select: { agencyGroupId: true, subagencyId: true },
+  const nda = await findNdaWithScope(ndaId, userContext, {
+    select: { id: true },
   });
 
   if (!nda) return [];
-
-  const hasAccess = await checkAgencyAccess(nda.agencyGroupId, nda.subagencyId, userContext);
-  if (!hasAccess) return [];
 
   const documents = await prisma.document.findMany({
     where: { ndaId },

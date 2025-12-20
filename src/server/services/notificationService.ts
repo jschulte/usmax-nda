@@ -144,10 +144,11 @@ export async function subscribeToNda(
   userContext: UserContext
 ): Promise<void> {
   // Verify the NDA exists and user can access it
+  const securityFilter = await buildSecurityFilter(userContext);
   const nda = await prisma.nda.findFirst({
     where: {
       id: ndaId,
-      ...buildSecurityFilter(userContext),
+      ...securityFilter,
     },
     select: { id: true },
   });
@@ -201,10 +202,11 @@ export async function getNdaSubscribers(
   }>
 > {
   // Verify NDA exists and is within user's access scope
+  const securityFilter = await buildSecurityFilter(userContext);
   const nda = await prisma.nda.findFirst({
     where: {
       id: ndaId,
-      ...buildSecurityFilter(userContext),
+      ...securityFilter,
     },
     select: {
       id: true,
@@ -220,7 +222,6 @@ export async function getNdaSubscribers(
   }
 
   const isAdmin =
-    userContext.permissions.has('admin:bypass') ||
     userContext.roles.includes(ROLE_NAMES.ADMIN) ||
     userContext.permissions.has('admin:manage_users');
 
@@ -450,7 +451,7 @@ export async function getUserSubscriptions(
     where: {
       contactId,
       nda: {
-        ...buildSecurityFilter(userContext),
+        ...(await buildSecurityFilter(userContext)),
       },
     },
     select: {

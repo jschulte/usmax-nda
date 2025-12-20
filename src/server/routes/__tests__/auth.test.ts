@@ -102,6 +102,7 @@ describe('Auth Routes Integration', () => {
       expect(mfaResponse.body.user).toBeDefined();
       expect(mfaResponse.body.user.email).toBe('admin@usmax.com');
       expect(mfaResponse.body.expiresAt).toBeDefined();
+      expect(mfaResponse.body.csrfToken).toBeDefined();
 
       // Check that cookies were set
       const cookies = mfaResponse.headers['set-cookie'];
@@ -109,6 +110,7 @@ describe('Auth Routes Integration', () => {
       expect(cookies.some((c: string) => c.includes('access_token'))).toBe(true);
       expect(cookies.some((c: string) => c.includes('refresh_token'))).toBe(true);
       expect(cookies.some((c: string) => c.includes('HttpOnly'))).toBe(true);
+      expect(cookies.some((c: string) => c.includes('csrf_token'))).toBe(true);
     });
 
     it('should reject invalid MFA code with attempts remaining', async () => {
@@ -134,7 +136,7 @@ describe('Auth Routes Integration', () => {
         });
 
       expect(mfaResponse.status).toBe(401);
-      expect(mfaResponse.body.error).toBe('Invalid MFA code');
+      expect(mfaResponse.body.error).toBe('Invalid MFA code, please try again');
       expect(mfaResponse.body.attemptsRemaining).toBe(2);
       expect(mfaResponse.body.code).toBe('INVALID_MFA');
     });
@@ -161,7 +163,7 @@ describe('Auth Routes Integration', () => {
         .send({ session, mfaCode: '000003' });
 
       expect(finalResponse.status).toBe(401);
-      expect(finalResponse.body.error).toBe('Account temporarily locked');
+      expect(finalResponse.body.error).toBe('Account temporarily locked. Please try again in 5 minutes.');
       expect(finalResponse.body.attemptsRemaining).toBe(0);
       expect(finalResponse.body.code).toBe('ACCOUNT_LOCKED');
     });
@@ -191,14 +193,18 @@ describe('Auth Routes Integration', () => {
       // Extract cookies
       const cookies = mfaResponse.headers['set-cookie'] || [];
       const refreshCookie = cookies.find((c: string) => c.includes('refresh_token'));
+      const csrfCookie = cookies.find((c: string) => c.includes('csrf_token'));
+      const csrfToken = mfaResponse.body.csrfToken;
 
       // Try to refresh
       const refreshResponse = await request(app)
         .post('/api/auth/refresh')
-        .set('Cookie', refreshCookie ? [refreshCookie] : []);
+        .set('Cookie', [refreshCookie, csrfCookie].filter(Boolean) as string[])
+        .set('x-csrf-token', csrfToken);
 
       expect(refreshResponse.status).toBe(200);
       expect(refreshResponse.body.expiresAt).toBeDefined();
+      expect(refreshResponse.body.csrfToken).toBeDefined();
     });
 
     it('should return 401 when no refresh token', async () => {
@@ -213,17 +219,43 @@ describe('Auth Routes Integration', () => {
 
   describe('POST /api/auth/logout', () => {
     it('should clear all auth cookies', async () => {
+      // First complete full login to get CSRF token
+      const loginResponse = await request(app)
+        .post('/api/auth/login')
+        .send({
+          email: 'admin@usmax.com',
+          password: 'Admin123!@#$',
+        });
+
+      const loginCookies = loginResponse.headers['set-cookie'] || [];
+      const authEmailCookie = loginCookies.find((c: string) => c.includes('_auth_email'));
+
+      const mfaResponse = await request(app)
+        .post('/api/auth/mfa-challenge')
+        .set('Cookie', authEmailCookie ? [authEmailCookie] : [])
+        .send({
+          session: loginResponse.body.session,
+          mfaCode: '123456',
+        });
+
+      const cookies = mfaResponse.headers['set-cookie'] || [];
+      const csrfCookie = cookies.find((c: string) => c.includes('csrf_token'));
+      const csrfToken = mfaResponse.body.csrfToken;
+
       const response = await request(app)
-        .post('/api/auth/logout');
+        .post('/api/auth/logout')
+        .set('Cookie', csrfCookie ? [csrfCookie] : [])
+        .set('x-csrf-token', csrfToken);
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
 
       // Verify cookies are cleared (set with max-age=0 or expires in past)
-      const cookies = response.headers['set-cookie'];
-      expect(cookies).toBeDefined();
-      expect(cookies.some((c: string) => c.includes('access_token'))).toBe(true);
-      expect(cookies.some((c: string) => c.includes('refresh_token'))).toBe(true);
+      const logoutCookies = response.headers['set-cookie'];
+      expect(logoutCookies).toBeDefined();
+      expect(logoutCookies.some((c: string) => c.includes('access_token'))).toBe(true);
+      expect(logoutCookies.some((c: string) => c.includes('refresh_token'))).toBe(true);
+      expect(logoutCookies.some((c: string) => c.includes('csrf_token'))).toBe(true);
     });
   });
 

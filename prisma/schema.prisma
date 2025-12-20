@@ -173,6 +173,7 @@ model Subagency {
   ndas            Nda[]
 
   @@unique([agencyGroupId, code])
+  @@unique([agencyGroupId, name])
   @@map("subagencies")
 }
 

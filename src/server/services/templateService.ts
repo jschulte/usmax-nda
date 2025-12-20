@@ -12,6 +12,7 @@ import { prisma } from '../db/index.js';
 import { uploadDocument, getDownloadUrl } from './s3Service.js';
 import { auditService, AuditAction } from './auditService.js';
 import type { UserContext } from '../types/auth.js';
+import { findNdaWithScope } from '../utils/scopedQuery.js';
 
 /**
  * Custom error for template service operations
@@ -180,8 +181,7 @@ export async function generatePreview(
   auditMeta?: AuditMeta
 ): Promise<PreviewResponse> {
   // Get NDA with related data
-  const nda = await prisma.nda.findUnique({
-    where: { id: ndaId },
+  const nda = await findNdaWithScope(ndaId, userContext, {
     include: {
       agencyGroup: { select: { id: true, name: true, code: true } },
       subagency: { select: { id: true, name: true } },
@@ -193,12 +193,6 @@ export async function generatePreview(
 
   if (!nda) {
     throw new TemplateServiceError('NDA not found', 'NOT_FOUND');
-  }
-
-  // Check agency access
-  const hasAccess = await checkAgencyAccess(nda.agencyGroupId, nda.subagencyId, userContext);
-  if (!hasAccess) {
-    throw new TemplateServiceError('Access denied to this NDA', 'ACCESS_DENIED');
   }
 
   // Get template
@@ -290,8 +284,7 @@ export async function saveEditedDocument(
   s3Key: string;
 }> {
   // Get NDA and verify access
-  const nda = await prisma.nda.findUnique({
-    where: { id: ndaId },
+  const nda = await findNdaWithScope(ndaId, userContext, {
     select: {
       id: true,
       displayId: true,
@@ -302,11 +295,6 @@ export async function saveEditedDocument(
 
   if (!nda) {
     throw new TemplateServiceError('NDA not found', 'NOT_FOUND');
-  }
-
-  const hasAccess = await checkAgencyAccess(nda.agencyGroupId, nda.subagencyId, userContext);
-  if (!hasAccess) {
-    throw new TemplateServiceError('Access denied to this NDA', 'ACCESS_DENIED');
   }
 
   // Generate filename with "edited" suffix
@@ -459,32 +447,6 @@ export async function deleteTemplate(templateId: string): Promise<void> {
     where: { id: templateId },
     data: { isActive: false },
   });
-}
-
-/**
- * Check if user has access to NDA's agency
- */
-async function checkAgencyAccess(
-  agencyGroupId: string,
-  subagencyId: string | null,
-  userContext: UserContext
-): Promise<boolean> {
-  // Admins have full access
-  if (userContext.permissions?.has('admin:bypass')) {
-    return true;
-  }
-
-  // Check agency group access
-  if (userContext.authorizedAgencyGroups?.includes(agencyGroupId)) {
-    return true;
-  }
-
-  // Check subagency access
-  if (subagencyId && userContext.authorizedSubagencies?.includes(subagencyId)) {
-    return true;
-  }
-
-  return false;
 }
 
 /**

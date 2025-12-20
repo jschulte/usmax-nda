@@ -30,6 +30,7 @@ export interface AuthContextType {
   isLoading: boolean;
   error: string | null;
   sessionExpiresAt: number | null;
+  csrfToken: string | null;
   login: (email: string, password: string) => Promise<MFAChallenge>;
   verifyMFA: (session: string, code: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -49,6 +50,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sessionExpiresAt, setSessionExpiresAt] = useState<number | null>(null);
+  const [csrfToken, setCsrfToken] = useState<string | null>(null);
 
   // Session warning state (managed by SessionWarningModal component)
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -92,11 +94,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (response.ok) {
         const data = await response.json();
         setUser(data.user);
+        setSessionExpiresAt(data.expiresAt ?? null);
+        setCsrfToken(data.csrfToken ?? null);
       } else {
         setUser(null);
+        setSessionExpiresAt(null);
+        setCsrfToken(null);
       }
     } catch {
       setUser(null);
+      setSessionExpiresAt(null);
+      setCsrfToken(null);
     } finally {
       setIsLoading(false);
     }
@@ -148,15 +156,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const data = await response.json();
 
       if (!response.ok) {
-        // Include attempts remaining in error if available
-        const errorMsg = data.attemptsRemaining !== undefined
-          ? `${data.error} (${data.attemptsRemaining} attempts remaining)`
-          : data.error;
-        throw new Error(errorMsg);
+        const err = new Error(data.error || 'Invalid MFA code') as Error & { attemptsRemaining?: number };
+        err.attemptsRemaining = data.attemptsRemaining;
+        throw err;
       }
 
       setUser(data.user);
       setSessionExpiresAt(data.expiresAt);
+      setCsrfToken(data.csrfToken ?? null);
     } catch (err: any) {
       setError(err.message);
       throw err;
@@ -171,6 +178,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       await fetch(`${API_URL}/api/auth/logout`, {
         method: 'POST',
+        headers: csrfToken ? { 'x-csrf-token': csrfToken } : undefined,
         credentials: 'include',
       });
     } catch {
@@ -178,33 +186,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setUser(null);
       setSessionExpiresAt(null);
+      setCsrfToken(null);
       setError(null);
       setIsLoading(false);
       // AC5: Reset Zustand store on logout (Task 5.6)
       resetAppStore();
     }
-  }, []);
+  }, [csrfToken]);
 
   const refreshSession = useCallback(async (): Promise<void> => {
     try {
       const response = await fetch(`${API_URL}/api/auth/refresh`, {
         method: 'POST',
+        headers: csrfToken ? { 'x-csrf-token': csrfToken } : undefined,
         credentials: 'include',
       });
 
       if (response.ok) {
         const data = await response.json();
         setSessionExpiresAt(data.expiresAt);
+        setCsrfToken(data.csrfToken ?? csrfToken);
       } else {
         // Session expired, force logout
         setUser(null);
         setSessionExpiresAt(null);
+        setCsrfToken(null);
       }
     } catch {
       // Network error, don't force logout yet
       console.error('Failed to refresh session');
     }
-  }, []);
+  }, [csrfToken]);
 
   const clearError = useCallback(() => {
     setError(null);
@@ -216,6 +228,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isLoading,
     error,
     sessionExpiresAt,
+    csrfToken,
     login,
     verifyMFA,
     logout,

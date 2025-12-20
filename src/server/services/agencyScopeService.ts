@@ -9,7 +9,9 @@
  * users only see NDAs for their authorized agencies.
  */
 
-import { prisma } from '../db/index.js';
+import { getAuthorizedSubagencyIdsByContactId } from './userContextService.js';
+import type { UserContext } from '../types/auth.js';
+import { ROLE_NAMES } from '../types/auth.js';
 
 /**
  * Agency scope Prisma where clause type
@@ -39,44 +41,28 @@ export interface AgencyScope {
  */
 export async function getUserAgencyScope(contactId: string): Promise<AgencyScope> {
   try {
-    const user = await prisma.contact.findUnique({
-      where: { id: contactId },
-      include: {
-        agencyGroupGrants: {
-          include: {
-            agencyGroup: {
-              include: { subagencies: { select: { id: true } } },
-            },
-          },
-        },
-        subagencyGrants: {
-          select: { subagencyId: true },
-        },
-      },
-    });
-
-    if (!user) {
-      // No user found = no access
-      return { subagencyId: { in: [] } };
-    }
-
-    // Collect direct subagency grants
-    const directSubagencyIds = user.subagencyGrants.map((sg) => sg.subagencyId);
-
-    // Collect all subagencies from agency group grants
-    const groupSubagencyIds = user.agencyGroupGrants.flatMap((agg) =>
-      agg.agencyGroup.subagencies.map((s) => s.id)
-    );
-
-    // Union of both (deduplicated)
-    const authorizedSubagencyIds = [...new Set([...directSubagencyIds, ...groupSubagencyIds])];
-
+    const authorizedSubagencyIds = await getAuthorizedSubagencyIdsByContactId(contactId);
     return { subagencyId: { in: authorizedSubagencyIds } };
   } catch (error) {
     console.error('[AgencyScope] Error computing user scope:', error);
     // Return empty scope on error (fail closed - no access)
     return { subagencyId: { in: [] } };
   }
+}
+
+/**
+ * Get NDA scope for a user context.
+ * Admin users are not scoped.
+ *
+ * @param userContext - The authenticated user's context
+ * @returns Prisma where clause for NDA scoping
+ */
+export async function scopeNDAsToUser(userContext: UserContext): Promise<AgencyScope | {}> {
+  if (userContext.roles?.includes(ROLE_NAMES.ADMIN)) {
+    return {};
+  }
+
+  return getUserAgencyScope(userContext.contactId);
 }
 
 /**

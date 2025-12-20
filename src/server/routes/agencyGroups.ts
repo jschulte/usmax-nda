@@ -9,7 +9,8 @@
  * - PUT /api/agency-groups/:id - Update agency group
  * - DELETE /api/agency-groups/:id - Delete agency group (if no subagencies)
  *
- * All routes require admin:manage_agencies permission
+ * Write routes require admin:manage_agencies permission
+ * List route is available to all authenticated users (needed for NDA creation)
  */
 
 import { Router, type Request, type Response, type Router as RouterType } from 'express';
@@ -37,7 +38,7 @@ router.use(attachUserContext);
  * List all agency groups with subagency counts
  * Task 1.4
  *
- * Available to all authenticated users (needed for NDA creation)
+ * Available to all authenticated users
  */
 router.get('/', async (req: Request, res: Response) => {
   try {
@@ -57,9 +58,9 @@ router.get('/', async (req: Request, res: Response) => {
  * Get single agency group with its subagencies
  * Task 1.5
  *
- * Available to all authenticated users
+ * Requires: admin:manage_agencies permission
  */
-router.get('/:id', async (req: Request, res: Response) => {
+router.get('/:id', requirePermission(PERMISSIONS.ADMIN_MANAGE_AGENCIES), async (req: Request, res: Response) => {
   const { id } = req.params;
 
   try {
@@ -135,10 +136,10 @@ router.post('/', requirePermission(PERMISSIONS.ADMIN_MANAGE_AGENCIES), async (re
     return res.status(201).json({ agencyGroup: group });
   } catch (error) {
     if (error instanceof AgencyGroupError) {
-      if (error.code === 'DUPLICATE_NAME') {
-        return res.status(409).json({
+      if (error.code === 'DUPLICATE_NAME' || error.code === 'DUPLICATE_CODE') {
+        return res.status(400).json({
           error: error.message,
-          code: 'DUPLICATE_NAME',
+          code: error.code,
         });
       }
     }
@@ -227,7 +228,7 @@ router.put('/:id', requirePermission(PERMISSIONS.ADMIN_MANAGE_AGENCIES), async (
         });
       }
       if (error.code === 'DUPLICATE_NAME' || error.code === 'DUPLICATE_CODE') {
-        return res.status(409).json({
+        return res.status(400).json({
           error: error.message,
           code: error.code,
         });
@@ -271,9 +272,10 @@ router.delete('/:id', requirePermission(PERMISSIONS.ADMIN_MANAGE_AGENCIES), asyn
         });
       }
       if (error.code === 'HAS_SUBAGENCIES') {
-        return res.status(409).json({
+        return res.status(400).json({
           error: error.message,
           code: 'HAS_SUBAGENCIES',
+          subagencyCount: error.details?.subagencyCount,
         });
       }
     }

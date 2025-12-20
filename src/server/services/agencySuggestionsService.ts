@@ -10,7 +10,8 @@
 
 import prisma from '../db/index.js';
 import type { UserContext } from '../types/auth.js';
-import type { UsMaxPosition, Prisma } from '../../generated/prisma/index.js';
+import type { UsMaxPosition } from '../../generated/prisma/index.js';
+import { buildSecurityFilter } from './ndaService.js';
 
 export interface AgencySuggestions {
   commonCompanies: Array<{
@@ -27,36 +28,6 @@ export interface AgencySuggestions {
 }
 
 /**
- * Build security filter for NDA queries based on user's authorized agencies
- */
-function buildSecurityFilter(userContext: UserContext): Prisma.NdaWhereInput {
-  // Admins can see all NDAs
-  if (userContext.permissions.has('admin:bypass')) {
-    return {};
-  }
-
-  const agencyGroups = userContext.authorizedAgencyGroups || [];
-  const subagencies = userContext.authorizedSubagencies || [];
-
-  // If no access granted, return impossible filter
-  if (agencyGroups.length === 0 && subagencies.length === 0) {
-    return { id: 'no-access-impossible-id' };
-  }
-
-  const conditions: Prisma.NdaWhereInput[] = [];
-
-  if (agencyGroups.length > 0) {
-    conditions.push({ agencyGroupId: { in: agencyGroups } });
-  }
-
-  if (subagencies.length > 0) {
-    conditions.push({ subagencyId: { in: subagencies } });
-  }
-
-  return { OR: conditions };
-}
-
-/**
  * Get common companies for an agency group
  * Returns top 5 companies by NDA count
  */
@@ -65,7 +36,7 @@ export async function getCommonCompanies(
   userContext: UserContext,
   limit: number = 5
 ): Promise<Array<{ companyName: string; count: number }>> {
-  const securityFilter = buildSecurityFilter(userContext);
+  const securityFilter = await buildSecurityFilter(userContext);
 
   // Get NDAs for this agency, grouped by company
   const ndas = await prisma.nda.findMany({
@@ -101,7 +72,7 @@ export async function getTypicalPosition(
   typicalPosition?: UsMaxPosition;
   positionCounts: Array<{ position: UsMaxPosition; count: number }>;
 }> {
-  const securityFilter = buildSecurityFilter(userContext);
+  const securityFilter = await buildSecurityFilter(userContext);
 
   // Get NDAs for this agency
   const ndas = await prisma.nda.findMany({
@@ -178,7 +149,7 @@ export async function getCommonSubagencies(
   userContext: UserContext,
   limit: number = 5
 ): Promise<Array<{ subagencyId: string; subagencyName: string; count: number }>> {
-  const securityFilter = buildSecurityFilter(userContext);
+  const securityFilter = await buildSecurityFilter(userContext);
 
   // Get NDAs for this agency with subagencies
   const ndas = await prisma.nda.findMany({

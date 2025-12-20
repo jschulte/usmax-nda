@@ -56,7 +56,7 @@ router.get(
       } else {
         const showInactive =
           includeInactive === 'true' &&
-          req.userContext?.permissions.has(PERMISSIONS.ADMIN_MANAGE_AGENCIES);
+          req.userContext?.permissions.has(PERMISSIONS.ADMIN_MANAGE_TEMPLATES);
         templates = await listTemplates(showInactive);
       }
 
@@ -93,7 +93,7 @@ router.get(
       }
 
       // Don't return content to regular users
-      const isAdmin = req.userContext?.permissions.has(PERMISSIONS.ADMIN_MANAGE_AGENCIES);
+      const isAdmin = req.userContext?.permissions.has(PERMISSIONS.ADMIN_MANAGE_TEMPLATES);
       res.json({
         template: {
           id: template.id,
@@ -129,7 +129,7 @@ router.get(
  */
 router.post(
   '/',
-  requirePermission(PERMISSIONS.ADMIN_MANAGE_AGENCIES),
+  requirePermission(PERMISSIONS.ADMIN_MANAGE_TEMPLATES),
   async (req, res) => {
     try {
       const { name, description, content, agencyGroupId, isDefault } = req.body;
@@ -182,7 +182,7 @@ router.post(
  */
 router.put(
   '/:id',
-  requirePermission(PERMISSIONS.ADMIN_MANAGE_AGENCIES),
+  requirePermission(PERMISSIONS.ADMIN_MANAGE_TEMPLATES),
   async (req, res) => {
     try {
       const { name, description, content, agencyGroupId, isDefault, isActive } = req.body;
@@ -226,7 +226,7 @@ router.put(
  */
 router.delete(
   '/:id',
-  requirePermission(PERMISSIONS.ADMIN_MANAGE_AGENCIES),
+  requirePermission(PERMISSIONS.ADMIN_MANAGE_TEMPLATES),
   async (req, res) => {
     try {
       await deleteTemplate(req.params.id);

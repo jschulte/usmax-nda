@@ -21,7 +21,8 @@ import {
 import { NdaStatus, UsMaxPosition } from '../../generated/prisma/index.js';
 import type { Prisma } from '../../generated/prisma/index.js';
 import type { UserContext } from '../types/auth.js';
-import { ROLE_NAMES } from '../types/auth.js';
+import { scopeNDAsToUser } from './agencyScopeService.js';
+import { findNdaWithScope } from '../utils/scopedQuery.js';
 
 // Re-export enums for use in other modules
 export { NdaStatus, UsMaxPosition };
@@ -130,28 +131,17 @@ interface AuditMeta {
  * Build row-level security filter for NDA queries
  * Users can only see NDAs for agencies they have access to
  */
-export function buildSecurityFilter(userContext: UserContext): Prisma.NdaWhereInput {
-  // Admin bypass: no row-level restrictions
-  if (userContext.permissions?.has('admin:bypass') || userContext.roles?.includes(ROLE_NAMES.ADMIN)) {
+export async function buildSecurityFilter(userContext: UserContext): Promise<Prisma.NdaWhereInput> {
+  const scope = await scopeNDAsToUser(userContext);
+
+  if (Object.keys(scope).length === 0) {
     return {};
   }
 
-  const authorizedAgencyGroups = userContext.authorizedAgencyGroups || [];
-  const authorizedSubagencies = userContext.authorizedSubagencies || [];
-
-  // Important: wrap the OR in an AND so callers can safely add their own OR clauses
+  // Important: wrap the scope in an AND so callers can safely add their own OR clauses
   // (e.g., search predicates) without accidentally overwriting the security filter.
   return {
-    AND: [
-      {
-        OR: [
-          // User has access to the agency group
-          { agencyGroupId: { in: authorizedAgencyGroups } },
-          // User has direct subagency access
-          { subagencyId: { in: authorizedSubagencies } },
-        ],
-      },
-    ],
+    AND: [scope],
   };
 }
 
@@ -319,13 +309,7 @@ export async function createNda(
  * Get a single NDA by ID with row-level security
  */
 export async function getNda(id: string, userContext: UserContext): Promise<any | null> {
-  const securityFilter = buildSecurityFilter(userContext);
-
-  const nda = await prisma.nda.findFirst({
-    where: {
-      id,
-      ...securityFilter,
-    },
+  const nda = await findNdaWithScope(id, userContext, {
     include: {
       agencyGroup: { select: { id: true, name: true, code: true } },
       subagency: { select: { id: true, name: true, code: true } },
@@ -551,7 +535,7 @@ export async function listNdas(
   const skip = (page - 1) * limit;
 
   // Build security filter
-  const securityFilter = buildSecurityFilter(userContext);
+  const securityFilter = await buildSecurityFilter(userContext);
 
   // Build where clause
   const where: Prisma.NdaWhereInput = {

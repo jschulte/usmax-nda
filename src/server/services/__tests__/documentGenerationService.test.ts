@@ -10,7 +10,8 @@ import {
   listNdaDocuments,
   DocumentGenerationError,
 } from '../documentGenerationService.js';
-import type { UserContext } from '../../middleware/attachUserContext.js';
+import type { UserContext } from '../../types/auth.js';
+import { ROLE_NAMES } from '../../types/auth.js';
 
 // Mock Prisma
 vi.mock('../../db/index.js', () => ({
@@ -20,6 +21,7 @@ vi.mock('../../db/index.js', () => ({
     },
     document: {
       create: vi.fn(),
+      findFirst: vi.fn(),
       findUnique: vi.fn(),
       findMany: vi.fn(),
     },
@@ -42,9 +44,18 @@ vi.mock('../auditService.js', () => ({
   },
 }));
 
+vi.mock('../utils/scopedQuery.js', () => ({
+  findNdaWithScope: vi.fn(),
+}));
+
+vi.mock('../ndaService.js', () => ({
+  buildSecurityFilter: vi.fn().mockResolvedValue({}),
+}));
+
 import { prisma } from '../../db/index.js';
 import { uploadDocument } from '../s3Service.js';
 import { auditService } from '../auditService.js';
+import { findNdaWithScope } from '../utils/scopedQuery.js';
 
 const mockPrisma = prisma as any;
 const mockUploadDocument = uploadDocument as any;
@@ -57,7 +68,7 @@ describe('documentGenerationService', () => {
     email: 'test@example.com',
     contactId: 'contact-1',
     name: 'Test User',
-    roles: ['nda_user'],
+    roles: [ROLE_NAMES.NDA_USER],
     permissions: new Set(['nda:create', 'nda:view', 'nda:update']),
     authorizedAgencyGroups: ['agency-dod', 'agency-nasa'],
     authorizedSubagencies: ['sub-army'],
@@ -66,8 +77,8 @@ describe('documentGenerationService', () => {
   // Admin context
   const adminContext: UserContext = {
     ...mockUserContext,
-    roles: ['admin'],
-    permissions: new Set(['admin:bypass']),
+    roles: [ROLE_NAMES.ADMIN],
+    permissions: new Set(),
   };
 
   // Sample NDA with relations
@@ -101,7 +112,7 @@ describe('documentGenerationService', () => {
 
   describe('generateDocument', () => {
     it('generates document successfully', async () => {
-      mockPrisma.nda.findUnique.mockResolvedValue(mockNda);
+      vi.mocked(findNdaWithScope).mockResolvedValue(mockNda as any);
       mockUploadDocument.mockResolvedValue({
         s3Key: 'ndas/nda-123/doc-456-NDA-001001-Test_Company_Inc.docx',
         documentId: 'doc-456',
@@ -156,7 +167,7 @@ describe('documentGenerationService', () => {
     });
 
     it('throws error when NDA not found', async () => {
-      mockPrisma.nda.findUnique.mockResolvedValue(null);
+      vi.mocked(findNdaWithScope).mockResolvedValue(null);
 
       await expect(
         generateDocument({ ndaId: 'nonexistent' }, mockUserContext)
@@ -173,7 +184,7 @@ describe('documentGenerationService', () => {
         agencyGroupId: 'agency-commercial', // Not in user's authorized agencies
         subagencyId: null,
       };
-      mockPrisma.nda.findUnique.mockResolvedValue(unauthorizedNda);
+      vi.mocked(findNdaWithScope).mockResolvedValue(null);
 
       await expect(
         generateDocument({ ndaId: 'nda-123' }, mockUserContext)
@@ -186,7 +197,7 @@ describe('documentGenerationService', () => {
         agencyGroupId: 'agency-commercial',
         subagencyId: null,
       };
-      mockPrisma.nda.findUnique.mockResolvedValue(unauthorizedNda);
+      vi.mocked(findNdaWithScope).mockResolvedValue(unauthorizedNda as any);
       mockUploadDocument.mockResolvedValue({
         s3Key: 'test-key',
         documentId: 'doc-789',
@@ -211,7 +222,7 @@ describe('documentGenerationService', () => {
         subagencyId: null,
         subagency: null,
       };
-      mockPrisma.nda.findUnique.mockResolvedValue(ndaWithoutSubagency);
+      vi.mocked(findNdaWithScope).mockResolvedValue(ndaWithoutSubagency as any);
       mockUploadDocument.mockResolvedValue({
         s3Key: 'test-key',
         documentId: 'doc-123',
@@ -238,7 +249,7 @@ describe('documentGenerationService', () => {
         effectiveDate: null,
         contractsPoc: null,
       };
-      mockPrisma.nda.findUnique.mockResolvedValue(minimalNda);
+      vi.mocked(findNdaWithScope).mockResolvedValue(minimalNda as any);
       mockUploadDocument.mockResolvedValue({
         s3Key: 'test-key',
         documentId: 'doc-123',
@@ -258,17 +269,13 @@ describe('documentGenerationService', () => {
 
   describe('getDocumentById', () => {
     it('returns document when user has access', async () => {
-      mockPrisma.document.findUnique.mockResolvedValue({
+      mockPrisma.document.findFirst.mockResolvedValue({
         id: 'doc-123',
         ndaId: 'nda-123',
         filename: 'test.docx',
         s3Key: 'ndas/nda-123/doc-123-test.docx',
         documentType: 'GENERATED',
         uploadedAt: new Date(),
-        nda: {
-          agencyGroupId: 'agency-dod',
-          subagencyId: 'sub-army',
-        },
       });
 
       const result = await getDocumentById('doc-123', mockUserContext);
@@ -279,7 +286,7 @@ describe('documentGenerationService', () => {
     });
 
     it('returns null when document not found', async () => {
-      mockPrisma.document.findUnique.mockResolvedValue(null);
+      mockPrisma.document.findFirst.mockResolvedValue(null);
 
       const result = await getDocumentById('nonexistent', mockUserContext);
 
@@ -287,18 +294,7 @@ describe('documentGenerationService', () => {
     });
 
     it('returns null when user lacks access to NDA agency', async () => {
-      mockPrisma.document.findUnique.mockResolvedValue({
-        id: 'doc-123',
-        ndaId: 'nda-123',
-        filename: 'test.docx',
-        s3Key: 'test-key',
-        documentType: 'GENERATED',
-        uploadedAt: new Date(),
-        nda: {
-          agencyGroupId: 'agency-commercial', // Not authorized
-          subagencyId: null,
-        },
-      });
+      mockPrisma.document.findFirst.mockResolvedValue(null);
 
       const result = await getDocumentById('doc-123', mockUserContext);
 
@@ -306,17 +302,13 @@ describe('documentGenerationService', () => {
     });
 
     it('allows admin to access any document', async () => {
-      mockPrisma.document.findUnique.mockResolvedValue({
+      mockPrisma.document.findFirst.mockResolvedValue({
         id: 'doc-123',
         ndaId: 'nda-123',
         filename: 'test.docx',
         s3Key: 'test-key',
         documentType: 'GENERATED',
         uploadedAt: new Date(),
-        nda: {
-          agencyGroupId: 'agency-commercial',
-          subagencyId: null,
-        },
       });
 
       const result = await getDocumentById('doc-123', adminContext);
@@ -327,10 +319,7 @@ describe('documentGenerationService', () => {
 
   describe('listNdaDocuments', () => {
     it('returns documents for authorized NDA', async () => {
-      mockPrisma.nda.findUnique.mockResolvedValue({
-        agencyGroupId: 'agency-dod',
-        subagencyId: 'sub-army',
-      });
+      vi.mocked(findNdaWithScope).mockResolvedValue({ id: 'nda-123' } as any);
       mockPrisma.document.findMany.mockResolvedValue([
         {
           id: 'doc-1',
@@ -358,7 +347,7 @@ describe('documentGenerationService', () => {
     });
 
     it('returns empty array when NDA not found', async () => {
-      mockPrisma.nda.findUnique.mockResolvedValue(null);
+      vi.mocked(findNdaWithScope).mockResolvedValue(null);
 
       const result = await listNdaDocuments('nonexistent', mockUserContext);
 
@@ -366,10 +355,7 @@ describe('documentGenerationService', () => {
     });
 
     it('returns empty array when user lacks access', async () => {
-      mockPrisma.nda.findUnique.mockResolvedValue({
-        agencyGroupId: 'agency-commercial',
-        subagencyId: null,
-      });
+      vi.mocked(findNdaWithScope).mockResolvedValue(null);
 
       const result = await listNdaDocuments('nda-123', mockUserContext);
 
@@ -377,10 +363,7 @@ describe('documentGenerationService', () => {
     });
 
     it('allows admin to list any NDA documents', async () => {
-      mockPrisma.nda.findUnique.mockResolvedValue({
-        agencyGroupId: 'agency-commercial',
-        subagencyId: null,
-      });
+      vi.mocked(findNdaWithScope).mockResolvedValue({ id: 'nda-123' } as any);
       mockPrisma.document.findMany.mockResolvedValue([
         {
           id: 'doc-1',

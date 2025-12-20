@@ -20,6 +20,8 @@ import type { UserContext } from '../types/auth.js';
 import archiver from 'archiver';
 import { PassThrough } from 'stream';
 import path from 'node:path';
+import { buildSecurityFilter } from './ndaService.js';
+import { findNdaWithScope } from '../utils/scopedQuery.js';
 
 /**
  * Service error class
@@ -144,8 +146,7 @@ export async function uploadNdaDocument(
   validateFileSize(input.fileSize);
 
   // Check NDA exists and user has access
-  const nda = await prisma.nda.findUnique({
-    where: { id: input.ndaId },
+  const nda = await findNdaWithScope(input.ndaId, userContext, {
     select: {
       id: true,
       displayId: true,
@@ -153,15 +154,12 @@ export async function uploadNdaDocument(
       agencyGroupId: true,
       subagencyId: true,
     },
+    ipAddress: auditMeta?.ipAddress,
+    userAgent: auditMeta?.userAgent,
   });
 
   if (!nda) {
     throw new DocumentServiceError('NDA not found', 'NDA_NOT_FOUND');
-  }
-
-  // Check user has access to this NDA's agency
-  if (!hasAgencyAccess(nda.agencyGroupId, nda.subagencyId, userContext)) {
-    throw new DocumentServiceError('Access denied to this NDA', 'ACCESS_DENIED');
   }
 
   // Get next version number
@@ -263,8 +261,7 @@ export async function getNdaDocuments(
   userContext: UserContext
 ): Promise<DocumentResponse[]> {
   // Check NDA exists and user has access
-  const nda = await prisma.nda.findUnique({
-    where: { id: ndaId },
+  const nda = await findNdaWithScope(ndaId, userContext, {
     select: {
       id: true,
       agencyGroupId: true,
@@ -274,10 +271,6 @@ export async function getNdaDocuments(
 
   if (!nda) {
     throw new DocumentServiceError('NDA not found', 'NDA_NOT_FOUND');
-  }
-
-  if (!hasAgencyAccess(nda.agencyGroupId, nda.subagencyId, userContext)) {
-    throw new DocumentServiceError('Access denied to this NDA', 'ACCESS_DENIED');
   }
 
   const documents = await prisma.document.findMany({
@@ -312,15 +305,17 @@ export async function getDocumentDownloadUrl(
   userContext: UserContext,
   auditMeta?: { ipAddress?: string; userAgent?: string }
 ): Promise<{ url: string; filename: string }> {
-  const document = await prisma.document.findUnique({
-    where: { id: documentId },
+  const securityFilter = await buildSecurityFilter(userContext);
+  const document = await prisma.document.findFirst({
+    where: {
+      id: documentId,
+      nda: securityFilter,
+    },
     include: {
       nda: {
         select: {
           id: true,
           displayId: true,
-          agencyGroupId: true,
-          subagencyId: true,
         },
       },
     },
@@ -328,10 +323,6 @@ export async function getDocumentDownloadUrl(
 
   if (!document) {
     throw new DocumentServiceError('Document not found', 'DOCUMENT_NOT_FOUND');
-  }
-
-  if (!hasAgencyAccess(document.nda.agencyGroupId, document.nda.subagencyId, userContext)) {
-    throw new DocumentServiceError('Access denied to this document', 'ACCESS_DENIED');
   }
 
   // Generate pre-signed URL (15 minutes TTL)
@@ -362,15 +353,13 @@ export async function getDocument(
   documentId: string,
   userContext: UserContext
 ): Promise<DocumentResponse | null> {
-  const document = await prisma.document.findUnique({
-    where: { id: documentId },
+  const securityFilter = await buildSecurityFilter(userContext);
+  const document = await prisma.document.findFirst({
+    where: {
+      id: documentId,
+      nda: securityFilter,
+    },
     include: {
-      nda: {
-        select: {
-          agencyGroupId: true,
-          subagencyId: true,
-        },
-      },
       uploadedBy: {
         select: {
           id: true,
@@ -386,10 +375,6 @@ export async function getDocument(
     return null;
   }
 
-  if (!hasAgencyAccess(document.nda.agencyGroupId, document.nda.subagencyId, userContext)) {
-    throw new DocumentServiceError('Access denied to this document', 'ACCESS_DENIED');
-  }
-
   return formatDocumentResponse(document);
 }
 
@@ -402,15 +387,25 @@ export async function markDocumentFullyExecuted(
   userContext: UserContext,
   auditMeta?: { ipAddress?: string; userAgent?: string }
 ): Promise<DocumentResponse> {
-  const document = await prisma.document.findUnique({
-    where: { id: documentId },
+  const securityFilter = await buildSecurityFilter(userContext);
+  const document = await prisma.document.findFirst({
+    where: {
+      id: documentId,
+      nda: securityFilter,
+    },
     include: {
       nda: {
         select: {
           id: true,
           displayId: true,
-          agencyGroupId: true,
-          subagencyId: true,
+        },
+      },
+      uploadedBy: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          email: true,
         },
       },
     },
@@ -418,10 +413,6 @@ export async function markDocumentFullyExecuted(
 
   if (!document) {
     throw new DocumentServiceError('Document not found', 'DOCUMENT_NOT_FOUND');
-  }
-
-  if (!hasAgencyAccess(document.nda.agencyGroupId, document.nda.subagencyId, userContext)) {
-    throw new DocumentServiceError('Access denied', 'ACCESS_DENIED');
   }
 
   // Update document
@@ -497,8 +488,7 @@ export async function createBulkDownload(
   auditMeta?: { ipAddress?: string; userAgent?: string }
 ): Promise<BulkDownloadResult> {
   // Check NDA exists and user has access
-  const nda = await prisma.nda.findUnique({
-    where: { id: ndaId },
+  const nda = await findNdaWithScope(ndaId, userContext, {
     select: {
       id: true,
       displayId: true,
@@ -506,14 +496,12 @@ export async function createBulkDownload(
       agencyGroupId: true,
       subagencyId: true,
     },
+    ipAddress: auditMeta?.ipAddress,
+    userAgent: auditMeta?.userAgent,
   });
 
   if (!nda) {
     throw new DocumentServiceError('NDA not found', 'NDA_NOT_FOUND');
-  }
-
-  if (!hasAgencyAccess(nda.agencyGroupId, nda.subagencyId, userContext)) {
-    throw new DocumentServiceError('Access denied to this NDA', 'ACCESS_DENIED');
   }
 
   // Get all documents for this NDA
@@ -608,29 +596,6 @@ function sanitizeZipEntryName(filename: string, fallback: string): string {
 /**
  * Check if user has access to an agency
  */
-function hasAgencyAccess(
-  agencyGroupId: string,
-  subagencyId: string | null,
-  userContext: UserContext
-): boolean {
-  // Admin has access to all
-  if (userContext.permissions.has('admin:manage_agencies')) {
-    return true;
-  }
-
-  // Check agency group access
-  if (userContext.authorizedAgencyGroups.includes(agencyGroupId)) {
-    return true;
-  }
-
-  // Check subagency access
-  if (subagencyId && userContext.authorizedSubagencies.includes(subagencyId)) {
-    return true;
-  }
-
-  return false;
-}
-
 /**
  * Format document for API response
  */

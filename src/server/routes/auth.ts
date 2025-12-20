@@ -11,6 +11,7 @@
  */
 
 import { Router, type Request, type Response, type Router as RouterType } from 'express';
+import { randomBytes } from 'crypto';
 import { cognitoService } from '../services/cognitoService.js';
 import { auditService, AuditAction } from '../services/auditService.js';
 import { authenticateJWT } from '../middleware/authenticateJWT.js';
@@ -28,6 +29,40 @@ const COOKIE_OPTIONS = {
 
 const ACCESS_TOKEN_MAX_AGE = 4 * 60 * 60 * 1000; // 4 hours in ms
 const REFRESH_TOKEN_MAX_AGE = 30 * 24 * 60 * 60 * 1000; // 30 days in ms
+
+// CSRF token cookie options (intentionally NOT HttpOnly so client can read)
+const CSRF_COOKIE_OPTIONS = {
+  httpOnly: false,
+  secure: process.env.COOKIE_SECURE === 'true',
+  sameSite: 'strict' as const,
+  domain: process.env.COOKIE_DOMAIN || undefined,
+  path: '/',
+  maxAge: REFRESH_TOKEN_MAX_AGE,
+};
+
+function generateCsrfToken(): string {
+  return randomBytes(32).toString('hex');
+}
+
+function getOrSetCsrfToken(req: Request, res: Response): string {
+  const existing = req.cookies?.csrf_token;
+  if (existing) return existing;
+  const token = generateCsrfToken();
+  res.cookie('csrf_token', token, CSRF_COOKIE_OPTIONS);
+  return token;
+}
+
+function requireCsrfToken(req: Request, res: Response, next: () => void) {
+  const headerToken = req.get('x-csrf-token');
+  const cookieToken = req.cookies?.csrf_token;
+  if (!headerToken || !cookieToken || headerToken !== cookieToken) {
+    return res.status(403).json({
+      error: 'Invalid CSRF token',
+      code: 'INVALID_CSRF',
+    });
+  }
+  return next();
+}
 
 /**
  * POST /api/auth/login
@@ -64,6 +99,7 @@ router.post('/login', async (req: Request, res: Response) => {
     // Direct token response (shouldn't happen with MFA enforced)
     if (result.type === 'tokens' && result.tokens) {
       setAuthCookies(res, result.tokens.accessToken, result.tokens.refreshToken);
+      const csrfToken = getOrSetCsrfToken(req, res);
 
       await auditService.log({
         action: AuditAction.LOGIN_SUCCESS,
@@ -77,6 +113,7 @@ router.post('/login', async (req: Request, res: Response) => {
       return res.json({
         user: { email },
         expiresAt: Date.now() + result.tokens.expiresIn * 1000,
+        csrfToken,
       });
     }
 
@@ -140,7 +177,7 @@ router.post('/mfa-challenge', async (req: Request, res: Response) => {
 
       // AC2: Return error with retry count
       return res.status(401).json({
-        error: result.error || 'Invalid MFA code',
+        error: result.error || 'Invalid MFA code, please try again',
         attemptsRemaining: result.attemptsRemaining,
         code: result.attemptsRemaining === 0 ? 'ACCOUNT_LOCKED' : 'INVALID_MFA',
       });
@@ -149,6 +186,7 @@ router.post('/mfa-challenge', async (req: Request, res: Response) => {
     // Success - set auth cookies
     if (result.tokens) {
       setAuthCookies(res, result.tokens.accessToken, result.tokens.refreshToken);
+      const csrfToken = getOrSetCsrfToken(req, res);
 
       // Clear the temporary email cookie
       res.clearCookie('_auth_email', COOKIE_OPTIONS);
@@ -177,6 +215,7 @@ router.post('/mfa-challenge', async (req: Request, res: Response) => {
       return res.json({
         user: userInfo || { email },
         expiresAt: Date.now() + result.tokens.expiresIn * 1000,
+        csrfToken,
       });
     }
 
@@ -198,7 +237,7 @@ router.post('/mfa-challenge', async (req: Request, res: Response) => {
  * Refreshes the access token using the refresh token
  * AC3: Session extension
  */
-router.post('/refresh', async (req: Request, res: Response) => {
+router.post('/refresh', requireCsrfToken, async (req: Request, res: Response) => {
   const refreshToken = req.cookies.refresh_token;
 
   if (!refreshToken) {
@@ -219,9 +258,11 @@ router.post('/refresh', async (req: Request, res: Response) => {
     }
 
     setAuthCookies(res, tokens.accessToken, tokens.refreshToken);
+    const csrfToken = getOrSetCsrfToken(req, res);
 
     return res.json({
       expiresAt: Date.now() + tokens.expiresIn * 1000,
+      csrfToken,
     });
   } catch (error) {
     return res.status(401).json({
@@ -236,7 +277,7 @@ router.post('/refresh', async (req: Request, res: Response) => {
  * Clears all auth cookies
  * AC5: Logout clears all state
  */
-router.post('/logout', async (req: Request, res: Response) => {
+router.post('/logout', requireCsrfToken, async (req: Request, res: Response) => {
   const accessToken = req.cookies.access_token;
   const userInfo = accessToken ? extractUserFromToken(accessToken) : null;
 
@@ -244,6 +285,7 @@ router.post('/logout', async (req: Request, res: Response) => {
   res.clearCookie('access_token', COOKIE_OPTIONS);
   res.clearCookie('refresh_token', COOKIE_OPTIONS);
   res.clearCookie('_auth_email', COOKIE_OPTIONS);
+  res.clearCookie('csrf_token', CSRF_COOKIE_OPTIONS);
 
   await auditService.log({
     action: AuditAction.LOGOUT,
@@ -270,7 +312,15 @@ router.get('/me', authenticateJWT, (req: Request, res: Response) => {
     });
   }
 
-  return res.json({ user: req.user });
+  const accessToken = req.cookies.access_token;
+  const expiresAt = accessToken ? getTokenExpiry(accessToken) : null;
+  const csrfToken = getOrSetCsrfToken(req, res);
+
+  return res.json({
+    user: req.user,
+    expiresAt,
+    csrfToken,
+  });
 });
 
 // === Helper Functions ===
@@ -310,6 +360,17 @@ function extractUserFromToken(token: string): { id: string; email: string } | nu
       id: payload.sub,
       email: payload.email || payload['cognito:username'],
     };
+  } catch {
+    return null;
+  }
+}
+
+function getTokenExpiry(token: string): number | null {
+  try {
+    const parts = token.split('.');
+    if (parts.length < 2) return null;
+    const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
+    return payload.exp ? payload.exp * 1000 : null;
   } catch {
     return null;
   }

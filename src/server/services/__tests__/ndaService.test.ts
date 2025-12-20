@@ -73,6 +73,14 @@ vi.mock('../statusTransitionService.js', () => ({
   getValidTransitionsFrom: vi.fn().mockReturnValue(['EMAILED', 'INACTIVE', 'CANCELLED']),
 }));
 
+vi.mock('../agencyScopeService.js', () => ({
+  scopeNDAsToUser: vi.fn().mockResolvedValue({}),
+}));
+
+vi.mock('../utils/scopedQuery.js', () => ({
+  findNdaWithScope: vi.fn(),
+}));
+
 import {
   createNda,
   getNda,
@@ -87,6 +95,7 @@ import {
   NdaServiceError,
 } from '../ndaService.js';
 import { prisma } from '../../db/index.js';
+import { findNdaWithScope } from '../utils/scopedQuery.js';
 import type { UserContext } from '../../types/auth.js';
 
 const mockPrisma = vi.mocked(prisma);
@@ -307,23 +316,23 @@ describe('NDA Service', () => {
         documents: [],
       };
 
-      mockPrisma.nda.findFirst.mockResolvedValue(mockNda);
+      vi.mocked(findNdaWithScope).mockResolvedValue(mockNda as any);
+      const userContext = createMockUserContext();
 
-      const result = await getNda('nda-1', createMockUserContext());
+      const result = await getNda('nda-1', userContext);
 
       expect(result).toEqual(mockNda);
-      expect(mockPrisma.nda.findFirst).toHaveBeenCalledWith(
+      expect(findNdaWithScope).toHaveBeenCalledWith(
+        'nda-1',
+        userContext,
         expect.objectContaining({
-          where: expect.objectContaining({
-            id: 'nda-1',
-            AND: expect.any(Array), // Security filter
-          }),
+          include: expect.any(Object),
         })
       );
     });
 
     it('returns null when NDA not found or access denied', async () => {
-      mockPrisma.nda.findFirst.mockResolvedValue(null);
+      vi.mocked(findNdaWithScope).mockResolvedValue(null);
 
       const result = await getNda('nonexistent', createMockUserContext());
 
@@ -471,7 +480,7 @@ describe('NDA Service', () => {
   describe('updateNda', () => {
     it('updates NDA fields', async () => {
       // First mock getNda check
-      mockPrisma.nda.findFirst.mockResolvedValue({
+      vi.mocked(findNdaWithScope).mockResolvedValue({
         id: 'nda-1',
         agencyGroupId: 'group-1',
         status: 'CREATED',
@@ -499,7 +508,7 @@ describe('NDA Service', () => {
     });
 
     it('throws error when NDA not found', async () => {
-      mockPrisma.nda.findFirst.mockResolvedValue(null);
+      vi.mocked(findNdaWithScope).mockResolvedValue(null);
 
       await expect(
         updateNda('nonexistent', { companyName: 'New Name' }, createMockUserContext())
@@ -507,7 +516,7 @@ describe('NDA Service', () => {
     });
 
     it('validates authorized purpose length on update', async () => {
-      mockPrisma.nda.findFirst.mockResolvedValue({
+      vi.mocked(findNdaWithScope).mockResolvedValue({
         id: 'nda-1',
         agencyGroupId: 'group-1',
         status: 'CREATED',
@@ -521,8 +530,7 @@ describe('NDA Service', () => {
 
   describe('changeNdaStatus', () => {
     it('changes status and records history', async () => {
-      // getNda uses findFirst
-      mockPrisma.nda.findFirst.mockResolvedValue({
+      vi.mocked(findNdaWithScope).mockResolvedValue({
         id: 'nda-1',
         status: 'CREATED',
         fullyExecutedDate: null,
@@ -556,7 +564,7 @@ describe('NDA Service', () => {
     });
 
     it('sets fullyExecutedDate when status is FULLY_EXECUTED', async () => {
-      mockPrisma.nda.findFirst.mockResolvedValue({
+      vi.mocked(findNdaWithScope).mockResolvedValue({
         id: 'nda-1',
         status: 'IN_REVISION',
         fullyExecutedDate: null,
@@ -582,7 +590,7 @@ describe('NDA Service', () => {
     });
 
     it('throws error when NDA not found', async () => {
-      mockPrisma.nda.findFirst.mockResolvedValue(null);
+      vi.mocked(findNdaWithScope).mockResolvedValue(null);
 
       await expect(
         changeNdaStatus('nonexistent', 'EMAILED', createMockUserContext())
@@ -655,7 +663,7 @@ describe('NDA Service', () => {
     };
 
     it('clones NDA with overrides', async () => {
-      mockPrisma.nda.findFirst.mockResolvedValue(mockSourceNda);
+      vi.mocked(findNdaWithScope).mockResolvedValue(mockSourceNda as any);
       mockPrisma.nda.create.mockResolvedValue(mockClonedNda);
 
       const result = await cloneNda(
@@ -674,7 +682,7 @@ describe('NDA Service', () => {
     });
 
     it('copies all fields from source when no overrides provided', async () => {
-      mockPrisma.nda.findFirst.mockResolvedValue(mockSourceNda);
+      vi.mocked(findNdaWithScope).mockResolvedValue(mockSourceNda as any);
       mockPrisma.nda.create.mockResolvedValue(mockClonedNda);
 
       await cloneNda('source-nda', {}, createMockUserContext());
@@ -690,10 +698,10 @@ describe('NDA Service', () => {
     });
 
     it('sets status to CREATED regardless of source status', async () => {
-      mockPrisma.nda.findFirst.mockResolvedValue({
+      vi.mocked(findNdaWithScope).mockResolvedValue({
         ...mockSourceNda,
         status: 'FULLY_EXECUTED',
-      });
+      } as any);
       mockPrisma.nda.create.mockResolvedValue(mockClonedNda);
 
       await cloneNda('source-nda', {}, createMockUserContext());
@@ -709,7 +717,7 @@ describe('NDA Service', () => {
     });
 
     it('records clonedFromId in new NDA', async () => {
-      mockPrisma.nda.findFirst.mockResolvedValue(mockSourceNda);
+      vi.mocked(findNdaWithScope).mockResolvedValue(mockSourceNda as any);
       mockPrisma.nda.create.mockResolvedValue(mockClonedNda);
 
       await cloneNda('source-nda', {}, createMockUserContext());
@@ -724,7 +732,7 @@ describe('NDA Service', () => {
     });
 
     it('validates authorizedPurpose length in overrides', async () => {
-      mockPrisma.nda.findFirst.mockResolvedValue(mockSourceNda);
+      vi.mocked(findNdaWithScope).mockResolvedValue(mockSourceNda as any);
 
       await expect(
         cloneNda(
@@ -736,7 +744,7 @@ describe('NDA Service', () => {
     });
 
     it('throws error when source NDA not found', async () => {
-      mockPrisma.nda.findFirst.mockResolvedValue(null);
+      vi.mocked(findNdaWithScope).mockResolvedValue(null);
 
       await expect(
         cloneNda('nonexistent', {}, createMockUserContext())
@@ -745,10 +753,10 @@ describe('NDA Service', () => {
 
     it('validates agency access when changing agency', async () => {
       // Mock source NDA without subagency for this test
-      mockPrisma.nda.findFirst.mockResolvedValue({
+      vi.mocked(findNdaWithScope).mockResolvedValue({
         ...mockSourceNda,
         subagency: null,
-      });
+      } as any);
       // Clear subagency mocks for this test - no subagency involved
       mockPrisma.subagency.findFirst.mockResolvedValue(null);
       mockPrisma.subagency.findUnique.mockResolvedValue(null);
@@ -763,7 +771,7 @@ describe('NDA Service', () => {
     });
 
     it('logs audit event for clone operation', async () => {
-      mockPrisma.nda.findFirst.mockResolvedValue(mockSourceNda);
+      vi.mocked(findNdaWithScope).mockResolvedValue(mockSourceNda as any);
       mockPrisma.nda.create.mockResolvedValue(mockClonedNda);
 
       await cloneNda(
@@ -839,7 +847,7 @@ describe('NDA Service', () => {
     };
 
     it('updates draft and returns incomplete fields', async () => {
-      mockPrisma.nda.findFirst.mockResolvedValue(mockDraftNda);
+      vi.mocked(findNdaWithScope).mockResolvedValue(mockDraftNda as any);
       mockPrisma.nda.update.mockResolvedValue({
         ...mockDraftNda,
         companyName: 'Updated Company',
@@ -857,10 +865,10 @@ describe('NDA Service', () => {
     });
 
     it('rejects updating non-draft NDAs', async () => {
-      mockPrisma.nda.findFirst.mockResolvedValue({
+      vi.mocked(findNdaWithScope).mockResolvedValue({
         ...mockDraftNda,
         status: 'EMAILED', // Not a draft
-      });
+      } as any);
 
       await expect(
         updateDraft('nda-1', { companyName: 'Updated' }, createMockUserContext())
@@ -868,7 +876,7 @@ describe('NDA Service', () => {
     });
 
     it('validates authorizedPurpose length', async () => {
-      mockPrisma.nda.findFirst.mockResolvedValue(mockDraftNda);
+      vi.mocked(findNdaWithScope).mockResolvedValue(mockDraftNda as any);
 
       await expect(
         updateDraft('nda-1', { authorizedPurpose: 'a'.repeat(256) }, createMockUserContext())
@@ -876,7 +884,7 @@ describe('NDA Service', () => {
     });
 
     it('returns correct incomplete fields after partial update', async () => {
-      mockPrisma.nda.findFirst.mockResolvedValue(mockDraftNda);
+      vi.mocked(findNdaWithScope).mockResolvedValue(mockDraftNda as any);
       mockPrisma.nda.update.mockResolvedValue({
         ...mockDraftNda,
         companyName: 'New Company',
@@ -893,7 +901,7 @@ describe('NDA Service', () => {
     });
 
     it('throws error when NDA not found', async () => {
-      mockPrisma.nda.findFirst.mockResolvedValue(null);
+      vi.mocked(findNdaWithScope).mockResolvedValue(null);
 
       await expect(
         updateDraft('nonexistent', { companyName: 'Test' }, createMockUserContext())
@@ -1182,7 +1190,7 @@ describe('NDA Service', () => {
     });
 
     it('returns full NDA detail with audit trail and available actions', async () => {
-      mockPrisma.nda.findFirst.mockResolvedValue(mockNda);
+      vi.mocked(findNdaWithScope).mockResolvedValue(mockNda as any);
       mockPrisma.auditLog.findMany.mockResolvedValue(mockAuditTrail);
 
       const userContext = createMockUserContext({
@@ -1200,7 +1208,7 @@ describe('NDA Service', () => {
     });
 
     it('returns correct available actions based on permissions', async () => {
-      mockPrisma.nda.findFirst.mockResolvedValue(mockNda);
+      vi.mocked(findNdaWithScope).mockResolvedValue(mockNda as any);
       mockPrisma.auditLog.findMany.mockResolvedValue([]);
 
       const userContext = createMockUserContext({
@@ -1219,7 +1227,7 @@ describe('NDA Service', () => {
     });
 
     it('returns all actions true for user with all permissions', async () => {
-      mockPrisma.nda.findFirst.mockResolvedValue(mockNda);
+      vi.mocked(findNdaWithScope).mockResolvedValue(mockNda as any);
       mockPrisma.auditLog.findMany.mockResolvedValue([]);
 
       const userContext = createMockUserContext({
@@ -1245,7 +1253,7 @@ describe('NDA Service', () => {
     });
 
     it('returns null when NDA not found', async () => {
-      mockPrisma.nda.findFirst.mockResolvedValue(null);
+      vi.mocked(findNdaWithScope).mockResolvedValue(null);
 
       const result = await getNdaDetail('nonexistent', createMockUserContext());
 
@@ -1255,7 +1263,7 @@ describe('NDA Service', () => {
     });
 
     it('queries audit log with correct parameters', async () => {
-      mockPrisma.nda.findFirst.mockResolvedValue(mockNda);
+      vi.mocked(findNdaWithScope).mockResolvedValue(mockNda as any);
       mockPrisma.auditLog.findMany.mockResolvedValue([]);
 
       await getNdaDetail('nda-1', createMockUserContext());

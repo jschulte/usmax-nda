@@ -9,13 +9,13 @@
  * - PUT /api/subagencies/:id - Update subagency
  * - DELETE /api/subagencies/:id - Delete subagency (if no NDAs)
  *
- * All routes require admin:manage_agencies permission
+ * Write routes require admin:manage_agencies permission
  */
 
 import { Router, type Request, type Response, type Router as RouterType } from 'express';
 import { authenticateJWT } from '../middleware/authenticateJWT.js';
 import { attachUserContext } from '../middleware/attachUserContext.js';
-import { requirePermission } from '../middleware/checkPermissions.js';
+import { requireAnyPermission, requirePermission } from '../middleware/checkPermissions.js';
 import { PERMISSIONS } from '../constants/permissions.js';
 import {
   listSubagenciesInGroup,
@@ -37,52 +37,60 @@ router.use(attachUserContext);
  * List all subagencies within an agency group
  * Task 1.2
  *
- * Available to all authenticated users (needed for NDA creation)
+ * Available to users with NDA view/create or admin manage agencies permission
  */
-router.get('/agency-groups/:groupId/subagencies', async (req: Request, res: Response) => {
-  const { groupId } = req.params;
+router.get(
+  '/agency-groups/:groupId/subagencies',
+  requireAnyPermission([PERMISSIONS.NDA_VIEW, PERMISSIONS.NDA_CREATE, PERMISSIONS.ADMIN_MANAGE_AGENCIES]),
+  async (req: Request, res: Response) => {
+    const { groupId } = req.params;
 
-  try {
-    const subagencies = await listSubagenciesInGroup(groupId);
-    return res.json({ subagencies });
-  } catch (error) {
-    console.error('[Subagencies] Error listing subagencies:', error);
-    return res.status(500).json({
-      error: 'Failed to list subagencies',
-      code: 'INTERNAL_ERROR',
-    });
+    try {
+      const subagencies = await listSubagenciesInGroup(groupId);
+      return res.json({ subagencies });
+    } catch (error) {
+      console.error('[Subagencies] Error listing subagencies:', error);
+      return res.status(500).json({
+        error: 'Failed to list subagencies',
+        code: 'INTERNAL_ERROR',
+      });
+    }
   }
-});
+);
 
 /**
  * GET /api/subagencies/:id
  * Get single subagency with its agency group info
  * Task 1.3
  *
- * Available to all authenticated users
+ * Available to users with NDA view/create or admin manage agencies permission
  */
-router.get('/subagencies/:id', async (req: Request, res: Response) => {
-  const { id } = req.params;
+router.get(
+  '/subagencies/:id',
+  requireAnyPermission([PERMISSIONS.NDA_VIEW, PERMISSIONS.NDA_CREATE, PERMISSIONS.ADMIN_MANAGE_AGENCIES]),
+  async (req: Request, res: Response) => {
+    const { id } = req.params;
 
-  try {
-    const subagency = await getSubagency(id);
+    try {
+      const subagency = await getSubagency(id);
 
-    if (!subagency) {
-      return res.status(404).json({
-        error: 'Subagency not found',
-        code: 'NOT_FOUND',
+      if (!subagency) {
+        return res.status(404).json({
+          error: 'Subagency not found',
+          code: 'NOT_FOUND',
+        });
+      }
+
+      return res.json({ subagency });
+    } catch (error) {
+      console.error('[Subagencies] Error fetching subagency:', error);
+      return res.status(500).json({
+        error: 'Failed to fetch subagency',
+        code: 'INTERNAL_ERROR',
       });
     }
-
-    return res.json({ subagency });
-  } catch (error) {
-    console.error('[Subagencies] Error fetching subagency:', error);
-    return res.status(500).json({
-      error: 'Failed to fetch subagency',
-      code: 'INTERNAL_ERROR',
-    });
   }
-});
+);
 
 /**
  * POST /api/agency-groups/:groupId/subagencies

@@ -47,6 +47,10 @@ vi.mock('../auditService.js', () => ({
   },
 }));
 
+vi.mock('../ndaService.js', () => ({
+  buildSecurityFilter: vi.fn().mockResolvedValue({}),
+}));
+
 // Mock SES client
 vi.mock('@aws-sdk/client-ses', () => ({
   SESClient: vi.fn().mockImplementation(() => ({

@@ -320,7 +320,7 @@ router.get(
       const skip = (page - 1) * limit;
 
       // Build security filter to ensure user can access this NDA
-      const securityFilter = buildSecurityFilter(req.userContext!);
+      const securityFilter = await buildSecurityFilter(req.userContext!);
 
       // Verify NDA exists and user has access
       const nda = await prisma.nda.findFirst({

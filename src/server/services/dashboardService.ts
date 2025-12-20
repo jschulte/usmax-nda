@@ -12,6 +12,7 @@
 
 import { prisma } from '../db/index.js';
 import type { UserContext } from '../types/auth.js';
+import { buildSecurityFilter } from './ndaService.js';
 import { NdaStatus } from '../../generated/prisma/index.js';
 
 /**
@@ -114,31 +115,6 @@ export interface ActivityItem {
 }
 
 /**
- * Build security filter for queries
- */
-function buildSecurityFilter(userContext: UserContext) {
-  if (userContext.permissions.has('admin:manage_agencies')) {
-    return {}; // Admin sees all
-  }
-
-  const conditions: any[] = [];
-
-  if (userContext.authorizedAgencyGroups.length > 0) {
-    conditions.push({ agencyGroupId: { in: userContext.authorizedAgencyGroups } });
-  }
-
-  if (userContext.authorizedSubagencies.length > 0) {
-    conditions.push({ subagencyId: { in: userContext.authorizedSubagencies } });
-  }
-
-  if (conditions.length === 0) {
-    return { id: '__NONE__' }; // No access
-  }
-
-  return { OR: conditions };
-}
-
-/**
  * Get personalized dashboard data
  * Story 5.8: Personalized Dashboard
  */
@@ -147,7 +123,7 @@ export async function getDashboard(
   config: Partial<DashboardConfig> = {}
 ): Promise<DashboardResponse> {
   const cfg = { ...DEFAULT_CONFIG, ...config };
-  const securityFilter = buildSecurityFilter(userContext);
+  const securityFilter = await buildSecurityFilter(userContext);
   const now = new Date();
 
   // Run queries in parallel for performance
