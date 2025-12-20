@@ -1088,6 +1088,7 @@ router.patch('/:id/draft', requirePermission(PERMISSIONS.NDA_UPDATE), async (req
  * - agencyGroupId: string
  * - subagencyId: string | null
  * - other fields as needed
+ * - rtfTemplateId: string | null
  *
  * Returns cloned NDA with clonedFromId pointing to source
  *
@@ -1113,6 +1114,7 @@ router.post('/:id/clone', requirePermission(PERMISSIONS.NDA_CREATE), async (req,
       contractsPocId,
       relationshipPocId,
       contactsPocId,
+      rtfTemplateId,
     } = req.body;
 
     const clonedNda = await cloneNda(
@@ -1135,6 +1137,7 @@ router.post('/:id/clone', requirePermission(PERMISSIONS.NDA_CREATE), async (req,
         contractsPocId,
         relationshipPocId,
         contactsPocId,
+        rtfTemplateId,
       },
       req.userContext!,
       {

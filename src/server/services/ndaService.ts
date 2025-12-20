@@ -1159,6 +1159,7 @@ export interface CloneNdaOverrides {
   contractsPocId?: string | null;
   relationshipPocId?: string;
   contactsPocId?: string | null;
+  rtfTemplateId?: string | null;
 }
 
 export async function cloneNda(
@@ -1177,6 +1178,10 @@ export async function cloneNda(
   const targetAgencyGroupId = overrides.agencyGroupId || source.agencyGroup.id;
   const targetSubagencyId = overrides.subagencyId !== undefined ? overrides.subagencyId : source.subagency?.id;
   await validateAgencyAccess(userContext, targetAgencyGroupId, targetSubagencyId || undefined);
+
+  const resolvedTemplateId =
+    overrides.rtfTemplateId !== undefined ? overrides.rtfTemplateId : source.rtfTemplateId;
+  await validateTemplateSelection(targetAgencyGroupId, resolvedTemplateId);
 
   // If subagency provided, validate it belongs to agency group
   if (targetSubagencyId) {
@@ -1240,6 +1245,7 @@ export async function cloneNda(
       effectiveDate: effectiveDate !== null ? effectiveDate : null,
       usMaxPosition: overrides.usMaxPosition ?? source.usMaxPosition,
       isNonUsMax: overrides.isNonUsMax ?? source.isNonUsMax,
+      rtfTemplate: resolvedTemplateId ? { connect: { id: resolvedTemplateId } } : undefined,
 
       // Reset status to CREATED for cloned NDAs
       status: 'CREATED',
