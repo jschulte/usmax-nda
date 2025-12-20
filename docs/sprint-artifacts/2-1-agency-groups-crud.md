@@ -115,7 +115,7 @@ so that **I can organize subagencies into logical groupings**.
 - Dependencies: Story 1.3 (RBAC)
 
 ### Agent Model Used
-Claude Opus 4.5
+Codex (GPT-5)
 
 ### Debug Log References
 N/A
@@ -124,8 +124,9 @@ N/A
 - First admin management story
 - Forms foundation for subagencies CRUD
 - Added full Agency Groups admin UI with create/edit/delete flows
-- Aligned API error contracts with ACs and surfaced subagency blocking counts
-- Noted unrelated auth/Cognito working tree changes outside this story scope
+- Made agency group audit logging transactional and mapped unique-constraint errors
+- Allowed agency group listing for authenticated NDA creation flows
+- Surfaced subagency blocking counts in delete UX and error messaging
 
 ### File List
 Files to create:
@@ -138,8 +139,8 @@ Files to create:
 Files to modify:
 - `src/server/index.ts` - Register routes
 - `src/server/services/auditService.ts` - Add new audit actions
-- `src/server/routes/agencyGroups.ts` - Enforce permissions and error contract
-- `src/server/services/agencyGroupService.ts` - Fix duplicate handling and delete messaging
-- `src/server/services/__tests__/agencyGroupService.test.ts` - Align error codes and details
+- `src/server/routes/agencyGroups.ts` - Allow authenticated list access for NDA creation
+- `src/server/services/agencyGroupService.ts` - Transactional audit logging + unique constraint mapping
+- `src/server/services/__tests__/agencyGroupService.test.ts` - Assert audit logging + unique constraint handling
 - `src/components/screens/Administration.tsx` - Add Agency Groups entry
 - `src/App.tsx` - Add Agency Groups route
