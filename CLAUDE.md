@@ -1,4 +1,6 @@
-# Repository Guidelines
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 This project uses the BMAD method and you MUST load the metadata file for BMAD from .bmad/pm.xml before proceeding.
 
@@ -153,6 +155,114 @@ const ndas = await prisma.nda.findMany({
   }
 });
 ```
+
+## Project Overview
+
+USMax NDA Management System - a government-grade NDA (Non-Disclosure Agreement) lifecycle management application replacing a legacy Windows system. Built for CMMC Level 1 compliance with MFA, row-level security, and comprehensive audit logging.
+
+**Tech Stack:** React 18 + Vite + Express + PostgreSQL + Prisma + AWS (Cognito, S3, SES)
+
+## Essential Commands
+
+```bash
+# Development (runs Vite frontend + Express backend concurrently)
+pnpm dev
+
+# Run only frontend
+pnpm dev:client
+
+# Run only backend
+pnpm dev:server
+
+# Build for production
+pnpm build
+
+# Start production server
+pnpm start
+
+# Run all tests
+pnpm test
+
+# Run tests once (CI mode)
+pnpm test:run
+
+# Run a single test file
+pnpm test src/server/services/__tests__/ndaService.test.ts
+
+# Database commands
+pnpm db:generate    # Generate Prisma client
+pnpm db:migrate     # Run migrations (dev)
+pnpm db:push        # Push schema without migrations
+pnpm db:seed        # Seed development data
+pnpm db:studio      # Open Prisma Studio GUI
+```
+
+## Architecture Overview
+
+### Backend Structure (`src/server/`)
+
+```
+middleware/          # Auth pipeline: authenticateJWT → attachUserContext → checkPermissions → scopeToAgencies
+routes/              # Express route handlers (REST endpoints)
+services/            # Business logic (ndaService, emailService, documentService, etc.)
+validators/          # Input validation (pocValidator)
+jobs/                # Background jobs (emailQueue with pg-boss)
+types/               # TypeScript types (auth.ts)
+constants/           # Permission codes, enums
+utils/               # Helpers (scopedQuery)
+db/                  # Database connection
+```
+
+**Key Middleware Pipeline:**
+1. `authenticateJWT` - Validates Cognito JWT from cookies
+2. `attachUserContext` - Loads user roles, permissions, agency access
+3. `checkPermissions` - Verifies user has required permission
+4. `scopeToAgencies` - Filters data to authorized agencies (row-level security)
+
+### Frontend Structure (`src/client/`)
+
+```
+pages/               # Route components (LoginPage, Dashboard, NDAList)
+components/          # Reusable UI components
+contexts/            # React contexts (AuthContext)
+hooks/               # Custom hooks (useAuth)
+stores/              # Zustand stores (appStore)
+```
+
+### Database Schema (`prisma/schema.prisma`)
+
+**Core Entities:**
+- `Contact` - Users (USMax staff), unified with external contacts
+- `Role`, `Permission`, `RolePermission`, `ContactRole` - RBAC
+- `AgencyGroup`, `Subagency` - Organizational hierarchy
+- `AgencyGroupGrant`, `SubagencyGrant` - Data access control
+- `Nda` - Main NDA entity with 4 POC FKs (opportunity, contracts, relationship, contacts)
+- `Document` - S3 document metadata
+- `NdaEmail` - Email history with delivery tracking
+- `AuditLog` - Immutable action history
+- `RtfTemplate`, `EmailTemplate` - Document/email templates
+
+### Security Model
+
+**Authentication:** AWS Cognito with MFA (TOTP or SMS)
+- Tokens stored in HttpOnly cookies (not localStorage)
+- CSRF protection via double-submit cookie pattern
+
+**Authorization (Two Layers):**
+1. **RBAC** - Permission-based (`nda:create`, `nda:send_email`, `admin:*`)
+2. **Row-Level Security** - Agency-scoped queries (users see only NDAs for their authorized agencies)
+
+```typescript
+// MANDATORY: All NDA queries must include agency scoping
+const ndas = await prisma.nda.findMany({
+  where: {
+    ...userFilters,
+    subagencyId: { in: authorizedSubagencyIds }  // NEVER skip this
+  }
+});
+```
+
+## Code Patterns
 
 ### Naming Conventions
 - **Database:** snake_case (`agency_groups`, `created_at`)
