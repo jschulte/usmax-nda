@@ -337,6 +337,8 @@ function generateNotificationSubject(details: NotificationDetails): string {
  * Generate notification email body
  */
 function generateNotificationBody(details: NotificationDetails): string {
+  const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+  const ndaUrl = `${baseUrl}/nda/${details.ndaId}`;
   const eventMessages: Record<NotificationEvent, string> = {
     [NotificationEvent.NDA_CREATED]: 'A new NDA has been created.',
     [NotificationEvent.NDA_EMAILED]: 'The NDA has been emailed to the partner.',
@@ -355,7 +357,7 @@ NDA Details:
 - Changed by: ${details.changedBy.name}
 - Time: ${details.timestamp.toLocaleString()}
 
-You can view the full NDA details in the USMax NDA Management System.
+View NDA: ${ndaUrl}
 
 Best regards,
 USMax Notifications

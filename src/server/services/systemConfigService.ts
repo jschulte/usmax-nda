@@ -23,10 +23,12 @@ export enum ConfigKey {
   DASHBOARD_STALE_EMAILED_DAYS = 'dashboard.stale_emailed_days',
   DASHBOARD_EXPIRATION_WARNING_DAYS = 'dashboard.expiration_warning_days',
   DASHBOARD_EXPIRATION_INFO_DAYS = 'dashboard.expiration_info_days',
+  NDA_DEFAULT_TERM_DAYS = 'nda.default_term_days',
 
   // Email defaults (Story 7.18)
   EMAIL_DEFAULT_CC = 'email.default_cc',
   EMAIL_DEFAULT_BCC = 'email.default_bcc',
+  EMAIL_ADMIN_ALERTS = 'email.admin_alerts',
 
   // Dropdown values (Story 7.19)
   DROPDOWN_NDA_TYPES = 'dropdown.nda_types',
@@ -41,8 +43,10 @@ const DEFAULT_CONFIG: Record<string, string> = {
   [ConfigKey.DASHBOARD_STALE_EMAILED_DAYS]: '14',
   [ConfigKey.DASHBOARD_EXPIRATION_WARNING_DAYS]: '30',
   [ConfigKey.DASHBOARD_EXPIRATION_INFO_DAYS]: '60',
+  [ConfigKey.NDA_DEFAULT_TERM_DAYS]: '365',
   [ConfigKey.EMAIL_DEFAULT_CC]: '',
   [ConfigKey.EMAIL_DEFAULT_BCC]: '',
+  [ConfigKey.EMAIL_ADMIN_ALERTS]: '',
   [ConfigKey.DROPDOWN_NDA_TYPES]: JSON.stringify([
     { value: 'UNILATERAL', label: 'Unilateral (One-way)', isActive: true },
     { value: 'MUTUAL', label: 'Mutual (Two-way)', isActive: true },
@@ -242,19 +246,25 @@ export interface EmailDefaults {
   defaultBcc: string[];
 }
 
+function parseEmailList(value: string): string[] {
+  return value ? value.split(',').map((e) => e.trim()).filter(Boolean) : [];
+}
+
 export async function getEmailDefaults(): Promise<EmailDefaults> {
   const configs = await getConfigs([
     ConfigKey.EMAIL_DEFAULT_CC,
     ConfigKey.EMAIL_DEFAULT_BCC,
   ]);
 
-  const parseEmails = (str: string): string[] =>
-    str ? str.split(',').map((e) => e.trim()).filter(Boolean) : [];
-
   return {
-    defaultCc: parseEmails(configs[ConfigKey.EMAIL_DEFAULT_CC]),
-    defaultBcc: parseEmails(configs[ConfigKey.EMAIL_DEFAULT_BCC]),
+    defaultCc: parseEmailList(configs[ConfigKey.EMAIL_DEFAULT_CC]),
+    defaultBcc: parseEmailList(configs[ConfigKey.EMAIL_DEFAULT_BCC]),
   };
+}
+
+export async function getEmailAdminAlerts(): Promise<string[]> {
+  const value = await getConfig(ConfigKey.EMAIL_ADMIN_ALERTS);
+  return parseEmailList(value);
 }
 
 export async function setEmailDefaults(

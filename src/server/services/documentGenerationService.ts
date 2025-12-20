@@ -4,21 +4,12 @@
  *
  * Handles NDA document generation:
  * - Template field merging with Handlebars
- * - DOCX generation using docx library
+ * - RTF generation from stored template content
  * - S3 storage integration
  * - Database record creation
  * - Audit logging
  */
 
-import {
-  Document,
-  Packer,
-  Paragraph,
-  TextRun,
-  HeadingLevel,
-  AlignmentType,
-  BorderStyle,
-} from 'docx';
 import Handlebars from 'handlebars';
 import { prisma } from '../db/index.js';
 import { uploadDocument } from './s3Service.js';
@@ -85,9 +76,11 @@ interface NdaTemplateFields {
   authorizedPurpose: string;
   effectiveDate?: string;
   usMaxPosition: string;
+  ndaType: string;
   opportunityPocName?: string;
   contractsPocName?: string;
   relationshipPocName?: string;
+  contactsPocName?: string;
   displayId: number;
   generatedDate: string;
 }
@@ -158,8 +151,12 @@ export async function generateDocument(
   // Extract template fields
   const templateFields = extractTemplateFields(nda);
 
-  // Generate DOCX content
-  const docxBuffer = await generateDocx(templateFields);
+  // Resolve template (selected or default)
+  const template = await getTemplateForNda(nda, input.templateId);
+
+  // Merge fields into RTF template
+  const rtfContent = mergeTemplate(template.content.toString('utf8'), templateFields);
+  const rtfBuffer = Buffer.from(rtfContent, 'utf8');
 
   // Generate filename
   const filename = generateFilename(nda);
@@ -168,8 +165,8 @@ export async function generateDocument(
   const uploadResult = await uploadDocument({
     ndaId: nda.id,
     filename,
-    content: docxBuffer,
-    contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    content: rtfBuffer,
+    contentType: 'application/rtf',
   });
 
   // Create document record in database
@@ -180,6 +177,7 @@ export async function generateDocument(
       filename,
       s3Key: uploadResult.s3Key,
       documentType: 'GENERATED',
+      fileType: 'application/rtf',
       uploadedById: userContext.contactId,
     },
   });
@@ -219,6 +217,7 @@ async function getNdaWithRelations(
   opportunityPoc: { firstName?: string | null; lastName?: string | null };
   contractsPoc?: { firstName?: string | null; lastName?: string | null } | null;
   relationshipPoc: { firstName?: string | null; lastName?: string | null };
+  contactsPoc?: { firstName?: string | null; lastName?: string | null } | null;
 } | null> {
   return findNdaWithScope(ndaId, userContext, {
     include: {
@@ -227,6 +226,7 @@ async function getNdaWithRelations(
       opportunityPoc: { select: { firstName: true, lastName: true } },
       contractsPoc: { select: { firstName: true, lastName: true } },
       relationshipPoc: { select: { firstName: true, lastName: true } },
+      contactsPoc: { select: { firstName: true, lastName: true } },
     },
   });
 }
@@ -235,9 +235,26 @@ async function getNdaWithRelations(
  * Check system config for non-USMax skip setting
  */
 async function checkNonUsMaxSkipSetting(): Promise<boolean> {
-  // Default to false - generate documents for all NDAs
-  // This would be configurable via system_config table in production
-  return false;
+  const config = await prisma.systemConfig.findUnique({
+    where: { key: 'non_usmax_skip_template' },
+  });
+
+  if (!config) {
+    return false;
+  }
+
+  const raw = config.value?.trim().toLowerCase();
+  if (!raw) return false;
+
+  if (raw === 'true' || raw === '1' || raw === 'yes') return true;
+  if (raw === 'false' || raw === '0' || raw === 'no') return false;
+
+  try {
+    const parsed = JSON.parse(config.value);
+    return Boolean(parsed);
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -249,6 +266,7 @@ function extractTemplateFields(nda: Nda & {
   opportunityPoc: { firstName?: string | null; lastName?: string | null };
   contractsPoc?: { firstName?: string | null; lastName?: string | null } | null;
   relationshipPoc: { firstName?: string | null; lastName?: string | null };
+  contactsPoc?: { firstName?: string | null; lastName?: string | null } | null;
 }): NdaTemplateFields {
   const formatName = (poc: { firstName?: string | null; lastName?: string | null } | null | undefined): string => {
     if (!poc) return '';
@@ -283,387 +301,74 @@ function extractTemplateFields(nda: Nda & {
     authorizedPurpose: nda.authorizedPurpose,
     effectiveDate: formatDate(nda.effectiveDate),
     usMaxPosition: positionMap[nda.usMaxPosition] || nda.usMaxPosition,
+    ndaType: nda.ndaType,
     opportunityPocName: formatName(nda.opportunityPoc),
     contractsPocName: formatName(nda.contractsPoc) || undefined,
     relationshipPocName: formatName(nda.relationshipPoc),
+    contactsPocName: formatName(nda.contactsPoc) || undefined,
     displayId: nda.displayId,
     generatedDate: formatDate(new Date()),
   };
 }
 
 /**
- * Generate DOCX document from template fields
+ * Resolve template to use for generation
  */
-async function generateDocx(fields: NdaTemplateFields): Promise<Buffer> {
-  const doc = new Document({
-    sections: [
-      {
-        children: [
-          // Header
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: 'NON-DISCLOSURE AGREEMENT',
-                bold: true,
-                size: 32,
-              }),
-            ],
-            alignment: AlignmentType.CENTER,
-            heading: HeadingLevel.HEADING_1,
-            spacing: { after: 400 },
-          }),
+async function getTemplateForNda(
+  nda: Nda,
+  templateId?: string
+): Promise<{ id: string; name: string; content: Buffer }> {
+  if (templateId) {
+    const template = await prisma.rtfTemplate.findFirst({
+      where: { id: templateId, isActive: true },
+    });
+    if (!template) {
+      throw new DocumentGenerationError('Template not found', 'TEMPLATE_NOT_FOUND');
+    }
+    return { id: template.id, name: template.name, content: template.content };
+  }
 
-          // NDA Reference Number
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: `NDA Reference: NDA-${fields.displayId.toString().padStart(6, '0')}`,
-                bold: true,
-                size: 24,
-              }),
-            ],
-            alignment: AlignmentType.CENTER,
-            spacing: { after: 400 },
-          }),
-
-          // Effective Date
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: `Effective Date: ${fields.effectiveDate || '[TO BE DETERMINED]'}`,
-                size: 22,
-              }),
-            ],
-            spacing: { after: 200 },
-          }),
-
-          // Parties Section
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: 'BETWEEN:',
-                bold: true,
-                size: 22,
-              }),
-            ],
-            spacing: { before: 400, after: 200 },
-          }),
-
-          // Company Information
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: `${fields.companyName}`,
-                bold: true,
-                size: 22,
-              }),
-            ],
-          }),
-          ...(fields.companyCity || fields.companyState
-            ? [
-                new Paragraph({
-                  children: [
-                    new TextRun({
-                      text: [fields.companyCity, fields.companyState]
-                        .filter(Boolean)
-                        .join(', '),
-                      size: 22,
-                    }),
-                  ],
-                }),
-              ]
-            : []),
-          ...(fields.stateOfIncorporation
-            ? [
-                new Paragraph({
-                  children: [
-                    new TextRun({
-                      text: `State of Incorporation: ${fields.stateOfIncorporation}`,
-                      size: 22,
-                    }),
-                  ],
-                }),
-              ]
-            : []),
-
-          // AND
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: 'AND',
-                bold: true,
-                size: 22,
-              }),
-            ],
-            alignment: AlignmentType.CENTER,
-            spacing: { before: 300, after: 300 },
-          }),
-
-          // USMax
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: 'USMAX Corporation',
-                bold: true,
-                size: 22,
-              }),
-            ],
-          }),
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: `Acting as ${fields.usMaxPosition}`,
-                size: 22,
-              }),
-            ],
-            spacing: { after: 400 },
-          }),
-
-          // Agency Information
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: 'REGARDING:',
-                bold: true,
-                size: 22,
-              }),
-            ],
-            spacing: { before: 300, after: 200 },
-          }),
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: `Agency: ${fields.agencyGroupName}${fields.subagencyName ? ` - ${fields.subagencyName}` : ''}`,
-                size: 22,
-              }),
-            ],
-          }),
-          ...(fields.agencyOfficeName
-            ? [
-                new Paragraph({
-                  children: [
-                    new TextRun({
-                      text: `Office: ${fields.agencyOfficeName}`,
-                      size: 22,
-                    }),
-                  ],
-                }),
-              ]
-            : []),
-
-          // Purpose Section
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: 'PURPOSE:',
-                bold: true,
-                size: 22,
-              }),
-            ],
-            spacing: { before: 400, after: 200 },
-          }),
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: fields.authorizedPurpose,
-                size: 22,
-              }),
-            ],
-            spacing: { after: 400 },
-          }),
-
-          // Abbreviated Name
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: `Project Reference: ${fields.abbreviatedName}`,
-                size: 22,
-                italics: true,
-              }),
-            ],
-            spacing: { after: 400 },
-          }),
-
-          // Standard NDA Terms (placeholder)
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: 'TERMS AND CONDITIONS:',
-                bold: true,
-                size: 22,
-              }),
-            ],
-            spacing: { before: 400, after: 200 },
-          }),
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: '[Standard NDA terms and conditions would be inserted here from template]',
-                size: 22,
-                italics: true,
-              }),
-            ],
-            spacing: { after: 400 },
-          }),
-
-          // Signatures Section
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: 'SIGNATURES:',
-                bold: true,
-                size: 22,
-              }),
-            ],
-            spacing: { before: 400, after: 400 },
-          }),
-
-          // Company Signature Block
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: `For ${fields.companyName}:`,
-                bold: true,
-                size: 22,
-              }),
-            ],
-          }),
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: '____________________________',
-                size: 22,
-              }),
-            ],
-            spacing: { before: 200 },
-          }),
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: 'Signature',
-                size: 20,
-              }),
-            ],
-          }),
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: '____________________________',
-                size: 22,
-              }),
-            ],
-            spacing: { before: 100 },
-          }),
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: 'Name and Title',
-                size: 20,
-              }),
-            ],
-          }),
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: '____________________________',
-                size: 22,
-              }),
-            ],
-            spacing: { before: 100 },
-          }),
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: 'Date',
-                size: 20,
-              }),
-            ],
-            spacing: { after: 400 },
-          }),
-
-          // USMAX Signature Block
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: 'For USMAX Corporation:',
-                bold: true,
-                size: 22,
-              }),
-            ],
-          }),
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: '____________________________',
-                size: 22,
-              }),
-            ],
-            spacing: { before: 200 },
-          }),
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: 'Signature',
-                size: 20,
-              }),
-            ],
-          }),
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: '____________________________',
-                size: 22,
-              }),
-            ],
-            spacing: { before: 100 },
-          }),
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: 'Name and Title',
-                size: 20,
-              }),
-            ],
-          }),
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: '____________________________',
-                size: 22,
-              }),
-            ],
-            spacing: { before: 100 },
-          }),
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: 'Date',
-                size: 20,
-              }),
-            ],
-            spacing: { after: 600 },
-          }),
-
-          // Footer
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: `Generated: ${fields.generatedDate}`,
-                size: 18,
-                italics: true,
-                color: '666666',
-              }),
-            ],
-            alignment: AlignmentType.RIGHT,
-          }),
-        ],
-      },
-    ],
+  const agencyDefault = await prisma.rtfTemplate.findFirst({
+    where: { agencyGroupId: nda.agencyGroupId, isDefault: true, isActive: true },
+    orderBy: { updatedAt: 'desc' },
   });
+  if (agencyDefault) {
+    return { id: agencyDefault.id, name: agencyDefault.name, content: agencyDefault.content };
+  }
 
-  // Convert to buffer
-  const buffer = await Packer.toBuffer(doc);
-  return Buffer.from(buffer);
+  const anyAgency = await prisma.rtfTemplate.findFirst({
+    where: { agencyGroupId: nda.agencyGroupId, isActive: true },
+    orderBy: { updatedAt: 'desc' },
+  });
+  if (anyAgency) {
+    return { id: anyAgency.id, name: anyAgency.name, content: anyAgency.content };
+  }
+
+  const globalDefault = await prisma.rtfTemplate.findFirst({
+    where: { agencyGroupId: null, isDefault: true, isActive: true },
+    orderBy: { updatedAt: 'desc' },
+  });
+  if (globalDefault) {
+    return { id: globalDefault.id, name: globalDefault.name, content: globalDefault.content };
+  }
+
+  const anyGlobal = await prisma.rtfTemplate.findFirst({
+    where: { agencyGroupId: null, isActive: true },
+    orderBy: { updatedAt: 'desc' },
+  });
+  if (anyGlobal) {
+    return { id: anyGlobal.id, name: anyGlobal.name, content: anyGlobal.content };
+  }
+
+  throw new DocumentGenerationError('No active template available', 'TEMPLATE_NOT_FOUND');
+}
+
+/**
+ * Merge NDA fields into RTF template content
+ */
+function mergeTemplate(templateContent: string, fields: NdaTemplateFields): string {
+  const template = Handlebars.compile(templateContent);
+  return template(fields);
 }
 
 /**
@@ -676,7 +381,7 @@ function generateFilename(nda: Nda): string {
     .replace(/_+/g, '_')
     .substring(0, 30);
 
-  return `NDA-${displayIdPadded}-${sanitizedCompany}.docx`;
+  return `NDA-${displayIdPadded}-${sanitizedCompany}.rtf`;
 }
 
 /**

@@ -2,7 +2,13 @@
 
 export type NDAStatus = 'Draft' | 'In legal review' | 'Pending approval' | 'Waiting for signature' | 'Executed' | 'Expired' | 'Terminated' | 'Rejected';
 
-export type NDAType = 'Mutual' | 'One-way government disclosing' | 'One-way counterparty disclosing' | 'Visitor' | 'Research' | 'Vendor access';
+export type NDAType =
+  | 'MUTUAL'
+  | 'ONE_WAY_GOVERNMENT'
+  | 'ONE_WAY_COUNTERPARTY'
+  | 'VISITOR'
+  | 'RESEARCH'
+  | 'VENDOR_ACCESS';
 
 export type RiskLevel = 'Low' | 'Medium' | 'High';
 

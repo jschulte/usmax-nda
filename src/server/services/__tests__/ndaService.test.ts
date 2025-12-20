@@ -32,6 +32,14 @@ vi.mock('../../db/index.js', () => ({
     auditLog: {
       findMany: vi.fn(),
     },
+    ndaEmail: {
+      findMany: vi.fn(),
+    },
+    systemConfig: {
+      findUnique: vi.fn(),
+      findMany: vi.fn(),
+      upsert: vi.fn(),
+    },
   },
 }));
 
@@ -77,6 +85,14 @@ vi.mock('../agencyScopeService.js', () => ({
   scopeNDAsToUser: vi.fn().mockResolvedValue({}),
 }));
 
+vi.mock('../systemConfigService.js', () => ({
+  getConfig: vi.fn().mockResolvedValue('365'),
+  ConfigKey: {
+    NDA_DEFAULT_TERM_DAYS: 'nda.default_term_days',
+    DASHBOARD_EXPIRATION_WARNING_DAYS: 'dashboard.expiration_warning_days',
+  },
+}));
+
 vi.mock('../utils/scopedQuery.js', () => ({
   findNdaWithScope: vi.fn(),
 }));
@@ -96,6 +112,8 @@ import {
 } from '../ndaService.js';
 import { prisma } from '../../db/index.js';
 import { findNdaWithScope } from '../utils/scopedQuery.js';
+import { scopeNDAsToUser } from '../agencyScopeService.js';
+import { getConfig } from '../systemConfigService.js';
 import type { UserContext } from '../../types/auth.js';
 
 const mockPrisma = vi.mocked(prisma);
@@ -472,6 +490,35 @@ describe('NDA Service', () => {
       expect(mockPrisma.nda.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           take: 100, // Max limit
+        })
+      );
+    });
+
+    it('applies row-level security scope', async () => {
+      mockPrisma.nda.findMany.mockResolvedValue([]);
+      mockPrisma.nda.count.mockResolvedValue(0);
+      vi.mocked(scopeNDAsToUser).mockResolvedValue({ agencyGroupId: 'group-99' });
+
+      await listNdas({}, createMockUserContext());
+
+      expect(mockPrisma.nda.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            AND: [{ agencyGroupId: 'group-99' }],
+          }),
+        })
+      );
+    });
+
+    it('defaults to updatedAt sort when sortBy is invalid', async () => {
+      mockPrisma.nda.findMany.mockResolvedValue([]);
+      mockPrisma.nda.count.mockResolvedValue(0);
+
+      await listNdas({ sortBy: 'not-a-field', sortOrder: 'asc' }, createMockUserContext());
+
+      expect(mockPrisma.nda.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          orderBy: { updatedAt: 'asc' },
         })
       );
     });
@@ -941,6 +988,7 @@ describe('NDA Service', () => {
   describe('listNdas extended filters (Story 3.7)', () => {
     beforeEach(() => {
       vi.clearAllMocks();
+      mockPrisma.ndaEmail.findMany.mockResolvedValue([]);
     });
 
     it('filters by companyCity', async () => {
@@ -1015,6 +1063,24 @@ describe('NDA Service', () => {
       );
     });
 
+    it('filters by ndaType', async () => {
+      mockPrisma.nda.findMany.mockResolvedValue([]);
+      mockPrisma.nda.count.mockResolvedValue(0);
+
+      await listNdas(
+        { ndaType: 'MUTUAL' },
+        createMockUserContext()
+      );
+
+      expect(mockPrisma.nda.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            ndaType: 'MUTUAL',
+          }),
+        })
+      );
+    });
+
     it('filters by isNonUsMax', async () => {
       mockPrisma.nda.findMany.mockResolvedValue([]);
       mockPrisma.nda.count.mockResolvedValue(0);
@@ -1073,6 +1139,52 @@ describe('NDA Service', () => {
               OR: [
                 { firstName: { contains: 'Smith', mode: 'insensitive' } },
                 { lastName: { contains: 'Smith', mode: 'insensitive' } },
+              ],
+            },
+          }),
+        })
+      );
+    });
+
+    it('filters by contractsPocName', async () => {
+      mockPrisma.nda.findMany.mockResolvedValue([]);
+      mockPrisma.nda.count.mockResolvedValue(0);
+
+      await listNdas(
+        { contractsPocName: 'Lee' },
+        createMockUserContext()
+      );
+
+      expect(mockPrisma.nda.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            contractsPoc: {
+              OR: [
+                { firstName: { contains: 'Lee', mode: 'insensitive' } },
+                { lastName: { contains: 'Lee', mode: 'insensitive' } },
+              ],
+            },
+          }),
+        })
+      );
+    });
+
+    it('filters by relationshipPocName', async () => {
+      mockPrisma.nda.findMany.mockResolvedValue([]);
+      mockPrisma.nda.count.mockResolvedValue(0);
+
+      await listNdas(
+        { relationshipPocName: 'Wong' },
+        createMockUserContext()
+      );
+
+      expect(mockPrisma.nda.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            relationshipPoc: {
+              OR: [
+                { firstName: { contains: 'Wong', mode: 'insensitive' } },
+                { lastName: { contains: 'Wong', mode: 'insensitive' } },
               ],
             },
           }),
@@ -1145,6 +1257,9 @@ describe('NDA Service', () => {
         createMockUserContext()
       );
 
+      expect(vi.mocked(getConfig)).toHaveBeenCalledWith('nda.default_term_days');
+      expect(vi.mocked(getConfig)).toHaveBeenCalledWith('dashboard.expiration_warning_days');
+
       expect(mockPrisma.nda.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
@@ -1204,7 +1319,7 @@ describe('NDA Service', () => {
       expect(result!.documents).toEqual(mockNda.documents);
       expect(result!.statusHistory).toEqual(mockNda.statusHistory);
       expect(result!.auditTrail).toHaveLength(1);
-      expect(result!.emails).toEqual([]); // Not yet implemented
+      expect(result!.emails).toEqual([]);
     });
 
     it('returns correct available actions based on permissions', async () => {

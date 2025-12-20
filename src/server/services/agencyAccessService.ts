@@ -42,6 +42,7 @@ export interface ContactSearchResult {
   lastName: string | null;
   email: string;
   roles: string[];
+  jobTitle?: string | null;
 }
 
 // =============================================================================
@@ -475,6 +476,7 @@ export async function searchContacts(query: string): Promise<ContactSearchResult
     lastName: c.lastName,
     email: c.email,
     roles: c.contactRoles.map((cr) => cr.role.name),
+    jobTitle: c.jobTitle,
   }));
 }
 

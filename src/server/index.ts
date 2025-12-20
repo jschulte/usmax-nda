@@ -24,9 +24,12 @@ import usersRouter from './routes/users.js';
 import ndasRouter from './routes/ndas.js';
 import notificationsRouter from './routes/notifications.js';
 import templatesRouter from './routes/templates.js';
+import emailTemplatesRouter from './routes/emailTemplates.js';
 import contactsRouter from './routes/contacts.js';
 import dashboardRouter from './routes/dashboard.js';
 import auditLogsRouter from './routes/auditLogs.js';
+import { startEmailQueue } from './jobs/emailQueue.js';
+import { sendEmail, handlePermanentEmailFailure } from './services/emailService.js';
 // adminConfig removed - out of scope per PRD
 import { authenticateJWT } from './middleware/authenticateJWT.js';
 import { attachUserContext } from './middleware/attachUserContext.js';
@@ -100,6 +103,10 @@ app.use('/api', notificationsRouter);
 // Templates routes (Story 3.13)
 // RTF template selection and preview
 app.use('/api/rtf-templates', templatesRouter);
+
+// Email Templates routes (Story 3.10)
+// Email template selection for composer
+app.use('/api/email-templates', emailTemplatesRouter);
 
 // Contacts routes (Story 3.14)
 // POC management and internal user lookup
@@ -260,6 +267,18 @@ app.listen(PORT, () => {
 ║    test@usmax.com  / Test1234!@#$  (MFA: 123456)          ║
 ╚═══════════════════════════════════════════════════════════╝
   `);
+});
+
+// Start background workers (pg-boss)
+startEmailQueue(
+  async ({ emailId }) => {
+    await sendEmail(emailId);
+  },
+  async ({ emailId }, error, retryCount) => {
+    await handlePermanentEmailFailure(emailId, error, retryCount);
+  }
+).catch((error) => {
+  console.error('[EmailQueue] Failed to start queue worker', error);
 });
 
 export default app;

@@ -56,6 +56,16 @@ so that **I can quickly find specific NDAs among many records**.
   - [ ] 4.3: Test row-level security
   - [ ] 4.4: Test filter presets
 
+### Review Follow-ups (AI)
+- [x] [AI-Review][HIGH] Build "All NDAs" and "My NDAs" list views with required columns (Display ID, Company, Agency, Status, Effective Date, Requested Date, Latest Change, Actions) and route/preset wiring. [src/components/screens/Requests.tsx:312]
+- [x] [AI-Review][HIGH] Implement remaining filter criteria + true type-ahead sources: NDA Type filter is blocked by missing ndaType storage; city/state/agency-office still rely on recent values only. [src/components/screens/Requests.tsx:212]
+- [x] [AI-Review][HIGH] Fix "Expiring Soon" preset to compute expiration using effective date + term/expiry (not just effectiveDate window). [src/server/services/ndaService.ts:719]
+- [x] [AI-Review][MEDIUM] Add column sorting UI and validate a sortBy allowlist (including related fields) so header sorting works reliably. [src/server/services/ndaService.ts:738]
+- [x] [AI-Review][MEDIUM] Align pagination with AC (default 20) and make page size configurable in UI (not hard-coded 25). [src/components/screens/Requests.tsx:71]
+- [x] [AI-Review][MEDIUM] Add Dev Agent Record with File List + Change Log to enable verifiable review. [docs/sprint-artifacts/3-7-nda-list-with-filtering.md:34]
+- [x] [AI-Review][LOW] Expand tests to cover all 15 filters, row-level security, expiring-soon semantics, and sort allowlist mapping. [src/server/services/__tests__/ndaService.test.ts:343]
+- [x] [AI-Review][HIGH] Add NDA Type storage (schema + create/update) so the "Type" filter is meaningful. [prisma/schema.prisma:239]
+
 ## Dev Notes
 
 ### List Query Parameters
@@ -120,3 +130,25 @@ const securityFilter = {
 
 - Story 3.1: Create NDA with Basic Form
 - Story 1.4: Row-Level Security Implementation
+
+## Dev Agent Record
+
+### File List
+- src/components/screens/Requests.tsx
+- src/components/layout/Sidebar.tsx
+- src/App.tsx
+- src/client/services/ndaService.ts
+- src/server/services/ndaService.ts
+- src/server/services/systemConfigService.ts
+- src/server/services/__tests__/ndaService.test.ts
+- src/server/routes/ndas.ts
+- docs/sprint-artifacts/3-7-nda-list-with-filtering.md
+
+### Change Log
+- Added All NDAs / My NDAs routes and sidebar navigation, preserving /requests as an alias.
+- Added NDA type filtering and backend typeahead suggestions for city/state/incorporation/agency office fields.
+- Displayed latest change using status history (status + actor + date) in the list.
+- Added sort allowlist with nested agency sorting and safer defaults.
+- Updated expiring-soon preset to use effective date + default term days from system config.
+- Added system config default for NDA term length.
+- Expanded list filter tests to cover NDA type, POC filters, row-level security, and sort fallback.

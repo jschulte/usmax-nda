@@ -1,6 +1,6 @@
 # Story 3.13: RTF Template Selection & Preview
 
-Status: done
+Status: in-progress
 
 ## Story
 
@@ -56,6 +56,13 @@ so that **I can ensure the document looks correct for this specific agency/type*
   - [ ] 5.1: Test template listing with recommendations
   - [ ] 5.2: Test preview generation
   - [ ] 5.3: Test edited document saving
+
+### Review Follow-ups (AI)
+- [ ] [AI-Review][HIGH] Template selection/preview UI is missing in the NDA creation flow; Request Wizard only shows a static info card. [src/components/screens/RequestWizard.tsx:193]
+- [x] [AI-Review][HIGH] Preview generation ignores template content; `generatePreview` calls document generation from NDA fields instead of merging the selected RTF template. [src/server/services/templateService.ts:231]
+- [x] [AI-Review][MEDIUM] Client expects `mergedFields: string[]` but server returns an object map; preview response shape mismatch will break UI consumption. [src/client/services/templateService.ts:38]
+- [x] [AI-Review][MEDIUM] Edited documents are saved without version metadata or an “edited” flag; stored as `documentType: GENERATED` with no way to distinguish edited vs original. [src/server/services/templateService.ts:312]
+- [ ] [AI-Review][MEDIUM] Story marked done but Tasks/Subtasks are all unchecked and no Dev Agent Record/File List exists to verify changes. [docs/sprint-artifacts/3-13-rtf-template-selection-and-preview.md:1]
 
 ## Dev Notes
 

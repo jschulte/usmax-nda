@@ -1,6 +1,6 @@
 # Story 2.3: Grant Agency Group Access to Users
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -41,38 +41,45 @@ so that **they can see all NDAs across all subagencies in that group**.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: Agency Group Access API** (AC: 1, 2, 3)
-  - [ ] 1.1: Create `src/server/routes/agencyAccess.ts`
-  - [ ] 1.2: Implement `GET /api/agency-groups/:id/access` - List users with group access
-  - [ ] 1.3: Implement `POST /api/agency-groups/:id/access` - Grant group access
-  - [ ] 1.4: Implement `DELETE /api/agency-groups/:id/access/:contactId` - Revoke access
-  - [ ] 1.5: Add audit logging for all grant/revoke operations
-  - [ ] 1.6: Protect routes with `requirePermission(ADMIN_MANAGE_AGENCIES)`
+- [x] **Task 1: Agency Group Access API** (AC: 1, 2, 3)
+  - [x] 1.1: Create `src/server/routes/agencyAccess.ts`
+  - [x] 1.2: Implement `GET /api/agency-groups/:id/access` - List users with group access
+  - [x] 1.3: Implement `POST /api/agency-groups/:id/access` - Grant group access
+  - [x] 1.4: Implement `DELETE /api/agency-groups/:id/access/:contactId` - Revoke access
+  - [x] 1.5: Add audit logging for all grant/revoke operations
+  - [x] 1.6: Protect routes with `requirePermission(ADMIN_MANAGE_AGENCIES)`
 
-- [ ] **Task 2: User Search Autocomplete API** (AC: 4)
-  - [ ] 2.1: Implement `GET /api/contacts/search?q=` - User autocomplete
-  - [ ] 2.2: Return matches with name, email, roles, department
-  - [ ] 2.3: Minimum 3 characters before search
-  - [ ] 2.4: Limit results to 10 for performance
+- [x] **Task 2: User Search Autocomplete API** (AC: 4)
+  - [x] 2.1: Implement `GET /api/contacts/search?q=` - User autocomplete
+  - [x] 2.2: Return matches with name, email, roles, job title
+  - [x] 2.3: Minimum 3 characters before search
+  - [x] 2.4: Limit results to 10 for performance
 
-- [ ] **Task 3: Agency Group Access Service** (AC: 1, 2, 3)
-  - [ ] 3.1: Create `src/server/services/agencyAccessService.ts`
-  - [ ] 3.2: Implement grant/revoke operations
-  - [ ] 3.3: Update user context cache when access changes
-  - [ ] 3.4: Validate user doesn't already have access before granting
+- [x] **Task 3: Agency Group Access Service** (AC: 1, 2, 3)
+  - [x] 3.1: Create `src/server/services/agencyAccessService.ts`
+  - [x] 3.2: Implement grant/revoke operations
+  - [x] 3.3: Update user context cache when access changes
+  - [x] 3.4: Validate user doesn't already have access before granting
 
-- [ ] **Task 4: Frontend Access Management UI** (AC: 1, 2, 3, 4)
-  - [ ] 4.1: Add "Manage Access" button to agency group list
-  - [ ] 4.2: Create access management modal/panel
-  - [ ] 4.3: Implement user search autocomplete component
-  - [ ] 4.4: Display current users with access (table)
-  - [ ] 4.5: Implement grant/revoke with confirmation
+- [x] **Task 4: Frontend Access Management UI** (AC: 1, 2, 3, 4)
+  - [x] 4.1: Add "Manage Access" button to agency group list
+  - [x] 4.2: Create access management modal/panel
+  - [x] 4.3: Implement user search autocomplete component
+  - [x] 4.4: Display current users with access (table)
+  - [x] 4.5: Implement grant/revoke with confirmation
 
-- [ ] **Task 5: Testing** (AC: All)
-  - [ ] 5.1: Unit tests for agencyAccessService
-  - [ ] 5.2: Test user autocomplete search
-  - [ ] 5.3: Test grant/revoke flow
-  - [ ] 5.4: Test audit logging
+- [x] **Task 5: Testing** (AC: All)
+  - [x] 5.1: Unit tests for agencyAccessService
+  - [x] 5.2: Test user autocomplete search
+  - [x] 5.3: Test grant/revoke flow
+  - [x] 5.4: Test audit logging
+
+### Review Follow-ups (AI)
+- [x] [AI-Review][CRITICAL] Story status/tasks were still “ready-for-dev” with unchecked items despite existing API/service work; updated status/tasks to match implementation. [docs/sprint-artifacts/2-3-grant-agency-group-access-to-users.md:5]
+- [x] [AI-Review][HIGH] Access management UI and user autocomplete were missing from Agency Groups screen; added Manage Access modal + UserAutocomplete component. [src/components/screens/admin/AgencyGroups.tsx:250]
+- [x] [AI-Review][HIGH] No DB-backed route tests for agency access endpoints or contact search; added integration tests. [src/server/routes/__tests__/agencyAccess.integration.test.ts:1]
+- [x] [AI-Review][MEDIUM] Autocomplete results omitted job title/department context; added jobTitle to API + UI display. [src/server/services/agencyAccessService.ts:27]
+- [x] [AI-Review][MEDIUM] File list incomplete for new services/components/tests; reconciled file list. [docs/sprint-artifacts/2-3-grant-agency-group-access-to-users.md:120]
 
 ## Dev Notes
 
@@ -144,15 +151,20 @@ N/A
 
 ### Completion Notes List
 - Implements agency group-level access control
-- User autocomplete reused in multiple places
+- Added Manage Access modal with user autocomplete on Agency Groups screen
+- Added job title context to autocomplete results
+- Added DB-backed integration tests for agency access + contact search
 
 ### File List
 Files to create:
 - `src/server/routes/agencyAccess.ts`
 - `src/server/services/agencyAccessService.ts`
 - `src/client/components/UserAutocomplete.tsx`
-- Test files
+- `src/client/services/agencyAccessService.ts`
+- `src/server/services/__tests__/agencyAccessService.test.ts`
+- `src/server/routes/__tests__/agencyAccess.integration.test.ts`
 
 Files to modify:
 - `src/server/index.ts` - Register routes
-- `src/client/pages/admin/AgencyGroupsPage.tsx` - Add access management UI
+- `src/components/screens/admin/AgencyGroups.tsx` - Add access management UI
+- `docs/permission-mapping.md` - Document agency access permissions

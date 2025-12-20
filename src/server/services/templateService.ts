@@ -228,39 +228,31 @@ export async function generatePreview(
   // Extract merged fields for display
   const mergedFields = extractMergedFields(nda);
 
-  // For now, we'll generate a simple preview document using the existing docx generation
-  // In production, you'd merge the RTF template with the fields
-  const { generateDocument } = await import('./documentGenerationService.js');
+  // Merge template content with NDA fields (basic placeholder replacement)
+  const mergedContent = mergeTemplateContent(template.content as Uint8Array, mergedFields);
 
-  try {
-    const result = await generateDocument(
-      { ndaId },
-      userContext,
-      auditMeta
-    );
+  // Upload preview document to S3
+  const previewFilename = `NDA_${nda.displayId}_preview.rtf`;
+  const uploadResult = await uploadDocument({
+    ndaId,
+    filename: previewFilename,
+    content: mergedContent,
+    contentType: 'application/rtf',
+  });
 
-    // Generate presigned URL for preview (15 min expiry)
-    const expiresIn = 15 * 60; // 15 minutes
-    const previewUrl = await getDownloadUrl(result.s3Key, expiresIn);
+  // Generate presigned URL for preview (15 min expiry)
+  const expiresIn = 15 * 60; // 15 minutes
+  const previewUrl = await getDownloadUrl(uploadResult.s3Key, expiresIn);
 
-    return {
-      previewUrl,
-      mergedFields,
-      templateUsed: {
-        id: template.id,
-        name: template.name,
-      },
-      expiresAt: new Date(Date.now() + expiresIn * 1000),
-    };
-  } catch (error) {
-    if (error instanceof Error && 'code' in error && error.code === 'NON_USMAX_SKIP') {
-      throw new TemplateServiceError(
-        'Non-USMax NDAs do not require generated documents',
-        'VALIDATION_ERROR'
-      );
-    }
-    throw error;
-  }
+  return {
+    previewUrl,
+    mergedFields,
+    templateUsed: {
+      id: template.id,
+      name: template.name,
+    },
+    expiresAt: new Date(Date.now() + expiresIn * 1000),
+  };
 }
 
 /**
@@ -300,6 +292,14 @@ export async function saveEditedDocument(
   // Generate filename with "edited" suffix
   const editedFilename = filename.replace(/(\.[^.]+)$/, '_edited$1');
 
+  // Determine next version number
+  const lastDoc = await prisma.document.findFirst({
+    where: { ndaId },
+    orderBy: { versionNumber: 'desc' },
+    select: { versionNumber: true },
+  });
+  const nextVersion = (lastDoc?.versionNumber ?? 0) + 1;
+
   // Upload to S3
   const uploadResult = await uploadDocument({
     ndaId,
@@ -316,6 +316,10 @@ export async function saveEditedDocument(
       filename: editedFilename,
       s3Key: uploadResult.s3Key,
       documentType: 'GENERATED', // Still generated, just edited
+      fileType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      fileSize: content.length,
+      versionNumber: nextVersion,
+      notes: 'Edited from template preview',
       uploadedById: userContext.contactId,
     },
   });
@@ -331,6 +335,7 @@ export async function saveEditedDocument(
       ndaDisplayId: nda.displayId,
       filename: editedFilename,
       s3Key: uploadResult.s3Key,
+      versionNumber: nextVersion,
       isEdited: true,
     },
     ipAddress: auditMeta?.ipAddress,
@@ -447,6 +452,31 @@ export async function deleteTemplate(templateId: string): Promise<void> {
     where: { id: templateId },
     data: { isActive: false },
   });
+}
+
+/**
+ * Escape values for safe insertion into RTF
+ */
+function escapeRtfValue(value: string): string {
+  return value
+    .replace(/\\/g, '\\\\')
+    .replace(/{/g, '\\{')
+    .replace(/}/g, '\\}');
+}
+
+/**
+ * Merge template content with NDA fields using {{placeholders}}
+ */
+function mergeTemplateContent(
+  content: Uint8Array,
+  fields: Record<string, string>
+): Buffer {
+  let text = Buffer.from(content).toString('utf-8');
+  for (const [key, value] of Object.entries(fields)) {
+    const safeValue = escapeRtfValue(value);
+    text = text.split(`{{${key}}}`).join(safeValue);
+  }
+  return Buffer.from(text, 'utf-8');
 }
 
 /**

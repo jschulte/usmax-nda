@@ -19,6 +19,9 @@ vi.mock('../../db/index.js', () => ({
     nda: {
       findMany: vi.fn(),
     },
+    rtfTemplate: {
+      findFirst: vi.fn(),
+    },
   },
 }));
 
@@ -53,6 +56,7 @@ describe('agencySuggestionsService', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockPrisma.rtfTemplate.findFirst.mockResolvedValue(null);
   });
 
   describe('getCommonCompanies', () => {
@@ -175,6 +179,7 @@ describe('agencySuggestionsService', () => {
         { companyName: 'Lockheed Martin', usMaxPosition: 'PRIME' },
         { companyName: 'Boeing', usMaxPosition: 'PRIME' },
         { companyName: 'Lockheed Martin', usMaxPosition: 'SUB' },
+        { ndaType: 'MUTUAL' },
       ]);
 
       const result = await getAgencySuggestions('agency-dod', mockUserContext);
@@ -182,6 +187,7 @@ describe('agencySuggestionsService', () => {
       expect(result.commonCompanies).toBeDefined();
       expect(result.typicalPosition).toBeDefined();
       expect(result.positionCounts).toBeDefined();
+      expect(result.typicalNdaType).toBeDefined();
     });
 
     it('returns empty suggestions when no data', async () => {

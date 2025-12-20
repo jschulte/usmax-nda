@@ -10,7 +10,7 @@
 
 import prisma from '../db/index.js';
 import type { UserContext } from '../types/auth.js';
-import type { UsMaxPosition } from '../../generated/prisma/index.js';
+import type { UsMaxPosition, NdaType } from '../../generated/prisma/index.js';
 import { buildSecurityFilter } from './ndaService.js';
 
 export interface AgencySuggestions {
@@ -21,6 +21,11 @@ export interface AgencySuggestions {
   typicalPosition?: UsMaxPosition;
   positionCounts?: Array<{
     position: UsMaxPosition;
+    count: number;
+  }>;
+  typicalNdaType?: NdaType;
+  typeCounts?: Array<{
+    ndaType: NdaType;
     count: number;
   }>;
   defaultTemplateId?: string;
@@ -108,12 +113,84 @@ export async function getTypicalPosition(
  * For now, returns null until templates are available
  */
 export async function getDefaultTemplate(
-  _agencyGroupId: string,
+  agencyGroupId: string,
   _userContext: UserContext
 ): Promise<{ templateId?: string; templateName?: string }> {
-  // TODO: Implement when RTF templates are available (Story 7.x)
-  // For now, return empty - the structure is in place for future use
+  // Prefer agency-specific default, then any active agency template,
+  // then global default, then any active global template.
+  const defaultForAgency = await prisma.rtfTemplate.findFirst({
+    where: { agencyGroupId, isDefault: true, isActive: true },
+    orderBy: { updatedAt: 'desc' },
+  });
+
+  if (defaultForAgency) {
+    return { templateId: defaultForAgency.id, templateName: defaultForAgency.name };
+  }
+
+  const anyAgencyTemplate = await prisma.rtfTemplate.findFirst({
+    where: { agencyGroupId, isActive: true },
+    orderBy: { updatedAt: 'desc' },
+  });
+
+  if (anyAgencyTemplate) {
+    return { templateId: anyAgencyTemplate.id, templateName: anyAgencyTemplate.name };
+  }
+
+  const defaultGlobal = await prisma.rtfTemplate.findFirst({
+    where: { agencyGroupId: null, isDefault: true, isActive: true },
+    orderBy: { updatedAt: 'desc' },
+  });
+
+  if (defaultGlobal) {
+    return { templateId: defaultGlobal.id, templateName: defaultGlobal.name };
+  }
+
+  const anyGlobal = await prisma.rtfTemplate.findFirst({
+    where: { agencyGroupId: null, isActive: true },
+    orderBy: { updatedAt: 'desc' },
+  });
+
+  if (anyGlobal) {
+    return { templateId: anyGlobal.id, templateName: anyGlobal.name };
+  }
+
   return {};
+}
+
+/**
+ * Get typical NDA type for an agency group
+ */
+export async function getTypicalNdaType(
+  agencyGroupId: string,
+  userContext: UserContext
+): Promise<{
+  typicalNdaType?: NdaType;
+  typeCounts: Array<{ ndaType: NdaType; count: number }>;
+}> {
+  const securityFilter = await buildSecurityFilter(userContext);
+
+  const ndas = await prisma.nda.findMany({
+    where: {
+      AND: [securityFilter, { agencyGroupId }],
+    },
+    select: {
+      ndaType: true,
+    },
+  });
+
+  const typeCounts = new Map<NdaType, number>();
+  for (const nda of ndas) {
+    typeCounts.set(nda.ndaType, (typeCounts.get(nda.ndaType) || 0) + 1);
+  }
+
+  const counts = Array.from(typeCounts.entries())
+    .map(([ndaType, count]) => ({ ndaType, count }))
+    .sort((a, b) => b.count - a.count);
+
+  return {
+    typicalNdaType: counts[0]?.ndaType,
+    typeCounts: counts,
+  };
 }
 
 /**
@@ -125,9 +202,10 @@ export async function getAgencySuggestions(
   userContext: UserContext
 ): Promise<AgencySuggestions> {
   // Run queries in parallel
-  const [companies, positions, template] = await Promise.all([
+  const [companies, positions, types, template] = await Promise.all([
     getCommonCompanies(agencyGroupId, userContext),
     getTypicalPosition(agencyGroupId, userContext),
+    getTypicalNdaType(agencyGroupId, userContext),
     getDefaultTemplate(agencyGroupId, userContext),
   ]);
 
@@ -135,6 +213,8 @@ export async function getAgencySuggestions(
     commonCompanies: companies,
     typicalPosition: positions.typicalPosition,
     positionCounts: positions.positionCounts,
+    typicalNdaType: types.typicalNdaType,
+    typeCounts: types.typeCounts,
     defaultTemplateId: template.templateId,
     defaultTemplateName: template.templateName,
   };

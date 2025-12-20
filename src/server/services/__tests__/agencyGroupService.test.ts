@@ -146,6 +146,7 @@ describe('Agency Group Service', () => {
         description: 'Commercial clients',
         createdAt: new Date(),
         updatedAt: new Date(),
+        _count: { subagencies: 0 },
       };
 
       mockPrisma.agencyGroup.findFirst.mockResolvedValue(null);
@@ -158,7 +159,10 @@ describe('Agency Group Service', () => {
 
       expect(mockPrisma.agencyGroup.findFirst).toHaveBeenCalledWith({
         where: {
-          OR: [{ name: 'Commercial' }, { code: 'COMMERCIAL' }],
+          OR: [
+            { name: { equals: 'Commercial', mode: 'insensitive' } },
+            { code: { equals: 'COMMERCIAL', mode: 'insensitive' } },
+          ],
         },
       });
       expect(mockPrisma.agencyGroup.create).toHaveBeenCalledWith({
@@ -167,9 +171,18 @@ describe('Agency Group Service', () => {
           code: 'COMMERCIAL',
           description: 'Commercial clients',
         },
+        include: { _count: { select: { subagencies: true } } },
       });
       expect(mockPrisma.auditLog.create).toHaveBeenCalled();
-      expect(result).toEqual(mockGroup);
+      expect(result).toEqual({
+        id: 'new-group',
+        name: 'Commercial',
+        code: 'COMMERCIAL',
+        description: 'Commercial clients',
+        subagencyCount: 0,
+        createdAt: expect.any(Date),
+        updatedAt: expect.any(Date),
+      });
     });
 
     it('throws error for duplicate name', async () => {
@@ -243,11 +256,15 @@ describe('Agency Group Service', () => {
         name: 'New Name',
         code: 'NEW_CODE',
         description: 'New description',
+        createdAt: new Date('2025-01-01'),
         updatedAt: new Date(),
+        _count: { subagencies: 2 },
       };
 
       mockPrisma.agencyGroup.findUnique
         .mockResolvedValueOnce(existingGroup) // Check exists
+        .mockResolvedValueOnce(null); // Check duplicate code
+      mockPrisma.agencyGroup.findFirst
         .mockResolvedValueOnce(null) // Check duplicate name
         .mockResolvedValueOnce(null); // Check duplicate code
       mockPrisma.agencyGroup.update.mockResolvedValue(updatedGroup);
@@ -259,7 +276,15 @@ describe('Agency Group Service', () => {
       );
 
       expect(mockPrisma.auditLog.create).toHaveBeenCalled();
-      expect(result).toEqual(updatedGroup);
+      expect(result).toEqual({
+        id: 'group-1',
+        name: 'New Name',
+        code: 'NEW_CODE',
+        description: 'New description',
+        subagencyCount: 2,
+        createdAt: expect.any(Date),
+        updatedAt: expect.any(Date),
+      });
     });
 
     it('throws error when group not found', async () => {
@@ -280,11 +305,13 @@ describe('Agency Group Service', () => {
     it('throws error for duplicate name when updating', async () => {
       // Reset the mock
       mockPrisma.agencyGroup.findUnique.mockReset();
+      mockPrisma.agencyGroup.findFirst.mockReset();
 
       // First call: Check if group exists (by id) - returns the existing group
       // Second call: Check if name is duplicate (by name) - returns different group with same name
       mockPrisma.agencyGroup.findUnique
-        .mockResolvedValueOnce({ id: 'group-1', name: 'Old Name', code: 'CODE' })
+        .mockResolvedValueOnce({ id: 'group-1', name: 'Old Name', code: 'CODE' });
+      mockPrisma.agencyGroup.findFirst
         .mockResolvedValueOnce({ id: 'group-2', name: 'New Name', code: 'OTHER' }); // Different group has this name
 
       await expect(
@@ -295,11 +322,13 @@ describe('Agency Group Service', () => {
     it('verifies duplicate name error code', async () => {
       // Reset the mock
       mockPrisma.agencyGroup.findUnique.mockReset();
+      mockPrisma.agencyGroup.findFirst.mockReset();
 
       // First call: Check if group exists (by id) - returns the existing group
       // Second call: Check if name is duplicate (by name) - returns different group with same name
       mockPrisma.agencyGroup.findUnique
-        .mockResolvedValueOnce({ id: 'group-1', name: 'Old Name', code: 'CODE' })
+        .mockResolvedValueOnce({ id: 'group-1', name: 'Old Name', code: 'CODE' });
+      mockPrisma.agencyGroup.findFirst
         .mockResolvedValueOnce({ id: 'group-2', name: 'New Name', code: 'OTHER' });
 
       try {

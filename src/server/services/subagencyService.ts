@@ -35,12 +35,71 @@ export interface SubagencyWithCount {
   updatedAt: Date;
 }
 
+type PrismaUniqueError = {
+  code?: string;
+  meta?: {
+    target?: string[] | string;
+  };
+};
+
+function getUniqueConstraintTarget(error: unknown): 'name' | 'code' | null {
+  const prismaError = error as PrismaUniqueError;
+  if (prismaError?.code !== 'P2002') return null;
+
+  const target = prismaError.meta?.target;
+  if (Array.isArray(target)) {
+    if (target.includes('name')) return 'name';
+    if (target.includes('code')) return 'code';
+  }
+
+  if (typeof target === 'string') {
+    if (target.includes('name')) return 'name';
+    if (target.includes('code')) return 'code';
+    if (target.includes('subagencies_agency_group_id_name')) return 'name';
+    if (target.includes('subagencies_agency_group_id_code')) return 'code';
+  }
+
+  return null;
+}
+
+function mapUniqueConstraintError(error: unknown): SubagencyError | null {
+  const target = getUniqueConstraintTarget(error);
+  if (!target) return null;
+
+  if (target === 'name') {
+    return new SubagencyError(
+      'Subagency name must be unique within agency group',
+      'DUPLICATE_NAME'
+    );
+  }
+
+  return new SubagencyError(
+    'Subagency code must be unique within agency group',
+    'DUPLICATE_CODE'
+  );
+}
+
+function normalizeName(value: string): string {
+  return value.trim();
+}
+
+function normalizeCode(value: string): string {
+  return value.trim().toUpperCase();
+}
+
 /**
  * Get all subagencies within an agency group with NDA counts
+ * Optionally filter to a list of allowed subagency IDs.
  */
-export async function listSubagenciesInGroup(agencyGroupId: string): Promise<SubagencyWithCount[]> {
+export async function listSubagenciesInGroup(
+  agencyGroupId: string,
+  allowedSubagencyIds?: string[]
+): Promise<SubagencyWithCount[]> {
   const subagencies = await prisma.subagency.findMany({
-    where: { agencyGroupId },
+    where: {
+      agencyGroupId,
+      ...(allowedSubagencyIds ? { id: { in: allowedSubagencyIds } } : {}),
+    },
     include: {
       _count: {
         select: { ndas: true },
@@ -101,6 +160,9 @@ export async function createSubagency(
   userId: string,
   auditContext?: { ipAddress?: string; userAgent?: string }
 ) {
+  const normalizedName = normalizeName(input.name);
+  const normalizedCode = normalizeCode(input.code);
+
   // Verify agency group exists
   const agencyGroup = await prisma.agencyGroup.findUnique({
     where: { id: agencyGroupId },
@@ -114,7 +176,10 @@ export async function createSubagency(
   const existingByName = await prisma.subagency.findFirst({
     where: {
       agencyGroupId,
-      name: input.name,
+      name: {
+        equals: normalizedName,
+        mode: 'insensitive',
+      },
     },
   });
 
@@ -129,7 +194,10 @@ export async function createSubagency(
   const existingByCode = await prisma.subagency.findFirst({
     where: {
       agencyGroupId,
-      code: input.code,
+      code: {
+        equals: normalizedCode,
+        mode: 'insensitive',
+      },
     },
   });
 
@@ -140,32 +208,40 @@ export async function createSubagency(
     );
   }
 
-  const subagency = await prisma.subagency.create({
-    data: {
-      name: input.name,
-      code: input.code,
-      description: input.description,
-      agencyGroupId,
-    },
-  });
+  try {
+    const subagency = await prisma.subagency.create({
+      data: {
+        name: normalizedName,
+        code: normalizedCode,
+        description: input.description,
+        agencyGroupId,
+      },
+    });
 
-  // Audit log
-  await auditService.log({
-    action: AuditAction.SUBAGENCY_CREATED,
-    entityType: 'subagency',
-    entityId: subagency.id,
-    userId,
-    details: {
-      name: subagency.name,
-      code: subagency.code,
-      agencyGroupId,
-      agencyGroupName: agencyGroup.name,
-    },
-    ipAddress: auditContext?.ipAddress,
-    userAgent: auditContext?.userAgent,
-  });
+    // Audit log
+    await auditService.log({
+      action: AuditAction.SUBAGENCY_CREATED,
+      entityType: 'subagency',
+      entityId: subagency.id,
+      userId,
+      details: {
+        name: subagency.name,
+        code: subagency.code,
+        agencyGroupId,
+        agencyGroupName: agencyGroup.name,
+      },
+      ipAddress: auditContext?.ipAddress,
+      userAgent: auditContext?.userAgent,
+    });
 
-  return subagency;
+    return subagency;
+  } catch (error) {
+    const uniqueError = mapUniqueConstraintError(error);
+    if (uniqueError) {
+      throw uniqueError;
+    }
+    throw error;
+  }
 }
 
 /**
@@ -177,6 +253,9 @@ export async function updateSubagency(
   userId: string,
   auditContext?: { ipAddress?: string; userAgent?: string }
 ) {
+  const normalizedName = input.name ? normalizeName(input.name) : undefined;
+  const normalizedCode = input.code ? normalizeCode(input.code) : undefined;
+
   // Check subagency exists
   const existing = await prisma.subagency.findUnique({
     where: { id },
@@ -188,11 +267,14 @@ export async function updateSubagency(
   }
 
   // Check for duplicate name within the group if changing
-  if (input.name && input.name !== existing.name) {
+  if (normalizedName && normalizedName !== existing.name) {
     const duplicateName = await prisma.subagency.findFirst({
       where: {
         agencyGroupId: existing.agencyGroupId,
-        name: input.name,
+        name: {
+          equals: normalizedName,
+          mode: 'insensitive',
+        },
         NOT: { id },
       },
     });
@@ -205,11 +287,14 @@ export async function updateSubagency(
   }
 
   // Check for duplicate code within the group if changing
-  if (input.code && input.code !== existing.code) {
+  if (normalizedCode && normalizedCode !== existing.code) {
     const duplicateCode = await prisma.subagency.findFirst({
       where: {
         agencyGroupId: existing.agencyGroupId,
-        code: input.code,
+        code: {
+          equals: normalizedCode,
+          mode: 'insensitive',
+        },
         NOT: { id },
       },
     });
@@ -221,32 +306,44 @@ export async function updateSubagency(
     }
   }
 
-  const subagency = await prisma.subagency.update({
-    where: { id },
-    data: {
-      ...(input.name && { name: input.name }),
-      ...(input.code && { code: input.code }),
-      ...(input.description !== undefined && { description: input.description }),
-    },
-  });
+  try {
+    const subagency = await prisma.subagency.update({
+      where: { id },
+      data: {
+        ...(normalizedName && { name: normalizedName }),
+        ...(normalizedCode && { code: normalizedCode }),
+        ...(input.description !== undefined && { description: input.description }),
+      },
+    });
 
-  // Audit log
-  await auditService.log({
-    action: AuditAction.SUBAGENCY_UPDATED,
-    entityType: 'subagency',
-    entityId: subagency.id,
-    userId,
-    details: {
-      changes: input,
-      previousName: existing.name,
-      newName: subagency.name,
-      agencyGroupName: existing.agencyGroup.name,
-    },
-    ipAddress: auditContext?.ipAddress,
-    userAgent: auditContext?.userAgent,
-  });
+    // Audit log
+    await auditService.log({
+      action: AuditAction.SUBAGENCY_UPDATED,
+      entityType: 'subagency',
+      entityId: subagency.id,
+      userId,
+      details: {
+        changes: {
+          ...(normalizedName !== undefined ? { name: normalizedName } : {}),
+          ...(normalizedCode !== undefined ? { code: normalizedCode } : {}),
+          ...(input.description !== undefined ? { description: input.description } : {}),
+        },
+        previousName: existing.name,
+        newName: subagency.name,
+        agencyGroupName: existing.agencyGroup.name,
+      },
+      ipAddress: auditContext?.ipAddress,
+      userAgent: auditContext?.userAgent,
+    });
 
-  return subagency;
+    return subagency;
+  } catch (error) {
+    const uniqueError = mapUniqueConstraintError(error);
+    if (uniqueError) {
+      throw uniqueError;
+    }
+    throw error;
+  }
 }
 
 /**

@@ -18,14 +18,43 @@ import {
   StatusTransitionError,
   getValidTransitionsFrom,
 } from './statusTransitionService.js';
-import { NdaStatus, UsMaxPosition } from '../../generated/prisma/index.js';
+import { ConfigKey, getConfig } from './systemConfigService.js';
+import { NdaStatus, UsMaxPosition, NdaType } from '../../generated/prisma/index.js';
 import type { Prisma } from '../../generated/prisma/index.js';
 import type { UserContext } from '../types/auth.js';
 import { scopeNDAsToUser } from './agencyScopeService.js';
 import { findNdaWithScope } from '../utils/scopedQuery.js';
 
 // Re-export enums for use in other modules
-export { NdaStatus, UsMaxPosition };
+export { NdaStatus, UsMaxPosition, NdaType };
+
+function buildNdaOrderBy(
+  sortBy: string | undefined,
+  sortOrder: 'asc' | 'desc' | undefined
+): Prisma.NdaOrderByWithRelationInput {
+  const direction: 'asc' | 'desc' = sortOrder === 'asc' ? 'asc' : 'desc';
+
+  switch (sortBy) {
+    case 'displayId':
+      return { displayId: direction };
+    case 'companyName':
+      return { companyName: direction };
+    case 'agencyGroupName':
+      return { agencyGroup: { name: direction } };
+    case 'subagencyName':
+      return { subagency: { name: direction } };
+    case 'status':
+      return { status: direction };
+    case 'effectiveDate':
+      return { effectiveDate: direction };
+    case 'createdAt':
+      return { createdAt: direction };
+    case 'updatedAt':
+      return { updatedAt: direction };
+    default:
+      return { updatedAt: direction };
+  }
+}
 
 /**
  * Custom error for NDA service operations
@@ -51,6 +80,7 @@ export interface CreateNdaInput {
   agencyGroupId: string;
   subagencyId?: string;
   agencyOfficeName?: string;
+  ndaType?: NdaType;
   abbreviatedName: string;
   authorizedPurpose: string;
   effectiveDate?: string | Date;
@@ -59,6 +89,7 @@ export interface CreateNdaInput {
   opportunityPocId?: string; // Defaults to current user
   contractsPocId?: string;
   relationshipPocId: string;
+  contactsPocId?: string;
 }
 
 /**
@@ -72,6 +103,7 @@ export interface UpdateNdaInput {
   agencyGroupId?: string;
   subagencyId?: string | null;
   agencyOfficeName?: string;
+  ndaType?: NdaType;
   abbreviatedName?: string;
   authorizedPurpose?: string;
   effectiveDate?: string | Date | null;
@@ -79,6 +111,7 @@ export interface UpdateNdaInput {
   isNonUsMax?: boolean;
   contractsPocId?: string | null;
   relationshipPocId?: string;
+  contactsPocId?: string | null;
 }
 
 /**
@@ -109,6 +142,7 @@ export interface ListNdaParams {
   companyState?: string;
   stateOfIncorporation?: string;
   agencyOfficeName?: string;
+  ndaType?: NdaType;
   isNonUsMax?: boolean;
   createdDateFrom?: string | Date;
   createdDateTo?: string | Date;
@@ -258,6 +292,7 @@ export async function createNda(
       agencyGroupId: input.agencyGroupId,
       subagencyId: input.subagencyId || null,
       agencyOfficeName: input.agencyOfficeName?.trim() || null,
+      ndaType: input.ndaType || 'MUTUAL',
       abbreviatedName: input.abbreviatedName.trim(),
       authorizedPurpose: input.authorizedPurpose.trim(),
       effectiveDate,
@@ -266,6 +301,7 @@ export async function createNda(
       opportunityPocId,
       contractsPocId: input.contractsPocId || null,
       relationshipPocId: input.relationshipPocId,
+      contactsPocId: input.contactsPocId || null,
       createdById: userContext.contactId,
       status: 'CREATED',
       // Create initial status history entry
@@ -282,6 +318,7 @@ export async function createNda(
       opportunityPoc: { select: { id: true, firstName: true, lastName: true, email: true } },
       contractsPoc: { select: { id: true, firstName: true, lastName: true, email: true } },
       relationshipPoc: { select: { id: true, firstName: true, lastName: true, email: true } },
+      contactsPoc: { select: { id: true, firstName: true, lastName: true, email: true } },
       createdBy: { select: { id: true, firstName: true, lastName: true, email: true } },
     },
   });
@@ -316,7 +353,9 @@ export async function getNda(id: string, userContext: UserContext): Promise<any 
       opportunityPoc: { select: { id: true, firstName: true, lastName: true, email: true } },
       contractsPoc: { select: { id: true, firstName: true, lastName: true, email: true } },
       relationshipPoc: { select: { id: true, firstName: true, lastName: true, email: true } },
+      contactsPoc: { select: { id: true, firstName: true, lastName: true, email: true } },
       createdBy: { select: { id: true, firstName: true, lastName: true, email: true } },
+      clonedFrom: { select: { id: true, displayId: true, companyName: true } },
       statusHistory: {
         orderBy: { changedAt: 'asc' },
         include: {
@@ -500,6 +539,14 @@ export async function getNdaDetail(
     canDelete: userContext.permissions.has('nda:delete'),
   };
 
+  const emails = await prisma.ndaEmail.findMany({
+    where: { ndaId: id },
+    orderBy: { sentAt: 'desc' },
+    include: {
+      sentBy: { select: { id: true, firstName: true, lastName: true, email: true } },
+    },
+  });
+
   // Calculate status progression for visual display (Story 3.9)
   const statusProgression = calculateStatusProgression(
     nda.status as NdaStatus,
@@ -509,7 +556,7 @@ export async function getNdaDetail(
   return {
     nda,
     documents: nda.documents || [],
-    emails: [], // Email history not yet implemented (Story 3-10)
+    emails,
     auditTrail: formattedAuditTrail,
     statusHistory: nda.statusHistory || [],
     statusProgression,
@@ -667,6 +714,10 @@ export async function listNdas(
     where.agencyOfficeName = { contains: params.agencyOfficeName, mode: 'insensitive' };
   }
 
+  if (params.ndaType) {
+    where.ndaType = params.ndaType;
+  }
+
   if (params.isNonUsMax !== undefined) {
     where.isNonUsMax = params.isNonUsMax;
   }
@@ -717,13 +768,27 @@ export async function listNdas(
         where.createdById = userContext.contactId;
         break;
       case 'expiring-soon':
-        // NDAs with effective date within next 30 days
-        const thirtyDaysFromNow = new Date();
-        thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
+        // NDAs expiring soon based on effective date + default term length
+        const [termDaysValue, warningDaysValue] = await Promise.all([
+          getConfig(ConfigKey.NDA_DEFAULT_TERM_DAYS),
+          getConfig(ConfigKey.DASHBOARD_EXPIRATION_WARNING_DAYS),
+        ]);
+
+        const defaultTermDays = Number.parseInt(termDaysValue, 10);
+        const warningDays = Number.parseInt(warningDaysValue, 10);
+        const termDays = Number.isFinite(defaultTermDays) && defaultTermDays > 0 ? defaultTermDays : 365;
+        const windowDays = Number.isFinite(warningDays) && warningDays > 0 ? warningDays : 30;
+
+        const now = new Date();
+        const earliestEffectiveDate = new Date(now);
+        earliestEffectiveDate.setDate(now.getDate() - termDays);
+        const latestEffectiveDate = new Date(now);
+        latestEffectiveDate.setDate(now.getDate() + windowDays - termDays);
+
         where.effectiveDate = {
           ...(where.effectiveDate as Prisma.DateTimeFilter || {}),
-          lte: thirtyDaysFromNow,
-          gte: new Date(), // Only future/current dates
+          gte: earliestEffectiveDate,
+          lte: latestEffectiveDate,
         };
         break;
       case 'drafts':
@@ -736,9 +801,7 @@ export async function listNdas(
   }
 
   // Handle sort
-  const sortBy = params.sortBy || 'createdAt';
-  const sortOrder = params.sortOrder || 'desc';
-  const orderBy: Prisma.NdaOrderByWithRelationInput = { [sortBy]: sortOrder };
+  const orderBy = buildNdaOrderBy(params.sortBy, params.sortOrder);
 
   // Execute queries
   const [ndas, total] = await Promise.all([
@@ -754,18 +817,73 @@ export async function listNdas(
         opportunityPoc: { select: { id: true, firstName: true, lastName: true } },
         contractsPoc: { select: { id: true, firstName: true, lastName: true } },
         relationshipPoc: { select: { id: true, firstName: true, lastName: true } },
+        contactsPoc: { select: { id: true, firstName: true, lastName: true } },
+        statusHistory: {
+          orderBy: { changedAt: 'desc' },
+          take: 1,
+          include: {
+            changedBy: { select: { firstName: true, lastName: true } },
+          },
+        },
       },
     }),
     prisma.nda.count({ where }),
   ]);
 
+  const ndasWithDraftInfo = ndas.map((nda) => {
+    const incompleteFields = getIncompleteFields({
+      companyName: nda.companyName,
+      abbreviatedName: nda.abbreviatedName,
+      authorizedPurpose: nda.authorizedPurpose,
+      relationshipPocId: nda.relationshipPocId,
+      agencyGroupId: nda.agencyGroupId,
+    });
+
+    return {
+      ...nda,
+      incompleteFields,
+      isDraft: nda.status === 'CREATED' && incompleteFields.length > 0,
+    };
+  });
+
   return {
-    ndas,
+    ndas: ndasWithDraftInfo,
     total,
     page,
     limit,
     totalPages: Math.ceil(total / limit),
   };
+}
+
+/**
+ * Get distinct filter suggestions for NDA list filters
+ */
+export async function getFilterSuggestions(
+  field: 'companyCity' | 'companyState' | 'stateOfIncorporation' | 'agencyOfficeName',
+  query: string,
+  userContext: UserContext,
+  limit = 10
+): Promise<string[]> {
+  const securityFilter = await buildSecurityFilter(userContext);
+  const trimmed = query.trim();
+  if (!trimmed) return [];
+
+  const where: Prisma.NdaWhereInput = {
+    ...securityFilter,
+    [field]: { contains: trimmed, mode: 'insensitive' },
+  };
+
+  const results = await prisma.nda.findMany({
+    where,
+    distinct: [field],
+    select: { [field]: true } as Prisma.NdaSelect,
+    orderBy: { [field]: 'asc' } as Prisma.NdaOrderByWithRelationInput,
+    take: limit,
+  });
+
+  return results
+    .map((row) => (row as Record<string, string | null>)[field])
+    .filter((value): value is string => Boolean(value));
 }
 
 /**
@@ -872,6 +990,7 @@ export async function updateNda(
   }
   if (input.agencyOfficeName !== undefined)
     updateData.agencyOfficeName = input.agencyOfficeName?.trim() || null;
+  if (input.ndaType !== undefined) updateData.ndaType = input.ndaType;
   if (input.abbreviatedName !== undefined)
     updateData.abbreviatedName = input.abbreviatedName.trim();
   if (input.authorizedPurpose !== undefined)
@@ -886,6 +1005,11 @@ export async function updateNda(
   }
   if (input.relationshipPocId !== undefined)
     updateData.relationshipPoc = { connect: { id: input.relationshipPocId } };
+  if (input.contactsPocId !== undefined) {
+    updateData.contactsPoc = input.contactsPocId
+      ? { connect: { id: input.contactsPocId } }
+      : { disconnect: true };
+  }
 
   const nda = await prisma.nda.update({
     where: { id },
@@ -896,6 +1020,7 @@ export async function updateNda(
       opportunityPoc: { select: { id: true, firstName: true, lastName: true, email: true } },
       contractsPoc: { select: { id: true, firstName: true, lastName: true, email: true } },
       relationshipPoc: { select: { id: true, firstName: true, lastName: true, email: true } },
+      contactsPoc: { select: { id: true, firstName: true, lastName: true, email: true } },
       createdBy: { select: { id: true, firstName: true, lastName: true, email: true } },
     },
   });
@@ -985,6 +1110,7 @@ export async function changeNdaStatus(
  * with optional overrides for specific fields.
  */
 export interface CloneNdaOverrides {
+  ndaType?: NdaType;
   abbreviatedName?: string;
   authorizedPurpose?: string;
   effectiveDate?: string | Date;
@@ -1000,6 +1126,7 @@ export interface CloneNdaOverrides {
   opportunityPocId?: string;
   contractsPocId?: string | null;
   relationshipPocId?: string;
+  contactsPocId?: string | null;
 }
 
 export async function cloneNda(
@@ -1075,6 +1202,7 @@ export async function cloneNda(
       agencyOfficeName: overrides.agencyOfficeName !== undefined
         ? overrides.agencyOfficeName?.trim() || null
         : source.agencyOfficeName,
+      ndaType: overrides.ndaType ?? source.ndaType ?? 'MUTUAL',
       abbreviatedName: overrides.abbreviatedName?.trim() || source.abbreviatedName,
       authorizedPurpose: overrides.authorizedPurpose?.trim() || source.authorizedPurpose,
       effectiveDate: effectiveDate !== null ? effectiveDate : null,
@@ -1094,7 +1222,7 @@ export async function cloneNda(
       // POCs - use overrides or copy from source
       opportunityPoc: {
         connect: {
-          id: overrides.opportunityPocId || userContext.contactId,
+          id: overrides.opportunityPocId || source.opportunityPoc?.id || userContext.contactId,
         },
       },
       contractsPoc: overrides.contractsPocId !== undefined
@@ -1105,6 +1233,9 @@ export async function cloneNda(
           id: overrides.relationshipPocId || source.relationshipPoc?.id || userContext.contactId,
         },
       },
+      contactsPoc: overrides.contactsPocId !== undefined
+        ? (overrides.contactsPocId ? { connect: { id: overrides.contactsPocId } } : undefined)
+        : (source.contactsPoc ? { connect: { id: source.contactsPoc.id } } : undefined),
 
       // Create initial status history entry
       statusHistory: {
@@ -1120,6 +1251,7 @@ export async function cloneNda(
       opportunityPoc: { select: { id: true, firstName: true, lastName: true, email: true } },
       contractsPoc: { select: { id: true, firstName: true, lastName: true, email: true } },
       relationshipPoc: { select: { id: true, firstName: true, lastName: true, email: true } },
+      contactsPoc: { select: { id: true, firstName: true, lastName: true, email: true } },
       createdBy: { select: { id: true, firstName: true, lastName: true, email: true } },
       clonedFrom: { select: { id: true, displayId: true, companyName: true } },
       statusHistory: {
@@ -1193,6 +1325,7 @@ export interface UpdateDraftInput {
   agencyGroupId?: string;
   subagencyId?: string | null;
   agencyOfficeName?: string;
+  ndaType?: NdaType;
   abbreviatedName?: string;
   authorizedPurpose?: string;
   effectiveDate?: string | Date | null;
@@ -1200,6 +1333,7 @@ export interface UpdateDraftInput {
   isNonUsMax?: boolean;
   contractsPocId?: string | null;
   relationshipPocId?: string;
+  contactsPocId?: string | null;
 }
 
 export interface UpdateDraftResult {
@@ -1269,6 +1403,7 @@ export async function updateDraft(
   }
   if (input.agencyOfficeName !== undefined)
     updateData.agencyOfficeName = input.agencyOfficeName?.trim() || null;
+  if (input.ndaType !== undefined) updateData.ndaType = input.ndaType;
   if (input.abbreviatedName !== undefined)
     updateData.abbreviatedName = input.abbreviatedName.trim();
   if (input.authorizedPurpose !== undefined)
@@ -1283,6 +1418,11 @@ export async function updateDraft(
   }
   if (input.relationshipPocId !== undefined)
     updateData.relationshipPoc = { connect: { id: input.relationshipPocId } };
+  if (input.contactsPocId !== undefined) {
+    updateData.contactsPoc = input.contactsPocId
+      ? { connect: { id: input.contactsPocId } }
+      : { disconnect: true };
+  }
 
   const nda = await prisma.nda.update({
     where: { id },
@@ -1293,6 +1433,7 @@ export async function updateDraft(
       opportunityPoc: { select: { id: true, firstName: true, lastName: true, email: true } },
       contractsPoc: { select: { id: true, firstName: true, lastName: true, email: true } },
       relationshipPoc: { select: { id: true, firstName: true, lastName: true, email: true } },
+      contactsPoc: { select: { id: true, firstName: true, lastName: true, email: true } },
       createdBy: { select: { id: true, firstName: true, lastName: true, email: true } },
     },
   });

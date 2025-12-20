@@ -49,6 +49,21 @@ so that **I can create NDAs faster (15 fields → 3-4 manual entries)**.
   - [ ] 3.3: Test agency pattern detection (most common)
   - [ ] 3.4: Test default values aggregation
 
+### Review Follow-ups (AI)
+- [x] [AI-Review][High] Company search suggestions broken: API returns companyName but client expects name, so dropdown is empty. [src/server/services/companySuggestionsService.ts:180]
+- [x] [AI-Review][Medium] AC3 not implemented: recently used companies are never shown (no call to /company-suggestions on focus). [src/components/screens/RequestWizard.tsx:164]
+- [x] [AI-Review][Medium] AC2 mismatch: form still blocks progress without USMax position and Relationship POC even after auto-fill; update defaults or AC. [src/components/screens/RequestWizard.tsx:229]
+
+## Dev Agent Record
+
+### File List
+- src/server/services/companySuggestionsService.ts
+- src/client/services/ndaService.ts
+- src/components/screens/RequestWizard.tsx
+
+### Change Log
+- 2025-12-20: Fixed company search response shape, added recent companies on focus, and updated form defaults/validation flow.
+
 ## Dev Notes
 
 ### Auto-Fill Logic

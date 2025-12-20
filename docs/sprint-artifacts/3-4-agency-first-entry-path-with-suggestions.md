@@ -40,6 +40,22 @@ so that **system helps me with common patterns for that agency**.
   - [ ] 3.2: Test position pattern detection
   - [ ] 3.3: Test with no historical data (returns empty suggestions)
 
+### Review Follow-ups (AI)
+- [x] [AI-Review][High] Agency-first suggestions never surface in UI; RequestWizard does not call getAgencySuggestions. [src/components/screens/RequestWizard.tsx:148]
+- [x] [AI-Review][High] AC1 requires "Typical NDA Type" suggestion, but Nda model has no ndaType field to compute it. [prisma/schema.prisma:239]
+- [x] [AI-Review][Medium] Default template suggestion not implemented (getDefaultTemplate returns empty). [src/server/services/agencySuggestionsService.ts:110]
+
+## Dev Agent Record
+
+### File List
+- prisma/schema.prisma
+- src/server/services/agencySuggestionsService.ts
+- src/client/services/ndaService.ts
+- src/components/screens/RequestWizard.tsx
+
+### Change Log
+- 2025-12-20: Added ndaType support, computed typical NDA type, and surfaced agency suggestions in the create flow.
+
 ## Dev Notes
 
 ### Suggestions Response

@@ -14,7 +14,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import { Sidebar } from './components/layout/Sidebar';
 import { TopBar } from './components/layout/TopBar';
 import { Dashboard } from './components/screens/Dashboard';
-import { Requests } from './components/screens/Requests';
+import { AllNdas, MyDrafts, MyNdas } from './components/screens/Requests';
 import { RequestWizard } from './components/screens/RequestWizard';
 import { NDADetail } from './components/screens/NDADetail';
 import { Templates } from './components/screens/Templates';
@@ -120,8 +120,13 @@ export default function App() {
 
           {/* Internal application routes - protected with main layout */}
           <Route path="/" element={<MainLayout><Dashboard /></MainLayout>} />
-          <Route path="/requests" element={<MainLayout><Requests /></MainLayout>} />
+          <Route path="/requests" element={<MainLayout><AllNdas /></MainLayout>} />
+          <Route path="/ndas" element={<MainLayout><AllNdas /></MainLayout>} />
+          <Route path="/my-ndas" element={<MainLayout><MyNdas /></MainLayout>} />
+          <Route path="/my-drafts" element={<MainLayout><MyDrafts /></MainLayout>} />
           <Route path="/request-wizard" element={<MainLayout><RequestWizard /></MainLayout>} />
+          <Route path="/request-wizard/:id" element={<MainLayout><RequestWizard /></MainLayout>} />
+          <Route path="/nda/:id/edit" element={<MainLayout><RequestWizard /></MainLayout>} />
           <Route path="/nda/:id" element={<MainLayout><NDADetail /></MainLayout>} />
           <Route path="/templates" element={<MainLayout><Templates /></MainLayout>} />
           <Route path="/reports" element={<MainLayout><Reports /></MainLayout>} />

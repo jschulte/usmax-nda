@@ -12,7 +12,12 @@ import { attemptAutoTransition, StatusTrigger } from './statusTransitionService.
 import { EmailStatus } from '../../generated/prisma/index.js';
 import type { UserContext } from '../types/auth.js';
 import { buildSecurityFilter } from './ndaService.js';
+import { getEmailDefaults, getEmailAdminAlerts } from './systemConfigService.js';
+import { enqueueEmailJob, isEmailQueueReady } from '../jobs/emailQueue.js';
 import { POC_PATTERNS } from '../validators/pocValidator.js';
+import { getDocumentContent } from './s3Service.js';
+import { getDefaultEmailTemplate, getEmailTemplate } from './emailTemplateService.js';
+import { reportError } from './errorReportingService.js';
 
 // Re-export for use in other modules
 export { EmailStatus };
@@ -30,6 +35,18 @@ export class EmailServiceError extends Error {
   }
 }
 
+function buildSystemContext(contactId: string): UserContext {
+  return {
+    id: '',
+    email: '',
+    contactId,
+    permissions: new Set(['nda:send_email']),
+    roles: [],
+    authorizedAgencyGroups: [],
+    authorizedSubagencies: [],
+  };
+}
+
 /**
  * Email preview data for composer
  */
@@ -39,6 +56,8 @@ export interface EmailPreview {
   ccRecipients: string[];
   bccRecipients: string[];
   body: string;
+  templateId?: string | null;
+  templateName?: string | null;
   attachments: Array<{
     filename: string;
     documentId: string;
@@ -55,6 +74,7 @@ export interface ComposeEmailParams {
   ccRecipients?: string[];
   bccRecipients?: string[];
   body?: string;
+  templateId?: string;
 }
 
 /**
@@ -67,6 +87,7 @@ export interface SendEmailParams {
   ccRecipients: string[];
   bccRecipients: string[];
   body: string;
+  templateId?: string;
 }
 
 // SES client configuration
@@ -74,14 +95,16 @@ const sesClient = new SESClient({
   region: process.env.AWS_REGION || 'us-east-1',
 });
 
-// Default CC/BCC configuration (can be moved to system config later)
-const DEFAULT_CC_RECIPIENTS: string[] = [];
-const DEFAULT_BCC_RECIPIENTS: string[] = [];
 
 function assertNoCrlf(value: string, fieldName: string): void {
   if (/[\r\n]/.test(value)) {
     throw new EmailServiceError(`${fieldName} contains invalid characters`, 'VALIDATION_ERROR');
   }
+}
+
+function sanitizeFilename(value: string): string {
+  const stripped = value.replace(/[\r\n]/g, '').replace(/"/g, "'");
+  return stripped || 'attachment';
 }
 
 function normalizeRecipientList(value: unknown, fieldName: string): string[] {
@@ -143,6 +166,57 @@ export function generateEmailSubject(nda: {
   return `NDA from USMax - for ${nda.companyName} for ${nda.abbreviatedName} at ${agency}`;
 }
 
+function buildEmailSignature(nda: {
+  opportunityPoc?: { firstName?: string | null; lastName?: string | null; emailSignature?: string | null };
+}): string {
+  const signature = nda.opportunityPoc?.emailSignature?.trim();
+  if (signature) return signature;
+
+  const name = [nda.opportunityPoc?.firstName, nda.opportunityPoc?.lastName]
+    .filter(Boolean)
+    .join(' ');
+
+  return `USMax${name ? `\n${name}` : ''}`;
+}
+
+function buildEmailMergeFields(nda: {
+  displayId: number;
+  companyName: string;
+  abbreviatedName: string;
+  agencyOfficeName?: string | null;
+  agencyGroup?: { name: string };
+  relationshipPoc?: { firstName?: string | null; lastName?: string | null };
+  opportunityPoc?: { firstName?: string | null; lastName?: string | null; emailSignature?: string | null };
+}): Record<string, string> {
+  const relationshipName = nda.relationshipPoc
+    ? `${nda.relationshipPoc.firstName || ''} ${nda.relationshipPoc.lastName || ''}`.trim()
+    : '';
+
+  const opportunityName = nda.opportunityPoc
+    ? `${nda.opportunityPoc.firstName || ''} ${nda.opportunityPoc.lastName || ''}`.trim()
+    : '';
+
+  return {
+    displayId: String(nda.displayId),
+    companyName: nda.companyName,
+    abbreviatedName: nda.abbreviatedName,
+    agencyOfficeName: nda.agencyOfficeName || '',
+    agencyGroupName: nda.agencyGroup?.name || '',
+    relationshipPocName: relationshipName,
+    opportunityPocName: opportunityName,
+    signature: buildEmailSignature(nda),
+  };
+}
+
+function mergeEmailTemplateText(template: string, fields: Record<string, string>): string {
+  return template.replace(/\\{\\{(\\w+)\\}\\}/g, (match, key) => {
+    if (Object.prototype.hasOwnProperty.call(fields, key)) {
+      return fields[key] ?? '';
+    }
+    return match;
+  });
+}
+
 /**
  * Generate email body from NDA data (basic template)
  */
@@ -152,10 +226,13 @@ export function generateEmailBody(nda: {
   abbreviatedName: string;
   agencyOfficeName?: string | null;
   relationshipPoc?: { firstName?: string | null; lastName?: string | null };
+  opportunityPoc?: { firstName?: string | null; lastName?: string | null; emailSignature?: string | null };
 }): string {
   const pocName = nda.relationshipPoc
     ? `${nda.relationshipPoc.firstName || ''} ${nda.relationshipPoc.lastName || ''}`.trim() || 'Partner'
     : 'Partner';
+
+  const signature = buildEmailSignature(nda);
 
   return `Dear ${pocName},
 
@@ -166,7 +243,7 @@ Please review the attached document, sign, and return at your earliest convenien
 If you have any questions or concerns, please don't hesitate to reach out.
 
 Best regards,
-USMax
+${signature}
 
 NDA Reference: #${nda.displayId}`;
 }
@@ -176,13 +253,21 @@ NDA Reference: #${nda.displayId}`;
  */
 export async function getEmailPreview(
   ndaId: string,
-  userContext: UserContext
+  userContext: UserContext,
+  templateId?: string
 ): Promise<EmailPreview> {
   // Fetch NDA with related data
   const nda = await getAccessibleNdaOrThrow(ndaId, userContext, {
     include: {
       agencyGroup: true,
       relationshipPoc: true,
+      opportunityPoc: {
+        select: {
+          firstName: true,
+          lastName: true,
+          emailSignature: true,
+        },
+      },
       documents: {
         where: { documentType: 'GENERATED' },
         orderBy: { uploadedAt: 'desc' },
@@ -203,14 +288,42 @@ export async function getEmailPreview(
     select: { email: true },
   });
 
-  const ccRecipients = [...DEFAULT_CC_RECIPIENTS];
+  const { defaultCc, defaultBcc } = await getEmailDefaults();
+
+  const ccRecipients = [...defaultCc];
   if (currentUser?.email) {
     ccRecipients.push(currentUser.email);
   }
 
-  // Generate subject and body
-  const subject = generateEmailSubject(nda);
-  const body = generateEmailBody(nda);
+  // Resolve email template (if provided or default)
+  let template = null;
+  if (templateId) {
+    template = await getEmailTemplate(templateId);
+    if (!template || !template.isActive) {
+      throw new EmailServiceError('Email template not found', 'TEMPLATE_NOT_FOUND');
+    }
+  } else {
+    template = await getDefaultEmailTemplate();
+  }
+
+  // Generate subject and body (template merge if available)
+  let subject: string;
+  let body: string;
+  if (template) {
+    const fields = buildEmailMergeFields(nda);
+    subject = mergeEmailTemplateText(template.subject, fields).trim();
+    body = mergeEmailTemplateText(template.body, fields).trim();
+  } else {
+    subject = '';
+    body = '';
+  }
+
+  if (!subject) {
+    subject = generateEmailSubject(nda);
+  }
+  if (!body) {
+    body = generateEmailBody(nda);
+  }
 
   // Get attachments
   const attachments = nda.documents.map((doc) => ({
@@ -222,8 +335,10 @@ export async function getEmailPreview(
     subject,
     toRecipients,
     ccRecipients,
-    bccRecipients: [...DEFAULT_BCC_RECIPIENTS],
+    bccRecipients: [...defaultBcc],
     body,
+    templateId: template?.id ?? null,
+    templateName: template?.name ?? null,
     attachments,
   };
 }
@@ -235,12 +350,24 @@ export async function queueEmail(
   params: SendEmailParams,
   userContext: UserContext
 ): Promise<{ emailId: string; status: EmailStatus }> {
-  const { ndaId, subject, toRecipients, ccRecipients, bccRecipients, body } = params;
+  const { ndaId, subject, toRecipients, ccRecipients, bccRecipients, body, templateId } = params;
 
   // Validate NDA exists and is accessible
   const nda = await getAccessibleNdaOrThrow(ndaId, userContext, {
-    select: { id: true, displayId: true },
+    select: {
+      id: true,
+      displayId: true,
+      documents: {
+        where: { documentType: 'GENERATED' },
+        orderBy: { uploadedAt: 'desc' },
+        take: 1,
+      },
+    },
   });
+
+  if (!nda.documents || nda.documents.length === 0) {
+    throw new EmailServiceError('No generated document available to attach', 'NO_ATTACHMENT');
+  }
 
   const safeSubject = String(subject ?? '').trim();
   if (!safeSubject) {
@@ -262,6 +389,15 @@ export async function queueEmail(
 
   const safeBody = String(body ?? '');
 
+  let resolvedTemplateId: string | null = null;
+  if (templateId) {
+    const template = await getEmailTemplate(templateId);
+    if (!template || !template.isActive) {
+      throw new EmailServiceError('Email template not found', 'TEMPLATE_NOT_FOUND');
+    }
+    resolvedTemplateId = template.id;
+  }
+
   // Create email record
   const email = await prisma.ndaEmail.create({
     data: {
@@ -271,6 +407,7 @@ export async function queueEmail(
       ccRecipients: safeCc,
       bccRecipients: safeBcc,
       body: safeBody,
+      templateId: resolvedTemplateId,
       sentById: userContext.contactId,
       status: 'QUEUED',
     },
@@ -292,13 +429,21 @@ export async function queueEmail(
     },
   });
 
-  // In production, we would queue to pg-boss here
-  // For now, attempt immediate send
+  const jobId = await enqueueEmailJob({ emailId: email.id });
+  if (jobId) {
+    return { emailId: email.id, status: EmailStatus.QUEUED };
+  }
+
+  if (!isEmailQueueReady()) {
+    console.warn('[EmailService] Email queue not ready, attempting immediate send.');
+  }
+
   try {
     await sendEmail(email.id, userContext);
     return { emailId: email.id, status: EmailStatus.SENT };
   } catch (error) {
-    // Email will remain queued for retry
+    console.error('[EmailService] Failed to send email via SES', error);
+    // Email will remain queued for retry when queue is available
     return { emailId: email.id, status: EmailStatus.QUEUED };
   }
 }
@@ -308,13 +453,20 @@ export async function queueEmail(
  */
 export async function sendEmail(
   emailId: string,
-  userContext: UserContext
+  userContext?: UserContext
 ): Promise<void> {
   const email = await prisma.ndaEmail.findUnique({
     where: { id: emailId },
     include: {
+      sentBy: {
+        select: { id: true, firstName: true, lastName: true },
+      },
       nda: {
-        include: {
+        select: {
+          id: true,
+          displayId: true,
+          companyName: true,
+          status: true,
           documents: {
             where: { documentType: 'GENERATED' },
             orderBy: { uploadedAt: 'desc' },
@@ -328,6 +480,8 @@ export async function sendEmail(
   if (!email) {
     throw new EmailServiceError('Email not found', 'EMAIL_NOT_FOUND');
   }
+
+  const effectiveContext = userContext ?? buildSystemContext(email.sentById);
 
   // Build MIME message
   const fromEmail = process.env.SES_FROM_EMAIL || 'nda@usmax.com';
@@ -359,6 +513,24 @@ export async function sendEmail(
   rawMessage += `Content-Transfer-Encoding: 7bit\r\n\r\n`;
   rawMessage += `${email.body}\r\n\r\n`;
 
+  const attachment = email.nda.documents[0];
+  if (!attachment) {
+    throw new EmailServiceError('No generated document available to attach', 'NO_ATTACHMENT');
+  }
+
+  const attachmentFilename = sanitizeFilename(attachment.filename);
+  const attachmentContentType = attachment.fileType || 'application/octet-stream';
+  assertNoCrlf(attachmentContentType, 'Attachment content type');
+
+  const attachmentContent = await getDocumentContent(attachment.s3Key);
+  const attachmentBase64 = attachmentContent.toString('base64');
+
+  rawMessage += `--${boundary}\r\n`;
+  rawMessage += `Content-Type: ${attachmentContentType}; name="${attachmentFilename}"\r\n`;
+  rawMessage += `Content-Disposition: attachment; filename="${attachmentFilename}"\r\n`;
+  rawMessage += `Content-Transfer-Encoding: base64\r\n\r\n`;
+  rawMessage += `${attachmentBase64}\r\n\r\n`;
+
   // End boundary
   rawMessage += `--${boundary}--\r\n`;
 
@@ -384,7 +556,7 @@ export async function sendEmail(
       action: AuditAction.EMAIL_SENT,
       entityType: 'nda_email',
       entityId: emailId,
-      userId: userContext.contactId,
+      userId: effectiveContext.contactId,
       details: {
         ndaId: email.ndaId,
         sesMessageId: result.MessageId,
@@ -394,14 +566,46 @@ export async function sendEmail(
     // Auto-transition NDA status to EMAILED (Story 3.12)
     // This will only transition if the NDA is in CREATED status
     // and properly record the transition in audit log
-    await attemptAutoTransition(
+    const transition = await attemptAutoTransition(
       email.ndaId,
       StatusTrigger.EMAIL_SENT,
-      userContext
+      effectiveContext
     );
+
+    if (transition) {
+      try {
+        const { notifyStakeholders, NotificationEvent } = await import('./notificationService.js');
+        await notifyStakeholders(
+          {
+            ndaId: email.ndaId,
+            displayId: email.nda.displayId,
+            companyName: email.nda.companyName,
+            event: NotificationEvent.NDA_EMAILED,
+            changedBy: {
+              id: effectiveContext.contactId,
+              name: email.sentBy
+                ? `${email.sentBy.firstName ?? ''} ${email.sentBy.lastName ?? ''}`.trim() || 'System'
+                : 'System',
+            },
+            timestamp: new Date(),
+            previousValue: transition.previousStatus,
+            newValue: transition.newStatus,
+          },
+          effectiveContext
+        );
+      } catch (notifyError) {
+        console.error('[EmailService] Failed to send status notifications', notifyError);
+      }
+    }
   } catch (error) {
     // Update email record with failure
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
+    reportError(error, {
+      emailId,
+      ndaId: email.ndaId,
+      source: 'email_send',
+    });
 
     await prisma.ndaEmail.update({
       where: { id: emailId },
@@ -417,7 +621,7 @@ export async function sendEmail(
       action: AuditAction.EMAIL_FAILED,
       entityType: 'nda_email',
       entityId: emailId,
-      userId: userContext.contactId,
+      userId: effectiveContext.contactId,
       details: {
         ndaId: email.ndaId,
         error: errorMessage,
@@ -426,6 +630,106 @@ export async function sendEmail(
 
     throw new EmailServiceError(`Failed to send email: ${errorMessage}`, 'SEND_FAILED');
   }
+}
+
+export async function handlePermanentEmailFailure(
+  emailId: string,
+  error: unknown,
+  retryCount?: number
+): Promise<void> {
+  reportError(error, {
+    emailId,
+    retryCount,
+    source: 'email_queue',
+  });
+
+  const email = await prisma.ndaEmail.findUnique({
+    where: { id: emailId },
+    include: {
+      nda: {
+        select: {
+          id: true,
+          displayId: true,
+          companyName: true,
+        },
+      },
+      sentBy: {
+        select: { id: true, email: true, firstName: true, lastName: true },
+      },
+    },
+  });
+
+  if (!email) return;
+
+  try {
+    await sendAdminAlertEmail({
+      emailId,
+      ndaId: email.ndaId,
+      displayId: email.nda.displayId,
+      companyName: email.nda.companyName,
+      sentBy: email.sentBy
+        ? `${email.sentBy.firstName ?? ''} ${email.sentBy.lastName ?? ''}`.trim() || email.sentBy.email || 'Unknown'
+        : 'Unknown',
+      error,
+      retryCount,
+    });
+  } catch (alertError) {
+    reportError(alertError, {
+      emailId,
+      ndaId: email.ndaId,
+      source: 'email_admin_alert',
+    });
+  }
+}
+
+async function sendAdminAlertEmail(details: {
+  emailId: string;
+  ndaId: string;
+  displayId: number;
+  companyName: string;
+  sentBy: string;
+  error: unknown;
+  retryCount?: number;
+}): Promise<void> {
+  const recipients = await getEmailAdminAlerts();
+  if (!recipients.length) return;
+
+  const fromEmail = process.env.SES_FROM_EMAIL || 'nda@usmax.com';
+  assertNoCrlf(fromEmail, 'From');
+
+  for (const addr of recipients) {
+    assertNoCrlf(addr, 'Recipient');
+    if (!POC_PATTERNS.email.test(addr)) {
+      throw new EmailServiceError('Invalid admin alert recipient email address', 'VALIDATION_ERROR');
+    }
+  }
+
+  const subject = `NDA Email Failure: #${details.displayId} ${details.companyName}`;
+  const errorMessage = details.error instanceof Error ? details.error.message : String(details.error);
+
+  const body = `An NDA email failed after all retry attempts.\n\n` +
+    `NDA: #${details.displayId} (${details.companyName})\n` +
+    `Email ID: ${details.emailId}\n` +
+    `Sent by: ${details.sentBy}\n` +
+    `Retry count: ${details.retryCount ?? 'unknown'}\n` +
+    `Error: ${errorMessage}\n\n` +
+    `Please review the email queue and NDA record.\n`;
+
+  const rawMessage = [
+    `From: ${fromEmail}`,
+    `To: ${recipients.join(', ')}`,
+    `Subject: ${subject}`,
+    'MIME-Version: 1.0',
+    'Content-Type: text/plain; charset=UTF-8',
+    '',
+    body,
+  ].join('\r\n');
+
+  await sesClient.send(
+    new SendRawEmailCommand({
+      RawMessage: { Data: Buffer.from(rawMessage) },
+    })
+  );
 }
 
 /**

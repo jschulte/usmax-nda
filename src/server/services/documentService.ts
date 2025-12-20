@@ -14,9 +14,10 @@
 import { prisma } from '../db/index.js';
 import { uploadDocument, getDownloadUrl, getDocumentContent, S3ServiceError } from './s3Service.js';
 import { auditService, AuditAction } from './auditService.js';
-import { transitionStatus, StatusTrigger } from './statusTransitionService.js';
+import { attemptAutoTransition, transitionStatus, StatusTrigger } from './statusTransitionService.js';
 import type { Document, DocumentType, NdaStatus } from '../../generated/prisma/index.js';
 import type { UserContext } from '../types/auth.js';
+import { notifyStakeholders, NotificationEvent } from './notificationService.js';
 import archiver from 'archiver';
 import { PassThrough } from 'stream';
 import path from 'node:path';
@@ -150,6 +151,7 @@ export async function uploadNdaDocument(
     select: {
       id: true,
       displayId: true,
+      companyName: true,
       status: true,
       agencyGroupId: true,
       subagencyId: true,
@@ -229,10 +231,11 @@ export async function uploadNdaDocument(
     },
   });
 
-  // If marked as fully executed, auto-transition NDA status (Story 4.2)
+  // Auto-transition status based on upload type (Story 3.12)
+  let transitionResult: { previousStatus: string; newStatus: string } | undefined;
   if (input.isFullyExecuted) {
     try {
-      await transitionStatus(
+      transitionResult = await transitionStatus(
         input.ndaId,
         'FULLY_EXECUTED' as NdaStatus,
         StatusTrigger.FULLY_EXECUTED_UPLOAD,
@@ -243,6 +246,55 @@ export async function uploadNdaDocument(
       // Log but don't fail if transition doesn't apply
       console.log(`[Document] Could not auto-transition NDA ${input.ndaId} to FULLY_EXECUTED`);
     }
+  } else {
+    try {
+      transitionResult = await attemptAutoTransition(
+        input.ndaId,
+        StatusTrigger.DOCUMENT_UPLOADED,
+        userContext,
+        auditMeta
+      );
+    } catch {
+      console.log(`[Document] Could not auto-transition NDA ${input.ndaId} after upload`);
+    }
+  }
+
+  try {
+    const changedByName = userContext.name ?? userContext.email;
+    await notifyStakeholders(
+      {
+        ndaId: input.ndaId,
+        displayId: nda.displayId,
+        companyName: nda.companyName,
+        event: NotificationEvent.DOCUMENT_UPLOADED,
+        changedBy: { id: userContext.contactId, name: changedByName },
+        timestamp: new Date(),
+      },
+      userContext
+    );
+
+    if (transitionResult) {
+      const event =
+        transitionResult.newStatus === 'FULLY_EXECUTED'
+          ? NotificationEvent.FULLY_EXECUTED
+          : NotificationEvent.STATUS_CHANGED;
+
+      await notifyStakeholders(
+        {
+          ndaId: input.ndaId,
+          displayId: nda.displayId,
+          companyName: nda.companyName,
+          event,
+          changedBy: { id: userContext.contactId, name: changedByName },
+          timestamp: new Date(),
+          previousValue: transitionResult.previousStatus,
+          newValue: transitionResult.newStatus,
+        },
+        userContext
+      );
+    }
+  } catch (notifyError) {
+    console.error('[Document] Failed to notify stakeholders after upload', notifyError);
   }
 
   return formatDocumentResponse(document);

@@ -6,6 +6,7 @@ import { Button } from '../ui/AppButton';
 import {
   ArrowLeft,
   Download,
+  Edit,
   Send,
   ExternalLink,
   Calendar,
@@ -34,6 +35,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../ui/dialog';
+import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -45,7 +47,17 @@ import {
   AlertDialogTitle,
 } from '../ui/alert-dialog';
 import { toast } from 'sonner@2.0.3';
-import { getNDA, updateNDAStatus, type NdaDetail, type NdaStatus } from '../../client/services/ndaService';
+import {
+  getNdaDetail,
+  updateNDAStatus,
+  getEmailPreview,
+  sendNdaEmail,
+  getStatusInfo,
+  type EmailPreview,
+  type NdaDetail,
+  type NdaStatus,
+  type StatusInfoResponse,
+} from '../../client/services/ndaService';
 import { getNDAAuditTrail, type TimelineEntry } from '../../client/services/auditService';
 import { subscribe, unsubscribe, getNDASubscriptions, type Subscriber } from '../../client/services/notificationService';
 import {
@@ -57,6 +69,15 @@ import {
   downloadAllDocuments,
   type Document
 } from '../../client/services/documentService';
+import {
+  listTemplates,
+  generatePreview,
+  type RtfTemplate,
+} from '../../client/services/templateService';
+import {
+  listEmailTemplates,
+  type EmailTemplateSummary,
+} from '../../client/services/emailTemplateService';
 
 export function NDADetail() {
   const { id } = useParams<{ id: string }>();
@@ -71,6 +92,8 @@ export function NDADetail() {
   const [error, setError] = useState<string | null>(null);
   const [statusUpdating, setStatusUpdating] = useState(false);
   const [subscribing, setSubscribing] = useState(false);
+  const [statusInfo, setStatusInfo] = useState<StatusInfoResponse | null>(null);
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
 
   // Document state
   const [documents, setDocuments] = useState<Document[]>([]);
@@ -79,12 +102,26 @@ export function NDADetail() {
   const [generating, setGenerating] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
+  const [templates, setTemplates] = useState<RtfTemplate[]>([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
+  const [previewing, setPreviewing] = useState(false);
 
   // UI state
   const [activeTab, setActiveTab] = useState<'overview' | 'document' | 'activity'>('overview');
   const [showReviewDialog, setShowReviewDialog] = useState(false);
   const [showApprovalDialog, setShowApprovalDialog] = useState(false);
-  const [showSendDialog, setShowSendDialog] = useState(false);
+  const [showEmailComposer, setShowEmailComposer] = useState(false);
+  const [emailLoading, setEmailLoading] = useState(false);
+  const [emailForm, setEmailForm] = useState({
+    subject: '',
+    toRecipients: '',
+    ccRecipients: '',
+    bccRecipients: '',
+    body: '',
+  });
+  const [emailAttachments, setEmailAttachments] = useState<EmailPreview['attachments']>([]);
+  const [emailTemplates, setEmailTemplates] = useState<EmailTemplateSummary[]>([]);
+  const [selectedEmailTemplateId, setSelectedEmailTemplateId] = useState<string>('');
   const [showAddNoteDialog, setShowAddNoteDialog] = useState(false);
   const [showMarkExecutedDialog, setShowMarkExecutedDialog] = useState(false);
   const [reviewNotes, setReviewNotes] = useState('');
@@ -98,8 +135,17 @@ export function NDADetail() {
       try {
         setLoading(true);
         setError(null);
-        const data = await getNDA(id);
-        setNda(data);
+        const detail = await getNdaDetail(id);
+        setNda({
+          ...detail.nda,
+          documents: detail.documents,
+          emails: detail.emails,
+          auditTrail: detail.auditTrail,
+          statusHistory: detail.statusHistory,
+          availableActions: detail.availableActions,
+          statusProgression: detail.statusProgression,
+        });
+        setDocuments(detail.documents as Document[]);
       } catch (err) {
         console.error('Failed to load NDA:', err);
         setError(err instanceof Error ? err.message : 'Failed to load NDA');
@@ -110,6 +156,36 @@ export function NDADetail() {
 
     loadNDAData();
   }, [id]);
+
+  useEffect(() => {
+    if (!nda?.agencyGroup?.id) return;
+
+    const loadTemplates = async () => {
+      try {
+        const data = await listTemplates(nda.agencyGroup.id);
+        setTemplates(data.templates);
+        const recommended = data.templates.find((t) => t.isRecommended);
+        setSelectedTemplateId(recommended?.id || data.templates[0]?.id || '');
+      } catch (err) {
+        console.error('Failed to load templates:', err);
+      }
+    };
+
+    loadTemplates();
+  }, [nda?.agencyGroup?.id]);
+
+  useEffect(() => {
+    const loadStatusInfo = async () => {
+      try {
+        const info = await getStatusInfo();
+        setStatusInfo(info);
+      } catch (err) {
+        console.error('Failed to load status info:', err);
+      }
+    };
+
+    loadStatusInfo();
+  }, []);
 
   // Load audit trail when activity tab is opened
   useEffect(() => {
@@ -184,10 +260,10 @@ export function NDADetail() {
           variant="subtle"
           size="sm"
           icon={<ArrowLeft className="w-4 h-4" />}
-          onClick={() => navigate('/requests')}
+          onClick={() => navigate('/ndas')}
           className="mb-4"
         >
-          Back to requests
+          Back to NDAs
         </Button>
         <Card>
           <div className="text-center py-12">
@@ -201,6 +277,21 @@ export function NDADetail() {
     );
   }
   
+  const refreshNdaDetail = async () => {
+    if (!id) return;
+    const detail = await getNdaDetail(id);
+    setNda({
+      ...detail.nda,
+      documents: detail.documents,
+      emails: detail.emails,
+      auditTrail: detail.auditTrail,
+      statusHistory: detail.statusHistory,
+      availableActions: detail.availableActions,
+      statusProgression: detail.statusProgression,
+    });
+    setDocuments(detail.documents as Document[]);
+  };
+
   const handleDownloadPDF = () => {
     toast.success('PDF download started', {
       description: `Downloading ${nda.companyName} NDA...`
@@ -208,28 +299,120 @@ export function NDADetail() {
     // TODO: Implement actual PDF download when document service is available
   };
 
-  const handleSendForSignature = () => {
-    setShowSendDialog(true);
-  };
-
-  const confirmSendForSignature = async () => {
+  const openEmailComposer = async () => {
     if (!id) return;
 
     try {
-      setStatusUpdating(true);
-      await updateNDAStatus(id, 'EMAILED', 'Sent for signature');
-      toast.success('NDA sent for signature', {
-        description: 'An email has been sent to the counterparty'
+      setEmailLoading(true);
+      setShowEmailComposer(true);
+
+      let templateId: string | undefined;
+      try {
+        const templateResponse = await listEmailTemplates();
+        setEmailTemplates(templateResponse.templates);
+        templateId =
+          templateResponse.templates.find((template) => template.isDefault)?.id ||
+          templateResponse.templates[0]?.id;
+      } catch (templateError) {
+        console.warn('Failed to load email templates:', templateError);
+        setEmailTemplates([]);
+      }
+
+      const preview = await getEmailPreview(id, templateId);
+      setEmailForm({
+        subject: preview.subject,
+        toRecipients: preview.toRecipients.join(', '),
+        ccRecipients: preview.ccRecipients.join(', '),
+        bccRecipients: preview.bccRecipients.join(', '),
+        body: preview.body,
       });
-      // Reload NDA data
-      const updatedNda = await getNDA(id);
-      setNda(updatedNda);
-      setShowSendDialog(false);
+      setEmailAttachments(preview.attachments);
+      setSelectedEmailTemplateId(preview.templateId || templateId || '');
     } catch (err) {
-      console.error('Failed to send NDA:', err);
-      toast.error('Failed to send NDA for signature');
+      console.error('Failed to load email preview:', err);
+      toast.error('Failed to load email preview');
     } finally {
-      setStatusUpdating(false);
+      setEmailLoading(false);
+    }
+  };
+
+  const handleEmailTemplateChange = async (templateId: string) => {
+    if (!id) return;
+    setSelectedEmailTemplateId(templateId);
+
+    try {
+      setEmailLoading(true);
+      const preview = await getEmailPreview(id, templateId || undefined);
+      setEmailForm((prev) => ({
+        ...prev,
+        subject: preview.subject,
+        body: preview.body,
+        toRecipients: prev.toRecipients || preview.toRecipients.join(', '),
+        ccRecipients: prev.ccRecipients || preview.ccRecipients.join(', '),
+        bccRecipients: prev.bccRecipients || preview.bccRecipients.join(', '),
+      }));
+      setEmailAttachments(preview.attachments);
+    } catch (err) {
+      console.error('Failed to refresh email preview:', err);
+      toast.error('Failed to refresh email preview');
+    } finally {
+      setEmailLoading(false);
+    }
+  };
+
+  const handleSendForSignature = () => {
+    if (!canSendEmail) {
+      toast.error("You don't have permission to send emails.");
+      return;
+    }
+    openEmailComposer();
+  };
+
+  const parseRecipientInput = (value: string) =>
+    value
+      .split(',')
+      .map((entry) => entry.trim())
+      .filter((entry) => entry.length > 0);
+
+  const handleSendEmail = async () => {
+    if (!id) return;
+    if (!emailAttachments.length) {
+      toast.error('No attachment available', {
+        description: 'Generate an NDA document before sending.',
+      });
+      return;
+    }
+
+    try {
+      setIsSendingEmail(true);
+      const result = await sendNdaEmail(id, {
+        subject: emailForm.subject,
+        toRecipients: parseRecipientInput(emailForm.toRecipients),
+        ccRecipients: parseRecipientInput(emailForm.ccRecipients),
+        bccRecipients: parseRecipientInput(emailForm.bccRecipients),
+        body: emailForm.body,
+        templateId: selectedEmailTemplateId || undefined,
+      });
+
+      if (result.status === 'SENT') {
+        toast.success('Email sent ✓', {
+          description: 'The NDA email was sent successfully.',
+        });
+      } else {
+        toast.message('Email queued for delivery', {
+          description: 'We will retry sending this email automatically.',
+        });
+      }
+
+      await refreshNdaDetail();
+      setShowEmailComposer(false);
+    } catch (err) {
+      console.error('Failed to send NDA email:', err);
+      toast.error('Failed to send NDA email', {
+        description: err instanceof Error ? err.message : 'Please try again later.',
+      });
+    } finally {
+      setIsSendingEmail(false);
     }
   };
 
@@ -248,9 +431,7 @@ export function NDADetail() {
       toast.success('Review completed', {
         description: 'The NDA has been marked as reviewed and is ready for approval.'
       });
-      // Reload NDA data
-      const updatedNda = await getNDA(id);
-      setNda(updatedNda);
+      await refreshNdaDetail();
       setShowReviewDialog(false);
       setReviewNotes('');
     } catch (err) {
@@ -274,13 +455,29 @@ export function NDADetail() {
       toast.success('NDA approved', {
         description: 'The NDA has been approved and can now be sent for signature.'
       });
-      // Reload NDA data
-      const updatedNda = await getNDA(id);
-      setNda(updatedNda);
+      await refreshNdaDetail();
       setShowApprovalDialog(false);
     } catch (err) {
       console.error('Failed to approve NDA:', err);
       toast.error('Failed to approve NDA');
+    } finally {
+      setStatusUpdating(false);
+    }
+  };
+
+  const handleStatusSelect = async (newStatus: NdaStatus) => {
+    if (!id || newStatus === nda.status) return;
+
+    try {
+      setStatusUpdating(true);
+      await updateNDAStatus(id, newStatus, 'Manual status change');
+      toast.success('Status updated', {
+        description: `NDA status changed to ${getDisplayStatus(newStatus)}`
+      });
+      await refreshNdaDetail();
+    } catch (err) {
+      console.error('Failed to update status:', err);
+      toast.error('Failed to update status');
     } finally {
       setStatusUpdating(false);
     }
@@ -328,6 +525,10 @@ export function NDADetail() {
 
   // Document handlers
   const handleFileSelect = async (files: FileList | null) => {
+    if (!canUploadDocument) {
+      toast.error("You don't have permission to upload documents.");
+      return;
+    }
     if (!files || files.length === 0 || !id) return;
 
     const file = files[0];
@@ -365,6 +566,7 @@ export function NDADetail() {
       // Reload documents
       const docs = await listDocuments(id);
       setDocuments(docs);
+      await refreshNdaDetail();
     } catch (err) {
       console.error('Failed to upload document:', err);
       toast.error('Upload failed', {
@@ -376,23 +578,27 @@ export function NDADetail() {
   };
 
   const handleDragEnter = (e: React.DragEvent) => {
+    if (!canUploadDocument) return;
     e.preventDefault();
     e.stopPropagation();
     setDragActive(true);
   };
 
   const handleDragLeave = (e: React.DragEvent) => {
+    if (!canUploadDocument) return;
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
   };
 
   const handleDragOver = (e: React.DragEvent) => {
+    if (!canUploadDocument) return;
     e.preventDefault();
     e.stopPropagation();
   };
 
   const handleDrop = async (e: React.DragEvent) => {
+    if (!canUploadDocument) return;
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
@@ -418,10 +624,14 @@ export function NDADetail() {
 
   const handleGenerateDocument = async () => {
     if (!id) return;
+    if (!canEdit) {
+      toast.error("You don't have permission to generate documents.");
+      return;
+    }
 
     try {
       setGenerating(true);
-      const result = await generateDocument(id);
+      const result = await generateDocument(id, selectedTemplateId || undefined);
       toast.success('Document generated', {
         description: `${result.filename} has been generated successfully`
       });
@@ -438,6 +648,26 @@ export function NDADetail() {
     }
   };
 
+  const handlePreviewDocument = async () => {
+    if (!id) return;
+
+    try {
+      setPreviewing(true);
+      const result = await generatePreview(id, selectedTemplateId || undefined);
+      window.open(result.preview.previewUrl, '_blank', 'noopener,noreferrer');
+      toast.success('Preview generated', {
+        description: 'Opened preview in a new tab'
+      });
+    } catch (err) {
+      console.error('Failed to generate preview:', err);
+      toast.error('Preview failed', {
+        description: err instanceof Error ? err.message : 'Failed to generate preview'
+      });
+    } finally {
+      setPreviewing(false);
+    }
+  };
+
   const handleMarkAsExecuted = (doc: Document) => {
     setSelectedDocument(doc);
     setShowMarkExecutedDialog(true);
@@ -445,6 +675,10 @@ export function NDADetail() {
 
   const confirmMarkAsExecuted = async () => {
     if (!selectedDocument || !id) return;
+    if (!canEdit) {
+      toast.error("You don't have permission to update NDA status.");
+      return;
+    }
 
     try {
       setStatusUpdating(true);
@@ -452,11 +686,7 @@ export function NDADetail() {
       toast.success('Document marked as executed', {
         description: 'The NDA status has been updated to Fully Executed'
       });
-      // Reload documents and NDA
-      const docs = await listDocuments(id);
-      setDocuments(docs);
-      const updatedNda = await getNDA(id);
-      setNda(updatedNda);
+      await refreshNdaDetail();
       setShowMarkExecutedDialog(false);
       setSelectedDocument(null);
     } catch (err) {
@@ -491,6 +721,28 @@ export function NDADetail() {
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
+
+  const formatRecipients = (recipients: string[]) =>
+    recipients.length > 0 ? recipients.join(', ') : '—';
+
+  const renderPermissionedButton = (
+    button: React.ReactElement,
+    isDisabled: boolean,
+    tooltip: string
+  ) => {
+    if (!isDisabled) {
+      return button;
+    }
+
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="inline-flex">{button}</span>
+        </TooltipTrigger>
+        <TooltipContent>{tooltip}</TooltipContent>
+      </Tooltip>
+    );
+  };
   
   // Map backend status to UI display status
   const getDisplayStatus = (status: NdaStatus): string => {
@@ -521,45 +773,64 @@ export function NDADetail() {
     }
   };
 
-  // Build workflow steps based on backend status
-  const workflowSteps: WorkflowStep[] = [
-    {
-      id: '1',
-      name: 'Request created',
-      status: 'completed',
-      timestamp: nda.createdAt,
-      actor: `${nda.createdBy.firstName} ${nda.createdBy.lastName}`
-    },
-    {
-      id: '2',
-      name: 'Legal review',
-      status: nda.status === 'IN_REVISION' ? 'in-progress' : nda.status === 'CREATED' ? 'pending' : 'completed',
-      timestamp: nda.status !== 'CREATED' ? nda.updatedAt : undefined,
-    },
-    {
-      id: '3',
-      name: 'Sent to counterparty',
-      status: nda.status === 'EMAILED' ? 'in-progress' : nda.status === 'FULLY_EXECUTED' ? 'completed' : 'pending',
-      timestamp: nda.status === 'EMAILED' ? nda.updatedAt : undefined
-    },
-    {
-      id: '4',
-      name: 'Signed by counterparty',
-      status: nda.status === 'FULLY_EXECUTED' ? 'completed' : 'pending'
-    },
-    {
-      id: '5',
-      name: 'Signed by government',
-      status: nda.status === 'FULLY_EXECUTED' ? 'completed' : 'pending',
-      timestamp: nda.status === 'FULLY_EXECUTED' ? nda.effectiveDate : undefined
-    },
-    {
-      id: '6',
-      name: 'Executed',
-      status: nda.status === 'FULLY_EXECUTED' ? 'completed' : 'pending',
-      timestamp: nda.status === 'FULLY_EXECUTED' ? nda.effectiveDate : undefined
-    }
-  ];
+  const workflowSteps: WorkflowStep[] = nda.statusProgression?.steps?.length
+    ? nda.statusProgression.steps.map((step, index) => ({
+        id: String(index + 1),
+        name: step.label,
+        status: step.completed ? 'completed' : step.isCurrent ? 'in-progress' : 'pending',
+        timestamp: step.timestamp,
+        actor: step.changedBy
+          ? `${step.changedBy.firstName} ${step.changedBy.lastName}`.trim()
+          : undefined,
+      }))
+    : [
+        {
+          id: '1',
+          name: 'Request created',
+          status: 'completed',
+          timestamp: nda.createdAt,
+          actor: `${nda.createdBy.firstName} ${nda.createdBy.lastName}`,
+        },
+        {
+          id: '2',
+          name: 'Legal review',
+          status:
+            nda.status === 'IN_REVISION'
+              ? 'in-progress'
+              : nda.status === 'CREATED'
+                ? 'pending'
+                : 'completed',
+          timestamp: nda.status !== 'CREATED' ? nda.updatedAt : undefined,
+        },
+        {
+          id: '3',
+          name: 'Sent to counterparty',
+          status:
+            nda.status === 'EMAILED'
+              ? 'in-progress'
+              : nda.status === 'FULLY_EXECUTED'
+                ? 'completed'
+                : 'pending',
+          timestamp: nda.status === 'EMAILED' ? nda.updatedAt : undefined,
+        },
+        {
+          id: '4',
+          name: 'Signed by counterparty',
+          status: nda.status === 'FULLY_EXECUTED' ? 'completed' : 'pending',
+        },
+        {
+          id: '5',
+          name: 'Signed by government',
+          status: nda.status === 'FULLY_EXECUTED' ? 'completed' : 'pending',
+          timestamp: nda.status === 'FULLY_EXECUTED' ? nda.effectiveDate : undefined,
+        },
+        {
+          id: '6',
+          name: 'Executed',
+          status: nda.status === 'FULLY_EXECUTED' ? 'completed' : 'pending',
+          timestamp: nda.status === 'FULLY_EXECUTED' ? nda.effectiveDate : undefined,
+        },
+      ];
 
   const formatTimeAgo = (timestamp: string) => {
     const now = new Date();
@@ -570,6 +841,22 @@ export function NDADetail() {
     const diffInDays = Math.floor(diffInHours / 24);
     return `${diffInDays}d ago`;
   };
+
+  const validStatusTransitions =
+    statusInfo?.statuses?.[nda.status]?.validTransitions ?? [];
+
+  const availableActionBadges = [
+    nda.availableActions?.canEdit ? 'Edit' : null,
+    nda.availableActions?.canSendEmail ? 'Send Email' : null,
+    nda.availableActions?.canUploadDocument ? 'Upload Document' : null,
+    nda.availableActions?.canChangeStatus ? 'Change Status' : null,
+    nda.availableActions?.canDelete ? 'Delete' : null,
+  ].filter(Boolean) as string[];
+
+  const canEdit = !!nda.availableActions?.canEdit;
+  const canSendEmail = !!nda.availableActions?.canSendEmail;
+  const canUploadDocument = !!nda.availableActions?.canUploadDocument;
+  const canChangeStatus = !!nda.availableActions?.canChangeStatus;
   
   return (
     <div className="p-8">
@@ -579,10 +866,10 @@ export function NDADetail() {
           variant="subtle" 
           size="sm" 
           icon={<ArrowLeft className="w-4 h-4" />}
-          onClick={() => navigate('/requests')}
+          onClick={() => navigate('/ndas')}
           className="mb-4"
         >
-          Back to requests
+          Back to NDAs
         </Button>
         
         <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
@@ -611,10 +898,17 @@ export function NDADetail() {
             <Button variant="secondary" icon={<Download className="w-4 h-4" />} onClick={handleDownloadPDF}>
               Download PDF
             </Button>
-            {nda.status === 'IN_REVISION' && (
-              <Button variant="primary" icon={<Send className="w-4 h-4" />} onClick={handleSendForSignature} disabled={statusUpdating}>
+            {nda.status === 'IN_REVISION' && renderPermissionedButton(
+              <Button
+                variant="primary"
+                icon={<Send className="w-4 h-4" />}
+                onClick={handleSendForSignature}
+                disabled={statusUpdating || !canSendEmail}
+              >
                 Send for signature
-              </Button>
+              </Button>,
+              !canSendEmail,
+              "You don't have permission to send emails"
             )}
             {/* External signing portal button removed - out of scope per PRD */}
           </div>
@@ -725,6 +1019,21 @@ export function NDADetail() {
                           </div>
                         </div>
                       )}
+                      {nda.clonedFrom && (
+                        <div className="flex items-start gap-3">
+                          <ExternalLink className="w-5 h-5 text-[var(--color-text-secondary)] flex-shrink-0 mt-0.5" />
+                          <div>
+                            <p className="text-sm text-[var(--color-text-secondary)] mb-1">Cloned from</p>
+                            <Button
+                              variant="subtle"
+                              className="p-0 h-auto text-[var(--color-primary)] hover:bg-transparent"
+                              onClick={() => navigate(`/nda/${nda.clonedFrom?.id}`)}
+                            >
+                              NDA #{nda.clonedFrom.displayId} · {nda.clonedFrom.companyName}
+                            </Button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -743,6 +1052,10 @@ export function NDADetail() {
                       <div>
                         <p className="text-sm text-[var(--color-text-secondary)] mb-2">US/MAX Position</p>
                         <p>{nda.usMaxPosition}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-[var(--color-text-secondary)] mb-2">NDA Type</p>
+                        <p>{nda.ndaType}</p>
                       </div>
                       {nda.isNonUsMax && (
                         <div>
@@ -795,6 +1108,47 @@ export function NDADetail() {
                       ))}
                     </div>
                   </div>
+
+                  {/* Email history */}
+                  <div className="pt-6 border-t border-[var(--color-border)]">
+                    <h3 className="mb-4">Email history</h3>
+                    {nda.emails && nda.emails.length > 0 ? (
+                      <div className="space-y-3">
+                        {nda.emails.map((email) => (
+                          <div key={email.id} className="border border-[var(--color-border)] rounded-lg p-4">
+                            <div className="flex items-start justify-between gap-3">
+                              <div>
+                                <p className="font-medium">{email.subject}</p>
+                                <p className="text-xs text-[var(--color-text-muted)] mt-1">
+                                  To: {formatRecipients(email.toRecipients)}
+                                </p>
+                                {email.ccRecipients?.length ? (
+                                  <p className="text-xs text-[var(--color-text-muted)] mt-1">
+                                    CC: {formatRecipients(email.ccRecipients)}
+                                  </p>
+                                ) : null}
+                                {email.bccRecipients?.length ? (
+                                  <p className="text-xs text-[var(--color-text-muted)] mt-1">
+                                    BCC: {formatRecipients(email.bccRecipients)}
+                                  </p>
+                                ) : null}
+                              </div>
+                              <div className="text-right">
+                                <p className="text-xs text-[var(--color-text-muted)]">
+                                  {new Date(email.sentAt).toLocaleString()}
+                                </p>
+                                <p className="text-xs text-[var(--color-text-muted)] mt-1">
+                                  {email.sentBy.firstName} {email.sentBy.lastName}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-[var(--color-text-secondary)]">No emails sent yet.</p>
+                    )}
+                  </div>
                 </div>
               )}
               
@@ -804,6 +1158,19 @@ export function NDADetail() {
                   <div className="flex items-center justify-between mb-4">
                     <h3>Documents ({documents.length})</h3>
                     <div className="flex gap-2">
+                      {templates.length > 0 && (
+                        <select
+                          className="px-3 py-2 border rounded-md bg-white text-sm"
+                          value={selectedTemplateId}
+                          onChange={(e) => setSelectedTemplateId(e.target.value)}
+                        >
+                          {templates.map((template) => (
+                            <option key={template.id} value={template.id}>
+                              {template.name}{template.isRecommended ? ' (recommended)' : ''}
+                            </option>
+                          ))}
+                        </select>
+                      )}
                       {documents.length > 0 && (
                         <Button
                           variant="subtle"
@@ -814,16 +1181,29 @@ export function NDADetail() {
                           Download all
                         </Button>
                       )}
-                      {!nda.isNonUsMax && (
+                      {templates.length > 0 && (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          icon={previewing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Eye className="w-4 h-4" />}
+                          onClick={handlePreviewDocument}
+                          disabled={previewing}
+                        >
+                          {previewing ? 'Previewing...' : 'Preview RTF'}
+                        </Button>
+                      )}
+                      {!nda.isNonUsMax && renderPermissionedButton(
                         <Button
                           variant="secondary"
                           size="sm"
                           icon={generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
                           onClick={handleGenerateDocument}
-                          disabled={generating}
+                          disabled={generating || !canEdit}
                         >
                           {generating ? 'Generating...' : 'Generate document'}
-                        </Button>
+                        </Button>,
+                        !canEdit,
+                        "You don't have permission to generate documents"
                       )}
                     </div>
                   </div>
@@ -834,7 +1214,7 @@ export function NDADetail() {
                       dragActive
                         ? 'border-[var(--color-primary)] bg-blue-50'
                         : 'border-[var(--color-border)] hover:border-gray-400'
-                    }`}
+                    } ${canUploadDocument ? '' : 'opacity-60 cursor-not-allowed'}`}
                     onDragEnter={handleDragEnter}
                     onDragLeave={handleDragLeave}
                     onDragOver={handleDragOver}
@@ -846,7 +1226,7 @@ export function NDADetail() {
                       className="hidden"
                       accept=".pdf,.rtf,.docx,.doc"
                       onChange={(e) => handleFileSelect(e.target.files)}
-                      disabled={uploading}
+                      disabled={uploading || !canUploadDocument}
                     />
                     {uploading ? (
                       <div className="flex flex-col items-center">
@@ -857,10 +1237,16 @@ export function NDADetail() {
                       <>
                         <Upload className="w-12 h-12 text-[var(--color-text-muted)] mx-auto mb-3" />
                         <p className="text-[var(--color-text-secondary)] mb-2">
-                          Drag and drop a document here, or{' '}
-                          <label htmlFor="document-upload" className="text-[var(--color-primary)] cursor-pointer hover:underline">
-                            browse
-                          </label>
+                          {canUploadDocument ? (
+                            <>
+                              Drag and drop a document here, or{' '}
+                              <label htmlFor="document-upload" className="text-[var(--color-primary)] cursor-pointer hover:underline">
+                                browse
+                              </label>
+                            </>
+                          ) : (
+                            "You don't have permission to upload documents."
+                          )}
                         </p>
                         <p className="text-xs text-[var(--color-text-muted)]">
                           Supports PDF, RTF, and DOCX files up to 50MB
@@ -915,15 +1301,18 @@ export function NDADetail() {
                             >
                               Download
                             </Button>
-                            {!doc.isFullyExecuted && nda.status !== 'FULLY_EXECUTED' && (
+                            {!doc.isFullyExecuted && nda.status !== 'FULLY_EXECUTED' && renderPermissionedButton(
                               <Button
                                 variant="primary"
                                 size="sm"
                                 icon={<CheckCircle className="w-4 h-4" />}
                                 onClick={() => handleMarkAsExecuted(doc)}
+                                disabled={!canEdit}
                               >
                                 Mark as executed
-                              </Button>
+                              </Button>,
+                              !canEdit,
+                              "You don't have permission to update NDA status"
                             )}
                           </div>
                         </div>
@@ -991,6 +1380,72 @@ export function NDADetail() {
         
         {/* Right column - Side panels */}
         <div className="space-y-6">
+          {/* Quick Actions */}
+          <Card>
+            <h3 className="mb-4">Quick actions</h3>
+            <div className="space-y-2">
+              {renderPermissionedButton(
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="w-full"
+                  icon={<Edit className="w-4 h-4" />}
+                  onClick={() => navigate(`/nda/${nda.id}/edit`)}
+                  disabled={!canEdit}
+                >
+                  Edit
+                </Button>,
+                !canEdit,
+                "You don't have permission to edit NDAs"
+              )}
+              {renderPermissionedButton(
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="w-full"
+                  icon={<Send className="w-4 h-4" />}
+                  onClick={handleSendForSignature}
+                  disabled={!canSendEmail || isSendingEmail}
+                >
+                  {isSendingEmail ? 'Sending...' : 'Send Email'}
+                </Button>,
+                !canSendEmail,
+                "You don't have permission to send emails"
+              )}
+              {renderPermissionedButton(
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="w-full"
+                  icon={<Upload className="w-4 h-4" />}
+                  onClick={() => setActiveTab('document')}
+                  disabled={!canUploadDocument}
+                >
+                  Upload Document
+                </Button>,
+                !canUploadDocument,
+                "You don't have permission to upload documents"
+              )}
+              {renderPermissionedButton(
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="w-full"
+                  icon={<Check className="w-4 h-4" />}
+                  onClick={() => {
+                    setActiveTab('overview');
+                    document.getElementById('nda-status-card')?.scrollIntoView({ behavior: 'smooth' });
+                  }}
+                  disabled={!canChangeStatus}
+                >
+                  Change Status
+                </Button>,
+                !canChangeStatus,
+                "You don't have permission to change status"
+              )}
+            </div>
+          </Card>
+
           {/* People */}
           <Card>
             <h3 className="mb-4">People</h3>
@@ -1055,6 +1510,43 @@ export function NDADetail() {
               </div>
             </Card>
           )}
+
+          {/* Status Management */}
+          {nda.availableActions?.canChangeStatus && (
+            <Card id="nda-status-card">
+              <h3 className="mb-4">Status</h3>
+              <div className="space-y-3">
+                <div>
+                  <p className="text-xs text-[var(--color-text-muted)] mb-2">Current status</p>
+                  <Badge variant={getStatusVariant(nda.status)}>{getDisplayStatus(nda.status)}</Badge>
+                </div>
+                <div>
+                  <label className="block text-xs text-[var(--color-text-muted)] mb-2">Change status</label>
+                  <select
+                    className="w-full px-3 py-2 border rounded-md bg-white text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
+                    disabled={statusUpdating || validStatusTransitions.length === 0}
+                    defaultValue=""
+                    onChange={(e) => {
+                      const next = e.target.value as NdaStatus;
+                      if (next) {
+                        handleStatusSelect(next);
+                        e.currentTarget.value = '';
+                      }
+                    }}
+                  >
+                    <option value="" disabled>
+                      {validStatusTransitions.length === 0 ? 'No valid transitions' : 'Select new status'}
+                    </option>
+                    {validStatusTransitions.map((status) => (
+                      <option key={status} value={status}>
+                        {getDisplayStatus(status)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </Card>
+          )}
           
           {/* Tasks */}
           {nda.status !== 'FULLY_EXECUTED' && nda.status !== 'INACTIVE' && nda.status !== 'CANCELLED' && (
@@ -1084,21 +1576,25 @@ export function NDADetail() {
                     <p className="text-xs text-[var(--color-text-muted)] mb-3">
                       Send this NDA for signature
                     </p>
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      className="w-full"
-                      onClick={handleSendForSignature}
-                      disabled={statusUpdating}
-                    >
-                      {statusUpdating ? 'Sending...' : 'Send for signature'}
-                    </Button>
+                    {renderPermissionedButton(
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        className="w-full"
+                        onClick={handleSendForSignature}
+                        disabled={isSendingEmail || !canSendEmail}
+                      >
+                        {isSendingEmail ? 'Sending...' : 'Send for signature'}
+                      </Button>,
+                      !canSendEmail,
+                      "You don't have permission to send emails"
+                    )}
                   </div>
                 )}
-                {nda.availableActions && nda.availableActions.length > 0 && (
+                {availableActionBadges.length > 0 && (
                   <div className="pt-3 border-t border-[var(--color-border)]">
                     <p className="text-xs text-[var(--color-text-muted)] mb-2">Available actions:</p>
-                    {nda.availableActions.map((action) => (
+                    {availableActionBadges.map((action) => (
                       <Badge key={action} variant="info" className="mr-1 mb-1">
                         {action}
                       </Badge>
@@ -1170,20 +1666,121 @@ export function NDADetail() {
         </DialogContent>
       </Dialog>
       
-      <Dialog open={showSendDialog} onOpenChange={setShowSendDialog}>
-        <DialogContent>
+      <Dialog open={showEmailComposer} onOpenChange={setShowEmailComposer}>
+        <DialogContent className="sm:max-w-[720px]">
           <DialogHeader>
-            <DialogTitle>Send NDA for Signature</DialogTitle>
+            <DialogTitle>Compose NDA Email</DialogTitle>
             <DialogDescription>
-              Are you sure you want to send this NDA for signature? An email will be sent to the counterparty.
+              Review and edit the email fields before sending.
             </DialogDescription>
           </DialogHeader>
+          {emailLoading ? (
+            <div className="flex items-center gap-3 py-6">
+              <Loader2 className="w-5 h-5 animate-spin text-[var(--color-primary)]" />
+              <p className="text-sm text-[var(--color-text-secondary)]">Loading email preview...</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs text-[var(--color-text-secondary)]">Subject</label>
+                <input
+                  value={emailForm.subject}
+                  onChange={(e) => setEmailForm((prev) => ({ ...prev, subject: e.target.value }))}
+                  className="w-full px-3 py-2 border border-[var(--color-border)] rounded-lg text-sm"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-[var(--color-text-secondary)]">To</label>
+                <input
+                  value={emailForm.toRecipients}
+                  onChange={(e) => setEmailForm((prev) => ({ ...prev, toRecipients: e.target.value }))}
+                  className="w-full px-3 py-2 border border-[var(--color-border)] rounded-lg text-sm"
+                />
+                <p className="text-xs text-[var(--color-text-muted)] mt-1">Comma-separated emails</p>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs text-[var(--color-text-secondary)]">CC</label>
+                  <input
+                    value={emailForm.ccRecipients}
+                    onChange={(e) => setEmailForm((prev) => ({ ...prev, ccRecipients: e.target.value }))}
+                    className="w-full px-3 py-2 border border-[var(--color-border)] rounded-lg text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-[var(--color-text-secondary)]">BCC</label>
+                  <input
+                    value={emailForm.bccRecipients}
+                    onChange={(e) => setEmailForm((prev) => ({ ...prev, bccRecipients: e.target.value }))}
+                    className="w-full px-3 py-2 border border-[var(--color-border)] rounded-lg text-sm"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-[var(--color-text-secondary)]">Email Template</label>
+                <select
+                  className="w-full px-3 py-2 border border-[var(--color-border)] rounded-lg text-sm bg-white"
+                  value={selectedEmailTemplateId}
+                  onChange={(e) => handleEmailTemplateChange(e.target.value)}
+                  disabled={!emailTemplates.length}
+                >
+                  {emailTemplates.length ? (
+                    emailTemplates.map((template) => (
+                      <option key={template.id} value={template.id}>
+                        {template.name}{template.isDefault ? ' (default)' : ''}
+                      </option>
+                    ))
+                  ) : (
+                    <option value="">Default template</option>
+                  )}
+                </select>
+                <p className="text-xs text-[var(--color-text-muted)] mt-1">
+                  {emailTemplates.length
+                    ? 'Select a template to reapply subject and body content.'
+                    : 'No email templates configured. Using the default message.'}
+                </p>
+              </div>
+              <div>
+                <label className="text-xs text-[var(--color-text-secondary)]">Body</label>
+                <textarea
+                  value={emailForm.body}
+                  onChange={(e) => setEmailForm((prev) => ({ ...prev, body: e.target.value }))}
+                  className="w-full px-3 py-2 border border-[var(--color-border)] rounded-lg text-sm min-h-[160px]"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-[var(--color-text-secondary)]">Attachments</label>
+                {emailAttachments.length > 0 ? (
+                  <div className="mt-2 space-y-2">
+                    {emailAttachments.map((attachment) => (
+                      <div
+                        key={attachment.documentId}
+                        className="flex items-center justify-between border border-[var(--color-border)] rounded-md px-3 py-2 text-sm"
+                      >
+                        <span>{attachment.filename}</span>
+                        <Badge variant="info">Latest RTF</Badge>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-[var(--color-text-muted)] mt-2">
+                    No generated document available. Generate an NDA document to attach.
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
           <DialogFooter>
-            <Button variant="secondary" size="sm" onClick={() => setShowSendDialog(false)}>
+            <Button variant="secondary" size="sm" onClick={() => setShowEmailComposer(false)}>
               Cancel
             </Button>
-            <Button variant="primary" size="sm" onClick={confirmSendForSignature}>
-              Send
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={handleSendEmail}
+              disabled={isSendingEmail || emailLoading || !emailAttachments.length}
+            >
+              {isSendingEmail ? 'Sending...' : 'Send'}
             </Button>
           </DialogFooter>
         </DialogContent>

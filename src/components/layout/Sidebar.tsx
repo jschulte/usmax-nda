@@ -17,7 +17,9 @@ interface SidebarProps {
 export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
   const navItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
-    { icon: Inbox, label: 'Requests', path: '/requests' },
+    { icon: Inbox, label: 'My NDAs', path: '/my-ndas' },
+    { icon: Inbox, label: 'My Drafts', path: '/my-drafts' },
+    { icon: Inbox, label: 'All NDAs', path: '/ndas' },
     { icon: FolderOpen, label: 'Templates and Clauses', path: '/templates' },
     { icon: BarChart3, label: 'Reports', path: '/reports' },
     { icon: Settings, label: 'Administration', path: '/administration' }

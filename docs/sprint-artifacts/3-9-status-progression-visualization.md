@@ -46,6 +46,13 @@ so that **I quickly understand where the NDA is in its lifecycle**.
   - [ ] 3.2: Test progression calculation
   - [ ] 3.3: Test history includes all transitions
 
+### Review Follow-ups (AI)
+- [x] [AI-Review][HIGH] Render status progression from statusHistory/statusProgression (Created → Emailed → In Revision → Fully Executed) with timestamps, not hardcoded workflow steps. [src/components/screens/NDADetail.tsx:524]
+- [x] [AI-Review][MEDIUM] Stop discarding statusProgression in the client detail fetch so UI can use backend-calculated steps. [src/client/services/ndaService.ts:227]
+- [x] [AI-Review][MEDIUM] Refresh NDA detail data after document upload so progression updates when status changes to In Revision. [src/components/screens/NDADetail.tsx:359]
+- [x] [AI-Review][MEDIUM] Replace updatedAt/effectiveDate placeholders with actual status change timestamps from history. [src/components/screens/NDADetail.tsx:533]
+- [x] [AI-Review][LOW] Add Dev Agent Record with File List + Change Log to enable verifiable review. [docs/sprint-artifacts/3-9-status-progression-visualization.md:24]
+
 ## Dev Notes
 
 ### Status History Schema
@@ -98,3 +105,15 @@ interface StatusProgression {
 
 - Story 3.1: Create NDA with Basic Form
 - Story 3.8: NDA Detail View
+
+## Dev Agent Record
+
+### File List
+- src/components/screens/NDADetail.tsx
+- src/client/services/ndaService.ts
+- src/server/services/ndaService.ts
+- docs/sprint-artifacts/3-9-status-progression-visualization.md
+
+### Change Log
+- Swapped hardcoded workflow steps for API-provided status progression with timestamps.
+- Refresh detail data after document uploads to keep progression current.

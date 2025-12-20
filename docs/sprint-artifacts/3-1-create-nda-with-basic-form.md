@@ -86,6 +86,25 @@ so that **I can initiate the NDA process for a new partner opportunity**.
   - [ ] 5.4: Test row-level security enforcement
   - [ ] 5.5: Test display ID sequence generation
 
+### Review Follow-ups (AI)
+- [x] [AI-Review][High] Redirect after create uses /requests/:id, but detail route is /nda/:id, so users never land on NDA detail after create. [src/components/screens/RequestWizard.tsx:283]
+- [x] [AI-Review][High] AC1 requires Contacts POC, but schema/UI only include opportunity/contracts/relationship POCs; add Contacts POC or update AC. [prisma/schema.prisma:267]
+- [x] [AI-Review][Medium] Agency/subagency dropdowns are not scoped to user access; list endpoint returns all agency groups. [src/server/routes/agencyGroups.ts:43]
+- [x] [AI-Review][Medium] No explicit "Save as Draft" action in the create flow (only Create). [src/components/screens/RequestWizard.tsx:729]
+- [x] [AI-Review][Medium] AC3/AC4 UI validation missing: no inline required-field errors or 255-char counter/maxLength on Authorized Purpose. [src/components/screens/RequestWizard.tsx:229]
+
+## Dev Agent Record
+
+### File List
+- prisma/schema.prisma
+- src/server/services/ndaService.ts
+- src/server/services/agencyGroupService.ts
+- src/server/routes/agencyGroups.ts
+- src/components/screens/RequestWizard.tsx
+
+### Change Log
+- 2025-12-20: Added Contacts POC support, scoped agency list, Save as Draft action, redirect fix, and inline validation/char limit UI.
+
 ## Dev Notes
 
 ### NDA Schema Fields

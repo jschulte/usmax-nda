@@ -49,6 +49,13 @@ so that **I stay informed without constantly checking the system**.
   - [ ] 4.2: Test preference filtering
   - [ ] 4.3: Test stakeholder subscription logic
 
+### Review Follow-ups (AI)
+- [x] [AI-Review][HIGH] Wire notifyStakeholders into status/document events so notifications actually fire on changes. [src/server/services/documentService.ts:262]
+- [x] [AI-Review][HIGH] Persist notification preferences from Settings UI and expose required event toggles (Created/Emailed/Document Uploaded/Status Changed/Fully Executed). [src/components/screens/Settings.tsx:36]
+- [x] [AI-Review][MEDIUM] Auto-subscribe POCs on NDA creation by invoking autoSubscribePocs in create flow. [src/server/routes/ndas.ts:687]
+- [x] [AI-Review][MEDIUM] Include a direct NDA link in notification email body (AC1 requires link to view NDA). [src/server/services/notificationService.ts:352]
+- [x] [AI-Review][LOW] Add Dev Agent Record with File List + Change Log to enable verifiable review. [docs/sprint-artifacts/3-11-email-notifications-to-stakeholders.md:27]
+
 ## Dev Notes
 
 ### Schema
@@ -105,3 +112,18 @@ interface NotificationDetails {
 
 - Story 3.10: Email Composition & Sending
 - Story 3.12: Status Management & Auto-Transitions
+
+## Dev Agent Record
+
+### File List
+- src/server/routes/ndas.ts
+- src/server/services/documentService.ts
+- src/server/services/emailService.ts
+- src/server/services/notificationService.ts
+- src/components/screens/Settings.tsx
+- docs/sprint-artifacts/3-11-email-notifications-to-stakeholders.md
+
+### Change Log
+- Wired notifications into NDA creation, status changes, document uploads, and email transitions.
+- Updated Settings notifications tab to load and persist preference toggles via API.
+- Added NDA detail link to notification email body content.

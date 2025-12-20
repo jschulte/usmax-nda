@@ -47,6 +47,24 @@ so that **I can quickly create similar NDAs (common for repeat partners)**.
   - [ ] 3.2: Test clonedFromId tracking
   - [ ] 3.3: Test audit log includes clone source
 
+### Review Follow-ups (AI)
+- [x] [AI-Review][High] Clone flow bypasses pre-filled form; "Duplicate" calls clone API directly and never opens Create NDA with banner. [src/components/screens/Requests.tsx:140]
+- [x] [AI-Review][High] Cloned NDA overwrites opportunity POC with current user instead of preserving source, violating AC2. [src/server/services/ndaService.ts:1094]
+- [x] [AI-Review][Medium] NDA detail response omits clonedFrom relation, so UI cannot show "Cloned from NDA #..." link. [src/server/services/ndaService.ts:311]
+
+## Dev Agent Record
+
+### File List
+- src/server/services/ndaService.ts
+- src/server/routes/ndas.ts
+- src/client/services/ndaService.ts
+- src/components/screens/Requests.tsx
+- src/components/screens/RequestWizard.tsx
+- src/components/screens/NDADetail.tsx
+
+### Change Log
+- 2025-12-20: Routed Duplicate to pre-filled wizard flow, preserved clone source data, and exposed clonedFrom in detail view.
+
 ## Dev Notes
 
 ### Clone Endpoint

@@ -9,6 +9,7 @@ import {
   generateEmailBody,
   getEmailPreview,
   queueEmail,
+  sendEmail,
   getNdaEmails,
   EmailServiceError,
 } from '../emailService.js';
@@ -29,6 +30,11 @@ vi.mock('../../db/index.js', () => ({
       findMany: vi.fn(),
       update: vi.fn(),
     },
+    emailTemplate: {
+      findFirst: vi.fn(),
+      findUnique: vi.fn(),
+      findMany: vi.fn(),
+    },
     ndaStatusHistory: {
       create: vi.fn(),
     },
@@ -47,8 +53,33 @@ vi.mock('../auditService.js', () => ({
   },
 }));
 
+vi.mock('../statusTransitionService.js', () => ({
+  attemptAutoTransition: vi.fn().mockResolvedValue(null),
+  StatusTrigger: {
+    EMAIL_SENT: 'email_sent',
+  },
+}));
+
+vi.mock('../errorReportingService.js', () => ({
+  reportError: vi.fn(),
+}));
+
 vi.mock('../ndaService.js', () => ({
   buildSecurityFilter: vi.fn().mockResolvedValue({}),
+}));
+
+vi.mock('../systemConfigService.js', () => ({
+  getEmailDefaults: vi.fn().mockResolvedValue({ defaultCc: [], defaultBcc: [] }),
+  getEmailAdminAlerts: vi.fn().mockResolvedValue([]),
+}));
+
+vi.mock('../jobs/emailQueue.js', () => ({
+  enqueueEmailJob: vi.fn().mockResolvedValue('job-1'),
+  isEmailQueueReady: vi.fn().mockReturnValue(true),
+}));
+
+vi.mock('../s3Service.js', () => ({
+  getDocumentContent: vi.fn().mockResolvedValue(Buffer.from('test')),
 }));
 
 // Mock SES client
@@ -75,6 +106,8 @@ describe('Email Service', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockPrisma.emailTemplate.findFirst.mockResolvedValue(null);
+    mockPrisma.emailTemplate.findUnique.mockResolvedValue(null);
   });
 
   describe('generateEmailSubject', () => {
@@ -188,6 +221,55 @@ describe('Email Service', () => {
       expect(preview.attachments[0].filename).toBe('NDA_TechCorp.docx');
     });
 
+    it('applies selected email template when provided', async () => {
+      mockPrisma.nda.findFirst.mockResolvedValue({
+        id: 'nda-123',
+        displayId: 1590,
+        companyName: 'TechCorp',
+        abbreviatedName: 'OREM TMA 2025',
+        agencyOfficeName: 'DHS CBP',
+        agencyGroup: { id: 'ag-1', name: 'DHS', code: 'DHS' },
+        relationshipPoc: {
+          id: 'poc-1',
+          email: 'poc@techcorp.com',
+          firstName: 'John',
+          lastName: 'Smith',
+        },
+        opportunityPoc: {
+          firstName: 'Kelly',
+          lastName: 'Davidson',
+          emailSignature: 'Kelly Davidson\\nUSMax',
+        },
+        documents: [
+          { id: 'doc-1', filename: 'NDA_TechCorp.docx' },
+        ],
+      } as any);
+
+      mockPrisma.contact.findUnique.mockResolvedValue({
+        id: 'user-123',
+        email: 'currentuser@usmax.com',
+      } as any);
+
+      mockPrisma.emailTemplate.findUnique.mockResolvedValue({
+        id: 'tmpl-1',
+        name: 'Standard',
+        description: null,
+        subject: 'NDA {{companyName}} for {{abbreviatedName}}',
+        body: 'Hello {{relationshipPocName}},\\n\\n{{signature}}',
+        isDefault: false,
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      } as any);
+
+      const preview = await getEmailPreview('nda-123', mockUserContext, 'tmpl-1');
+
+      expect(preview.subject).toBe('NDA TechCorp for OREM TMA 2025');
+      expect(preview.body).toContain('Hello John Smith');
+      expect(preview.body).toContain('Kelly Davidson');
+      expect(preview.templateId).toBe('tmpl-1');
+    });
+
     it('should throw error when NDA not found', async () => {
       mockPrisma.nda.findFirst.mockResolvedValue(null);
 
@@ -201,6 +283,7 @@ describe('Email Service', () => {
       mockPrisma.nda.findFirst.mockResolvedValue({
         id: 'nda-123',
         displayId: 1590,
+        documents: [{ id: 'doc-1', filename: 'NDA_TechCorp.docx' }],
       } as any);
 
       mockPrisma.ndaEmail.create.mockResolvedValue({
@@ -273,6 +356,7 @@ describe('Email Service', () => {
       mockPrisma.nda.findFirst.mockResolvedValue({
         id: 'nda-123',
         displayId: 1590,
+        documents: [{ id: 'doc-1', filename: 'NDA_TechCorp.docx' }],
       } as any);
 
       await expect(
@@ -288,6 +372,68 @@ describe('Email Service', () => {
           mockUserContext
         )
       ).rejects.toThrow('At least one recipient is required');
+    });
+
+    it('should throw error when template is missing', async () => {
+      mockPrisma.nda.findFirst.mockResolvedValue({
+        id: 'nda-123',
+        displayId: 1590,
+        documents: [{ id: 'doc-1', filename: 'NDA_TechCorp.docx' }],
+      } as any);
+
+      mockPrisma.emailTemplate.findUnique.mockResolvedValue(null);
+
+      await expect(
+        queueEmail(
+          {
+            ndaId: 'nda-123',
+            subject: 'Test',
+            toRecipients: ['test@example.com'],
+            ccRecipients: [],
+            bccRecipients: [],
+            body: 'Test',
+            templateId: 'missing-template',
+          },
+          mockUserContext
+        )
+      ).rejects.toThrow('Email template not found');
+    });
+  });
+
+  describe('sendEmail', () => {
+    it('sends email with attachment and triggers auto-transition', async () => {
+      mockPrisma.ndaEmail.findUnique.mockResolvedValue({
+        id: 'email-123',
+        ndaId: 'nda-123',
+        subject: 'Test Subject',
+        toRecipients: ['test@example.com'],
+        ccRecipients: [],
+        bccRecipients: [],
+        body: 'Test body',
+        sentById: 'contact-123',
+        sentBy: { id: 'contact-123', firstName: 'Kelly', lastName: 'Davidson' },
+        nda: {
+          id: 'nda-123',
+          displayId: 1590,
+          companyName: 'TechCorp',
+          status: 'CREATED',
+          documents: [{ id: 'doc-1', filename: 'NDA_TechCorp.rtf' }],
+        },
+      } as any);
+
+      mockPrisma.ndaEmail.update.mockResolvedValue({ id: 'email-123', status: 'SENT' } as any);
+
+      await sendEmail('email-123', mockUserContext);
+
+      const { SendRawEmailCommand } = await import('@aws-sdk/client-ses');
+      const commandArgs = vi.mocked(SendRawEmailCommand).mock.calls[0]?.[0];
+      const rawData = commandArgs?.RawMessage?.Data?.toString('utf8') || '';
+
+      expect(rawData).toContain('Content-Disposition: attachment');
+      expect(rawData).toContain('NDA_TechCorp.rtf');
+
+      const { attemptAutoTransition } = await import('../statusTransitionService.js');
+      expect(vi.mocked(attemptAutoTransition)).toHaveBeenCalled();
     });
   });
 

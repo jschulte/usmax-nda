@@ -112,6 +112,18 @@ describe('Subagency Service', () => {
       const result = await listSubagenciesInGroup('group-1');
       expect(result).toEqual([]);
     });
+
+    it('filters subagencies by allowed IDs when provided', async () => {
+      mockPrisma.subagency.findMany.mockResolvedValue([]);
+
+      await listSubagenciesInGroup('group-1', ['sub-1']);
+
+      expect(mockPrisma.subagency.findMany).toHaveBeenCalledWith({
+        where: { agencyGroupId: 'group-1', id: { in: ['sub-1'] } },
+        include: { _count: { select: { ndas: true } } },
+        orderBy: { name: 'asc' },
+      });
+    });
   });
 
   describe('getSubagency', () => {
@@ -173,10 +185,16 @@ describe('Subagency Service', () => {
 
       const result = await createSubagency(
         'group-1',
-        { name: 'Navy', code: 'NAVY', description: 'US Navy' },
+        { name: 'Navy', code: 'navy', description: 'US Navy' },
         'user-123'
       );
 
+      expect(mockPrisma.subagency.findFirst).toHaveBeenNthCalledWith(1, {
+        where: { agencyGroupId: 'group-1', name: { equals: 'Navy', mode: 'insensitive' } },
+      });
+      expect(mockPrisma.subagency.findFirst).toHaveBeenNthCalledWith(2, {
+        where: { agencyGroupId: 'group-1', code: { equals: 'NAVY', mode: 'insensitive' } },
+      });
       expect(mockPrisma.subagency.create).toHaveBeenCalledWith({
         data: {
           name: 'Navy',
@@ -237,6 +255,19 @@ describe('Subagency Service', () => {
         expect((error as SubagencyError).code).toBe('DUPLICATE_CODE');
       }
     });
+
+    it('maps prisma unique constraint errors to duplicate name', async () => {
+      mockPrisma.agencyGroup.findUnique.mockResolvedValue({ id: 'group-1', name: 'DoD' });
+      mockPrisma.subagency.findFirst.mockResolvedValue(null);
+      mockPrisma.subagency.create.mockRejectedValue({
+        code: 'P2002',
+        meta: { target: ['agency_group_id', 'name'] },
+      });
+
+      await expect(
+        createSubagency('group-1', { name: 'Navy', code: 'NAVY' }, 'user-123')
+      ).rejects.toMatchObject({ code: 'DUPLICATE_NAME' });
+    });
   });
 
   describe('updateSubagency', () => {
@@ -263,7 +294,7 @@ describe('Subagency Service', () => {
 
       const result = await updateSubagency(
         'sub-1',
-        { name: 'New Name', code: 'NEW_CODE' },
+        { name: 'New Name', code: 'new_code' },
         'user-123'
       );
 
@@ -327,6 +358,25 @@ describe('Subagency Service', () => {
       } catch (error) {
         expect((error as SubagencyError).code).toBe('DUPLICATE_NAME');
       }
+    });
+
+    it('maps prisma unique constraint errors to duplicate code', async () => {
+      mockPrisma.subagency.findUnique.mockResolvedValueOnce({
+        id: 'sub-1',
+        name: 'Old Name',
+        code: 'OLD_CODE',
+        agencyGroupId: 'group-1',
+        agencyGroup: { name: 'DoD' },
+      });
+      mockPrisma.subagency.findFirst.mockResolvedValue(null);
+      mockPrisma.subagency.update.mockRejectedValue({
+        code: 'P2002',
+        meta: { target: ['agency_group_id', 'code'] },
+      });
+
+      await expect(
+        updateSubagency('sub-1', { code: 'new_code' }, 'user-123')
+      ).rejects.toMatchObject({ code: 'DUPLICATE_CODE' });
     });
   });
 

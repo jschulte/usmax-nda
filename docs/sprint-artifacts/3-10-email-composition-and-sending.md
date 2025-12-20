@@ -73,6 +73,15 @@ so that **I can distribute the NDA to the partner for signature**.
   - [ ] 5.3: Test retry logic
   - [ ] 5.4: Test status auto-transition
 
+### Review Follow-ups (AI)
+- [x] [AI-Review][HIGH] Implement email template selection in the composer (blocked: no email template table/API exists yet). [src/components/screens/NDADetail.tsx:1658]
+- [x] [AI-Review][HIGH] Send latest RTF as attachment in SES MIME payload (current sendEmail builds text-only message). [src/server/services/emailService.ts:332]
+- [x] [AI-Review][HIGH] Implement pg-boss queue + exponential backoff retries (current queueEmail sends immediately with no scheduling). [src/server/services/emailService.ts:295]
+- [x] [AI-Review][MEDIUM] Load default CC/BCC from system config instead of hardcoded arrays. [src/server/services/emailService.ts:77]
+- [x] [AI-Review][MEDIUM] Add failure handling telemetry + admin alerting (Sentry integration and alert pipeline not yet present). [src/server/services/emailService.ts:402]
+- [x] [AI-Review][LOW] Expand tests to cover attachments, retry/backoff behavior, and status transition side effects. [src/server/services/__tests__/emailService.test.ts:1]
+- [x] [AI-Review][LOW] Add Dev Agent Record with File List + Change Log to enable verifiable review. [docs/sprint-artifacts/3-10-email-composition-and-sending.md:33]
+
 ## Dev Notes
 
 ### Email Schema
@@ -143,3 +152,31 @@ boss.work('send-nda-email', async (job) => {
 - Story 3.12: Status Management & Auto-Transitions
 - AWS SES configured
 - pg-boss for job queue
+
+## Dev Agent Record
+
+### File List
+- src/components/screens/NDADetail.tsx
+- src/client/services/ndaService.ts
+- src/server/services/emailService.ts
+- src/server/jobs/emailQueue.ts
+- src/server/index.ts
+- src/server/routes/ndas.ts
+- src/server/services/__tests__/emailService.test.ts
+- src/server/services/systemConfigService.ts
+- src/server/routes/emailTemplates.ts
+- src/server/services/emailTemplateService.ts
+- src/client/services/emailTemplateService.ts
+- src/server/jobs/__tests__/emailQueue.test.ts
+- prisma/schema.prisma
+- prisma/migrations/20251220184500_add_email_templates/migration.sql
+- docs/sprint-artifacts/3-10-email-composition-and-sending.md
+
+### Change Log
+- Added email composer dialog with prefill/edit fields, attachment display, and send handling.
+- Implemented pg-boss queue startup and enqueue flow with retry/backoff.
+- Added SES MIME attachment for latest generated document.
+- Loaded default CC/BCC from system config for email previews.
+- Added email template table, API, and composer selection with template-based preview rendering.
+- Added admin alerting for persistent email failures with Sentry reporting hooks.
+- Expanded tests to cover template merge, attachments, queue retry config, and auto-transition invocation.

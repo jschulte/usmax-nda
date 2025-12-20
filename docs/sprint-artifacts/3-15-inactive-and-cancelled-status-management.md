@@ -1,6 +1,6 @@
 # Story 3.15: Inactive & Cancelled Status Management
 
-Status: done
+Status: in-progress
 
 ## Story
 
@@ -57,6 +57,12 @@ so that **I can archive deals that didn't proceed or expired agreements**.
   - [ ] 4.2: Test cancelled transition (terminal)
   - [ ] 4.3: Test reactivation from inactive
   - [ ] 4.4: Test default list excludes inactive/cancelled
+
+### Review Follow-ups (AI)
+- [x] [AI-Review][HIGH] Default list view includes inactive/cancelled because Requests always sets `showInactive`/`showCancelled` to true, violating default hidden requirement. [src/components/screens/Requests.tsx:98]
+- [x] [AI-Review][HIGH] No UI to mark an NDA Inactive or reactivate it; there is no status dropdown or action for INACTIVE in detail view. [src/components/screens/NDADetail.tsx:1060]
+- [x] [AI-Review][MEDIUM] “Show Inactive” / “Show Cancelled” filter toggles are not present; only a status dropdown exists. [src/components/screens/Requests.tsx:228]
+- [ ] [AI-Review][MEDIUM] Story marked done but Tasks/Subtasks are all unchecked and no Dev Agent Record/File List exists to verify changes. [docs/sprint-artifacts/3-15-inactive-and-cancelled-status-management.md:1]
 
 ## Dev Notes
 

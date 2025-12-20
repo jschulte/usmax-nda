@@ -1,25 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '../ui/AppCard';
 import { Badge } from '../ui/AppBadge';
 import { Button } from '../ui/AppButton';
-import { Input } from '../ui/AppInput';
 import {
   Plus,
-  Filter,
-  Download,
   Search,
   Calendar,
   Building,
-  User,
-  Clock,
   MoreVertical,
   Eye,
   Edit,
   Copy,
   Trash2,
   AlertCircle,
-  Loader2
+  Loader2,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { toast } from 'sonner@2.0.3';
 import {
@@ -46,20 +43,186 @@ import {
 } from '../ui/select';
 import {
   listNDAs,
-  cloneNDA,
   updateNDAStatus,
+  searchCompanies,
+  searchFilterSuggestions,
   type NdaListItem,
   type NdaStatus,
+  type NdaType,
   type ListNdasParams
 } from '../../client/services/ndaService';
+import {
+  listAgencyGroups,
+  listSubagencies,
+  type AgencyGroup,
+  type Subagency
+} from '../../client/services/agencyService';
+import { searchContacts, type Contact } from '../../client/services/userService';
 
-export function Requests() {
+const RECENT_FILTERS_KEY = 'ndaListRecentFilters';
+
+type PresetKey = ListNdasParams['preset'] | 'all';
+
+type SortKey =
+  | 'displayId'
+  | 'companyName'
+  | 'agency'
+  | 'status'
+  | 'effectiveDate'
+  | 'requestedDate'
+  | 'latestChange';
+
+const SORT_KEY_TO_PARAM: Record<SortKey, string> = {
+  displayId: 'displayId',
+  companyName: 'companyName',
+  agency: 'agencyGroupName',
+  status: 'status',
+  effectiveDate: 'effectiveDate',
+  requestedDate: 'createdAt',
+  latestChange: 'updatedAt',
+};
+
+const NDA_TYPE_OPTIONS: Array<{ value: NdaType; label: string }> = [
+  { value: 'MUTUAL', label: 'Mutual' },
+  { value: 'ONE_WAY_GOVERNMENT', label: 'One-Way (Government)' },
+  { value: 'ONE_WAY_COUNTERPARTY', label: 'One-Way (Counterparty)' },
+  { value: 'VISITOR', label: 'Visitor' },
+  { value: 'RESEARCH', label: 'Research' },
+  { value: 'VENDOR_ACCESS', label: 'Vendor Access' },
+];
+
+interface RequestsProps {
+  title?: string;
+  description?: string;
+  preset?: PresetKey;
+  showCreateButton?: boolean;
+  myDraftsOnly?: boolean;
+}
+
+interface RecentFilters {
+  companyName: string[];
+  companyCity: string[];
+  companyState: string[];
+  stateOfIncorporation: string[];
+  agencyOfficeName: string[];
+  opportunityPocName: string[];
+  contractsPocName: string[];
+  relationshipPocName: string[];
+}
+
+function loadRecentFilters(): RecentFilters {
+  try {
+    const raw = localStorage.getItem(RECENT_FILTERS_KEY);
+    if (!raw) {
+      return {
+        companyName: [],
+        companyCity: [],
+        companyState: [],
+        stateOfIncorporation: [],
+        agencyOfficeName: [],
+        opportunityPocName: [],
+        contractsPocName: [],
+        relationshipPocName: [],
+      };
+    }
+    const parsed = JSON.parse(raw) as Partial<RecentFilters>;
+    return {
+      companyName: parsed.companyName ?? [],
+      companyCity: parsed.companyCity ?? [],
+      companyState: parsed.companyState ?? [],
+      stateOfIncorporation: parsed.stateOfIncorporation ?? [],
+      agencyOfficeName: parsed.agencyOfficeName ?? [],
+      opportunityPocName: parsed.opportunityPocName ?? [],
+      contractsPocName: parsed.contractsPocName ?? [],
+      relationshipPocName: parsed.relationshipPocName ?? [],
+    };
+  } catch {
+    return {
+      companyName: [],
+      companyCity: [],
+      companyState: [],
+      stateOfIncorporation: [],
+      agencyOfficeName: [],
+      opportunityPocName: [],
+      contractsPocName: [],
+      relationshipPocName: [],
+    };
+  }
+}
+
+function saveRecentFilters(filters: RecentFilters) {
+  localStorage.setItem(RECENT_FILTERS_KEY, JSON.stringify(filters));
+}
+
+function mergeRecentSuggestions(recent: string[], suggestions: string[]): string[] {
+  const normalized = new Set<string>();
+  const result: string[] = [];
+
+  for (const value of recent) {
+    const trimmed = value.trim();
+    if (trimmed && !normalized.has(trimmed.toLowerCase())) {
+      normalized.add(trimmed.toLowerCase());
+      result.push(trimmed);
+    }
+  }
+
+  for (const value of suggestions) {
+    const trimmed = value.trim();
+    if (trimmed && !normalized.has(trimmed.toLowerCase())) {
+      normalized.add(trimmed.toLowerCase());
+      result.push(trimmed);
+    }
+  }
+
+  return result;
+}
+
+function formatContactName(contact: Contact): string {
+  const name = `${contact.firstName ?? ''} ${contact.lastName ?? ''}`.trim();
+  return name || contact.email;
+}
+
+function formatDate(value?: string) {
+  if (!value) return '—';
+  return new Date(value).toLocaleDateString();
+}
+
+function formatPersonName(firstName?: string, lastName?: string) {
+  return `${firstName ?? ''} ${lastName ?? ''}`.trim();
+}
+
+export function Requests({
+  title = 'Requests',
+  description = 'Manage all NDA requests and agreements',
+  preset = 'all',
+  showCreateButton = true,
+  myDraftsOnly = false,
+}: RequestsProps) {
   const navigate = useNavigate();
 
   // Filter state
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<NdaStatus | 'all'>('all');
-  const [agencyGroupFilter, setAgencyGroupFilter] = useState<string>('all');
+  const [presetFilter, setPresetFilter] = useState<PresetKey>(myDraftsOnly ? 'drafts' : preset);
+  const [agencyGroupInput, setAgencyGroupInput] = useState('');
+  const [agencyGroupId, setAgencyGroupId] = useState<string | undefined>(undefined);
+  const [subagencyInput, setSubagencyInput] = useState('');
+  const [subagencyId, setSubagencyId] = useState<string | undefined>(undefined);
+  const [companyName, setCompanyName] = useState('');
+  const [companyCity, setCompanyCity] = useState('');
+  const [companyState, setCompanyState] = useState('');
+  const [stateOfIncorporation, setStateOfIncorporation] = useState('');
+  const [agencyOfficeName, setAgencyOfficeName] = useState('');
+  const [ndaType, setNdaType] = useState<NdaType | 'all'>('all');
+  const [isNonUsMax, setIsNonUsMax] = useState<'all' | 'true' | 'false'>('all');
+  const [effectiveDateFrom, setEffectiveDateFrom] = useState('');
+  const [effectiveDateTo, setEffectiveDateTo] = useState('');
+  const [requestedDateFrom, setRequestedDateFrom] = useState('');
+  const [requestedDateTo, setRequestedDateTo] = useState('');
+  const [opportunityPocName, setOpportunityPocName] = useState('');
+  const [contractsPocName, setContractsPocName] = useState('');
+  const [relationshipPocName, setRelationshipPocName] = useState('');
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
   // Data state
   const [ndas, setNdas] = useState<NdaListItem[]>([]);
@@ -67,10 +230,25 @@ export function Requests() {
   const [error, setError] = useState<string | null>(null);
   const [totalCount, setTotalCount] = useState(0);
 
+  // Sorting state
+  const [sortBy, setSortBy] = useState<SortKey>('latestChange');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize] = useState(25);
+  const [pageSize, setPageSize] = useState(20);
   const [totalPages, setTotalPages] = useState(1);
+
+  // Reference data
+  const [agencyGroups, setAgencyGroups] = useState<AgencyGroup[]>([]);
+  const [subagencies, setSubagencies] = useState<Subagency[]>([]);
+  const [companySuggestions, setCompanySuggestions] = useState<string[]>([]);
+  const [citySuggestions, setCitySuggestions] = useState<string[]>([]);
+  const [stateSuggestions, setStateSuggestions] = useState<string[]>([]);
+  const [incorporationSuggestions, setIncorporationSuggestions] = useState<string[]>([]);
+  const [agencyOfficeSuggestions, setAgencyOfficeSuggestions] = useState<string[]>([]);
+  const [pocSuggestions, setPocSuggestions] = useState<string[]>([]);
+  const [recentFilters, setRecentFilters] = useState<RecentFilters>(loadRecentFilters());
 
   // Confirmation dialog state
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
@@ -88,22 +266,255 @@ export function Requests() {
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
+  // Load agency groups for filter typeahead
+  useEffect(() => {
+    listAgencyGroups()
+      .then((data) => setAgencyGroups(data.agencyGroups))
+      .catch(() => {
+        setAgencyGroups([]);
+      });
+  }, []);
+
+  // Company typeahead suggestions
+  useEffect(() => {
+    if (companyName.trim().length < 2) {
+      setCompanySuggestions([]);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      searchCompanies(companyName.trim())
+        .then((result) => {
+          setCompanySuggestions(result.companies.map((c) => c.name));
+        })
+        .catch(() => setCompanySuggestions([]));
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [companyName]);
+
+  // Location/office typeahead suggestions
+  useEffect(() => {
+    if (companyCity.trim().length < 2) {
+      setCitySuggestions([]);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      searchFilterSuggestions('companyCity', companyCity.trim())
+        .then((result) => setCitySuggestions(result.values))
+        .catch(() => setCitySuggestions([]));
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [companyCity]);
+
+  useEffect(() => {
+    if (companyState.trim().length < 2) {
+      setStateSuggestions([]);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      searchFilterSuggestions('companyState', companyState.trim())
+        .then((result) => setStateSuggestions(result.values))
+        .catch(() => setStateSuggestions([]));
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [companyState]);
+
+  useEffect(() => {
+    if (stateOfIncorporation.trim().length < 2) {
+      setIncorporationSuggestions([]);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      searchFilterSuggestions('stateOfIncorporation', stateOfIncorporation.trim())
+        .then((result) => setIncorporationSuggestions(result.values))
+        .catch(() => setIncorporationSuggestions([]));
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [stateOfIncorporation]);
+
+  useEffect(() => {
+    if (agencyOfficeName.trim().length < 2) {
+      setAgencyOfficeSuggestions([]);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      searchFilterSuggestions('agencyOfficeName', agencyOfficeName.trim())
+        .then((result) => setAgencyOfficeSuggestions(result.values))
+        .catch(() => setAgencyOfficeSuggestions([]));
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [agencyOfficeName]);
+
+  // POC typeahead suggestions
+  useEffect(() => {
+    const query = [opportunityPocName, contractsPocName, relationshipPocName]
+      .find((value) => value.trim().length >= 2);
+
+    if (!query) {
+      setPocSuggestions([]);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      searchContacts(query.trim(), 'all')
+        .then((result) => {
+          setPocSuggestions(result.contacts.map(formatContactName));
+        })
+        .catch(() => setPocSuggestions([]));
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [opportunityPocName, contractsPocName, relationshipPocName]);
+
+  // Update agencyGroupId when typed input matches
+  useEffect(() => {
+    const match = agencyGroups.find(
+      (group) => group.name.toLowerCase() === agencyGroupInput.trim().toLowerCase()
+    );
+    setAgencyGroupId(match ? match.id : undefined);
+  }, [agencyGroupInput, agencyGroups]);
+
+  useEffect(() => {
+    if (!agencyGroupId) {
+      setSubagencies([]);
+      setSubagencyInput('');
+      setSubagencyId(undefined);
+      return;
+    }
+
+    listSubagencies(agencyGroupId)
+      .then((data) => setSubagencies(data.subagencies))
+      .catch(() => {
+        setSubagencies([]);
+      });
+  }, [agencyGroupId]);
+
+  useEffect(() => {
+    const match = subagencies.find(
+      (subagency) => subagency.name.toLowerCase() === subagencyInput.trim().toLowerCase()
+    );
+    setSubagencyId(match ? match.id : undefined);
+  }, [subagencyInput, subagencies]);
+
+  const companyNameOptions = useMemo(
+    () => mergeRecentSuggestions(recentFilters.companyName, companySuggestions),
+    [recentFilters.companyName, companySuggestions]
+  );
+
+  const companyCityOptions = useMemo(
+    () => mergeRecentSuggestions(recentFilters.companyCity, citySuggestions),
+    [recentFilters.companyCity, citySuggestions]
+  );
+
+  const companyStateOptions = useMemo(
+    () => mergeRecentSuggestions(recentFilters.companyState, stateSuggestions),
+    [recentFilters.companyState, stateSuggestions]
+  );
+
+  const incorporationOptions = useMemo(
+    () => mergeRecentSuggestions(recentFilters.stateOfIncorporation, incorporationSuggestions),
+    [recentFilters.stateOfIncorporation, incorporationSuggestions]
+  );
+
+  const agencyOfficeOptions = useMemo(
+    () => mergeRecentSuggestions(recentFilters.agencyOfficeName, agencyOfficeSuggestions),
+    [recentFilters.agencyOfficeName, agencyOfficeSuggestions]
+  );
+
+  const opportunityPocOptions = useMemo(
+    () => mergeRecentSuggestions(recentFilters.opportunityPocName, pocSuggestions),
+    [recentFilters.opportunityPocName, pocSuggestions]
+  );
+
+  const contractsPocOptions = useMemo(
+    () => mergeRecentSuggestions(recentFilters.contractsPocName, pocSuggestions),
+    [recentFilters.contractsPocName, pocSuggestions]
+  );
+
+  const relationshipPocOptions = useMemo(
+    () => mergeRecentSuggestions(recentFilters.relationshipPocName, pocSuggestions),
+    [recentFilters.relationshipPocName, pocSuggestions]
+  );
+
+  const handleSort = (key: SortKey) => {
+    if (sortBy === key) {
+      setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortBy(key);
+      setSortOrder('asc');
+    }
+  };
+
+  const recordRecentFilters = () => {
+    const next = { ...recentFilters };
+
+    const updateList = (field: keyof RecentFilters, value: string) => {
+      const trimmed = value.trim();
+      if (!trimmed) return;
+      const existing = next[field].filter((item) => item.toLowerCase() !== trimmed.toLowerCase());
+      next[field] = [trimmed, ...existing].slice(0, 6);
+    };
+
+    updateList('companyName', companyName);
+    updateList('companyCity', companyCity);
+    updateList('companyState', companyState);
+    updateList('stateOfIncorporation', stateOfIncorporation);
+    updateList('agencyOfficeName', agencyOfficeName);
+    updateList('opportunityPocName', opportunityPocName);
+    updateList('contractsPocName', contractsPocName);
+    updateList('relationshipPocName', relationshipPocName);
+
+    setRecentFilters(next);
+    saveRecentFilters(next);
+  };
+
   // Fetch NDAs whenever filters or pagination changes
   useEffect(() => {
     const fetchNDAs = async () => {
       setLoading(true);
       setError(null);
+      recordRecentFilters();
 
       try {
         const params: ListNdasParams = {
           page: currentPage,
           limit: pageSize,
+          sortBy: SORT_KEY_TO_PARAM[sortBy],
+          sortOrder,
           search: debouncedSearchTerm || undefined,
           status: statusFilter !== 'all' ? statusFilter : undefined,
-          agencyGroupId: agencyGroupFilter !== 'all' ? agencyGroupFilter : undefined,
-          showInactive: true, // Show all NDAs including inactive
-          showCancelled: true, // Show cancelled NDAs
+          agencyGroupId: agencyGroupId || undefined,
+          subagencyId: subagencyId || undefined,
+          companyName: companyName.trim() || undefined,
+          companyCity: companyCity.trim() || undefined,
+          companyState: companyState.trim() || undefined,
+          stateOfIncorporation: stateOfIncorporation.trim() || undefined,
+          agencyOfficeName: agencyOfficeName.trim() || undefined,
+          ndaType: ndaType === 'all' ? undefined : ndaType,
+          isNonUsMax: isNonUsMax === 'all' ? undefined : isNonUsMax === 'true',
+          effectiveDateFrom: effectiveDateFrom || undefined,
+          effectiveDateTo: effectiveDateTo || undefined,
+          createdDateFrom: requestedDateFrom || undefined,
+          createdDateTo: requestedDateTo || undefined,
+          opportunityPocName: opportunityPocName.trim() || undefined,
+          contractsPocName: contractsPocName.trim() || undefined,
+          relationshipPocName: relationshipPocName.trim() || undefined,
+          preset: presetFilter !== 'all' ? presetFilter : undefined,
+          myDrafts: myDraftsOnly ? true : undefined,
         };
+
+        if (myDraftsOnly) {
+          params.preset = 'drafts';
+        }
 
         const response = await listNDAs(params);
         setNdas(response.ndas);
@@ -121,12 +532,58 @@ export function Requests() {
     };
 
     fetchNDAs();
-  }, [debouncedSearchTerm, statusFilter, agencyGroupFilter, currentPage, pageSize]);
+  }, [
+    debouncedSearchTerm,
+    statusFilter,
+    agencyGroupId,
+    subagencyId,
+    companyName,
+    companyCity,
+    companyState,
+    stateOfIncorporation,
+    agencyOfficeName,
+    ndaType,
+    isNonUsMax,
+    effectiveDateFrom,
+    effectiveDateTo,
+    requestedDateFrom,
+    requestedDateTo,
+    opportunityPocName,
+    contractsPocName,
+    relationshipPocName,
+    presetFilter,
+    myDraftsOnly,
+    currentPage,
+    pageSize,
+    sortBy,
+    sortOrder,
+  ]);
 
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [debouncedSearchTerm, statusFilter, agencyGroupFilter]);
+  }, [
+    debouncedSearchTerm,
+    statusFilter,
+    agencyGroupId,
+    subagencyId,
+    companyName,
+    companyCity,
+    companyState,
+    stateOfIncorporation,
+    agencyOfficeName,
+    ndaType,
+    isNonUsMax,
+    effectiveDateFrom,
+    effectiveDateTo,
+    requestedDateFrom,
+    requestedDateTo,
+    opportunityPocName,
+    contractsPocName,
+    relationshipPocName,
+    presetFilter,
+    myDraftsOnly,
+  ]);
 
   const handleViewNDA = (nda: NdaListItem) => {
     navigate(`/nda/${nda.id}`);
@@ -134,26 +591,12 @@ export function Requests() {
 
   const handleEditNDA = (nda: NdaListItem, e: React.MouseEvent) => {
     e.stopPropagation();
-    navigate(`/nda/${nda.id}/edit`);
+    navigate(`/request-wizard/${nda.id}`);
   };
 
-  const handleDuplicateNDA = async (nda: NdaListItem, e: React.MouseEvent) => {
+  const handleDuplicateNDA = (nda: NdaListItem, e: React.MouseEvent) => {
     e.stopPropagation();
-
-    try {
-      const result = await cloneNDA(nda.id);
-      toast.success('NDA duplicated', {
-        description: `${nda.companyName} NDA has been cloned.`
-      });
-
-      // Refresh the list to show the new NDA
-      setCurrentPage(1);
-    } catch (err) {
-      console.error('Failed to duplicate NDA:', err);
-      toast.error('Failed to duplicate NDA', {
-        description: err instanceof Error ? err.message : 'Please try again later.'
-      });
-    }
+    navigate(`/request-wizard?cloneFrom=${nda.id}`);
   };
 
   const handleCancelNDA = (nda: NdaListItem, e: React.MouseEvent) => {
@@ -186,87 +629,324 @@ export function Requests() {
     }
   };
 
-  const handleMoreFilters = () => {
-    toast.info('More filters', {
-      description: 'Advanced filter options coming soon.'
-    });
-  };
-  
   return (
     <div className="p-4 md:p-8">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 md:mb-8">
         <div>
-          <h1 className="mb-2">Requests</h1>
-          <p className="text-[var(--color-text-secondary)]">Manage all NDA requests and agreements</p>
+          <h1 className="mb-2">{title}</h1>
+          <p className="text-[var(--color-text-secondary)]">{description}</p>
         </div>
-        <Button 
-          variant="primary" 
-          icon={<Plus className="w-5 h-5" />}
-          onClick={() => navigate('/request-wizard')}
-          className="w-full sm:w-auto"
-        >
-          Request new NDA
-        </Button>
+        {showCreateButton && (
+          <Button 
+            variant="primary" 
+            icon={<Plus className="w-5 h-5" />}
+            onClick={() => navigate('/request-wizard')}
+            className="w-full sm:w-auto"
+          >
+            Request new NDA
+          </Button>
+        )}
       </div>
       
       {/* Filters */}
       <Card className="mb-6">
         <div className="flex flex-col md:flex-row md:flex-wrap md:items-end gap-4">
-          <div className="flex-1 md:min-w-[300px]">
+          <div className="flex-1 md:min-w-[280px]">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--color-text-muted)]" />
               <input
                 type="text"
-                placeholder="Search by title, counterparty, project..."
+                placeholder="Search by company, agency, or ID..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-[var(--color-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
               />
             </div>
           </div>
-          
-          <Select
-            label=""
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as NdaStatus | 'all')}
-            options={[
-              { value: 'all', label: 'All Statuses' },
-              { value: 'CREATED', label: 'Created' },
-              { value: 'EMAILED', label: 'Emailed' },
-              { value: 'IN_REVISION', label: 'In Revision' },
-              { value: 'FULLY_EXECUTED', label: 'Fully Executed' },
-              { value: 'INACTIVE', label: 'Inactive' },
-              { value: 'CANCELLED', label: 'Cancelled' }
-            ]}
-            className="w-full md:w-48"
-          />
 
           <Select
-            label=""
-            value={agencyGroupFilter}
-            onChange={(e) => setAgencyGroupFilter(e.target.value)}
-            options={[
-              { value: 'all', label: 'All Agencies' }
-              // TODO: Populate from API or context
-            ]}
-            className="w-full md:w-48"
-          />
-          
-          <Button variant="subtle" icon={<Filter className="w-4 h-4" />} onClick={handleMoreFilters} className="w-full md:w-auto">
-            More filters
+            value={presetFilter}
+            onValueChange={(value) => setPresetFilter(value as PresetKey)}
+            disabled={myDraftsOnly}
+          >
+            <SelectTrigger className="w-full md:w-48" disabled={myDraftsOnly}>
+              <SelectValue placeholder="Preset" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All NDAs</SelectItem>
+              <SelectItem value="my-ndas">My NDAs</SelectItem>
+              <SelectItem value="expiring-soon">Expiring Soon</SelectItem>
+              <SelectItem value="drafts">Drafts</SelectItem>
+              <SelectItem value="inactive">Inactive</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select
+            value={statusFilter}
+            onValueChange={(value) => setStatusFilter(value as NdaStatus | 'all')}
+          >
+            <SelectTrigger className="w-full md:w-48">
+              <SelectValue placeholder="All Statuses" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Statuses</SelectItem>
+              <SelectItem value="CREATED">Created</SelectItem>
+              <SelectItem value="EMAILED">Emailed</SelectItem>
+              <SelectItem value="IN_REVISION">In Revision</SelectItem>
+              <SelectItem value="FULLY_EXECUTED">Fully Executed</SelectItem>
+              <SelectItem value="INACTIVE">Inactive</SelectItem>
+              <SelectItem value="CANCELLED">Cancelled</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <div className="w-full md:w-56">
+            <input
+              list="agency-group-options"
+              placeholder="Agency group"
+              value={agencyGroupInput}
+              onChange={(e) => setAgencyGroupInput(e.target.value)}
+              className="w-full px-3 py-2 border border-[var(--color-border)] rounded-lg text-sm"
+            />
+            <datalist id="agency-group-options">
+              {agencyGroups.map((group) => (
+                <option key={group.id} value={group.name} />
+              ))}
+            </datalist>
+          </div>
+
+          <div className="w-full md:w-56">
+            <input
+              list="subagency-options"
+              placeholder="Subagency"
+              value={subagencyInput}
+              onChange={(e) => setSubagencyInput(e.target.value)}
+              className="w-full px-3 py-2 border border-[var(--color-border)] rounded-lg text-sm"
+              disabled={!agencyGroupId}
+            />
+            <datalist id="subagency-options">
+              {subagencies.map((subagency) => (
+                <option key={subagency.id} value={subagency.name} />
+              ))}
+            </datalist>
+          </div>
+
+          <Button
+            variant="subtle"
+            icon={showAdvancedFilters ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            onClick={() => setShowAdvancedFilters((prev) => !prev)}
+            className="w-full md:w-auto"
+          >
+            {showAdvancedFilters ? 'Hide filters' : 'More filters'}
           </Button>
         </div>
+
+        {showAdvancedFilters && (
+          <div className="mt-6 border-t border-[var(--color-border)] pt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="text-xs text-[var(--color-text-secondary)]">Company Name</label>
+              <input
+                list="company-name-options"
+                value={companyName}
+                onChange={(e) => setCompanyName(e.target.value)}
+                className="w-full px-3 py-2 border border-[var(--color-border)] rounded-lg text-sm"
+              />
+              <datalist id="company-name-options">
+                {companyNameOptions.map((name) => (
+                  <option key={name} value={name} />
+                ))}
+              </datalist>
+            </div>
+            <div>
+              <label className="text-xs text-[var(--color-text-secondary)]">City</label>
+              <input
+                list="company-city-options"
+                value={companyCity}
+                onChange={(e) => setCompanyCity(e.target.value)}
+                className="w-full px-3 py-2 border border-[var(--color-border)] rounded-lg text-sm"
+              />
+              <datalist id="company-city-options">
+                {companyCityOptions.map((name) => (
+                  <option key={name} value={name} />
+                ))}
+              </datalist>
+            </div>
+            <div>
+              <label className="text-xs text-[var(--color-text-secondary)]">State</label>
+              <input
+                list="company-state-options"
+                value={companyState}
+                onChange={(e) => setCompanyState(e.target.value)}
+                className="w-full px-3 py-2 border border-[var(--color-border)] rounded-lg text-sm"
+              />
+              <datalist id="company-state-options">
+                {companyStateOptions.map((name) => (
+                  <option key={name} value={name} />
+                ))}
+              </datalist>
+            </div>
+            <div>
+              <label className="text-xs text-[var(--color-text-secondary)]">State of Incorporation</label>
+              <input
+                list="incorporation-options"
+                value={stateOfIncorporation}
+                onChange={(e) => setStateOfIncorporation(e.target.value)}
+                className="w-full px-3 py-2 border border-[var(--color-border)] rounded-lg text-sm"
+              />
+              <datalist id="incorporation-options">
+                {incorporationOptions.map((name) => (
+                  <option key={name} value={name} />
+                ))}
+              </datalist>
+            </div>
+            <div>
+              <label className="text-xs text-[var(--color-text-secondary)]">Agency/Office Name</label>
+              <input
+                list="agency-office-options"
+                value={agencyOfficeName}
+                onChange={(e) => setAgencyOfficeName(e.target.value)}
+                className="w-full px-3 py-2 border border-[var(--color-border)] rounded-lg text-sm"
+              />
+              <datalist id="agency-office-options">
+                {agencyOfficeOptions.map((name) => (
+                  <option key={name} value={name} />
+                ))}
+              </datalist>
+            </div>
+            <div>
+              <label className="text-xs text-[var(--color-text-secondary)]">NDA Type</label>
+              <Select value={ndaType} onValueChange={(value) => setNdaType(value as NdaType | 'all')}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="All Types" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  {NDA_TYPE_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-xs text-[var(--color-text-secondary)]">Non-USMax NDA</label>
+              <Select value={isNonUsMax} onValueChange={(value) => setIsNonUsMax(value as 'all' | 'true' | 'false')}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="All" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="true">Yes</SelectItem>
+                  <SelectItem value="false">No</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="text-xs text-[var(--color-text-secondary)]">Effective Date From</label>
+              <input
+                type="date"
+                value={effectiveDateFrom}
+                onChange={(e) => setEffectiveDateFrom(e.target.value)}
+                className="w-full px-3 py-2 border border-[var(--color-border)] rounded-lg text-sm"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-[var(--color-text-secondary)]">Effective Date To</label>
+              <input
+                type="date"
+                value={effectiveDateTo}
+                onChange={(e) => setEffectiveDateTo(e.target.value)}
+                className="w-full px-3 py-2 border border-[var(--color-border)] rounded-lg text-sm"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-[var(--color-text-secondary)]">Requested Date From</label>
+              <input
+                type="date"
+                value={requestedDateFrom}
+                onChange={(e) => setRequestedDateFrom(e.target.value)}
+                className="w-full px-3 py-2 border border-[var(--color-border)] rounded-lg text-sm"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-[var(--color-text-secondary)]">Requested Date To</label>
+              <input
+                type="date"
+                value={requestedDateTo}
+                onChange={(e) => setRequestedDateTo(e.target.value)}
+                className="w-full px-3 py-2 border border-[var(--color-border)] rounded-lg text-sm"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs text-[var(--color-text-secondary)]">Opportunity POC</label>
+              <input
+                list="opportunity-poc-options"
+                value={opportunityPocName}
+                onChange={(e) => setOpportunityPocName(e.target.value)}
+                className="w-full px-3 py-2 border border-[var(--color-border)] rounded-lg text-sm"
+              />
+              <datalist id="opportunity-poc-options">
+                {opportunityPocOptions.map((name) => (
+                  <option key={name} value={name} />
+                ))}
+              </datalist>
+            </div>
+            <div>
+              <label className="text-xs text-[var(--color-text-secondary)]">Contracts POC</label>
+              <input
+                list="contracts-poc-options"
+                value={contractsPocName}
+                onChange={(e) => setContractsPocName(e.target.value)}
+                className="w-full px-3 py-2 border border-[var(--color-border)] rounded-lg text-sm"
+              />
+              <datalist id="contracts-poc-options">
+                {contractsPocOptions.map((name) => (
+                  <option key={name} value={name} />
+                ))}
+              </datalist>
+            </div>
+            <div>
+              <label className="text-xs text-[var(--color-text-secondary)]">Relationship POC</label>
+              <input
+                list="relationship-poc-options"
+                value={relationshipPocName}
+                onChange={(e) => setRelationshipPocName(e.target.value)}
+                className="w-full px-3 py-2 border border-[var(--color-border)] rounded-lg text-sm"
+              />
+              <datalist id="relationship-poc-options">
+                {relationshipPocOptions.map((name) => (
+                  <option key={name} value={name} />
+                ))}
+              </datalist>
+            </div>
+          </div>
+        )}
       </Card>
       
       {/* Results Summary */}
-      <div className="mb-4">
+      <div className="mb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
         <p className="text-sm text-[var(--color-text-secondary)]">
           {loading ? (
             'Loading...'
           ) : (
-            `Showing ${ndas.length} of ${totalCount} requests`
+            `Showing ${ndas.length} of ${totalCount} NDAs`
           )}
         </p>
+        <div className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)]">
+          <span>Rows per page</span>
+          <Select value={String(pageSize)} onValueChange={(value) => setPageSize(Number(value))}>
+            <SelectTrigger className="w-20">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {[20, 50, 100].map((size) => (
+                <SelectItem key={size} value={String(size)}>{size}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* Loading State */}
@@ -297,9 +977,11 @@ export function Requests() {
         <Card className="flex items-center justify-center py-12">
           <div className="text-center">
             <p className="text-[var(--color-text-secondary)] mb-4">No NDAs found</p>
-            <Button variant="primary" icon={<Plus className="w-5 h-5" />} onClick={() => navigate('/request-wizard')}>
-              Create your first NDA
-            </Button>
+            {showCreateButton && (
+              <Button variant="primary" icon={<Plus className="w-5 h-5" />} onClick={() => navigate('/request-wizard')}>
+                Create your first NDA
+              </Button>
+            )}
           </div>
         </Card>
       )}
@@ -311,26 +993,47 @@ export function Requests() {
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-[var(--color-border)]">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-[var(--color-text-secondary)]">
-                    NDA ID
+                  <th
+                    className="px-6 py-3 text-left text-xs uppercase tracking-wider text-[var(--color-text-secondary)] cursor-pointer"
+                    onClick={() => handleSort('displayId')}
+                  >
+                    Display ID
                   </th>
-                  <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-[var(--color-text-secondary)]">
+                  <th
+                    className="px-6 py-3 text-left text-xs uppercase tracking-wider text-[var(--color-text-secondary)] cursor-pointer"
+                    onClick={() => handleSort('companyName')}
+                  >
                     Company
                   </th>
-                  <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-[var(--color-text-secondary)]">
+                  <th
+                    className="px-6 py-3 text-left text-xs uppercase tracking-wider text-[var(--color-text-secondary)] cursor-pointer"
+                    onClick={() => handleSort('agency')}
+                  >
                     Agency
                   </th>
-                  <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-[var(--color-text-secondary)]">
+                  <th
+                    className="px-6 py-3 text-left text-xs uppercase tracking-wider text-[var(--color-text-secondary)] cursor-pointer"
+                    onClick={() => handleSort('status')}
+                  >
                     Status
                   </th>
-                  <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-[var(--color-text-secondary)]">
+                  <th
+                    className="px-6 py-3 text-left text-xs uppercase tracking-wider text-[var(--color-text-secondary)] cursor-pointer"
+                    onClick={() => handleSort('effectiveDate')}
+                  >
                     Effective Date
                   </th>
-                  <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-[var(--color-text-secondary)]">
-                    Created
+                  <th
+                    className="px-6 py-3 text-left text-xs uppercase tracking-wider text-[var(--color-text-secondary)] cursor-pointer"
+                    onClick={() => handleSort('requestedDate')}
+                  >
+                    Requested Date
                   </th>
-                  <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-[var(--color-text-secondary)]">
-                    Last Updated
+                  <th
+                    className="px-6 py-3 text-left text-xs uppercase tracking-wider text-[var(--color-text-secondary)] cursor-pointer"
+                    onClick={() => handleSort('latestChange')}
+                  >
+                    Latest Change
                   </th>
                   <th className="px-6 py-3 text-center text-xs uppercase tracking-wider text-[var(--color-text-secondary)]">
                     Actions
@@ -357,7 +1060,18 @@ export function Requests() {
                       )}
                     </td>
                     <td className="px-6 py-4">
-                      <Badge variant="status" status={nda.status}>{nda.status}</Badge>
+                      <div className="flex flex-wrap gap-1">
+                        <Badge variant="status" status={nda.status}>{nda.status}</Badge>
+                        {nda.isDraft && (
+                          <Badge variant="warning">Draft</Badge>
+                        )}
+                      </div>
+                      {nda.isDraft && nda.incompleteFields?.length ? (
+                        <div className="text-xs text-[var(--color-text-muted)] mt-1">
+                          Missing: {nda.incompleteFields.slice(0, 2).join(', ')}
+                          {nda.incompleteFields.length > 2 ? ` +${nda.incompleteFields.length - 2} more` : ''}
+                        </div>
+                      ) : null}
                     </td>
                     <td className="px-6 py-4 text-sm text-[var(--color-text-secondary)]">
                       {nda.effectiveDate ? new Date(nda.effectiveDate).toLocaleDateString() : '—'}
@@ -365,8 +1079,23 @@ export function Requests() {
                     <td className="px-6 py-4 text-sm text-[var(--color-text-secondary)]">
                       {new Date(nda.createdAt).toLocaleDateString()}
                     </td>
-                    <td className="px-6 py-4 text-sm text-[var(--color-text-secondary)]">
-                      {new Date(nda.updatedAt).toLocaleDateString()}
+                    <td className="px-6 py-4 text-sm">
+                      <div className="text-xs text-[var(--color-text-secondary)]">
+                        {nda.statusHistory?.[0]?.status ?? nda.status}
+                      </div>
+                      <div className="text-xs text-[var(--color-text-muted)]">
+                        {nda.statusHistory?.[0]
+                          ? (() => {
+                              const latest = nda.statusHistory?.[0];
+                              const name = formatPersonName(
+                                latest?.changedBy?.firstName,
+                                latest?.changedBy?.lastName
+                              );
+                              const date = formatDate(latest?.changedAt);
+                              return name ? `${name} · ${date}` : date;
+                            })()
+                          : formatDate(nda.updatedAt)}
+                      </div>
                     </td>
                     <td className="px-6 py-4 text-center">
                       <DropdownMenu>
@@ -377,10 +1106,21 @@ export function Requests() {
                           <MoreVertical className="w-4 h-4 text-[var(--color-text-secondary)]" />
                         </DropdownMenuTrigger>
                         <DropdownMenuContent>
-                          <DropdownMenuItem onClick={(e) => handleEditNDA(nda, e)}>
-                            <Edit className="w-4 h-4 mr-2" />
-                            Edit
-                          </DropdownMenuItem>
+                          {nda.isDraft && (
+                            <>
+                              <DropdownMenuItem onClick={(e) => handleEditNDA(nda, e)}>
+                                <Edit className="w-4 h-4 mr-2" />
+                                Continue Editing
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                            </>
+                          )}
+                          {!nda.isDraft && (
+                            <DropdownMenuItem onClick={(e) => handleEditNDA(nda, e)}>
+                              <Edit className="w-4 h-4 mr-2" />
+                              Edit
+                            </DropdownMenuItem>
+                          )}
                           <DropdownMenuItem onClick={(e) => handleDuplicateNDA(nda, e)}>
                             <Copy className="w-4 h-4 mr-2" />
                             Duplicate
@@ -427,10 +1167,21 @@ export function Requests() {
                     <MoreVertical className="w-4 h-4 text-[var(--color-text-secondary)]" />
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={(e) => handleEditNDA(nda, e)}>
-                      <Edit className="w-4 h-4 mr-2" />
-                      Edit
-                    </DropdownMenuItem>
+                    {nda.isDraft && (
+                      <>
+                        <DropdownMenuItem onClick={(e) => handleEditNDA(nda, e)}>
+                          <Edit className="w-4 h-4 mr-2" />
+                          Continue Editing
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                      </>
+                    )}
+                    {!nda.isDraft && (
+                      <DropdownMenuItem onClick={(e) => handleEditNDA(nda, e)}>
+                        <Edit className="w-4 h-4 mr-2" />
+                        Edit
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuItem onClick={(e) => handleDuplicateNDA(nda, e)}>
                       <Copy className="w-4 h-4 mr-2" />
                       Duplicate
@@ -455,18 +1206,25 @@ export function Requests() {
                 </div>
                 <div className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)]">
                   <Calendar className="w-4 h-4 flex-shrink-0" />
-                  <span>Created {new Date(nda.createdAt).toLocaleDateString()}</span>
+                  <span>Requested {new Date(nda.createdAt).toLocaleDateString()}</span>
                 </div>
               </div>
 
               <div className="flex flex-wrap gap-2">
                 <Badge variant="status" status={nda.status}>{nda.status}</Badge>
+                {nda.isDraft && <Badge variant="warning">Draft</Badge>}
                 {nda.effectiveDate && (
                   <span className="text-xs text-[var(--color-text-secondary)]">
                     Effective: {new Date(nda.effectiveDate).toLocaleDateString()}
                   </span>
                 )}
               </div>
+              {nda.isDraft && nda.incompleteFields?.length ? (
+                <p className="mt-2 text-xs text-[var(--color-text-muted)]">
+                  Missing: {nda.incompleteFields.slice(0, 2).join(', ')}
+                  {nda.incompleteFields.length > 2 ? ` +${nda.incompleteFields.length - 2} more` : ''}
+                </p>
+              ) : null}
             </Card>
           ))}
         </div>
@@ -539,5 +1297,39 @@ export function Requests() {
         </div>
       )}
     </div>
+  );
+}
+
+export function AllNdas() {
+  return (
+    <Requests
+      title="All NDAs"
+      description="View all NDAs you have access to"
+      preset="all"
+      showCreateButton
+    />
+  );
+}
+
+export function MyNdas() {
+  return (
+    <Requests
+      title="My NDAs"
+      description="NDAs created by you"
+      preset="my-ndas"
+      showCreateButton={false}
+    />
+  );
+}
+
+export function MyDrafts() {
+  return (
+    <Requests
+      title="My Drafts"
+      description="Draft NDAs you can continue editing"
+      preset="drafts"
+      showCreateButton={false}
+      myDraftsOnly
+    />
   );
 }

@@ -1,6 +1,6 @@
 # Story 3.12: Status Management & Auto-Transitions
 
-Status: done
+Status: in-progress
 
 ## Story
 
@@ -60,6 +60,12 @@ so that **I don't have to manually update status every time**.
   - [ ] 4.2: Test manual status changes
   - [ ] 4.3: Test invalid transition prevention
   - [ ] 4.4: Test audit logging with before/after
+
+### Review Follow-ups (AI)
+- [x] [AI-Review][HIGH] Auto-transition on non-fully executed upload is missing; DOCUMENT_UPLOADED trigger is never invoked so EMAILED → IN_REVISION does not happen. [src/server/services/documentService.ts:232]
+- [x] [AI-Review][HIGH] Manual status dropdown/inline change is not implemented in NDA detail; status changes only occur via modal-driven actions. [src/components/screens/NDADetail.tsx:211]
+- [x] [AI-Review][MEDIUM] “Send for signature” updates status directly without sending email; status can become EMAILED even if email send fails or never happens. [src/components/screens/NDADetail.tsx:215]
+- [ ] [AI-Review][MEDIUM] Story marked done but Tasks/Subtasks are all unchecked and no Dev Agent Record/File List exists to verify changes. [docs/sprint-artifacts/3-12-status-management-and-auto-transitions.md:1]
 
 ## Dev Notes
 

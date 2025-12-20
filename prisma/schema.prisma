@@ -57,6 +57,7 @@ model Contact {
   ndasAsOpportunityPoc  Nda[]              @relation("NdaOpportunityPoc")
   ndasAsContractsPoc    Nda[]              @relation("NdaContractsPoc")
   ndasAsRelationshipPoc Nda[]              @relation("NdaRelationshipPoc")
+  ndasAsContactsPoc     Nda[]              @relation("NdaContactsPoc")
   ndaStatusChanges      NdaStatusHistory[]
   documentsUploaded     Document[]
 
@@ -235,6 +236,16 @@ enum UsMaxPosition {
   OTHER
 }
 
+/// NDA Type enum for classification and suggestions
+enum NdaType {
+  MUTUAL
+  ONE_WAY_GOVERNMENT
+  ONE_WAY_COUNTERPARTY
+  VISITOR
+  RESEARCH
+  VENDOR_ACCESS
+}
+
 /// NDA represents a Non-Disclosure Agreement record
 model Nda {
   id        String @id @default(uuid())
@@ -254,6 +265,7 @@ model Nda {
   agencyOfficeName String?      @map("agency_office_name")
 
   // NDA Details
+  ndaType            NdaType      @default(MUTUAL) @map("nda_type")
   abbreviatedName   String        @map("abbreviated_name")
   authorizedPurpose String        @map("authorized_purpose") @db.VarChar(255)
   effectiveDate     DateTime?     @map("effective_date")
@@ -271,6 +283,8 @@ model Nda {
   contractsPoc      Contact? @relation("NdaContractsPoc", fields: [contractsPocId], references: [id])
   relationshipPocId String   @map("relationship_poc_id")
   relationshipPoc   Contact  @relation("NdaRelationshipPoc", fields: [relationshipPocId], references: [id])
+  contactsPocId     String?  @map("contacts_poc_id")
+  contactsPoc       Contact? @relation("NdaContactsPoc", fields: [contactsPocId], references: [id])
 
   // Clone tracking
   clonedFromId String? @map("cloned_from_id")
@@ -367,6 +381,8 @@ model NdaEmail {
   ccRecipients  String[]    @map("cc_recipients")
   bccRecipients String[]    @map("bcc_recipients")
   body          String      @db.Text
+  templateId    String?     @map("template_id")
+  template      EmailTemplate? @relation(fields: [templateId], references: [id])
   sentAt        DateTime    @default(now()) @map("sent_at")
   sentById      String      @map("sent_by_id")
   sentBy        Contact     @relation(fields: [sentById], references: [id])
@@ -378,6 +394,25 @@ model NdaEmail {
   @@index([ndaId])
   @@index([status])
   @@map("nda_emails")
+}
+
+/// EmailTemplate stores email composition templates
+model EmailTemplate {
+  id          String   @id @default(uuid())
+  name        String
+  description String?  @db.Text
+  subject     String
+  body        String   @db.Text
+  isDefault   Boolean  @default(false) @map("is_default")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  emails      NdaEmail[]
+
+  @@index([isDefault])
+  @@index([isActive])
+  @@map("email_templates")
 }
 
 // ============================================================================

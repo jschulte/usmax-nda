@@ -9,6 +9,9 @@ import express from 'express';
 import cookieParser from 'cookie-parser';
 import request from 'supertest';
 
+let mockRoles = ['Admin'];
+let mockPermissions = new Set(['admin:manage_agencies']);
+
 vi.mock('../../middleware/authenticateJWT.js', () => ({
   authenticateJWT: (req: any, _res: any, next: any) => {
     req.user = { id: 'user-1', email: 'admin@usmax.com' };
@@ -24,8 +27,8 @@ vi.mock('../../middleware/attachUserContext.js', () => ({
       email: 'admin@usmax.com',
       name: 'Admin User',
       active: true,
-      roles: ['Admin'],
-      permissions: new Set(['admin:manage_agencies']),
+      roles: mockRoles,
+      permissions: mockPermissions,
       authorizedAgencyGroups: [],
       authorizedSubagencies: [],
     };
@@ -33,8 +36,14 @@ vi.mock('../../middleware/attachUserContext.js', () => ({
   },
 }));
 
-vi.mock('../../middleware/checkPermissions.js', () => ({
-  requirePermission: () => (_req: any, _res: any, next: any) => next(),
+vi.mock('../../services/auditService.js', () => ({
+  auditService: {
+    log: vi.fn().mockResolvedValue(undefined),
+  },
+  AuditAction: {
+    ADMIN_BYPASS: 'admin_bypass',
+    PERMISSION_DENIED: 'permission_denied',
+  },
 }));
 
 vi.mock('../../services/agencyGroupService.js', () => {
@@ -70,6 +79,9 @@ describe('Agency Groups Routes Integration', () => {
   });
 
   beforeEach(async () => {
+    mockRoles = ['Admin'];
+    mockPermissions = new Set(['admin:manage_agencies']);
+
     app = express();
     app.use(express.json());
     app.use(cookieParser());
@@ -81,6 +93,40 @@ describe('Agency Groups Routes Integration', () => {
   });
 
   describe('GET /api/agency-groups', () => {
+    it('returns 403 when user lacks permission', async () => {
+      mockRoles = [];
+      mockPermissions = new Set();
+
+      const response = await request(app).get('/api/agency-groups');
+
+      expect(response.status).toBe(403);
+      expect(response.body.code).toBe('PERMISSION_DENIED');
+    });
+
+    it('allows users with NDA permissions', async () => {
+      mockRoles = [];
+      mockPermissions = new Set(['nda:create']);
+
+      const mockGroups = [
+        {
+          id: 'group-1',
+          name: 'DoD',
+          code: 'DOD',
+          description: 'Department of Defense',
+          subagencyCount: 5,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+      ];
+
+      vi.mocked(agencyGroupService.listAgencyGroups).mockResolvedValue(mockGroups as any);
+
+      const response = await request(app).get('/api/agency-groups');
+
+      expect(response.status).toBe(200);
+      expect(response.body.agencyGroups).toHaveLength(1);
+    });
+
     it('returns agency groups list', async () => {
       const mockGroups = [
         {

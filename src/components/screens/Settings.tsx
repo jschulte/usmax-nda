@@ -1,14 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card } from '../ui/AppCard';
 import { Button } from '../ui/AppButton';
-import {
-  Bell,
-  Moon,
-  Mail,
-  Save,
-  Download,
-  Trash2
-} from 'lucide-react';
+import { Mail, Save, Download, Trash2 } from 'lucide-react';
 import { toast } from 'sonner@2.0.3';
 import { Label } from '../ui/label';
 import { Switch } from '../ui/switch';
@@ -20,18 +13,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../ui/select';
+import {
+  getPreferences,
+  updatePreferences,
+  type NotificationPreferences,
+} from '../../client/services/notificationService';
 
 export function Settings() {
   const [activeTab, setActiveTab] = useState('preferences');
 
   // Notification Preferences
-  const [notificationSettings, setNotificationSettings] = useState({
-    emailNotifications: true,
-    inAppNotifications: true,
-    ndaApproved: true,
-    ndaRejected: true,
-    ndaExecuted: true
+  const [notificationSettings, setNotificationSettings] = useState<NotificationPreferences>({
+    onNdaCreated: true,
+    onNdaEmailed: true,
+    onDocumentUploaded: true,
+    onStatusChanged: true,
+    onFullyExecuted: true,
   });
+  const [notificationLoading, setNotificationLoading] = useState(true);
 
   // Display Preferences
   const [displaySettings, setDisplaySettings] = useState({
@@ -59,16 +58,46 @@ export function Settings() {
     batchNotifications: false
   });
 
+  useEffect(() => {
+    let isMounted = true;
+    getPreferences()
+      .then((data) => {
+        if (isMounted) {
+          setNotificationSettings(data.preferences);
+        }
+      })
+      .catch(() => {
+        toast.error('Failed to load notification preferences');
+      })
+      .finally(() => {
+        if (isMounted) {
+          setNotificationLoading(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const handleSavePreferences = () => {
     toast.success('Preferences saved', {
       description: 'Your settings have been updated successfully'
     });
   };
 
-  const handleSaveNotifications = () => {
-    toast.success('Notification settings saved', {
-      description: 'Your notification preferences have been updated'
-    });
+  const handleSaveNotifications = async () => {
+    try {
+      const result = await updatePreferences(notificationSettings);
+      setNotificationSettings(result.preferences);
+      toast.success('Notification settings saved', {
+        description: 'Your notification preferences have been updated'
+      });
+    } catch (error) {
+      toast.error('Failed to save notification preferences', {
+        description: error instanceof Error ? error.message : 'Please try again later'
+      });
+    }
   };
 
   const handleExportData = () => {
@@ -284,72 +313,65 @@ export function Settings() {
               </Button>
             </div>
 
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Mail className="w-5 h-5 text-[var(--color-text-secondary)]" />
-                  <div>
-                    <Label>Email Notifications</Label>
-                    <p className="text-xs text-[var(--color-text-secondary)] mt-1">
-                      Receive notifications via email
-                    </p>
-                  </div>
-                </div>
-                <Switch
-                  checked={notificationSettings.emailNotifications}
-                  onCheckedChange={(checked) => setNotificationSettings(prev => ({ ...prev, emailNotifications: checked }))}
-                />
-              </div>
-
-              <div className="flex items-center justify-between py-3 border-t border-[var(--color-border)]">
-                <div className="flex items-center gap-3">
-                  <Bell className="w-5 h-5 text-[var(--color-text-secondary)]" />
-                  <div>
-                    <Label>In-App Notifications</Label>
-                    <p className="text-xs text-[var(--color-text-secondary)] mt-1">
-                      Show notifications in the application
-                    </p>
-                  </div>
-                </div>
-                <Switch
-                  checked={notificationSettings.inAppNotifications}
-                  onCheckedChange={(checked) => setNotificationSettings(prev => ({ ...prev, inAppNotifications: checked }))}
-                />
-              </div>
-            </div>
-          </Card>
-
-          <Card>
-            <h3 className="mb-4">NDA Notifications</h3>
             <p className="text-sm text-[var(--color-text-secondary)] mb-4">
-              Choose which NDA events trigger notifications
+              Choose which NDA events trigger notifications.
             </p>
 
-            <div className="space-y-3">
-              <div className="flex items-center justify-between py-2">
-                <span className="text-sm">NDA approved</span>
-                <Switch
-                  checked={notificationSettings.ndaApproved}
-                  onCheckedChange={(checked) => setNotificationSettings(prev => ({ ...prev, ndaApproved: checked }))}
-                />
-              </div>
+            {notificationLoading ? (
+              <p className="text-sm text-[var(--color-text-secondary)]">Loading preferences...</p>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between py-2">
+                  <span className="text-sm">NDA Created</span>
+                  <Switch
+                    checked={notificationSettings.onNdaCreated}
+                    onCheckedChange={(checked) =>
+                      setNotificationSettings((prev) => ({ ...prev, onNdaCreated: checked }))
+                    }
+                  />
+                </div>
 
-              <div className="flex items-center justify-between py-2 border-t border-[var(--color-border)]">
-                <span className="text-sm">NDA rejected</span>
-                <Switch
-                  checked={notificationSettings.ndaRejected}
-                  onCheckedChange={(checked) => setNotificationSettings(prev => ({ ...prev, ndaRejected: checked }))}
-                />
-              </div>
+                <div className="flex items-center justify-between py-2 border-t border-[var(--color-border)]">
+                  <span className="text-sm">NDA Emailed</span>
+                  <Switch
+                    checked={notificationSettings.onNdaEmailed}
+                    onCheckedChange={(checked) =>
+                      setNotificationSettings((prev) => ({ ...prev, onNdaEmailed: checked }))
+                    }
+                  />
+                </div>
 
-              <div className="flex items-center justify-between py-2 border-t border-[var(--color-border)]">
-                <span className="text-sm">NDA executed</span>
-                <Switch
-                  checked={notificationSettings.ndaExecuted}
-                  onCheckedChange={(checked) => setNotificationSettings(prev => ({ ...prev, ndaExecuted: checked }))}
-                />
+                <div className="flex items-center justify-between py-2 border-t border-[var(--color-border)]">
+                  <span className="text-sm">Document Uploaded</span>
+                  <Switch
+                    checked={notificationSettings.onDocumentUploaded}
+                    onCheckedChange={(checked) =>
+                      setNotificationSettings((prev) => ({ ...prev, onDocumentUploaded: checked }))
+                    }
+                  />
+                </div>
+
+                <div className="flex items-center justify-between py-2 border-t border-[var(--color-border)]">
+                  <span className="text-sm">Status Changed</span>
+                  <Switch
+                    checked={notificationSettings.onStatusChanged}
+                    onCheckedChange={(checked) =>
+                      setNotificationSettings((prev) => ({ ...prev, onStatusChanged: checked }))
+                    }
+                  />
+                </div>
+
+                <div className="flex items-center justify-between py-2 border-t border-[var(--color-border)]">
+                  <span className="text-sm">Fully Executed</span>
+                  <Switch
+                    checked={notificationSettings.onFullyExecuted}
+                    onCheckedChange={(checked) =>
+                      setNotificationSettings((prev) => ({ ...prev, onFullyExecuted: checked }))
+                    }
+                  />
+                </div>
               </div>
-            </div>
+            )}
           </Card>
         </TabsContent>
 

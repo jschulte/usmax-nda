@@ -1,22 +1,28 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Card } from '../ui/AppCard';
 import { Button } from '../ui/AppButton';
 import { Input, TextArea, Select } from '../ui/AppInput';
 import { Stepper } from '../ui/Stepper';
 import { Badge } from '../ui/AppBadge';
-import { ArrowLeft, ArrowRight, Info, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Info } from 'lucide-react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import type { NDAType, InformationType, RiskLevel } from '../../types';
 import { toast } from 'sonner';
 import {
   getNDA,
   createNDA,
   updateNDA,
+  cloneNDA,
   searchCompanies,
+  getCompanySuggestions,
   getCompanyDefaults,
+  getAgencySuggestions,
+  updateDraft,
   type CreateNdaData,
   type UpdateNdaData,
+  type AgencySuggestions,
+  type CompanySuggestion,
   type UsMaxPosition,
+  type NdaType,
 } from '../../client/services/ndaService';
 import {
   listAgencyGroups,
@@ -26,25 +32,17 @@ import {
 } from '../../client/services/agencyService';
 import {
   searchContacts,
+  createExternalContact,
   type Contact,
 } from '../../client/services/userService';
 
-const ndaTypes: { value: NDAType; label: string; description: string }[] = [
-  { value: 'Mutual', label: 'Mutual', description: 'Both parties will exchange confidential information' },
-  { value: 'One-way government disclosing', label: 'One-way (Government Disclosing)', description: 'Government shares information with counterparty' },
-  { value: 'One-way counterparty disclosing', label: 'One-way (Counterparty Disclosing)', description: 'Counterparty shares information with government' },
-  { value: 'Visitor', label: 'Visitor', description: 'For facility visitors and short-term access' },
-  { value: 'Research', label: 'Research', description: 'Academic or research collaborations' },
-  { value: 'Vendor access', label: 'Vendor Access', description: 'For vendors accessing systems or data' }
-];
-
-const informationTypes: InformationType[] = [
-  'PII',
-  'Financial data',
-  'Technical data',
-  'Source code',
-  'Facility access',
-  'Other'
+const ndaTypes: { value: NdaType; label: string; description: string }[] = [
+  { value: 'MUTUAL', label: 'Mutual', description: 'Both parties will exchange confidential information' },
+  { value: 'ONE_WAY_GOVERNMENT', label: 'One-way (Government Disclosing)', description: 'Government shares information with counterparty' },
+  { value: 'ONE_WAY_COUNTERPARTY', label: 'One-way (Counterparty Disclosing)', description: 'Counterparty shares information with government' },
+  { value: 'VISITOR', label: 'Visitor', description: 'For facility visitors and short-term access' },
+  { value: 'RESEARCH', label: 'Research', description: 'Academic or research collaborations' },
+  { value: 'VENDOR_ACCESS', label: 'Vendor Access', description: 'For vendors accessing systems or data' }
 ];
 
 export function RequestWizard() {
@@ -54,12 +52,31 @@ export function RequestWizard() {
   const [currentStep, setCurrentStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const cloneFromId = useMemo(() => new URLSearchParams(location.search).get('cloneFrom'), [location.search]);
+  const [cloneSource, setCloneSource] = useState<{ id: string; displayId: number; companyName: string } | null>(null);
+  const [draftId, setDraftId] = useState<string | null>(ndaId ?? null);
+  const [draftStatus, setDraftStatus] = useState<'CREATED' | 'OTHER' | null>(null);
+  const [showErrors, setShowErrors] = useState(false);
+  const [touchedFields, setTouchedFields] = useState<Record<string, boolean>>({});
+  const [isAutoSaving, setIsAutoSaving] = useState(false);
 
   // Dropdown data
   const [agencyGroups, setAgencyGroups] = useState<AgencyGroup[]>([]);
   const [subagencies, setSubagencies] = useState<Subagency[]>([]);
-  const [companySuggestions, setCompanySuggestions] = useState<string[]>([]);
+  const [companySearchResults, setCompanySearchResults] = useState<Array<{ name: string; count: number }>>([]);
+  const [recentCompanies, setRecentCompanies] = useState<CompanySuggestion[]>([]);
+  const [showCompanyDropdown, setShowCompanyDropdown] = useState(false);
+  const [agencySuggestions, setAgencySuggestions] = useState<AgencySuggestions | null>(null);
   const [contactSuggestions, setContactSuggestions] = useState<Contact[]>([]);
+  const [activePocField, setActivePocField] = useState<'relationship' | 'contracts' | 'opportunity' | 'contacts' | null>(null);
+  const [hasTouchedPosition, setHasTouchedPosition] = useState(false);
+  const [hasTouchedNdaType, setHasTouchedNdaType] = useState(false);
+  const lastChangeAtRef = useRef<number | null>(null);
+  const lastSavedAtRef = useRef<number | null>(null);
+  const autoSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autoSaveRetryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autoSaveInFlightRef = useRef(false);
+  const hasInitializedRef = useRef(false);
 
   // Form state - map backend fields to form fields
   const [formData, setFormData] = useState({
@@ -70,20 +87,41 @@ export function RequestWizard() {
     agencyGroupId: '',
     subagencyId: '',
     agencyOfficeName: '',
+    ndaType: 'MUTUAL' as NdaType,
     abbreviatedName: '',
     authorizedPurpose: '',
     effectiveDate: '',
-    usMaxPosition: '' as UsMaxPosition | '',
+    usMaxPosition: 'PRIME' as UsMaxPosition,
     isNonUsMax: false,
     opportunityPocId: '',
     opportunityPocName: '',
     contractsPocId: '',
     contractsPocName: '',
+    contractsPocEmail: '',
+    contractsPocPhone: '',
+    contractsPocFax: '',
     relationshipPocId: '',
     relationshipPocName: '',
+    relationshipPocEmail: '',
+    relationshipPocPhone: '',
+    relationshipPocFax: '',
+    contactsPocId: '',
+    contactsPocName: '',
     systemInput: '',
     confirmed: false,
   });
+
+  const [pocErrors, setPocErrors] = useState({
+    relationshipEmail: '',
+    relationshipPhone: '',
+    relationshipFax: '',
+    contractsEmail: '',
+    contractsPhone: '',
+    contractsFax: '',
+  });
+
+  const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const PHONE_PATTERN = /^\(\d{3}\) \d{3}-\d{4}$/;
   
   const steps = [
     { label: 'Basic details', description: 'Request information' },
@@ -93,45 +131,119 @@ export function RequestWizard() {
 
   // Load existing NDA if editing
   useEffect(() => {
-    if (ndaId) {
-      setIsLoading(true);
-      getNDA(ndaId)
-        .then((nda) => {
-          setFormData({
-            companyName: nda.companyName,
-            companyCity: nda.companyCity || '',
-            companyState: nda.companyState || '',
-            stateOfIncorporation: nda.stateOfIncorporation || '',
-            agencyGroupId: nda.agencyGroup.id,
-            subagencyId: nda.subagency?.id || '',
-            agencyOfficeName: nda.agencyOfficeName || '',
-            abbreviatedName: nda.abbreviatedName,
-            authorizedPurpose: nda.authorizedPurpose,
-            effectiveDate: nda.effectiveDate || '',
-            usMaxPosition: nda.usMaxPosition,
-            isNonUsMax: nda.isNonUsMax,
-            opportunityPocId: nda.opportunityPoc?.id || '',
-            opportunityPocName: nda.opportunityPoc
-              ? `${nda.opportunityPoc.firstName} ${nda.opportunityPoc.lastName}`
-              : '',
-            contractsPocId: nda.contractsPoc?.id || '',
-            contractsPocName: nda.contractsPoc
-              ? `${nda.contractsPoc.firstName} ${nda.contractsPoc.lastName}`
-              : '',
-            relationshipPocId: nda.relationshipPoc.id,
-            relationshipPocName: `${nda.relationshipPoc.firstName} ${nda.relationshipPoc.lastName}`,
-            systemInput: '',
-            confirmed: false,
-          });
-        })
-        .catch((err) => {
-          console.error('Failed to load NDA:', err);
-          toast.error('Failed to load NDA data');
-          navigate('/requests');
-        })
-        .finally(() => setIsLoading(false));
-    }
+    if (!ndaId) return;
+
+    setIsLoading(true);
+    getNDA(ndaId)
+      .then((nda) => {
+        setCloneSource(null);
+        setDraftId(ndaId);
+        setDraftStatus(nda.status === 'CREATED' ? 'CREATED' : 'OTHER');
+        setHasTouchedPosition(true);
+        setHasTouchedNdaType(true);
+        setFormData({
+          companyName: nda.companyName,
+          companyCity: nda.companyCity || '',
+          companyState: nda.companyState || '',
+          stateOfIncorporation: nda.stateOfIncorporation || '',
+          agencyGroupId: nda.agencyGroup.id,
+          subagencyId: nda.subagency?.id || '',
+          agencyOfficeName: nda.agencyOfficeName || '',
+          ndaType: nda.ndaType || 'MUTUAL',
+          abbreviatedName: nda.abbreviatedName,
+          authorizedPurpose: nda.authorizedPurpose,
+          effectiveDate: nda.effectiveDate || '',
+          usMaxPosition: nda.usMaxPosition,
+          isNonUsMax: nda.isNonUsMax,
+          opportunityPocId: nda.opportunityPoc?.id || '',
+          opportunityPocName: nda.opportunityPoc
+            ? `${nda.opportunityPoc.firstName} ${nda.opportunityPoc.lastName}`
+            : '',
+          contractsPocId: nda.contractsPoc?.id || '',
+          contractsPocName: nda.contractsPoc
+            ? `${nda.contractsPoc.firstName} ${nda.contractsPoc.lastName}`
+            : '',
+          contractsPocEmail: nda.contractsPoc?.email || '',
+          contractsPocPhone: '',
+          contractsPocFax: '',
+          relationshipPocId: nda.relationshipPoc.id,
+          relationshipPocName: `${nda.relationshipPoc.firstName} ${nda.relationshipPoc.lastName}`,
+          relationshipPocEmail: nda.relationshipPoc.email || '',
+          relationshipPocPhone: '',
+          relationshipPocFax: '',
+          contactsPocId: nda.contactsPoc?.id || '',
+          contactsPocName: nda.contactsPoc
+            ? `${nda.contactsPoc.firstName} ${nda.contactsPoc.lastName}`
+            : '',
+          systemInput: '',
+          confirmed: false,
+        });
+      })
+      .catch((err) => {
+        console.error('Failed to load NDA:', err);
+        toast.error('Failed to load NDA data');
+        navigate('/requests');
+      })
+      .finally(() => setIsLoading(false));
   }, [ndaId, navigate]);
+
+  // Load NDA to clone if cloneFromId is provided
+  useEffect(() => {
+    if (!cloneFromId || ndaId) return;
+
+    setIsLoading(true);
+    getNDA(cloneFromId)
+      .then((nda) => {
+        setCloneSource({ id: nda.id, displayId: Number(nda.displayId), companyName: nda.companyName });
+        setDraftId(null);
+        setDraftStatus(null);
+        setHasTouchedPosition(true);
+        setHasTouchedNdaType(true);
+        setFormData({
+          companyName: nda.companyName,
+          companyCity: nda.companyCity || '',
+          companyState: nda.companyState || '',
+          stateOfIncorporation: nda.stateOfIncorporation || '',
+          agencyGroupId: nda.agencyGroup.id,
+          subagencyId: nda.subagency?.id || '',
+          agencyOfficeName: nda.agencyOfficeName || '',
+          ndaType: nda.ndaType || 'MUTUAL',
+          abbreviatedName: nda.abbreviatedName,
+          authorizedPurpose: nda.authorizedPurpose,
+          effectiveDate: nda.effectiveDate || '',
+          usMaxPosition: nda.usMaxPosition,
+          isNonUsMax: nda.isNonUsMax,
+          opportunityPocId: nda.opportunityPoc?.id || '',
+          opportunityPocName: nda.opportunityPoc
+            ? `${nda.opportunityPoc.firstName} ${nda.opportunityPoc.lastName}`
+            : '',
+          contractsPocId: nda.contractsPoc?.id || '',
+          contractsPocName: nda.contractsPoc
+            ? `${nda.contractsPoc.firstName} ${nda.contractsPoc.lastName}`
+            : '',
+          contractsPocEmail: nda.contractsPoc?.email || '',
+          contractsPocPhone: '',
+          contractsPocFax: '',
+          relationshipPocId: nda.relationshipPoc.id,
+          relationshipPocName: `${nda.relationshipPoc.firstName} ${nda.relationshipPoc.lastName}`,
+          relationshipPocEmail: nda.relationshipPoc.email || '',
+          relationshipPocPhone: '',
+          relationshipPocFax: '',
+          contactsPocId: nda.contactsPoc?.id || '',
+          contactsPocName: nda.contactsPoc
+            ? `${nda.contactsPoc.firstName} ${nda.contactsPoc.lastName}`
+            : '',
+          systemInput: '',
+          confirmed: false,
+        });
+      })
+      .catch((err) => {
+        console.error('Failed to load NDA for clone:', err);
+        toast.error('Failed to load NDA for cloning');
+        navigate('/requests');
+      })
+      .finally(() => setIsLoading(false));
+  }, [cloneFromId, ndaId, navigate]);
 
   // Load agency groups on mount
   useEffect(() => {
@@ -161,17 +273,54 @@ export function RequestWizard() {
     }
   }, [formData.agencyGroupId]);
 
+  // Load agency suggestions when agency changes
+  useEffect(() => {
+    if (!formData.agencyGroupId) {
+      setAgencySuggestions(null);
+      return;
+    }
+
+    getAgencySuggestions(formData.agencyGroupId)
+      .then((response) => {
+        const suggestions = response.suggestions;
+        setAgencySuggestions(suggestions);
+
+        if (suggestions.typicalPosition && !hasTouchedPosition) {
+          setFormData((prev) => ({ ...prev, usMaxPosition: suggestions.typicalPosition! }));
+        }
+        if (suggestions.typicalNdaType && !hasTouchedNdaType) {
+          setFormData((prev) => ({ ...prev, ndaType: suggestions.typicalNdaType! }));
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to load agency suggestions:', err);
+        setAgencySuggestions(null);
+      });
+  }, [formData.agencyGroupId, hasTouchedPosition, hasTouchedNdaType]);
+
+  const handleCompanyFocus = useCallback(async () => {
+    setShowCompanyDropdown(true);
+    if (recentCompanies.length > 0) return;
+
+    try {
+      const response = await getCompanySuggestions();
+      setRecentCompanies(response.companies);
+    } catch (err) {
+      console.error('Failed to load company suggestions:', err);
+    }
+  }, [recentCompanies.length]);
+
   // Debounced company search
   const handleCompanySearch = useCallback(
     async (query: string) => {
       if (query.length < 2) {
-        setCompanySuggestions([]);
+        setCompanySearchResults([]);
         return;
       }
 
       try {
         const response = await searchCompanies(query);
-        setCompanySuggestions(response.companies.map((c) => c.name));
+        setCompanySearchResults(response.companies);
       } catch (err) {
         console.error('Failed to search companies:', err);
       }
@@ -182,6 +331,8 @@ export function RequestWizard() {
   // Load company defaults when company is selected
   const handleCompanySelect = useCallback(async (companyName: string) => {
     setFormData((prev) => ({ ...prev, companyName }));
+    setShowCompanyDropdown(false);
+    setTouchedFields((prev) => ({ ...prev, companyName: true }));
 
     try {
       const response = await getCompanyDefaults(companyName);
@@ -208,16 +359,54 @@ export function RequestWizard() {
     }
   }, []);
 
+  const companySuggestionItems = useMemo(() => {
+    const items: Array<{ name: string; count?: number; source: 'recent' | 'agency' | 'search' }> = [];
+    const seen = new Set<string>();
+    const addItem = (name: string, source: 'recent' | 'agency' | 'search', count?: number) => {
+      const trimmed = name.trim();
+      if (!trimmed) return;
+      const key = trimmed.toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      items.push({ name: trimmed, count, source });
+    };
+
+    const hasQuery = formData.companyName.trim().length >= 2;
+
+    if (recentCompanies.length) {
+      for (const company of recentCompanies) {
+        addItem(company.companyName, 'recent', company.count);
+      }
+    }
+
+    if (agencySuggestions?.commonCompanies?.length) {
+      for (const company of agencySuggestions.commonCompanies) {
+        addItem(company.companyName, 'agency', company.count);
+      }
+    }
+
+    if (hasQuery && companySearchResults.length) {
+      for (const company of companySearchResults) {
+        addItem(company.name, 'search', company.count);
+      }
+    }
+
+    return items;
+  }, [formData.companyName, recentCompanies, agencySuggestions, companySearchResults]);
+
   // Debounced contact search
   const handleContactSearch = useCallback(
-    async (query: string) => {
-      if (query.length < 2) {
+    async (query: string, field: 'relationship' | 'contracts' | 'opportunity' | 'contacts') => {
+      setActivePocField(field);
+      const minChars = field === 'opportunity' ? 3 : 2;
+      if (query.length < minChars) {
         setContactSuggestions([]);
         return;
       }
 
       try {
-        const response = await searchContacts(query, 'all');
+        const searchType = field === 'opportunity' ? 'internal' : field === 'contacts' ? 'all' : 'external';
+        const response = await searchContacts(query, searchType);
         setContactSuggestions(response.contacts);
       } catch (err) {
         console.error('Failed to search contacts:', err);
@@ -225,20 +414,69 @@ export function RequestWizard() {
     },
     []
   );
+
+  const relationshipPocNameValid = formData.relationshipPocName.trim().length > 0;
+  const relationshipPocEmailValid = EMAIL_PATTERN.test(formData.relationshipPocEmail);
+  const relationshipPocComplete =
+    Boolean(formData.relationshipPocId) || (relationshipPocNameValid && relationshipPocEmailValid);
+
+  const authorizedPurposeCount = formData.authorizedPurpose.length;
+
+  const requiredErrors = useMemo(() => {
+    const errors: Record<string, string> = {};
+
+    if ((touchedFields.abbreviatedName || showErrors) && !formData.abbreviatedName.trim()) {
+      errors.abbreviatedName = 'Abbreviated name is required';
+    }
+    if ((touchedFields.authorizedPurpose || showErrors) && !formData.authorizedPurpose.trim()) {
+      errors.authorizedPurpose = 'Authorized purpose is required';
+    } else if (authorizedPurposeCount > 255) {
+      errors.authorizedPurpose = 'Authorized purpose must be 255 characters or less';
+    }
+    if ((touchedFields.usMaxPosition || showErrors) && !formData.usMaxPosition) {
+      errors.usMaxPosition = 'USMax position is required';
+    }
+    if ((touchedFields.companyName || showErrors) && !formData.companyName.trim()) {
+      errors.companyName = 'Company name is required';
+    }
+    if ((touchedFields.agencyGroupId || showErrors) && !formData.agencyGroupId) {
+      errors.agencyGroupId = 'Agency group is required';
+    }
+    if ((touchedFields.relationshipPoc || showErrors) && !relationshipPocComplete) {
+      errors.relationshipPoc = 'Relationship POC is required';
+    }
+
+    return errors;
+  }, [
+    touchedFields,
+    showErrors,
+    formData.abbreviatedName,
+    formData.authorizedPurpose,
+    formData.usMaxPosition,
+    formData.companyName,
+    formData.agencyGroupId,
+    relationshipPocComplete,
+    authorizedPurposeCount,
+  ]);
+
+  const markTouched = (field: string) => {
+    setTouchedFields((prev) => ({ ...prev, [field]: true }));
+  };
   
   const canProceed = () => {
     if (currentStep === 1) {
       return (
-        formData.abbreviatedName &&
-        formData.authorizedPurpose &&
-        formData.usMaxPosition
+        formData.abbreviatedName.trim().length > 0 &&
+        formData.authorizedPurpose.trim().length > 0 &&
+        authorizedPurposeCount <= 255 &&
+        Boolean(formData.usMaxPosition)
       );
     }
     if (currentStep === 2) {
       return (
-        formData.companyName &&
-        formData.agencyGroupId &&
-        formData.relationshipPocId
+        formData.companyName.trim().length > 0 &&
+        Boolean(formData.agencyGroupId) &&
+        relationshipPocComplete
       );
     }
     if (currentStep === 3) {
@@ -247,7 +485,104 @@ export function RequestWizard() {
     return false;
   };
 
+  const canCreateDraft = () => {
+    return (
+      formData.abbreviatedName.trim().length > 0 &&
+      formData.authorizedPurpose.trim().length > 0 &&
+      authorizedPurposeCount <= 255 &&
+      formData.companyName.trim().length > 0 &&
+      Boolean(formData.agencyGroupId) &&
+      relationshipPocComplete
+    );
+  };
+
+  const buildPayload = (relationshipPocId: string, contractsPocId?: string, contactsPocId?: string) => ({
+    companyName: formData.companyName.trim(),
+    agencyGroupId: formData.agencyGroupId,
+    subagencyId: formData.subagencyId || undefined,
+    agencyOfficeName: formData.agencyOfficeName || undefined,
+    ndaType: formData.ndaType,
+    abbreviatedName: formData.abbreviatedName.trim(),
+    authorizedPurpose: formData.authorizedPurpose.trim(),
+    effectiveDate: formData.effectiveDate || undefined,
+    usMaxPosition: formData.usMaxPosition as UsMaxPosition,
+    isNonUsMax: formData.isNonUsMax,
+    opportunityPocId: formData.opportunityPocId || undefined,
+    contractsPocId: contractsPocId || undefined,
+    relationshipPocId,
+    contactsPocId: contactsPocId || undefined,
+    companyCity: formData.companyCity || undefined,
+    companyState: formData.companyState || undefined,
+    stateOfIncorporation: formData.stateOfIncorporation || undefined,
+  });
+
+  const buildDraftPayload = (relationshipPocId?: string | null, contractsPocId?: string | null) => ({
+    companyName: formData.companyName,
+    companyCity: formData.companyCity || undefined,
+    companyState: formData.companyState || undefined,
+    stateOfIncorporation: formData.stateOfIncorporation || undefined,
+    agencyGroupId: formData.agencyGroupId || undefined,
+    subagencyId: formData.subagencyId || undefined,
+    agencyOfficeName: formData.agencyOfficeName || undefined,
+    ndaType: formData.ndaType || undefined,
+    abbreviatedName: formData.abbreviatedName,
+    authorizedPurpose: formData.authorizedPurpose,
+    effectiveDate: formData.effectiveDate || undefined,
+    usMaxPosition: formData.usMaxPosition || undefined,
+    isNonUsMax: formData.isNonUsMax,
+    contractsPocId: contractsPocId ?? undefined,
+    relationshipPocId: relationshipPocId ?? undefined,
+    contactsPocId: formData.contactsPocId || undefined,
+  });
+
+  const resolveRelationshipPocId = async (allowCreate: boolean): Promise<string | null> => {
+    if (formData.relationshipPocId) return formData.relationshipPocId;
+    if (!allowCreate || !relationshipPocEmailValid) return null;
+
+    const [firstName, ...lastNameParts] = formData.relationshipPocName.trim().split(' ');
+    const created = await createExternalContact({
+      email: formData.relationshipPocEmail,
+      firstName: firstName || undefined,
+      lastName: lastNameParts.join(' ') || undefined,
+      phone: formData.relationshipPocPhone || undefined,
+      fax: formData.relationshipPocFax || undefined,
+    });
+    setFormData((prev) => ({
+      ...prev,
+      relationshipPocId: created.id,
+      relationshipPocName: `${created.firstName} ${created.lastName}`.trim(),
+      relationshipPocEmail: created.email,
+    }));
+    return created.id;
+  };
+
+  const resolveContractsPocId = async (allowCreate: boolean): Promise<string | null> => {
+    if (formData.contractsPocId) return formData.contractsPocId;
+    if (!allowCreate || !formData.contractsPocEmail) return null;
+
+    if (!EMAIL_PATTERN.test(formData.contractsPocEmail)) {
+      return null;
+    }
+
+    const [firstName, ...lastNameParts] = formData.contractsPocName.trim().split(' ');
+    const created = await createExternalContact({
+      email: formData.contractsPocEmail,
+      firstName: firstName || undefined,
+      lastName: lastNameParts.join(' ') || undefined,
+      phone: formData.contractsPocPhone || undefined,
+      fax: formData.contractsPocFax || undefined,
+    });
+    setFormData((prev) => ({
+      ...prev,
+      contractsPocId: created.id,
+      contractsPocName: `${created.firstName} ${created.lastName}`.trim(),
+      contractsPocEmail: created.email,
+    }));
+    return created.id;
+  };
+
   const handleSubmit = async () => {
+    setShowErrors(true);
     if (!canProceed()) {
       toast.error('Please fill in all required fields');
       return;
@@ -256,29 +591,64 @@ export function RequestWizard() {
     setIsSubmitting(true);
 
     try {
-      const payload: CreateNdaData | UpdateNdaData = {
-        companyName: formData.companyName,
-        agencyGroupId: formData.agencyGroupId,
-        subagencyId: formData.subagencyId || undefined,
-        agencyOfficeName: formData.agencyOfficeName || undefined,
-        abbreviatedName: formData.abbreviatedName,
-        authorizedPurpose: formData.authorizedPurpose,
-        effectiveDate: formData.effectiveDate || undefined,
-        usMaxPosition: formData.usMaxPosition as UsMaxPosition,
-        isNonUsMax: formData.isNonUsMax,
-        opportunityPocId: formData.opportunityPocId || undefined,
-        contractsPocId: formData.contractsPocId || undefined,
-        relationshipPocId: formData.relationshipPocId,
-        companyCity: formData.companyCity || undefined,
-        companyState: formData.companyState || undefined,
-        stateOfIncorporation: formData.stateOfIncorporation || undefined,
-      };
+      if (formData.relationshipPocPhone && !PHONE_PATTERN.test(formData.relationshipPocPhone)) {
+        setPocErrors((prev) => ({ ...prev, relationshipPhone: 'Use format (XXX) XXX-XXXX' }));
+        toast.error('Relationship POC phone format is invalid');
+        setIsSubmitting(false);
+        return;
+      }
+
+      if (formData.relationshipPocEmail && !EMAIL_PATTERN.test(formData.relationshipPocEmail)) {
+        setPocErrors((prev) => ({ ...prev, relationshipEmail: 'Valid email is required' }));
+        toast.error('Relationship POC email format is invalid');
+        setIsSubmitting(false);
+        return;
+      }
+
+      if (formData.contractsPocEmail && !EMAIL_PATTERN.test(formData.contractsPocEmail)) {
+        setPocErrors((prev) => ({ ...prev, contractsEmail: 'Valid email is required' }));
+        toast.error('Contracts POC email format is invalid');
+        setIsSubmitting(false);
+        return;
+      }
+
+      if (formData.contractsPocPhone && !PHONE_PATTERN.test(formData.contractsPocPhone)) {
+        setPocErrors((prev) => ({ ...prev, contractsPhone: 'Use format (XXX) XXX-XXXX' }));
+        toast.error('Contracts POC phone format is invalid');
+        setIsSubmitting(false);
+        return;
+      }
+
+      const relationshipPocId = await resolveRelationshipPocId(true);
+      if (!relationshipPocId) {
+        setPocErrors((prev) => ({ ...prev, relationshipEmail: 'Valid email is required' }));
+        toast.error('Relationship POC email is required');
+        setIsSubmitting(false);
+        return;
+      }
+
+      const contractsPocId = await resolveContractsPocId(true);
+
+      const payload = buildPayload(
+        relationshipPocId,
+        contractsPocId || undefined,
+        formData.contactsPocId || undefined
+      );
 
       if (ndaId) {
         // Update existing NDA
-        const response = await updateNDA(ndaId, payload as UpdateNdaData);
+        await updateNDA(ndaId, payload as UpdateNdaData);
         toast.success('NDA updated successfully!');
-        navigate(`/requests/${ndaId}`);
+        navigate(`/nda/${ndaId}`);
+      } else if (cloneSource) {
+        const response = await cloneNDA(cloneSource.id, payload as Partial<CreateNdaData>);
+        toast.success('NDA cloned successfully!');
+        const newNdaId = (response.nda as any)?.id;
+        if (newNdaId) {
+          navigate(`/nda/${newNdaId}`);
+        } else {
+          navigate('/requests');
+        }
       } else {
         // Create new NDA
         const response = await createNDA(payload as CreateNdaData);
@@ -286,7 +656,7 @@ export function RequestWizard() {
         // Extract NDA ID from response
         const newNdaId = (response.nda as any)?.id;
         if (newNdaId) {
-          navigate(`/requests/${newNdaId}`);
+          navigate(`/nda/${newNdaId}`);
         } else {
           navigate('/requests');
         }
@@ -298,6 +668,167 @@ export function RequestWizard() {
       setIsSubmitting(false);
     }
   };
+
+  const handleSaveDraft = async () => {
+    if (!canCreateDraft()) {
+      setShowErrors(true);
+      toast.error('Fill required fields before saving a draft');
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const relationshipPocId = await resolveRelationshipPocId(true);
+      if (!relationshipPocId) {
+        setPocErrors((prev) => ({ ...prev, relationshipEmail: 'Valid email is required' }));
+        toast.error('Relationship POC email is required');
+        setIsSubmitting(false);
+        return;
+      }
+
+      const contractsPocId = await resolveContractsPocId(true);
+      const payload = buildPayload(
+        relationshipPocId,
+        contractsPocId || undefined,
+        formData.contactsPocId || undefined
+      );
+
+      if (draftId && draftStatus === 'CREATED') {
+        await updateDraft(draftId, payload as UpdateNdaData);
+        lastSavedAtRef.current = Date.now();
+        toast.success('Draft saved ✓');
+        navigate(`/nda/${draftId}`);
+        return;
+      }
+
+      const response = await createNDA(payload as CreateNdaData);
+      const newNdaId = (response.nda as any)?.id;
+      if (newNdaId) {
+        setDraftId(newNdaId);
+        setDraftStatus('CREATED');
+        lastSavedAtRef.current = Date.now();
+        toast.success('Draft saved ✓');
+        navigate(`/nda/${newNdaId}`);
+      } else {
+        navigate('/requests');
+      }
+    } catch (error: any) {
+      console.error('Failed to save draft:', error);
+      toast.error(error.message || 'Failed to save draft');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const attemptAutoSave = useCallback(
+    async (isRetry = false) => {
+      if (autoSaveInFlightRef.current || isSubmitting || isLoading) return;
+      if (cloneSource && !draftId) return;
+      if (draftStatus && draftStatus !== 'CREATED') return;
+
+      const lastChangeAt = lastChangeAtRef.current;
+      if (!lastChangeAt) return;
+      if (lastSavedAtRef.current && lastSavedAtRef.current >= lastChangeAt) return;
+
+      autoSaveInFlightRef.current = true;
+      setIsAutoSaving(true);
+
+      try {
+        let currentDraftId = draftId;
+
+        if (!currentDraftId) {
+          if (!canCreateDraft()) {
+            return;
+          }
+
+          const relationshipId = await resolveRelationshipPocId(true);
+          if (!relationshipId) {
+            return;
+          }
+
+          const contractsId = await resolveContractsPocId(true);
+          const payload = buildPayload(
+            relationshipId,
+            contractsId || undefined,
+            formData.contactsPocId || undefined
+          );
+          const response = await createNDA(payload as CreateNdaData);
+          currentDraftId = (response.nda as any)?.id || null;
+          if (currentDraftId) {
+            setDraftId(currentDraftId);
+            setDraftStatus('CREATED');
+          }
+        } else {
+          const payload = buildDraftPayload(formData.relationshipPocId || undefined, formData.contractsPocId || undefined);
+          await updateDraft(currentDraftId, payload as UpdateNdaData);
+        }
+
+        lastSavedAtRef.current = Date.now();
+        if (autoSaveRetryRef.current) {
+          clearTimeout(autoSaveRetryRef.current);
+          autoSaveRetryRef.current = null;
+        }
+        toast.success('Draft saved ✓');
+      } catch (error) {
+        console.error('Auto-save failed:', error);
+        if (autoSaveRetryRef.current) return;
+        autoSaveRetryRef.current = setTimeout(async () => {
+          autoSaveRetryRef.current = null;
+          try {
+            await attemptAutoSave(true);
+          } catch {
+            // handled in attemptAutoSave
+          }
+        }, 5000);
+
+        if (isRetry) {
+          toast.error('Auto-save failed - check connection');
+        }
+      } finally {
+        autoSaveInFlightRef.current = false;
+        setIsAutoSaving(false);
+      }
+    },
+    [
+      isSubmitting,
+      isLoading,
+      draftId,
+      draftStatus,
+      cloneSource,
+      formData,
+      canCreateDraft,
+      resolveRelationshipPocId,
+      resolveContractsPocId,
+      buildPayload,
+      buildDraftPayload,
+    ]
+  );
+
+  useEffect(() => {
+    if (isLoading) return;
+
+    if (!hasInitializedRef.current) {
+      hasInitializedRef.current = true;
+      return;
+    }
+
+    lastChangeAtRef.current = Date.now();
+
+    if (autoSaveTimeoutRef.current) {
+      clearTimeout(autoSaveTimeoutRef.current);
+    }
+
+    autoSaveTimeoutRef.current = setTimeout(() => {
+      attemptAutoSave();
+    }, 30000);
+
+    return () => {
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
+      }
+    };
+  }, [formData, isLoading, attemptAutoSave]);
   
   if (isLoading) {
     return (
@@ -328,6 +859,11 @@ export function RequestWizard() {
         <p className="text-[var(--color-text-secondary)]">
           {ndaId ? 'Update the NDA information and save changes' : 'Complete the following steps to create your NDA'}
         </p>
+        {cloneSource && (
+          <div className="mt-4 p-3 bg-[var(--color-primary-light)] border border-[var(--color-border)] rounded-lg text-sm">
+            Cloned from NDA #{cloneSource.displayId} ({cloneSource.companyName})
+          </div>
+        )}
       </div>
       
       {/* Mobile-friendly stepper with horizontal scroll */}
@@ -348,6 +884,8 @@ export function RequestWizard() {
                   placeholder="e.g., TechCorp Integration"
                   value={formData.abbreviatedName}
                   onChange={(e) => setFormData({ ...formData, abbreviatedName: e.target.value })}
+                  onBlur={() => markTouched('abbreviatedName')}
+                  error={requiredErrors.abbreviatedName}
                   helperText="Short name for this NDA"
                 />
 
@@ -355,9 +893,54 @@ export function RequestWizard() {
                   label="Authorized purpose *"
                   placeholder="Describe the authorized purpose of this NDA and the project context"
                   rows={4}
+                  maxLength={255}
                   value={formData.authorizedPurpose}
                   onChange={(e) => setFormData({ ...formData, authorizedPurpose: e.target.value })}
+                  onBlur={() => markTouched('authorizedPurpose')}
+                  error={requiredErrors.authorizedPurpose}
+                  helperText={`${authorizedPurposeCount}/255`}
                 />
+
+                <div>
+                  <label className="block text-sm mb-3 text-[var(--color-text-primary)]">
+                    NDA type
+                  </label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {ndaTypes.map((typeOption) => {
+                      const isSuggested = agencySuggestions?.typicalNdaType === typeOption.value;
+                      return (
+                        <button
+                          key={typeOption.value}
+                          onClick={() => {
+                            setHasTouchedNdaType(true);
+                            markTouched('ndaType');
+                            setFormData({ ...formData, ndaType: typeOption.value });
+                          }}
+                          className={`p-3 border-2 rounded-lg text-left transition-all ${
+                            formData.ndaType === typeOption.value
+                              ? 'border-[var(--color-primary)] bg-[var(--color-primary-light)]'
+                              : 'border-[var(--color-border)] hover:border-[var(--color-border-hover)]'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <p className="text-sm font-medium">{typeOption.label}</p>
+                            {isSuggested && (
+                              <Badge variant="info">Suggested</Badge>
+                            )}
+                          </div>
+                          <p className="text-xs text-[var(--color-text-secondary)] mt-1">
+                            {typeOption.description}
+                          </p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {agencySuggestions?.typicalNdaType && (
+                    <p className="text-xs text-[var(--color-text-secondary)] mt-2">
+                      Suggested NDA type based on this agency: {ndaTypes.find((t) => t.value === agencySuggestions.typicalNdaType)?.label}
+                    </p>
+                  )}
+                </div>
 
                 <div>
                   <label className="block text-sm mb-3 text-[var(--color-text-primary)]">
@@ -367,7 +950,11 @@ export function RequestWizard() {
                     {(['PRIME', 'SUB', 'TEAMING', 'OTHER'] as UsMaxPosition[]).map((position) => (
                       <button
                         key={position}
-                        onClick={() => setFormData({ ...formData, usMaxPosition: position })}
+                        onClick={() => {
+                          setHasTouchedPosition(true);
+                          markTouched('usMaxPosition');
+                          setFormData({ ...formData, usMaxPosition: position });
+                        }}
                         className={`p-3 border-2 rounded-lg text-center transition-all ${
                           formData.usMaxPosition === position
                             ? 'border-[var(--color-primary)] bg-[var(--color-primary-light)]'
@@ -378,6 +965,14 @@ export function RequestWizard() {
                       </button>
                     ))}
                   </div>
+                  {requiredErrors.usMaxPosition && (
+                    <p className="mt-2 text-xs text-[var(--color-danger)]">{requiredErrors.usMaxPosition}</p>
+                  )}
+                  {agencySuggestions?.typicalPosition && (
+                    <p className="mt-2 text-xs text-[var(--color-text-secondary)]">
+                      Suggested position based on this agency: {agencySuggestions.typicalPosition}
+                    </p>
+                  )}
                 </div>
 
                 <label className="flex items-center gap-2 cursor-pointer">
@@ -413,25 +1008,34 @@ export function RequestWizard() {
                     onChange={(e) => {
                       setFormData({ ...formData, companyName: e.target.value });
                       handleCompanySearch(e.target.value);
+                      setShowCompanyDropdown(true);
                     }}
+                    onFocus={handleCompanyFocus}
                     onBlur={() => {
-                      if (formData.companyName && companySuggestions.includes(formData.companyName)) {
-                        handleCompanySelect(formData.companyName);
-                      }
+                      markTouched('companyName');
+                      setTimeout(() => setShowCompanyDropdown(false), 150);
                     }}
+                    error={requiredErrors.companyName}
                   />
-                  {companySuggestions.length > 0 && (
+                  {showCompanyDropdown && companySuggestionItems.length > 0 && (
                     <div className="absolute z-10 w-full mt-1 bg-white border border-[var(--color-border)] rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                      {companySuggestions.map((company) => (
+                      {companySuggestionItems.map((company) => (
                         <button
-                          key={company}
+                          key={`${company.source}-${company.name}`}
                           onClick={() => {
-                            handleCompanySelect(company);
-                            setCompanySuggestions([]);
+                            handleCompanySelect(company.name);
+                            setCompanySearchResults([]);
                           }}
                           className="w-full px-4 py-2 text-left hover:bg-gray-50 transition-colors"
                         >
-                          {company}
+                          <div className="flex items-center justify-between">
+                            <span>{company.name}</span>
+                            <span className="text-xs text-[var(--color-text-secondary)]">
+                              {company.source === 'recent' && 'Recent'}
+                              {company.source === 'agency' && 'Agency'}
+                              {company.source === 'search' && 'Match'}
+                            </span>
+                          </div>
                         </button>
                       ))}
                     </div>
@@ -464,8 +1068,11 @@ export function RequestWizard() {
                     label="Agency group *"
                     value={formData.agencyGroupId}
                     onChange={(e) => {
+                      markTouched('agencyGroupId');
                       setFormData({ ...formData, agencyGroupId: e.target.value, subagencyId: '' });
                     }}
+                    onBlur={() => markTouched('agencyGroupId')}
+                    error={requiredErrors.agencyGroupId}
                   >
                     <option value="">Select agency...</option>
                     {agencyGroups.map((ag) => (
@@ -497,6 +1104,18 @@ export function RequestWizard() {
                   onChange={(e) => setFormData({ ...formData, agencyOfficeName: e.target.value })}
                 />
 
+                {agencySuggestions && (
+                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-[var(--color-text-secondary)]">
+                    <p className="font-medium text-[var(--color-text-primary)] mb-1">Agency suggestions</p>
+                    {agencySuggestions.defaultTemplateName && (
+                      <p>Suggested template: {agencySuggestions.defaultTemplateName}</p>
+                    )}
+                    {agencySuggestions.commonCompanies?.length > 0 && (
+                      <p>Common companies: {agencySuggestions.commonCompanies.map((c) => c.companyName).join(', ')}</p>
+                    )}
+                  </div>
+                )}
+
                 <div className="border-t border-[var(--color-border)] pt-6">
                   <h3 className="mb-4">Points of contact</h3>
 
@@ -508,11 +1127,13 @@ export function RequestWizard() {
                         value={formData.relationshipPocName}
                         onChange={(e) => {
                           setFormData({ ...formData, relationshipPocName: e.target.value, relationshipPocId: '' });
-                          handleContactSearch(e.target.value);
+                          handleContactSearch(e.target.value, 'relationship');
                         }}
+                        onBlur={() => markTouched('relationshipPoc')}
+                        error={requiredErrors.relationshipPoc}
                         helperText="Required: Primary relationship point of contact"
                       />
-                      {contactSuggestions.length > 0 && !formData.relationshipPocId && (
+                      {activePocField === 'relationship' && contactSuggestions.length > 0 && !formData.relationshipPocId && (
                         <div className="absolute z-10 w-full mt-1 bg-white border border-[var(--color-border)] rounded-lg shadow-lg max-h-48 overflow-y-auto">
                           {contactSuggestions.map((contact) => (
                             <button
@@ -522,7 +1143,10 @@ export function RequestWizard() {
                                   ...formData,
                                   relationshipPocId: contact.id,
                                   relationshipPocName: `${contact.firstName} ${contact.lastName}`,
+                                  relationshipPocEmail: contact.email || '',
                                 });
+                                markTouched('relationshipPoc');
+                                setPocErrors((prev) => ({ ...prev, relationshipEmail: '' }));
                                 setContactSuggestions([]);
                               }}
                               className="w-full px-4 py-2 text-left hover:bg-gray-50 transition-colors"
@@ -535,6 +1159,53 @@ export function RequestWizard() {
                           ))}
                         </div>
                       )}
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <Input
+                        label="Relationship POC Email *"
+                        placeholder="name@example.com"
+                        value={formData.relationshipPocEmail}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setFormData({ ...formData, relationshipPocEmail: value });
+                          setPocErrors((prev) => ({
+                            ...prev,
+                            relationshipEmail: value && !EMAIL_PATTERN.test(value) ? 'Please enter a valid email address' : '',
+                          }));
+                        }}
+                        error={pocErrors.relationshipEmail || (requiredErrors.relationshipPoc && !formData.relationshipPocId ? 'Email is required' : '')}
+                      />
+                      <Input
+                        label="Relationship POC Phone"
+                        placeholder="(XXX) XXX-XXXX"
+                        value={formData.relationshipPocPhone}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setFormData({ ...formData, relationshipPocPhone: value });
+                          setPocErrors((prev) => ({
+                            ...prev,
+                            relationshipPhone: value && !PHONE_PATTERN.test(value) ? 'Use format (XXX) XXX-XXXX' : '',
+                          }));
+                        }}
+                        helperText="Format: (XXX) XXX-XXXX"
+                        error={pocErrors.relationshipPhone}
+                      />
+                      <Input
+                        label="Relationship POC Fax"
+                        placeholder="(XXX) XXX-XXXX"
+                        value={formData.relationshipPocFax}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setFormData({ ...formData, relationshipPocFax: value });
+                          setPocErrors((prev) => ({
+                            ...prev,
+                            relationshipFax: value && !PHONE_PATTERN.test(value) ? 'Use format (XXX) XXX-XXXX' : '',
+                          }));
+                        }}
+                        helperText="Format: (XXX) XXX-XXXX"
+                        error={pocErrors.relationshipFax}
+                      />
                     </div>
 
                     <div className="relative">
@@ -544,10 +1215,10 @@ export function RequestWizard() {
                         value={formData.contractsPocName}
                         onChange={(e) => {
                           setFormData({ ...formData, contractsPocName: e.target.value, contractsPocId: '' });
-                          handleContactSearch(e.target.value);
+                          handleContactSearch(e.target.value, 'contracts');
                         }}
                       />
-                      {contactSuggestions.length > 0 && !formData.contractsPocId && formData.contractsPocName && (
+                      {activePocField === 'contracts' && contactSuggestions.length > 0 && !formData.contractsPocId && formData.contractsPocName && (
                         <div className="absolute z-10 w-full mt-1 bg-white border border-[var(--color-border)] rounded-lg shadow-lg max-h-48 overflow-y-auto">
                           {contactSuggestions.map((contact) => (
                             <button
@@ -557,6 +1228,90 @@ export function RequestWizard() {
                                   ...formData,
                                   contractsPocId: contact.id,
                                   contractsPocName: `${contact.firstName} ${contact.lastName}`,
+                                  contractsPocEmail: contact.email || '',
+                                });
+                                setPocErrors((prev) => ({ ...prev, contractsEmail: '' }));
+                                setContactSuggestions([]);
+                              }}
+                              className="w-full px-4 py-2 text-left hover:bg-gray-50 transition-colors"
+                            >
+                              <div className="font-medium">
+                                {contact.firstName} {contact.lastName}
+                              </div>
+                              <div className="text-xs text-[var(--color-text-secondary)]">{contact.email}</div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <Input
+                        label="Contracts POC Email"
+                        placeholder="name@example.com"
+                        value={formData.contractsPocEmail}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setFormData({ ...formData, contractsPocEmail: value });
+                          setPocErrors((prev) => ({
+                            ...prev,
+                            contractsEmail: value && !EMAIL_PATTERN.test(value) ? 'Please enter a valid email address' : '',
+                          }));
+                        }}
+                        error={pocErrors.contractsEmail}
+                      />
+                      <Input
+                        label="Contracts POC Phone"
+                        placeholder="(XXX) XXX-XXXX"
+                        value={formData.contractsPocPhone}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setFormData({ ...formData, contractsPocPhone: value });
+                          setPocErrors((prev) => ({
+                            ...prev,
+                            contractsPhone: value && !PHONE_PATTERN.test(value) ? 'Use format (XXX) XXX-XXXX' : '',
+                          }));
+                        }}
+                        helperText="Format: (XXX) XXX-XXXX"
+                        error={pocErrors.contractsPhone}
+                      />
+                      <Input
+                        label="Contracts POC Fax"
+                        placeholder="(XXX) XXX-XXXX"
+                        value={formData.contractsPocFax}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setFormData({ ...formData, contractsPocFax: value });
+                          setPocErrors((prev) => ({
+                            ...prev,
+                            contractsFax: value && !PHONE_PATTERN.test(value) ? 'Use format (XXX) XXX-XXXX' : '',
+                          }));
+                        }}
+                        helperText="Format: (XXX) XXX-XXXX"
+                        error={pocErrors.contractsFax}
+                      />
+                    </div>
+
+                    <div className="relative">
+                      <Input
+                        label="Contacts POC"
+                        placeholder="Search for contact (optional)..."
+                        value={formData.contactsPocName}
+                        onChange={(e) => {
+                          setFormData({ ...formData, contactsPocName: e.target.value, contactsPocId: '' });
+                          handleContactSearch(e.target.value, 'contacts');
+                        }}
+                      />
+                      {activePocField === 'contacts' && contactSuggestions.length > 0 && !formData.contactsPocId && formData.contactsPocName && (
+                        <div className="absolute z-10 w-full mt-1 bg-white border border-[var(--color-border)] rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                          {contactSuggestions.map((contact) => (
+                            <button
+                              key={contact.id}
+                              onClick={() => {
+                                setFormData({
+                                  ...formData,
+                                  contactsPocId: contact.id,
+                                  contactsPocName: `${contact.firstName} ${contact.lastName}`.trim(),
                                 });
                                 setContactSuggestions([]);
                               }}
@@ -572,6 +1327,35 @@ export function RequestWizard() {
                       )}
                     </div>
 
+                    <div className="flex">
+                      <Button
+                        variant="subtle"
+                        size="sm"
+                        onClick={() => {
+                          if (!formData.contractsPocName && !formData.contractsPocEmail) {
+                            toast.error('Select or enter Contracts POC details first');
+                            return;
+                          }
+                          setFormData({
+                            ...formData,
+                            relationshipPocId: formData.contractsPocId,
+                            relationshipPocName: formData.contractsPocName,
+                            relationshipPocEmail: formData.contractsPocEmail,
+                            relationshipPocPhone: formData.contractsPocPhone,
+                            relationshipPocFax: formData.contractsPocFax,
+                          });
+                          setPocErrors((prev) => ({
+                            ...prev,
+                            relationshipEmail: '',
+                            relationshipPhone: '',
+                            relationshipFax: '',
+                          }));
+                        }}
+                      >
+                        Copy to Relationship POC
+                      </Button>
+                    </div>
+
                     <div className="relative">
                       <Input
                         label="Opportunity POC"
@@ -579,10 +1363,10 @@ export function RequestWizard() {
                         value={formData.opportunityPocName}
                         onChange={(e) => {
                           setFormData({ ...formData, opportunityPocName: e.target.value, opportunityPocId: '' });
-                          handleContactSearch(e.target.value);
+                          handleContactSearch(e.target.value, 'opportunity');
                         }}
                       />
-                      {contactSuggestions.length > 0 && !formData.opportunityPocId && formData.opportunityPocName && (
+                      {activePocField === 'opportunity' && contactSuggestions.length > 0 && !formData.opportunityPocId && formData.opportunityPocName && (
                         <div className="absolute z-10 w-full mt-1 bg-white border border-[var(--color-border)] rounded-lg shadow-lg max-h-48 overflow-y-auto">
                           {contactSuggestions.map((contact) => (
                             <button
@@ -636,6 +1420,10 @@ export function RequestWizard() {
                         </dd>
                       </div>
                       <div>
+                        <dt className="text-[var(--color-text-secondary)] mb-1">NDA type</dt>
+                        <dd>{ndaTypes.find((t) => t.value === formData.ndaType)?.label || formData.ndaType}</dd>
+                      </div>
+                      <div>
                         <dt className="text-[var(--color-text-secondary)] mb-1">Company</dt>
                         <dd>{formData.companyName || '-'}</dd>
                       </div>
@@ -675,6 +1463,12 @@ export function RequestWizard() {
                         <div>
                           <dt className="text-[var(--color-text-secondary)] mb-1">Contracts POC</dt>
                           <dd>{formData.contractsPocName}</dd>
+                        </div>
+                      )}
+                      {formData.contactsPocName && (
+                        <div>
+                          <dt className="text-[var(--color-text-secondary)] mb-1">Contacts POC</dt>
+                          <dd>{formData.contactsPocName}</dd>
                         </div>
                       )}
                       {formData.opportunityPocName && (
@@ -724,9 +1518,21 @@ export function RequestWizard() {
                     Back
                   </Button>
                 )}
+                {isAutoSaving && (
+                  <span className="ml-3 text-xs text-[var(--color-text-secondary)]">Auto-saving…</span>
+                )}
               </div>
 
               <div className="flex gap-2">
+                {!ndaId && (
+                  <Button
+                    variant="outline"
+                    onClick={handleSaveDraft}
+                    disabled={isSubmitting || !canCreateDraft()}
+                  >
+                    Save as Draft
+                  </Button>
+                )}
                 <Button variant="secondary" onClick={() => navigate('/requests')} disabled={isSubmitting}>
                   Cancel
                 </Button>
@@ -745,7 +1551,7 @@ export function RequestWizard() {
                     disabled={!canProceed() || isSubmitting}
                     onClick={handleSubmit}
                   >
-                    {isSubmitting ? 'Saving...' : ndaId ? 'Save changes' : 'Create NDA'}
+                    {isSubmitting ? 'Saving...' : ndaId ? 'Save changes' : cloneSource ? 'Create cloned NDA' : 'Create NDA'}
                   </Button>
                 )}
               </div>

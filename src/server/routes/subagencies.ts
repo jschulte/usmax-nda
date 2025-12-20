@@ -17,6 +17,7 @@ import { authenticateJWT } from '../middleware/authenticateJWT.js';
 import { attachUserContext } from '../middleware/attachUserContext.js';
 import { requireAnyPermission, requirePermission } from '../middleware/checkPermissions.js';
 import { PERMISSIONS } from '../constants/permissions.js';
+import { ROLE_NAMES } from '../types/auth.js';
 import {
   listSubagenciesInGroup,
   getSubagency,
@@ -27,6 +28,10 @@ import {
 } from '../services/subagencyService.js';
 
 const router: RouterType = Router();
+
+function isAdmin(req: Request): boolean {
+  return req.userContext?.roles.includes(ROLE_NAMES.ADMIN) ?? false;
+}
 
 // Apply authentication to all routes
 router.use(authenticateJWT);
@@ -46,6 +51,20 @@ router.get(
     const { groupId } = req.params;
 
     try {
+      if (!isAdmin(req)) {
+        const hasGroupAccess = req.userContext?.authorizedAgencyGroups.includes(groupId) ?? false;
+        const allowedSubagencies = req.userContext?.authorizedSubagencies ?? [];
+
+        if (!hasGroupAccess && allowedSubagencies.length === 0) {
+          return res.json({ subagencies: [] });
+        }
+
+        if (!hasGroupAccess) {
+          const subagencies = await listSubagenciesInGroup(groupId, allowedSubagencies);
+          return res.json({ subagencies });
+        }
+      }
+
       const subagencies = await listSubagenciesInGroup(groupId);
       return res.json({ subagencies });
     } catch (error) {
@@ -79,6 +98,18 @@ router.get(
           error: 'Subagency not found',
           code: 'NOT_FOUND',
         });
+      }
+
+      if (!isAdmin(req)) {
+        const hasGroupAccess = req.userContext?.authorizedAgencyGroups.includes(subagency.agencyGroupId) ?? false;
+        const hasDirectAccess = req.userContext?.authorizedSubagencies.includes(subagency.id) ?? false;
+
+        if (!hasGroupAccess && !hasDirectAccess) {
+          return res.status(404).json({
+            error: 'Subagency not found',
+            code: 'NOT_FOUND',
+          });
+        }
       }
 
       return res.json({ subagency });
@@ -289,8 +320,8 @@ router.delete('/subagencies/:id', requirePermission(PERMISSIONS.ADMIN_MANAGE_AGE
         });
       }
       if (error.code === 'HAS_NDAS') {
-        return res.status(409).json({
-          error: error.message,
+        return res.status(400).json({
+          error: 'Cannot delete subagency with existing NDAs',
           code: 'HAS_NDAS',
           ndaCount: error.details?.ndaCount,
         });

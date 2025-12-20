@@ -22,7 +22,7 @@
  * - POST   /api/ndas                    - Create new NDA
  * - POST   /api/ndas/:id/clone          - Clone an existing NDA
  * - PATCH  /api/ndas/:id/draft          - Update draft (auto-save)
- * - POST   /api/ndas/:id/generate-document - Generate DOCX document
+ * - POST   /api/ndas/:id/generate-document - Generate RTF document
  * - GET    /api/ndas/:id/documents      - List documents for an NDA
  * - GET    /api/ndas/documents/:documentId/download - Get download URL
  * - PUT    /api/ndas/:id                - Update NDA
@@ -53,6 +53,7 @@ import {
   updateDraft,
   getIncompleteFields,
   getFilterPresets,
+  getFilterSuggestions,
   NdaServiceError,
   NdaStatus,
 } from '../services/ndaService.js';
@@ -72,6 +73,7 @@ import {
   listNdaDocuments,
   DocumentGenerationError,
 } from '../services/documentGenerationService.js';
+import { reportError } from '../services/errorReportingService.js';
 import { getDownloadUrl } from '../services/s3Service.js';
 import {
   getEmailPreview,
@@ -98,6 +100,11 @@ import {
   createBulkDownload,
   DocumentServiceError,
 } from '../services/documentService.js';
+import {
+  autoSubscribePocs,
+  notifyStakeholders,
+  NotificationEvent,
+} from '../services/notificationService.js';
 import { documentUpload } from '../middleware/fileUpload.js';
 
 const router = Router();
@@ -276,6 +283,7 @@ router.get(
  * - companyState: Filter by company state (partial match)
  * - stateOfIncorporation: Filter by state of incorporation (partial match)
  * - agencyOfficeName: Filter by agency office name (partial match)
+ * - ndaType: Filter by NDA type
  * - isNonUsMax: Filter by non-USMax flag
  * - createdDateFrom: Filter by creation date >=
  * - createdDateTo: Filter by creation date <=
@@ -319,6 +327,7 @@ router.get(
         companyState: req.query.companyState as string | undefined,
         stateOfIncorporation: req.query.stateOfIncorporation as string | undefined,
         agencyOfficeName: req.query.agencyOfficeName as string | undefined,
+        ndaType: req.query.ndaType as NdaType | undefined,
         isNonUsMax: req.query.isNonUsMax === undefined ? undefined : req.query.isNonUsMax === 'true',
         createdDateFrom: req.query.createdDateFrom as string | undefined,
         createdDateTo: req.query.createdDateTo as string | undefined,
@@ -442,6 +451,68 @@ router.get(
       console.error('[NDAs] Error searching companies:', error);
       res.status(500).json({
         error: 'Failed to search companies',
+        code: 'INTERNAL_ERROR',
+      });
+    }
+  }
+);
+
+/**
+ * GET /api/ndas/filter-suggestions
+ * Get distinct values for list filter typeahead
+ *
+ * Query params:
+ * - field: companyCity | companyState | stateOfIncorporation | agencyOfficeName
+ * - q: Search query (min 2 chars)
+ * - limit: Max results (default: 10)
+ *
+ * Requires: nda:view permission (via any NDA permission)
+ */
+router.get(
+  '/filter-suggestions',
+  requireAnyPermission([
+    PERMISSIONS.NDA_VIEW,
+    PERMISSIONS.NDA_CREATE,
+    PERMISSIONS.NDA_UPDATE,
+    PERMISSIONS.NDA_DELETE,
+  ]),
+  async (req, res) => {
+    try {
+      const field = req.query.field as
+        | 'companyCity'
+        | 'companyState'
+        | 'stateOfIncorporation'
+        | 'agencyOfficeName';
+      const query = req.query.q as string;
+      const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 10;
+
+      const allowedFields = new Set([
+        'companyCity',
+        'companyState',
+        'stateOfIncorporation',
+        'agencyOfficeName',
+      ]);
+
+      if (!field || !allowedFields.has(field)) {
+        return res.status(400).json({
+          error: 'Invalid field for filter suggestions',
+          code: 'VALIDATION_ERROR',
+        });
+      }
+
+      if (!query || query.trim().length < 2) {
+        return res.status(400).json({
+          error: 'Search query must be at least 2 characters',
+          code: 'VALIDATION_ERROR',
+        });
+      }
+
+      const values = await getFilterSuggestions(field, query, req.userContext!, limit);
+      res.json({ values });
+    } catch (error) {
+      console.error('[NDAs] Error getting filter suggestions:', error);
+      res.status(500).json({
+        error: 'Failed to get filter suggestions',
         code: 'INTERNAL_ERROR',
       });
     }
@@ -643,6 +714,7 @@ router.post('/', requirePermission(PERMISSIONS.NDA_CREATE), async (req, res) => 
       agencyGroupId,
       subagencyId,
       agencyOfficeName,
+      ndaType,
       abbreviatedName,
       authorizedPurpose,
       effectiveDate,
@@ -651,6 +723,7 @@ router.post('/', requirePermission(PERMISSIONS.NDA_CREATE), async (req, res) => 
       opportunityPocId,
       contractsPocId,
       relationshipPocId,
+      contactsPocId,
     } = req.body;
 
     const nda = await createNda(
@@ -662,6 +735,7 @@ router.post('/', requirePermission(PERMISSIONS.NDA_CREATE), async (req, res) => 
         agencyGroupId,
         subagencyId,
         agencyOfficeName,
+        ndaType,
         abbreviatedName,
         authorizedPurpose,
         effectiveDate,
@@ -670,6 +744,7 @@ router.post('/', requirePermission(PERMISSIONS.NDA_CREATE), async (req, res) => 
         opportunityPocId,
         contractsPocId,
         relationshipPocId,
+        contactsPocId,
       },
       req.userContext!,
       {
@@ -677,6 +752,26 @@ router.post('/', requirePermission(PERMISSIONS.NDA_CREATE), async (req, res) => 
         userAgent: req.get('User-Agent'),
       }
     );
+
+    try {
+      await autoSubscribePocs(nda.id);
+      await notifyStakeholders(
+        {
+          ndaId: nda.id,
+          displayId: nda.displayId,
+          companyName: nda.companyName,
+          event: NotificationEvent.NDA_CREATED,
+          changedBy: {
+            id: req.userContext!.contactId,
+            name: req.userContext!.name ?? req.userContext!.email,
+          },
+          timestamp: new Date(),
+        },
+        req.userContext!
+      );
+    } catch (notifyError) {
+      console.error('[NDAs] Failed to notify stakeholders on creation:', notifyError);
+    }
 
     res.status(201).json({
       message: 'NDA created successfully',
@@ -747,6 +842,7 @@ router.put('/:id', requirePermission(PERMISSIONS.NDA_UPDATE), async (req, res) =
       agencyGroupId,
       subagencyId,
       agencyOfficeName,
+      ndaType,
       abbreviatedName,
       authorizedPurpose,
       effectiveDate,
@@ -754,6 +850,7 @@ router.put('/:id', requirePermission(PERMISSIONS.NDA_UPDATE), async (req, res) =
       isNonUsMax,
       contractsPocId,
       relationshipPocId,
+      contactsPocId,
     } = req.body;
 
     const nda = await updateNda(
@@ -766,6 +863,7 @@ router.put('/:id', requirePermission(PERMISSIONS.NDA_UPDATE), async (req, res) =
         agencyGroupId,
         subagencyId,
         agencyOfficeName,
+        ndaType,
         abbreviatedName,
         authorizedPurpose,
         effectiveDate,
@@ -773,6 +871,7 @@ router.put('/:id', requirePermission(PERMISSIONS.NDA_UPDATE), async (req, res) =
         isNonUsMax,
         contractsPocId,
         relationshipPocId,
+        contactsPocId,
       },
       req.userContext!,
       {
@@ -851,6 +950,39 @@ router.patch('/:id/status', requirePermission(PERMISSIONS.NDA_MARK_STATUS), asyn
       ipAddress: req.ip,
       userAgent: req.get('User-Agent'),
     });
+
+    try {
+      const previousStatus =
+        nda.statusHistory && nda.statusHistory.length > 1
+          ? nda.statusHistory[nda.statusHistory.length - 2].status
+          : undefined;
+      const newStatus = nda.status as string;
+      const event =
+        newStatus === 'EMAILED'
+          ? NotificationEvent.NDA_EMAILED
+          : newStatus === 'FULLY_EXECUTED'
+            ? NotificationEvent.FULLY_EXECUTED
+            : NotificationEvent.STATUS_CHANGED;
+
+      await notifyStakeholders(
+        {
+          ndaId: nda.id,
+          displayId: nda.displayId,
+          companyName: nda.companyName,
+          event,
+          changedBy: {
+            id: req.userContext!.contactId,
+            name: req.userContext!.name ?? req.userContext!.email,
+          },
+          timestamp: new Date(),
+          previousValue: previousStatus,
+          newValue: newStatus,
+        },
+        req.userContext!
+      );
+    } catch (notifyError) {
+      console.error('[NDAs] Failed to notify stakeholders on status change:', notifyError);
+    }
 
     res.json({
       message: 'NDA status updated successfully',
@@ -962,11 +1094,13 @@ router.post('/:id/clone', requirePermission(PERMISSIONS.NDA_CREATE), async (req,
       agencyGroupId,
       subagencyId,
       agencyOfficeName,
+      ndaType,
       usMaxPosition,
       isNonUsMax,
       opportunityPocId,
       contractsPocId,
       relationshipPocId,
+      contactsPocId,
     } = req.body;
 
     const clonedNda = await cloneNda(
@@ -982,11 +1116,13 @@ router.post('/:id/clone', requirePermission(PERMISSIONS.NDA_CREATE), async (req,
         agencyGroupId,
         subagencyId,
         agencyOfficeName,
+        ndaType,
         usMaxPosition,
         isNonUsMax,
         opportunityPocId,
         contractsPocId,
         relationshipPocId,
+        contactsPocId,
       },
       req.userContext!,
       {
@@ -1037,7 +1173,7 @@ router.post('/:id/clone', requirePermission(PERMISSIONS.NDA_CREATE), async (req,
 
 /**
  * POST /api/ndas/:id/generate-document
- * Generate a DOCX document for an NDA
+ * Generate an RTF document for an NDA
  * Story 3.5: RTF Document Generation
  *
  * Requires: nda:create or nda:update permission
@@ -1052,8 +1188,9 @@ router.post(
   requireAnyPermission([PERMISSIONS.NDA_CREATE, PERMISSIONS.NDA_UPDATE]),
   async (req, res) => {
     try {
+      const { templateId } = req.body || {};
       const result = await generateDocument(
-        { ndaId: req.params.id },
+        { ndaId: req.params.id, templateId },
         req.userContext!,
         {
           ipAddress: req.ip,
@@ -1067,6 +1204,12 @@ router.post(
       });
     } catch (error) {
       if (error instanceof DocumentGenerationError) {
+        reportError(error, {
+          ndaId: req.params.id,
+          code: error.code,
+          templateId: req.body?.templateId,
+          userId: req.userContext?.id,
+        });
         const statusCode =
           error.code === 'NDA_NOT_FOUND'
             ? 404
@@ -1080,6 +1223,11 @@ router.post(
         });
       }
 
+      reportError(error, {
+        ndaId: req.params.id,
+        templateId: req.body?.templateId,
+        userId: req.userContext?.id,
+      });
       console.error('[NDAs] Error generating document:', error);
       res.status(500).json({
         error: 'Document generation failed, please try again',
@@ -1481,11 +1629,17 @@ router.get(
   requirePermission(PERMISSIONS.NDA_SEND_EMAIL),
   async (req, res) => {
     try {
-      const preview = await getEmailPreview(req.params.id, req.userContext!);
+      const templateId = req.query.templateId as string | undefined;
+      const preview = await getEmailPreview(req.params.id, req.userContext!, templateId);
       res.json({ preview });
     } catch (error) {
       if (error instanceof EmailServiceError) {
-        const statusCode = error.code === 'NDA_NOT_FOUND' ? 404 : 500;
+        const statusCode =
+          error.code === 'NDA_NOT_FOUND'
+            ? 404
+            : error.code === 'TEMPLATE_NOT_FOUND'
+              ? 404
+              : 500;
         return res.status(statusCode).json({
           error: error.message,
           code: error.code,
@@ -1524,7 +1678,7 @@ router.post(
   requirePermission(PERMISSIONS.NDA_SEND_EMAIL),
   async (req, res) => {
     try {
-      const { subject, toRecipients, ccRecipients, bccRecipients, body } = req.body;
+      const { subject, toRecipients, ccRecipients, bccRecipients, body, templateId } = req.body;
 
       // Validate required fields
       if (!subject || !toRecipients || toRecipients.length === 0 || !body) {
@@ -1542,6 +1696,7 @@ router.post(
           ccRecipients: ccRecipients || [],
           bccRecipients: bccRecipients || [],
           body,
+          templateId,
         },
         req.userContext!
       );
@@ -1560,6 +1715,10 @@ router.post(
               ? 400
             : error.code === 'NO_RECIPIENTS'
               ? 400
+            : error.code === 'NO_ATTACHMENT'
+              ? 400
+              : error.code === 'TEMPLATE_NOT_FOUND'
+                ? 404
               : 500;
 
         return res.status(statusCode).json({

@@ -1,6 +1,6 @@
 # Story 3.14: POC Management & Validation
 
-Status: done
+Status: in-progress
 
 ## Story
 
@@ -58,6 +58,14 @@ so that **emails reach the right people and data is accurate**.
   - [ ] 4.1: Test internal user lookup
   - [ ] 4.2: Test POC validation rules
   - [ ] 4.3: Test copy POC functionality
+
+### Review Follow-ups (AI)
+- [x] [AI-Review][HIGH] Opportunity POC lookup is not restricted to internal users and triggers at 2 characters, not 3; UI calls `searchContacts` with `type='all'`. [src/components/screens/RequestWizard.tsx:211]
+- [x] [AI-Review][HIGH] Email signature is never included in the email body; preview generation only uses Relationship POC and does not fetch internal user signature. [src/server/services/emailService.ts:150]
+- [x] [AI-Review][HIGH] Copy POC details button/workflow is missing in the Request Wizard POC section. [src/components/screens/RequestWizard.tsx:500]
+- [x] [AI-Review][MEDIUM] Required format hints/real-time validation for email/phone/fax are not exposed in the UI; there are no external-contact input fields, only contact search. [src/components/screens/RequestWizard.tsx:503]
+- [ ] [AI-Review][MEDIUM] Contacts POC (TBD) is not represented in the NDA model or UI, so AC4 cannot be satisfied. [prisma/schema.prisma:239]
+- [ ] [AI-Review][MEDIUM] Story marked done but Tasks/Subtasks are all unchecked and no Dev Agent Record/File List exists to verify changes. [docs/sprint-artifacts/3-14-poc-management-and-validation.md:1]
 
 ## Dev Notes
 

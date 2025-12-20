@@ -340,7 +340,7 @@ export async function searchCompanies(
   query: string,
   userContext: UserContext,
   limit: number = 20
-): Promise<{ companyName: string; count: number }[]> {
+): Promise<{ name: string; count: number }[]> {
   const securityFilter = await buildSecurityFilter(userContext);
 
   const ndas = await prisma.nda.findMany({
@@ -370,7 +370,7 @@ export async function searchCompanies(
 
   // Convert to array and sort by count (most used first)
   return Array.from(companyMap.entries())
-    .map(([companyName, count]) => ({ companyName, count }))
+    .map(([companyName, count]) => ({ name: companyName, count }))
     .sort((a, b) => b.count - a.count)
     .slice(0, limit);
 }

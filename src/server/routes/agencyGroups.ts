@@ -10,16 +10,17 @@
  * - DELETE /api/agency-groups/:id - Delete agency group (if no subagencies)
  *
  * Write routes require admin:manage_agencies permission
- * List route is available to all authenticated users (needed for NDA creation)
+ * List route is available to NDA and admin roles (needed for NDA creation)
  */
 
 import { Router, type Request, type Response, type Router as RouterType } from 'express';
 import { authenticateJWT } from '../middleware/authenticateJWT.js';
 import { attachUserContext } from '../middleware/attachUserContext.js';
-import { requirePermission } from '../middleware/checkPermissions.js';
+import { requireAnyPermission, requirePermission } from '../middleware/checkPermissions.js';
 import { PERMISSIONS } from '../constants/permissions.js';
 import {
   listAgencyGroups,
+  listAgencyGroupsForUser,
   getAgencyGroup,
   createAgencyGroup,
   updateAgencyGroup,
@@ -38,20 +39,31 @@ router.use(attachUserContext);
  * List all agency groups with subagency counts
  * Task 1.4
  *
- * Available to all authenticated users
+ * Requires: nda:view, nda:create, or admin:manage_agencies permission
  */
-router.get('/', async (req: Request, res: Response) => {
-  try {
-    const groups = await listAgencyGroups();
-    return res.json({ agencyGroups: groups });
-  } catch (error) {
-    console.error('[AgencyGroups] Error listing agency groups:', error);
-    return res.status(500).json({
-      error: 'Failed to list agency groups',
-      code: 'INTERNAL_ERROR',
-    });
+router.get(
+  '/',
+  requireAnyPermission([
+    PERMISSIONS.NDA_VIEW,
+    PERMISSIONS.NDA_CREATE,
+    PERMISSIONS.ADMIN_MANAGE_AGENCIES,
+  ]),
+  async (req: Request, res: Response) => {
+    try {
+      const isAdmin = req.userContext?.permissions?.has(PERMISSIONS.ADMIN_MANAGE_AGENCIES);
+      const groups = isAdmin
+        ? await listAgencyGroups()
+        : await listAgencyGroupsForUser(req.userContext!);
+      return res.json({ agencyGroups: groups });
+    } catch (error) {
+      console.error('[AgencyGroups] Error listing agency groups:', error);
+      return res.status(500).json({
+        error: 'Failed to list agency groups',
+        code: 'INTERNAL_ERROR',
+      });
+    }
   }
-});
+);
 
 /**
  * GET /api/agency-groups/:id
@@ -112,7 +124,8 @@ router.post('/', requirePermission(PERMISSIONS.ADMIN_MANAGE_AGENCIES), async (re
 
   // Validate code format (uppercase alphanumeric with underscores)
   const codeRegex = /^[A-Z0-9_]+$/;
-  if (!codeRegex.test(code.trim())) {
+  const normalizedCode = code.trim().toUpperCase();
+  if (!codeRegex.test(normalizedCode)) {
     return res.status(400).json({
       error: 'Code must be uppercase alphanumeric with underscores only',
       code: 'INVALID_CODE_FORMAT',
@@ -123,7 +136,7 @@ router.post('/', requirePermission(PERMISSIONS.ADMIN_MANAGE_AGENCIES), async (re
     const group = await createAgencyGroup(
       {
         name: name.trim(),
-        code: code.trim().toUpperCase(),
+        code: normalizedCode,
         description: description?.trim() || undefined,
       },
       req.userContext!.contactId,

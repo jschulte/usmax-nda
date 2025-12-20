@@ -33,7 +33,7 @@ Legend:
 ## Agency Management
 | Route | Permission |
 | --- | --- |
-| GET `/api/agency-groups` | **ALL** `admin:manage_agencies` |
+| GET `/api/agency-groups` | **ANY** `nda:view`, `nda:create`, `admin:manage_agencies` |
 | GET `/api/agency-groups/:id` | **ALL** `admin:manage_agencies` |
 | POST `/api/agency-groups` | **ALL** `admin:manage_agencies` |
 | PUT `/api/agency-groups/:id` | **ALL** `admin:manage_agencies` |
@@ -106,6 +106,7 @@ Notes:
 | GET `/api/contacts/:id` | **ALL** `nda:view` |
 | GET `/api/contacts/:id/copy` | **ALL** `nda:view` |
 | GET `/api/contacts/validation/rules` | **ALL** `nda:view` |
+| GET `/api/contacts/search` | **ALL** `admin:manage_agencies` |
 
 ## Notifications
 | Route | Permission |

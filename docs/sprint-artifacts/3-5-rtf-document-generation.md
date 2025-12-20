@@ -69,6 +69,27 @@ so that **I have a formatted NDA ready to send to the partner**.
   - [ ] 5.3: Test field merging with sample templates
   - [ ] 5.4: Test error handling scenarios
 
+### Review Follow-ups (AI)
+- [x] [AI-Review][High] Document generation produces DOCX (.docx) only; AC requires RTF output and .rtf S3 key. [src/server/services/documentGenerationService.ts:161]
+- [x] [AI-Review][High] Template selection/Handlebars merge is not used; generator builds a static DOCX instead of merging a chosen template. [src/server/services/documentGenerationService.ts:297]
+- [x] [AI-Review][High] Non-USMax behavior is hardcoded (checkNonUsMaxSkipSetting always false); no system_config support. [src/server/services/documentGenerationService.ts:235]
+- [x] [AI-Review][Medium] Generation failures are only console-logged; no Sentry reporting or retry UX. [src/server/routes/ndas.ts:1068]
+
+## Dev Agent Record
+
+### File List
+- src/server/services/documentGenerationService.ts
+- src/server/routes/ndas.ts
+- src/server/services/errorReportingService.ts
+- src/client/services/documentService.ts
+- src/components/screens/NDADetail.tsx
+- src/server/services/__tests__/documentGenerationService.test.ts
+- package.json
+- package-lock.json
+
+### Change Log
+- 2025-12-20: Switched generation to RTF template merging, added template selection logic, non-USMax config check, and Sentry error reporting.
+
 ## Dev Notes
 
 ### Document Schema

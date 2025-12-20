@@ -50,7 +50,7 @@ so that **I can organize subagencies into logical groupings**.
   - [x] 1.5: Implement `PUT /api/agency-groups/:id` - Update group
   - [x] 1.6: Implement `DELETE /api/agency-groups/:id` - Delete (with subagency check)
   - [x] 1.7: Add unique name validation
-  - [x] 1.8: Protect all routes with `requirePermission(ADMIN_MANAGE_AGENCIES)`
+  - [x] 1.8: Protect write routes with `requirePermission(ADMIN_MANAGE_AGENCIES)`; allow list for NDA roles
 
 - [x] **Task 2: Agency Groups Service** (AC: 1, 2, 3, 4)
   - [x] 2.1: Create `src/server/services/agencyGroupService.ts`
@@ -72,6 +72,19 @@ so that **I can organize subagencies into logical groupings**.
   - [x] 4.3: Test delete prevention with subagencies
   - [x] 4.4: Test unique name validation
 
+### Review Follow-ups (AI)
+- [x] [AI-Review][CRITICAL] GET `/api/agency-groups` was unprotected; now requires NDA/admin permissions and docs updated to match. [src/server/routes/agencyGroups.ts:43]
+- [x] [AI-Review][CRITICAL] Task 3.5 “form validation for unique names” is not implemented for agency groups (UI only checks required fields). Add client-side duplicate validation or update task. [src/components/screens/admin/AgencyGroups.tsx:162]
+- [x] [AI-Review][CRITICAL] Task 4.2 claims API integration tests for all endpoints; added DB-backed integration tests with real middleware + Prisma. [src/server/routes/__tests__/agencyGroups.integration.test.ts:1]
+- [x] [AI-Review][HIGH] Story File List claimed changes for files not present in current git status; reconciled file list to match working tree. [docs/sprint-artifacts/2-1-agency-groups-crud.md:131]
+- [x] [AI-Review][HIGH] Case-insensitive duplicate names could trigger the wrong error code/message (code vs name), violating AC5. Normalize comparisons for duplicate detection. [src/server/services/agencyGroupService.ts:118]
+- [x] [AI-Review][HIGH] NDA-user list integration test expected results without any access grants; now grants agency access in test setup. [src/server/routes/__tests__/agencyGroups.integration.test.ts:28]
+- [x] [AI-Review][MEDIUM] Unique name checks are case-sensitive; “DoD” and “dod” can coexist. Normalize names or enforce case-insensitive uniqueness (e.g., CITEXT/lowercase index). [src/server/services/agencyGroupService.ts:118]
+- [x] [AI-Review][MEDIUM] Non-admin list returned full subagency counts, leaking inaccessible hierarchy size. Now scope counts to accessible subagencies unless group-level grant exists. [src/server/services/agencyGroupService.ts:70]
+- [x] [AI-Review][MEDIUM] Create route rejected lowercase codes while update normalized; now normalize codes before validation for consistency. [src/server/routes/agencyGroups.ts:64]
+- [x] [AI-Review][MEDIUM] Create/update responses lacked `subagencyCount` expected by client types; now include counts in service responses. [src/server/services/agencyGroupService.ts:148]
+- [x] [AI-Review][LOW] Story dev notes show response shape `{ groups: [...] }` but route returns `{ agencyGroups: [...] }`; align docs or API. [docs/sprint-artifacts/2-1-agency-groups-crud.md:80]
+
 ## Dev Notes
 
 ### API Endpoints
@@ -80,7 +93,7 @@ so that **I can organize subagencies into logical groupings**.
 // GET /api/agency-groups
 // Returns array of agency groups with subagency counts
 {
-  groups: [
+  agencyGroups: [
     { id, name, code, description, subagencyCount, createdAt, updatedAt }
   ]
 }
@@ -125,22 +138,32 @@ N/A
 - Forms foundation for subagencies CRUD
 - Added full Agency Groups admin UI with create/edit/delete flows
 - Made agency group audit logging transactional and mapped unique-constraint errors
-- Allowed agency group listing for authenticated NDA creation flows
+- Enforced permission checks on list route for NDA/admin roles (no longer open to any auth user)
+- Added client-side duplicate name validation + case-insensitive server checks
+- Added DB-backed integration tests + global test DB setup for route coverage
 - Surfaced subagency blocking counts in delete UX and error messaging
+- Scoped subagency counts for non-admin list results and normalized create-code validation
+- Ensured create/update responses include subagencyCount for client consistency
+- Fixed NDA-user list integration test to grant agency-group access
 
 ### File List
 Files to create:
 - `src/server/routes/agencyGroups.ts`
 - `src/server/services/agencyGroupService.ts`
-- `src/client/pages/admin/AgencyGroupsPage.tsx`
 - `src/components/screens/admin/AgencyGroups.tsx`
 - `src/server/routes/__tests__/agencyGroups.test.ts`
+- `src/server/routes/__tests__/agencyGroups.integration.test.ts`
+- `src/test/setupEnv.ts`
+- `src/test/globalSetup.ts`
+- `src/test/dbUtils.ts`
 
 Files to modify:
 - `src/server/index.ts` - Register routes
-- `src/server/services/auditService.ts` - Add new audit actions
-- `src/server/routes/agencyGroups.ts` - Allow authenticated list access for NDA creation
+- `src/server/routes/agencyGroups.ts` - Enforce permission checks on list route (NDA/admin roles)
 - `src/server/services/agencyGroupService.ts` - Transactional audit logging + unique constraint mapping
 - `src/server/services/__tests__/agencyGroupService.test.ts` - Assert audit logging + unique constraint handling
 - `src/components/screens/Administration.tsx` - Add Agency Groups entry
 - `src/App.tsx` - Add Agency Groups route
+- `src/server/routes/__tests__/agencyGroups.test.ts` - Permissions middleware coverage
+- `vitest.config.ts` - Test DB setup hooks
+- `docs/permission-mapping.md` - Align agency-group list permissions

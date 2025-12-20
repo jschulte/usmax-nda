@@ -19,6 +19,12 @@ vi.mock('../../db/index.js', () => ({
     nda: {
       findUnique: vi.fn(),
     },
+    rtfTemplate: {
+      findFirst: vi.fn(),
+    },
+    systemConfig: {
+      findUnique: vi.fn(),
+    },
     document: {
       create: vi.fn(),
       findFirst: vi.fn(),
@@ -96,33 +102,41 @@ describe('documentGenerationService', () => {
     authorizedPurpose: 'Software development services',
     effectiveDate: new Date('2024-01-15'),
     usMaxPosition: 'PRIME',
+    ndaType: 'MUTUAL',
     isNonUsMax: false,
     agencyGroup: { name: 'Department of Defense' },
     subagency: { name: 'Army' },
     opportunityPoc: { firstName: 'John', lastName: 'Doe' },
     contractsPoc: { firstName: 'Jane', lastName: 'Smith' },
     relationshipPoc: { firstName: 'Bob', lastName: 'Johnson' },
+    contactsPoc: { firstName: 'Pat', lastName: 'Lee' },
     createdById: 'contact-1',
     createdAt: new Date(),
   };
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockPrisma.rtfTemplate.findFirst.mockResolvedValue({
+      id: 'template-1',
+      name: 'Default Template',
+      content: Buffer.from('Hello {{companyName}}'),
+    });
+    mockPrisma.systemConfig.findUnique.mockResolvedValue(null);
   });
 
   describe('generateDocument', () => {
     it('generates document successfully', async () => {
       vi.mocked(findNdaWithScope).mockResolvedValue(mockNda as any);
       mockUploadDocument.mockResolvedValue({
-        s3Key: 'ndas/nda-123/doc-456-NDA-001001-Test_Company_Inc.docx',
+        s3Key: 'ndas/nda-123/doc-456-NDA-001001-Test_Company_Inc.rtf',
         documentId: 'doc-456',
         bucket: 'usmax-nda-documents',
       });
       mockPrisma.document.create.mockResolvedValue({
         id: 'doc-456',
         ndaId: 'nda-123',
-        filename: 'NDA-001001-Test_Company_Inc.docx',
-        s3Key: 'ndas/nda-123/doc-456-NDA-001001-Test_Company_Inc.docx',
+        filename: 'NDA-001001-Test_Company_Inc.rtf',
+        s3Key: 'ndas/nda-123/doc-456-NDA-001001-Test_Company_Inc.rtf',
         documentType: 'GENERATED',
         uploadedById: 'contact-1',
         uploadedAt: new Date(),
@@ -143,7 +157,7 @@ describe('documentGenerationService', () => {
           ndaId: 'nda-123',
           filename: expect.stringContaining('NDA-001001'),
           content: expect.any(Buffer),
-          contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          contentType: 'application/rtf',
         })
       );
 
@@ -206,7 +220,7 @@ describe('documentGenerationService', () => {
       mockPrisma.document.create.mockResolvedValue({
         id: 'doc-789',
         ndaId: 'nda-123',
-        filename: 'test.docx',
+        filename: 'test.rtf',
         s3Key: 'test-key',
         documentType: 'GENERATED',
       });
@@ -230,7 +244,7 @@ describe('documentGenerationService', () => {
       });
       mockPrisma.document.create.mockResolvedValue({
         id: 'doc-123',
-        filename: 'test.docx',
+        filename: 'test.rtf',
         s3Key: 'test-key',
       });
 
@@ -257,7 +271,7 @@ describe('documentGenerationService', () => {
       });
       mockPrisma.document.create.mockResolvedValue({
         id: 'doc-123',
-        filename: 'test.docx',
+        filename: 'test.rtf',
         s3Key: 'test-key',
       });
 
@@ -272,8 +286,8 @@ describe('documentGenerationService', () => {
       mockPrisma.document.findFirst.mockResolvedValue({
         id: 'doc-123',
         ndaId: 'nda-123',
-        filename: 'test.docx',
-        s3Key: 'ndas/nda-123/doc-123-test.docx',
+        filename: 'test.rtf',
+        s3Key: 'ndas/nda-123/doc-123-test.rtf',
         documentType: 'GENERATED',
         uploadedAt: new Date(),
       });
@@ -282,7 +296,7 @@ describe('documentGenerationService', () => {
 
       expect(result).toBeDefined();
       expect(result?.id).toBe('doc-123');
-      expect(result?.filename).toBe('test.docx');
+      expect(result?.filename).toBe('test.rtf');
     });
 
     it('returns null when document not found', async () => {
@@ -305,7 +319,7 @@ describe('documentGenerationService', () => {
       mockPrisma.document.findFirst.mockResolvedValue({
         id: 'doc-123',
         ndaId: 'nda-123',
-        filename: 'test.docx',
+        filename: 'test.rtf',
         s3Key: 'test-key',
         documentType: 'GENERATED',
         uploadedAt: new Date(),
@@ -323,7 +337,7 @@ describe('documentGenerationService', () => {
       mockPrisma.document.findMany.mockResolvedValue([
         {
           id: 'doc-1',
-          filename: 'generated.docx',
+          filename: 'generated.rtf',
           s3Key: 'key1',
           documentType: 'GENERATED',
           uploadedAt: new Date('2024-01-15'),
@@ -342,7 +356,7 @@ describe('documentGenerationService', () => {
       const result = await listNdaDocuments('nda-123', mockUserContext);
 
       expect(result).toHaveLength(2);
-      expect(result[0].filename).toBe('generated.docx');
+      expect(result[0].filename).toBe('generated.rtf');
       expect(result[0].uploadedBy.firstName).toBe('John');
     });
 
@@ -367,7 +381,7 @@ describe('documentGenerationService', () => {
       mockPrisma.document.findMany.mockResolvedValue([
         {
           id: 'doc-1',
-          filename: 'test.docx',
+          filename: 'test.rtf',
           s3Key: 'key1',
           documentType: 'GENERATED',
           uploadedAt: new Date(),

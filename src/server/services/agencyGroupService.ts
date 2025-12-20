@@ -10,6 +10,7 @@
 
 import { prisma } from '../db/index.js';
 import { AuditAction } from './auditService.js';
+import type { UserContext } from '../types/auth.js';
 
 export interface CreateAgencyGroupInput {
   name: string;
@@ -32,6 +33,16 @@ export interface AgencyGroupWithCount {
   createdAt: Date;
   updatedAt: Date;
 }
+
+type AgencyGroupRecordWithCount = {
+  id: string;
+  name: string;
+  code: string;
+  description: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  _count: { subagencies: number };
+};
 
 type PrismaUniqueError = {
   code?: string;
@@ -72,6 +83,18 @@ function mapUniqueConstraintError(error: unknown): AgencyGroupError | null {
   return null;
 }
 
+function mapGroupWithCount(group: AgencyGroupRecordWithCount): AgencyGroupWithCount {
+  return {
+    id: group.id,
+    name: group.name,
+    code: group.code,
+    description: group.description,
+    subagencyCount: group._count.subagencies,
+    createdAt: group.createdAt,
+    updatedAt: group.updatedAt,
+  };
+}
+
 /**
  * Get all agency groups with subagency counts
  */
@@ -85,15 +108,71 @@ export async function listAgencyGroups(): Promise<AgencyGroupWithCount[]> {
     orderBy: { name: 'asc' },
   });
 
-  return groups.map((g) => ({
-    id: g.id,
-    name: g.name,
-    code: g.code,
-    description: g.description,
-    subagencyCount: g._count.subagencies,
-    createdAt: g.createdAt,
-    updatedAt: g.updatedAt,
-  }));
+  return groups.map(mapGroupWithCount);
+}
+
+/**
+ * Get agency groups scoped to a user's access
+ */
+export async function listAgencyGroupsForUser(
+  userContext: UserContext
+): Promise<AgencyGroupWithCount[]> {
+  const groupIds = new Set<string>(userContext.authorizedAgencyGroups || []);
+
+  if (userContext.authorizedSubagencies?.length) {
+    const subagencies = await prisma.subagency.findMany({
+      where: { id: { in: userContext.authorizedSubagencies } },
+      select: { agencyGroupId: true },
+    });
+
+    for (const subagency of subagencies) {
+      groupIds.add(subagency.agencyGroupId);
+    }
+  }
+
+  if (groupIds.size === 0) {
+    return [];
+  }
+
+  const groups = await prisma.agencyGroup.findMany({
+    where: { id: { in: Array.from(groupIds) } },
+    include: {
+      _count: {
+        select: { subagencies: true },
+      },
+    },
+    orderBy: { name: 'asc' },
+  });
+
+  if (!userContext.authorizedSubagencies?.length) {
+    return groups.map(mapGroupWithCount);
+  }
+
+  const fullAccessGroups = new Set<string>(userContext.authorizedAgencyGroups || []);
+  const scopedCounts = await prisma.subagency.groupBy({
+    by: ['agencyGroupId'],
+    where: {
+      id: { in: userContext.authorizedSubagencies },
+      agencyGroupId: { in: Array.from(groupIds) },
+    },
+    _count: { _all: true },
+  });
+
+  const scopedCountMap = new Map<string, number>(
+    scopedCounts.map((entry) => [entry.agencyGroupId, entry._count._all])
+  );
+
+  return groups.map((group) => {
+    const fullAccess = fullAccessGroups.has(group.id);
+    const subagencyCount = fullAccess
+      ? group._count.subagencies
+      : scopedCountMap.get(group.id) ?? 0;
+
+    return {
+      ...mapGroupWithCount(group),
+      subagencyCount,
+    };
+  });
 }
 
 /**
@@ -122,20 +201,28 @@ export async function createAgencyGroup(
 ) {
   try {
     return await prisma.$transaction(async (tx) => {
+      const normalizedName = input.name.trim().toLowerCase();
+      const normalizedCode = input.code.trim().toLowerCase();
+
       // Check for duplicate name or code
       const existing = await tx.agencyGroup.findFirst({
         where: {
-          OR: [{ name: input.name }, { code: input.code }],
+          OR: [
+            { name: { equals: input.name, mode: 'insensitive' } },
+            { code: { equals: input.code, mode: 'insensitive' } },
+          ],
         },
       });
 
       if (existing) {
-        const isNameDuplicate = existing.name === input.name;
+        const isNameDuplicate = existing.name.trim().toLowerCase() === normalizedName;
+        const isCodeDuplicate = existing.code.trim().toLowerCase() === normalizedCode;
         throw new AgencyGroupError(
           isNameDuplicate
             ? 'Agency group name must be unique'
             : 'Agency group code must be unique',
-          isNameDuplicate ? 'DUPLICATE_NAME' : 'DUPLICATE_CODE'
+          isNameDuplicate ? 'DUPLICATE_NAME' : 'DUPLICATE_CODE',
+          isCodeDuplicate && !isNameDuplicate ? { field: 'code' } : undefined
         );
       }
 
@@ -144,6 +231,9 @@ export async function createAgencyGroup(
           name: input.name,
           code: input.code,
           description: input.description,
+        },
+        include: {
+          _count: { select: { subagencies: true } },
         },
       });
 
@@ -159,7 +249,7 @@ export async function createAgencyGroup(
         },
       });
 
-      return group;
+      return mapGroupWithCount(group);
     });
   } catch (error) {
     if (error instanceof AgencyGroupError) {
@@ -192,8 +282,11 @@ export async function updateAgencyGroup(
 
       // Check for duplicate name if changing
       if (input.name && input.name !== existing.name) {
-        const duplicate = await tx.agencyGroup.findUnique({
-          where: { name: input.name },
+        const duplicate = await tx.agencyGroup.findFirst({
+          where: {
+            id: { not: id },
+            name: { equals: input.name, mode: 'insensitive' },
+          },
         });
         if (duplicate) {
           throw new AgencyGroupError('Agency group name must be unique', 'DUPLICATE_NAME');
@@ -202,8 +295,11 @@ export async function updateAgencyGroup(
 
       // Check for duplicate code if changing
       if (input.code && input.code !== existing.code) {
-        const duplicate = await tx.agencyGroup.findUnique({
-          where: { code: input.code },
+        const duplicate = await tx.agencyGroup.findFirst({
+          where: {
+            id: { not: id },
+            code: { equals: input.code, mode: 'insensitive' },
+          },
         });
         if (duplicate) {
           throw new AgencyGroupError('Agency group code must be unique', 'DUPLICATE_CODE');
@@ -216,6 +312,9 @@ export async function updateAgencyGroup(
           ...(input.name && { name: input.name }),
           ...(input.code && { code: input.code }),
           ...(input.description !== undefined && { description: input.description }),
+        },
+        include: {
+          _count: { select: { subagencies: true } },
         },
       });
 
@@ -235,7 +334,7 @@ export async function updateAgencyGroup(
         },
       });
 
-      return group;
+      return mapGroupWithCount(group);
     });
   } catch (error) {
     if (error instanceof AgencyGroupError) {

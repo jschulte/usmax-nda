@@ -45,6 +45,14 @@ so that **I can see all fields, documents, history, and take actions**.
   - [ ] 3.2: Test permission-based action availability
   - [ ] 3.3: Test row-level security (can't view unauthorized NDA)
 
+### Review Follow-ups (AI)
+- [x] [AI-Review][HIGH] Implement real email history in detail response and surface it in the UI (currently always empty and never loaded). [src/server/services/ndaService.ts:509]
+- [x] [AI-Review][HIGH] Wire permission-aware actions: use availableActions from API, disable buttons without permission, and add tooltip messaging. [src/components/screens/NDADetail.tsx:1060]
+- [x] [AI-Review][MEDIUM] Use statusHistory/statusProgression from API instead of hardcoded workflowSteps so progression reflects real history. [src/components/screens/NDADetail.tsx:524]
+- [x] [AI-Review][MEDIUM] Add missing "Edit" / explicit "Change Status" actions per AC1 (current actions are limited to review/send flows). [src/components/screens/NDADetail.tsx:1059]
+- [x] [AI-Review][MEDIUM] Stop discarding detail payload fields on the client (documents/emails/audit/statusProgression/availableActions). [src/client/services/ndaService.ts:227]
+- [x] [AI-Review][LOW] Add Dev Agent Record with File List + Change Log to enable verifiable review. [docs/sprint-artifacts/3-8-nda-detail-view.md:24]
+
 ## Dev Notes
 
 ### Detail Response
@@ -116,3 +124,20 @@ const availableActions = {
 - Story 3.1: Create NDA with Basic Form
 - Story 3.5: RTF Document Generation
 - Story 1.3: RBAC Permission System
+
+## Dev Agent Record
+
+### File List
+- src/components/screens/NDADetail.tsx
+- src/client/services/ndaService.ts
+- src/server/services/ndaService.ts
+- src/server/services/__tests__/ndaService.test.ts
+- src/App.tsx
+- docs/sprint-artifacts/3-8-nda-detail-view.md
+
+### Change Log
+- Added full detail fetch on the client and merged detail payload fields into state.
+- Implemented real email history retrieval on the server and rendered it in the detail view.
+- Wired permission-aware quick actions with tooltips and added Edit/Change Status buttons.
+- Swapped hardcoded workflow steps for API-driven status progression.
+- Added edit route for NDA detail navigation.

@@ -35,13 +35,19 @@ import {
   Plus,
   Search,
   Trash2,
+  Users,
 } from 'lucide-react';
 import { toast } from 'sonner@2.0.3';
 import * as agencyService from '../../../client/services/agencyService';
+import * as agencyAccessService from '../../../client/services/agencyAccessService';
 import { ApiError } from '../../../client/services/api';
+import { UserAutocomplete } from '../../../client/components/UserAutocomplete';
 
 type AgencyGroup = agencyService.AgencyGroup;
 type Subagency = agencyService.Subagency;
+type AgencyAccessUser = agencyAccessService.AgencyAccessUser;
+type ContactSearchResult = agencyAccessService.ContactSearchResult;
+type SubagencyAccessUser = agencyAccessService.SubagencyAccessUser;
 
 interface GroupFormState {
   name: string;
@@ -70,6 +76,8 @@ export function AgencyGroups() {
   const [showGroupDialog, setShowGroupDialog] = useState(false);
   const [showSubagencyDialog, setShowSubagencyDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showAccessDialog, setShowAccessDialog] = useState(false);
+  const [showSubagencyAccessDialog, setShowSubagencyAccessDialog] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{
     type: 'group' | 'subagency';
     groupId?: string;
@@ -82,6 +90,18 @@ export function AgencyGroups() {
   const [editingGroup, setEditingGroup] = useState<AgencyGroup | null>(null);
   const [editingSubagency, setEditingSubagency] = useState<Subagency | null>(null);
   const [activeGroupForSubagency, setActiveGroupForSubagency] = useState<AgencyGroup | null>(null);
+  const [activeGroupForAccess, setActiveGroupForAccess] = useState<AgencyGroup | null>(null);
+  const [activeSubagencyForAccess, setActiveSubagencyForAccess] = useState<Subagency | null>(null);
+
+  const [accessUsers, setAccessUsers] = useState<AgencyAccessUser[]>([]);
+  const [isAccessLoading, setIsAccessLoading] = useState(false);
+  const [isGrantingAccess, setIsGrantingAccess] = useState(false);
+  const [revokingAccessId, setRevokingAccessId] = useState<string | null>(null);
+
+  const [subagencyAccessUsers, setSubagencyAccessUsers] = useState<SubagencyAccessUser[]>([]);
+  const [isSubagencyAccessLoading, setIsSubagencyAccessLoading] = useState(false);
+  const [isGrantingSubagencyAccess, setIsGrantingSubagencyAccess] = useState(false);
+  const [revokingSubagencyAccessId, setRevokingSubagencyAccessId] = useState<string | null>(null);
 
   const [groupForm, setGroupForm] = useState<GroupFormState>({
     name: '',
@@ -162,6 +182,17 @@ export function AgencyGroups() {
   const saveGroup = async () => {
     if (!groupForm.name.trim() || !groupForm.code.trim()) {
       toast.error('Name and code are required');
+      return;
+    }
+
+    const normalizedName = groupForm.name.trim().toLowerCase();
+    const isDuplicateName = groups.some((group) => {
+      if (editingGroup && group.id === editingGroup.id) return false;
+      return group.name.trim().toLowerCase() === normalizedName;
+    });
+
+    if (isDuplicateName) {
+      toast.error('Agency group name must be unique');
       return;
     }
 
@@ -270,6 +301,98 @@ export function AgencyGroups() {
       handleApiError(error, 'Failed to save subagency');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const loadAccessUsers = async (groupId: string) => {
+    setIsAccessLoading(true);
+    try {
+      const response = await agencyAccessService.listAgencyGroupAccess(groupId);
+      setAccessUsers(response.users);
+    } catch (error) {
+      handleApiError(error, 'Failed to load access list');
+    } finally {
+      setIsAccessLoading(false);
+    }
+  };
+
+  const openManageAccess = async (group: AgencyGroup) => {
+    setActiveGroupForAccess(group);
+    setShowAccessDialog(true);
+    await loadAccessUsers(group.id);
+  };
+
+  const handleGrantAccess = async (contact: ContactSearchResult) => {
+    if (!activeGroupForAccess) return;
+    setIsGrantingAccess(true);
+    try {
+      await agencyAccessService.grantAgencyGroupAccess(activeGroupForAccess.id, contact.id);
+      await loadAccessUsers(activeGroupForAccess.id);
+      toast.success(`Access granted to ${contact.firstName ?? ''} ${contact.lastName ?? ''}`.trim());
+    } catch (error) {
+      handleApiError(error, 'Failed to grant access');
+    } finally {
+      setIsGrantingAccess(false);
+    }
+  };
+
+  const handleRevokeAccess = async (contactId: string) => {
+    if (!activeGroupForAccess) return;
+    setRevokingAccessId(contactId);
+    try {
+      await agencyAccessService.revokeAgencyGroupAccess(activeGroupForAccess.id, contactId);
+      setAccessUsers((prev) => prev.filter((user) => user.contactId !== contactId));
+      toast.success('Access revoked');
+    } catch (error) {
+      handleApiError(error, 'Failed to revoke access');
+    } finally {
+      setRevokingAccessId(null);
+    }
+  };
+
+  const loadSubagencyAccessUsers = async (subagencyId: string) => {
+    setIsSubagencyAccessLoading(true);
+    try {
+      const response = await agencyAccessService.listSubagencyAccess(subagencyId);
+      setSubagencyAccessUsers(response.users);
+    } catch (error) {
+      handleApiError(error, 'Failed to load subagency access');
+    } finally {
+      setIsSubagencyAccessLoading(false);
+    }
+  };
+
+  const openSubagencyAccess = async (subagency: Subagency) => {
+    setActiveSubagencyForAccess(subagency);
+    setShowSubagencyAccessDialog(true);
+    await loadSubagencyAccessUsers(subagency.id);
+  };
+
+  const handleGrantSubagencyAccess = async (contact: ContactSearchResult) => {
+    if (!activeSubagencyForAccess) return;
+    setIsGrantingSubagencyAccess(true);
+    try {
+      await agencyAccessService.grantSubagencyAccess(activeSubagencyForAccess.id, contact.id);
+      await loadSubagencyAccessUsers(activeSubagencyForAccess.id);
+      toast.success('Subagency access granted');
+    } catch (error) {
+      handleApiError(error, 'Failed to grant subagency access');
+    } finally {
+      setIsGrantingSubagencyAccess(false);
+    }
+  };
+
+  const handleRevokeSubagencyAccess = async (contactId: string) => {
+    if (!activeSubagencyForAccess) return;
+    setRevokingSubagencyAccessId(contactId);
+    try {
+      await agencyAccessService.revokeSubagencyAccess(activeSubagencyForAccess.id, contactId);
+      setSubagencyAccessUsers((prev) => prev.filter((user) => user.contactId !== contactId));
+      toast.success('Subagency access revoked');
+    } catch (error) {
+      handleApiError(error, 'Failed to revoke subagency access');
+    } finally {
+      setRevokingSubagencyAccessId(null);
     }
   };
 
@@ -477,6 +600,10 @@ export function AgencyGroups() {
                                 <Plus className="w-4 h-4 mr-2" />
                                 Add subagency
                               </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => void openManageAccess(group)}>
+                                <Users className="w-4 h-4 mr-2" />
+                                Manage access
+                              </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => openEditGroup(group)}>
                                 <Pencil className="w-4 h-4 mr-2" />
                                 Edit group
@@ -519,6 +646,13 @@ export function AgencyGroups() {
                                         </p>
                                       </div>
                                       <div className="flex items-center gap-2">
+                                        <Button
+                                          variant="subtle"
+                                          size="sm"
+                                          onClick={() => void openSubagencyAccess(subagency)}
+                                        >
+                                          Access
+                                        </Button>
                                         <Button
                                           variant="subtle"
                                           size="sm"
@@ -630,6 +764,161 @@ export function AgencyGroups() {
               {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save subagency'}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={showAccessDialog}
+        onOpenChange={(open) => {
+          setShowAccessDialog(open);
+          if (!open) {
+            setActiveGroupForAccess(null);
+            setAccessUsers([]);
+          }
+        }}
+      >
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              Manage Access{activeGroupForAccess ? ` - ${activeGroupForAccess.name}` : ''}
+            </DialogTitle>
+            <DialogDescription>
+              Grant or revoke group-level access to view all subagencies in this agency group.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <UserAutocomplete
+              label="Grant access to user"
+              placeholder="Type at least 3 characters"
+              disabled={isGrantingAccess || isAccessLoading || !activeGroupForAccess}
+              onSelect={handleGrantAccess}
+            />
+
+            <div>
+              <h4 className="text-sm font-medium mb-2">Users with access</h4>
+              {isAccessLoading ? (
+                <div className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)]">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading access list...
+                </div>
+              ) : accessUsers.length === 0 ? (
+                <p className="text-sm text-[var(--color-text-secondary)]">No users have access yet.</p>
+              ) : (
+                <div className="space-y-2">
+                  {accessUsers.map((user) => (
+                    <div
+                      key={user.contactId}
+                      className="flex items-center justify-between rounded-md border border-[var(--color-border)] bg-white px-4 py-3"
+                    >
+                      <div>
+                        <p className="font-medium">{user.name}</p>
+                        <p className="text-xs text-[var(--color-text-secondary)]">{user.email}</p>
+                        <p className="text-xs text-[var(--color-text-secondary)] mt-1">
+                          Granted by {user.grantedBy?.name ?? 'System'} ·{' '}
+                          {new Date(user.grantedAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleRevokeAccess(user.contactId)}
+                        disabled={revokingAccessId === user.contactId}
+                      >
+                        {revokingAccessId === user.contactId ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          'Revoke'
+                        )}
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={showSubagencyAccessDialog}
+        onOpenChange={(open) => {
+          setShowSubagencyAccessDialog(open);
+          if (!open) {
+            setActiveSubagencyForAccess(null);
+            setSubagencyAccessUsers([]);
+          }
+        }}
+      >
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              Subagency Access{activeSubagencyForAccess ? ` - ${activeSubagencyForAccess.name}` : ''}
+            </DialogTitle>
+            <DialogDescription>
+              Manage direct access for this subagency. Inherited access from the parent agency group is shown read-only.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <UserAutocomplete
+              label="Grant subagency access"
+              placeholder="Type at least 3 characters"
+              disabled={isGrantingSubagencyAccess || isSubagencyAccessLoading || !activeSubagencyForAccess}
+              onSelect={handleGrantSubagencyAccess}
+            />
+
+            <div>
+              <h4 className="text-sm font-medium mb-2">Users with access</h4>
+              {isSubagencyAccessLoading ? (
+                <div className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)]">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading access list...
+                </div>
+              ) : subagencyAccessUsers.length === 0 ? (
+                <p className="text-sm text-[var(--color-text-secondary)]">No users have access yet.</p>
+              ) : (
+                <div className="space-y-2">
+                  {subagencyAccessUsers.map((user) => {
+                    const isInherited = user.accessType === 'inherited';
+                    return (
+                      <div
+                        key={`${user.contactId}-${user.accessType}`}
+                        className="flex items-center justify-between rounded-md border border-[var(--color-border)] bg-white px-4 py-3"
+                      >
+                        <div>
+                          <p className="font-medium">{user.name}</p>
+                          <p className="text-xs text-[var(--color-text-secondary)]">{user.email}</p>
+                          {isInherited ? (
+                            <p className="text-xs text-[var(--color-text-secondary)] mt-1">
+                              Inherited from {user.inheritedFrom?.agencyGroupName ?? 'agency group'}
+                            </p>
+                          ) : (
+                            <p className="text-xs text-[var(--color-text-secondary)] mt-1">
+                              Granted by {user.grantedBy?.name ?? 'System'} ·{' '}
+                              {user.grantedAt ? new Date(user.grantedAt).toLocaleDateString() : '—'}
+                            </p>
+                          )}
+                        </div>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleRevokeSubagencyAccess(user.contactId)}
+                          disabled={isInherited || revokingSubagencyAccessId === user.contactId}
+                        >
+                          {revokingSubagencyAccessId === user.contactId ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            'Revoke'
+                          )}
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
 

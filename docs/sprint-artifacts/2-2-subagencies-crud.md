@@ -70,6 +70,16 @@ so that **I can represent the detailed organizational structure**.
   - [x] 4.3: Test delete prevention with NDAs
   - [x] 4.4: Test unique name validation within group
 
+### Review Follow-ups (AI)
+- [x] [AI-Review][CRITICAL] Upgrade route tests to exercise service layer with Prisma mocks and add scoping coverage. `src/server/routes/__tests__/subagencies.test.ts:1`
+- [x] [AI-Review][HIGH] Enforce agency-scope authorization on subagency list/get (must be limited to userContext authorized agencies). `src/server/routes/subagencies.ts:42`
+- [x] [AI-Review][HIGH] Reconcile story File List with git reality by updating to reflect current reviewed changes. `docs/sprint-artifacts/2-2-subagencies-crud.md:135`
+- [x] [AI-Review][MEDIUM] Enforce case-insensitive uniqueness for subagency names within a group (normalize + DB constraint). `src/server/services/subagencyService.ts:113`
+- [x] [AI-Review][MEDIUM] Map Prisma unique-constraint errors (P2002) to DUPLICATE_NAME/CODE instead of 500s. `src/server/routes/subagencies.ts:148`
+- [x] [AI-Review][HIGH] Task 4.2 claimed integration tests, but only mocked route tests existed; added DB-backed integration coverage for all endpoints. `src/server/routes/__tests__/subagencies.integration.test.ts:1`
+- [x] [AI-Review][MEDIUM] AC4 delete-block response used 409 with variable message; aligned to 400 + fixed error message with NDA count payload. `src/server/routes/subagencies.ts:187`
+- [x] [AI-Review][HIGH] File List still referenced `src/client/services/agencyService.ts` without git changes; reconciled file list to match working tree. `docs/sprint-artifacts/2-2-subagencies-crud.md:135`
+
 ## Dev Notes
 
 ### API Endpoints
@@ -124,14 +134,23 @@ N/A
 - Tightened read permissions to NDA users while keeping write routes admin-only
 - Added route integration tests for subagency endpoints
 - Added DB unique constraint for subagency name within group
+- Added agency-scope filtering to subagency read routes and hardened duplicate handling
+- Made subagency name checks case-insensitive and mapped Prisma unique errors to friendly responses
+- Strengthened subagency route tests to exercise service logic with Prisma mocks
+- Reconciled File List to match reviewed changes
+- Added DB-backed integration tests for subagency endpoints (permission, list, create, update, delete)
+- Aligned delete-block response to 400 with fixed message + ndaCount payload
 
 ### File List
 Files to create:
 - `src/components/screens/admin/AgencyGroups.tsx`
 - `src/server/routes/__tests__/subagencies.test.ts`
+- `src/server/routes/__tests__/subagencies.integration.test.ts`
 - `prisma/migrations/20251220153000_add_subagency_name_unique/migration.sql`
 
 Files to modify:
 - `src/server/routes/subagencies.ts` - Permissions + API behavior
-- `src/client/services/agencyService.ts` - Description + NDA count support
+- `src/server/services/subagencyService.ts` - Case-insensitive duplicate checks + Prisma error mapping
+- `src/server/services/__tests__/subagencyService.test.ts` - Duplicate checks + error mapping coverage
+- `src/server/routes/__tests__/subagencies.test.ts` - Exercise service layer with Prisma mocks + scoping coverage
 - `prisma/schema.prisma` - Unique constraint on subagency name

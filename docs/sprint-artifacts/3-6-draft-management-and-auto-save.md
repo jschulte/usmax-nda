@@ -50,6 +50,25 @@ so that **I never lose work if browser crashes or I navigate away**.
   - [ ] 3.3: Test partial data saves
   - [ ] 3.4: Test incomplete field flagging
 
+### Review Follow-ups (AI)
+- [x] [AI-Review][High] No auto-save timer or updateDraft calls in Create NDA UI; only final submit exists. [src/components/screens/RequestWizard.tsx:250]
+- [x] [AI-Review][High] No "My Drafts"/continue editing path: list view never applies drafts preset, and no /request-wizard/:id route exists. [src/components/screens/Requests.tsx:91]
+- [x] [AI-Review][Medium] NDA list response does not include incompleteFields/isDraft flags required by AC2. [src/server/services/ndaService.ts:760]
+- [x] [AI-Review][Medium] Auto-save failure retry/warning flow not implemented in UI. [src/components/screens/RequestWizard.tsx:250]
+
+## Dev Agent Record
+
+### File List
+- src/server/services/ndaService.ts
+- src/client/services/ndaService.ts
+- src/components/screens/RequestWizard.tsx
+- src/components/screens/Requests.tsx
+- src/components/layout/Sidebar.tsx
+- src/App.tsx
+
+### Change Log
+- 2025-12-20: Added auto-save + retry handling, draft list flags, and a My Drafts/continue editing flow.
+
 ## Dev Notes
 
 ### Draft Save Endpoint
