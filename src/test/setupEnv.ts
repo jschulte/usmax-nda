@@ -10,6 +10,12 @@ if (!testDatabaseUrl) {
 }
 
 process.env.DATABASE_URL = testDatabaseUrl;
+if (!process.env.SHADOW_DATABASE_URL) {
+  const shadowUrl = new URL(testDatabaseUrl);
+  const dbName = shadowUrl.pathname.replace('/', '');
+  shadowUrl.pathname = `/${dbName}_shadow`;
+  process.env.SHADOW_DATABASE_URL = shadowUrl.toString();
+}
 process.env.NODE_ENV = process.env.NODE_ENV || 'test';
 process.env.USE_MOCK_AUTH = process.env.USE_MOCK_AUTH || 'true';
 process.env.COOKIE_SECURE = process.env.COOKIE_SECURE || 'false';

@@ -213,16 +213,33 @@ describe('Access Summary Service', () => {
           firstName: 'Kelly',
           lastName: 'Davidson',
           email: 'kelly@test.com',
-          active: true,
           contactRoles: [{ role: { name: 'Admin' } }],
-          agencyGroupGrants: [{ agencyGroup: { name: 'DoD' } }],
-          subagencyGrants: [{ subagency: { name: 'NIH' } }],
+          agencyGroupGrants: [
+            {
+              grantedAt: new Date('2025-01-15'),
+              agencyGroup: {
+                name: 'DoD',
+                subagencies: [{ id: 'sub-1', name: 'Air Force' }],
+              },
+              grantedByUser: { firstName: 'Admin', lastName: 'User', email: 'admin@test.com' },
+            },
+          ],
+          subagencyGrants: [
+            {
+              grantedAt: new Date('2025-01-16'),
+              subagency: {
+                id: 'sub-2',
+                name: 'NIH',
+                agencyGroup: { id: 'group-2', name: 'Fed Civ' },
+              },
+              grantedByUser: null,
+            },
+          ],
         },
         {
           firstName: 'John',
           lastName: 'Smith',
           email: 'john@test.com',
-          active: true,
           contactRoles: [{ role: { name: 'NDA User' } }],
           agencyGroupGrants: [],
           subagencyGrants: [],
@@ -231,7 +248,6 @@ describe('Access Summary Service', () => {
           firstName: null,
           lastName: null,
           email: 'inactive@test.com',
-          active: false,
           contactRoles: [],
           agencyGroupGrants: [],
           subagencyGrants: [],
@@ -245,17 +261,20 @@ describe('Access Summary Service', () => {
       expect(result[0].userName).toBe('Kelly Davidson');
       expect(result[0].roles).toBe('Admin');
       expect(result[0].agencyGroups).toBe('DoD');
-      expect(result[0].subagencies).toBe('NIH (direct)');
-      expect(result[0].active).toBe(true);
+      expect(result[0].subagencies).toBe('NIH (direct), Air Force (via DoD)');
+      expect(result[0].grantedBy).toBe('DoD: Admin User; NIH: Unknown');
+      expect(result[0].grantedAt).toBe('DoD: 2025-01-15; NIH: 2025-01-16');
 
       expect(result[1].userName).toBe('John Smith');
       expect(result[1].roles).toBe('NDA User');
       expect(result[1].agencyGroups).toBe('None');
       expect(result[1].subagencies).toBe('None');
+      expect(result[1].grantedBy).toBe('None');
+      expect(result[1].grantedAt).toBe('None');
 
       expect(result[2].userName).toBe('inactive@test.com');
       expect(result[2].roles).toBe('None');
-      expect(result[2].active).toBe(false);
+      expect(result[2].grantedBy).toBe('None');
     });
 
     it('joins multiple roles and agencies with commas', async () => {
@@ -264,18 +283,33 @@ describe('Access Summary Service', () => {
           firstName: 'Multi',
           lastName: 'Access',
           email: 'multi@test.com',
-          active: true,
           contactRoles: [
             { role: { name: 'Admin' } },
             { role: { name: 'NDA User' } },
           ],
           agencyGroupGrants: [
-            { agencyGroup: { name: 'DoD' } },
-            { agencyGroup: { name: 'Commercial' } },
+            {
+              grantedAt: new Date('2025-02-01'),
+              agencyGroup: { name: 'DoD', subagencies: [] },
+              grantedByUser: { firstName: 'Admin', lastName: 'User', email: 'admin@test.com' },
+            },
+            {
+              grantedAt: new Date('2025-02-02'),
+              agencyGroup: { name: 'Commercial', subagencies: [] },
+              grantedByUser: null,
+            },
           ],
           subagencyGrants: [
-            { subagency: { name: 'NIH' } },
-            { subagency: { name: 'NASA' } },
+            {
+              grantedAt: new Date('2025-02-03'),
+              subagency: { id: 'sub-1', name: 'NIH', agencyGroup: { id: 'g-1', name: 'Fed Civ' } },
+              grantedByUser: null,
+            },
+            {
+              grantedAt: new Date('2025-02-04'),
+              subagency: { id: 'sub-2', name: 'NASA', agencyGroup: { id: 'g-2', name: 'Fed Civ' } },
+              grantedByUser: null,
+            },
           ],
         },
       ]);
@@ -297,15 +331,16 @@ describe('Access Summary Service', () => {
           roles: 'Admin',
           agencyGroups: 'DoD',
           subagencies: 'NIH (direct)',
-          active: true,
+          grantedBy: 'DoD: Admin User',
+          grantedAt: 'DoD: 2025-01-15',
         },
       ];
 
       const csv = convertToCSV(data);
       const lines = csv.split('\n');
 
-      expect(lines[0]).toBe('User Name,Email,Roles,Agency Groups,Subagencies (Direct),Active');
-      expect(lines[1]).toBe('Kelly Davidson,kelly@test.com,Admin,DoD,NIH (direct),true');
+      expect(lines[0]).toBe('User Name,Email,Roles,Agency Groups,Subagencies,Granted By,Granted At');
+      expect(lines[1]).toBe('Kelly Davidson,kelly@test.com,Admin,DoD,NIH (direct),DoD: Admin User,DoD: 2025-01-15');
     });
 
     it('escapes values with commas', () => {
@@ -316,7 +351,8 @@ describe('Access Summary Service', () => {
           roles: 'Admin, NDA User',
           agencyGroups: 'None',
           subagencies: 'None',
-          active: true,
+          grantedBy: 'None',
+          grantedAt: 'None',
         },
       ];
 
@@ -334,7 +370,8 @@ describe('Access Summary Service', () => {
           roles: 'None',
           agencyGroups: 'None',
           subagencies: 'None',
-          active: true,
+          grantedBy: 'None',
+          grantedAt: 'None',
         },
       ];
 
@@ -349,7 +386,7 @@ describe('Access Summary Service', () => {
       const lines = csv.split('\n');
 
       expect(lines).toHaveLength(1);
-      expect(lines[0]).toBe('User Name,Email,Roles,Agency Groups,Subagencies (Direct),Active');
+      expect(lines[0]).toBe('User Name,Email,Roles,Agency Groups,Subagencies,Granted By,Granted At');
     });
   });
 });

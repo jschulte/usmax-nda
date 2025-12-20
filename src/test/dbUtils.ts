@@ -4,6 +4,7 @@ const BASE_PERMISSIONS = [
   { code: 'nda:view', name: 'View NDA', description: 'View NDA details', category: 'nda' },
   { code: 'nda:create', name: 'Create NDA', description: 'Create new NDAs', category: 'nda' },
   { code: 'admin:manage_agencies', name: 'Manage Agencies', description: 'Manage agency groups', category: 'admin' },
+  { code: 'admin:manage_users', name: 'Manage Users', description: 'Manage user directory', category: 'admin' },
 ];
 
 const BASE_ROLES = [
@@ -66,6 +67,10 @@ export async function seedBaseAuth() {
       {
         roleId: byRole['Admin'].id,
         permissionId: byPerm['admin:manage_agencies'].id,
+      },
+      {
+        roleId: byRole['Admin'].id,
+        permissionId: byPerm['admin:manage_users'].id,
       },
       {
         roleId: byRole['NDA User'].id,

@@ -11,6 +11,7 @@
  */
 
 import { prisma } from '../db/index.js';
+import type { Prisma } from '../../generated/prisma/index.js';
 import { auditService, AuditAction } from './auditService.js';
 import { invalidateUserContext } from './userContextService.js';
 
@@ -64,6 +65,16 @@ export interface UserWithAccess {
   updatedAt: Date;
 }
 
+export interface UserSearchResult {
+  id: string;
+  firstName: string | null;
+  lastName: string | null;
+  email: string;
+  jobTitle: string | null;
+  active: boolean;
+  roles: string[];
+}
+
 // =============================================================================
 // USER OPERATIONS
 // =============================================================================
@@ -80,19 +91,20 @@ export async function listUsers(options: {
   const page = Math.max(1, options.page ?? 1);
   const limit = Math.min(100, Math.max(1, options.limit ?? 20));
   const skip = (page - 1) * limit;
+  const search = options.search?.trim();
 
   // Build where clause
-  const where: any = {};
+  const where: Prisma.ContactWhereInput = {};
 
   if (options.active !== undefined) {
     where.active = options.active;
   }
 
-  if (options.search) {
+  if (search) {
     where.OR = [
-      { firstName: { contains: options.search, mode: 'insensitive' } },
-      { lastName: { contains: options.search, mode: 'insensitive' } },
-      { email: { contains: options.search, mode: 'insensitive' } },
+      { firstName: { contains: search, mode: 'insensitive' } },
+      { lastName: { contains: search, mode: 'insensitive' } },
+      { email: { contains: search, mode: 'insensitive' } },
     ];
   }
 
@@ -157,6 +169,57 @@ export async function listUsers(options: {
       totalPages: Math.ceil(total / limit),
     },
   };
+}
+
+/**
+ * Search users for autocomplete (type-ahead)
+ */
+export async function searchUsers(options: {
+  query: string;
+  active?: boolean;
+  limit?: number;
+}): Promise<UserSearchResult[]> {
+  const query = options.query.trim();
+  if (!query || query.length < 3) {
+    return [];
+  }
+
+  const where: Prisma.ContactWhereInput = {
+    OR: [
+      { firstName: { contains: query, mode: 'insensitive' } },
+      { lastName: { contains: query, mode: 'insensitive' } },
+      { email: { contains: query, mode: 'insensitive' } },
+    ],
+  };
+
+  if (options.active !== undefined) {
+    where.active = options.active;
+  }
+
+  const users = await prisma.contact.findMany({
+    where,
+    include: {
+      contactRoles: {
+        include: {
+          role: {
+            select: { name: true },
+          },
+        },
+      },
+    },
+    orderBy: [{ firstName: 'asc' }, { lastName: 'asc' }],
+    take: Math.min(50, Math.max(1, options.limit ?? 10)),
+  });
+
+  return users.map((u) => ({
+    id: u.id,
+    firstName: u.firstName,
+    lastName: u.lastName,
+    email: u.email,
+    jobTitle: u.jobTitle,
+    active: u.active,
+    roles: u.contactRoles.map((cr) => cr.role.name),
+  }));
 }
 
 /**
@@ -255,9 +318,11 @@ export async function createUser(
   createdBy: string,
   auditContext?: { ipAddress?: string; userAgent?: string }
 ) {
+  const normalizedEmail = input.email.trim().toLowerCase();
+
   // Check for duplicate email
-  const existing = await prisma.contact.findUnique({
-    where: { email: input.email },
+  const existing = await prisma.contact.findFirst({
+    where: { email: { equals: normalizedEmail, mode: 'insensitive' } },
   });
 
   if (existing) {
@@ -268,10 +333,11 @@ export async function createUser(
     data: {
       firstName: input.firstName,
       lastName: input.lastName,
-      email: input.email,
+      email: normalizedEmail,
       workPhone: input.workPhone,
       cellPhone: input.cellPhone,
       jobTitle: input.jobTitle,
+      isInternal: true,
       active: true,
     },
   });
@@ -308,10 +374,15 @@ export async function updateUser(
     throw new UserServiceError('User not found', 'NOT_FOUND');
   }
 
+  const normalizedEmail = input.email ? input.email.trim().toLowerCase() : undefined;
+
   // Check for duplicate email if changing
-  if (input.email && input.email !== existing.email) {
-    const duplicate = await prisma.contact.findUnique({
-      where: { email: input.email },
+  if (normalizedEmail && normalizedEmail !== existing.email.toLowerCase()) {
+    const duplicate = await prisma.contact.findFirst({
+      where: {
+        email: { equals: normalizedEmail, mode: 'insensitive' },
+        id: { not: id },
+      },
     });
     if (duplicate) {
       throw new UserServiceError('Email already exists', 'DUPLICATE_EMAIL');
@@ -323,7 +394,7 @@ export async function updateUser(
     data: {
       ...(input.firstName !== undefined && { firstName: input.firstName }),
       ...(input.lastName !== undefined && { lastName: input.lastName }),
-      ...(input.email !== undefined && { email: input.email }),
+      ...(normalizedEmail !== undefined && { email: normalizedEmail }),
       ...(input.workPhone !== undefined && { workPhone: input.workPhone }),
       ...(input.cellPhone !== undefined && { cellPhone: input.cellPhone }),
       ...(input.jobTitle !== undefined && { jobTitle: input.jobTitle }),

@@ -19,6 +19,7 @@ vi.mock('../../db/index.js', () => ({
       count: vi.fn(),
       findMany: vi.fn(),
       findUnique: vi.fn(),
+      findFirst: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
     },
@@ -244,7 +245,7 @@ describe('User Service', () => {
 
   describe('createUser', () => {
     it('creates user successfully', async () => {
-      mockPrisma.contact.findUnique.mockResolvedValue(null);
+      mockPrisma.contact.findFirst.mockResolvedValue(null);
       mockPrisma.contact.create.mockResolvedValue({
         id: 'new-user',
         firstName: 'New',
@@ -280,7 +281,7 @@ describe('User Service', () => {
     });
 
     it('creates user with all optional fields', async () => {
-      mockPrisma.contact.findUnique.mockResolvedValue(null);
+      mockPrisma.contact.findFirst.mockResolvedValue(null);
       mockPrisma.contact.create.mockResolvedValue({
         id: 'new-user',
         firstName: 'New',
@@ -316,7 +317,7 @@ describe('User Service', () => {
     });
 
     it('throws error for duplicate email', async () => {
-      mockPrisma.contact.findUnique.mockResolvedValue({
+      mockPrisma.contact.findFirst.mockResolvedValue({
         id: 'existing-user',
         email: 'existing@test.com',
       });
@@ -405,6 +406,10 @@ describe('User Service', () => {
           id: 'other-user',
           email: 'taken@test.com',
         });
+      mockPrisma.contact.findFirst.mockResolvedValue({
+        id: 'other-user',
+        email: 'taken@test.com',
+      });
 
       await expect(
         updateUser('user-1', { email: 'taken@test.com' }, 'admin-1')
@@ -422,6 +427,10 @@ describe('User Service', () => {
             id: 'other-user',
             email: 'taken@test.com',
           });
+        mockPrisma.contact.findFirst.mockResolvedValue({
+          id: 'other-user',
+          email: 'taken@test.com',
+        });
         await updateUser('user-1', { email: 'taken@test.com' }, 'admin-1');
       } catch (error) {
         expect((error as UserServiceError).code).toBe('DUPLICATE_EMAIL');

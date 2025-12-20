@@ -10,11 +10,10 @@ import {
   Edit,
   Trash2,
   Shield,
-  Calendar,
   MoreVertical,
   Key,
-  Briefcase,
   Building,
+  Download,
   Loader2,
   X
 } from 'lucide-react';
@@ -51,7 +50,7 @@ import { ApiError } from '../../../client/services/api';
 // Using backend types
 type User = userService.User & {
   fullName?: string;
-  roles?: adminService.UserRole[];
+  assignedRoles?: adminService.UserRole[];
 };
 
 type Role = adminService.Role;
@@ -88,7 +87,12 @@ export function UserManagement() {
   const [savingUser, setSavingUser] = useState(false);
   const [loadingAccess, setLoadingAccess] = useState(false);
   const [loadingRoles, setLoadingRoles] = useState(false);
+  const [exportingAccess, setExportingAccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [searchResults, setSearchResults] = useState<userService.UserSearchResult[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [originalRoleIds, setOriginalRoleIds] = useState<string[]>([]);
 
   const [userForm, setUserForm] = useState({
     firstName: '',
@@ -105,11 +109,78 @@ export function UserManagement() {
     loadUsers();
   }, [pagination.page, searchQuery, filterStatus]);
 
+  useEffect(() => {
+    setPagination((prev) => (prev.page === 1 ? prev : { ...prev, page: 1 }));
+  }, [searchQuery, filterStatus]);
+
   // Load roles and agency groups on mount
   useEffect(() => {
     loadRoles();
     loadAgencyGroups();
   }, []);
+
+  useEffect(() => {
+    const query = searchQuery.trim();
+
+    if (query.length < 3) {
+      setSearchResults([]);
+      setSearchError(null);
+      return;
+    }
+
+    let active = true;
+    const timer = window.setTimeout(async () => {
+      setSearchLoading(true);
+      try {
+        const response = await userService.searchUsers(
+          query,
+          filterStatus === 'all' ? undefined : filterStatus === 'active'
+        );
+        if (!active) return;
+        setSearchResults(response.users ?? []);
+        setSearchError(null);
+      } catch (err) {
+        if (!active) return;
+        const message = err instanceof ApiError ? err.message : 'Failed to search users';
+        setSearchError(message);
+        setSearchResults([]);
+      } finally {
+        if (active) setSearchLoading(false);
+      }
+    }, 300);
+
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, [searchQuery, filterStatus]);
+
+  const formatDisplayName = (user: {
+    firstName?: string | null;
+    lastName?: string | null;
+    email: string;
+  }) => {
+    const name = [user.firstName, user.lastName].filter(Boolean).join(' ');
+    return name || user.email;
+  };
+
+  const formatDateTime = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  };
+
+  const handleNavigateToGroup = (groupId: string) => {
+    navigate('/administration/agency-groups', { state: { focusGroupId: groupId } });
+  };
+
+  const handleNavigateToSubagency = (groupId: string, subagencyId: string) => {
+    navigate('/administration/agency-groups', {
+      state: { focusGroupId: groupId, focusSubagencyId: subagencyId },
+    });
+  };
 
   const loadUsers = async () => {
     try {
@@ -125,7 +196,7 @@ export function UserManagement() {
       // Add computed fullName field
       const usersWithFullName = response.users.map(user => ({
         ...user,
-        fullName: `${user.firstName} ${user.lastName}`
+        fullName: formatDisplayName(user)
       }));
 
       setUsers(usersWithFullName);
@@ -176,19 +247,20 @@ export function UserManagement() {
 
       setUserAccessSummary(accessSummary);
 
-      // Update the viewing user with loaded roles
-      if (viewingAccessUser) {
-        setViewingAccessUser({
-          ...viewingAccessUser,
-          roles: userRoles.roles
-        });
-      }
+      setViewingAccessUser((current) =>
+        current ? { ...current, assignedRoles: userRoles.roles } : current
+      );
     } catch (err) {
       const errorMessage = err instanceof ApiError ? err.message : 'Failed to load user access';
       toast.error('Error loading user access', { description: errorMessage });
     } finally {
       setLoadingAccess(false);
     }
+  };
+
+  const handleSelectSearchResult = (user: userService.UserSearchResult) => {
+    setSearchQuery(formatDisplayName(user));
+    setSearchResults([]);
   };
 
   const handleAddUser = () => {
@@ -201,6 +273,7 @@ export function UserManagement() {
       jobTitle: '',
       selectedRoles: []
     });
+    setOriginalRoleIds([]);
     setEditingUser(null);
     setShowUserDialog(true);
   };
@@ -215,14 +288,17 @@ export function UserManagement() {
       jobTitle: user.jobTitle || '',
       selectedRoles: []
     });
+    setOriginalRoleIds([]);
 
     // Load user's current roles
     try {
       const userRoles = await adminService.getUserRoles(user.id);
+      const roleIds = userRoles.roles.map((r) => r.id);
       setUserForm(prev => ({
         ...prev,
-        selectedRoles: userRoles.roles.map(r => r.id)
+        selectedRoles: roleIds
       }));
+      setOriginalRoleIds(roleIds);
     } catch (err) {
       console.error('Failed to load user roles:', err);
     }
@@ -254,9 +330,12 @@ export function UserManagement() {
         });
 
         // Handle role changes
-        const currentRoleIds = editingUser.roles?.map(r => r.id) || [];
-        const rolesToAdd = userForm.selectedRoles.filter(rid => !currentRoleIds.includes(rid));
-        const rolesToRemove = currentRoleIds.filter(rid => !userForm.selectedRoles.includes(rid));
+        const rolesToAdd = userForm.selectedRoles.filter(
+          (roleId) => !originalRoleIds.includes(roleId)
+        );
+        const rolesToRemove = originalRoleIds.filter(
+          (roleId) => !userForm.selectedRoles.includes(roleId)
+        );
 
         // Add new roles
         for (const roleId of rolesToAdd) {
@@ -331,6 +410,27 @@ export function UserManagement() {
     await loadUserAccess(user.id);
   };
 
+  const handleExportAccess = async () => {
+    try {
+      setExportingAccess(true);
+      const blob = await adminService.exportAccessReport();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `access-export-${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success('Access export downloaded');
+    } catch (err) {
+      const errorMessage = err instanceof ApiError ? err.message : 'Failed to export access report';
+      toast.error('Export failed', { description: errorMessage });
+    } finally {
+      setExportingAccess(false);
+    }
+  };
+
   const handleAssignRole = async (userId: string, roleId: string) => {
     try {
       await adminService.assignRole(userId, roleId);
@@ -357,24 +457,6 @@ export function UserManagement() {
       const errorMessage = err instanceof ApiError ? err.message : 'Failed to remove role';
       toast.error('Error removing role', { description: errorMessage });
     }
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-  };
-
-  const formatDateTime = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
   };
 
   return (
@@ -428,7 +510,42 @@ export function UserManagement() {
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="pl-10"
                   />
+                  {searchLoading && (
+                    <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-[var(--color-text-muted)]" />
+                  )}
                 </div>
+
+                {searchError && (
+                  <p className="mt-2 text-xs text-[var(--color-danger)]">{searchError}</p>
+                )}
+
+                {searchQuery.trim().length >= 3 && !searchLoading && searchResults.length === 0 && !searchError && (
+                  <p className="mt-2 text-xs text-[var(--color-text-secondary)]">
+                    No matches found.
+                  </p>
+                )}
+
+                {searchResults.length > 0 && (
+                  <div className="mt-2 rounded-md border border-[var(--color-border)] bg-white shadow-sm max-h-56 overflow-auto">
+                    {searchResults.map((user) => (
+                      <button
+                        key={user.id}
+                        type="button"
+                        onClick={() => handleSelectSearchResult(user)}
+                        className="w-full text-left px-3 py-2 hover:bg-slate-50"
+                      >
+                        <div className="text-sm font-medium text-[var(--color-text-primary)]">
+                          {formatDisplayName(user)}
+                        </div>
+                        <div className="text-xs text-[var(--color-text-secondary)]">
+                          {user.email}
+                          {user.roles?.length ? ` · ${user.roles.join(', ')}` : ''}
+                          {user.jobTitle ? ` · ${user.jobTitle}` : ''}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
               <Select value={filterStatus} onValueChange={(v) => setFilterStatus(v as any)}>
                 <SelectTrigger className="w-full sm:w-40">
@@ -440,6 +557,14 @@ export function UserManagement() {
                   <SelectItem value="inactive">Inactive</SelectItem>
                 </SelectContent>
               </Select>
+              <Button
+                variant="secondary"
+                icon={exportingAccess ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                onClick={handleExportAccess}
+                disabled={exportingAccess}
+              >
+                {exportingAccess ? 'Exporting...' : 'Export Access'}
+              </Button>
               <Button variant="primary" icon={<Plus className="w-4 h-4" />} onClick={handleAddUser}>
                 Add User
               </Button>
@@ -459,10 +584,14 @@ export function UserManagement() {
                   <table className="w-full">
                     <thead>
                       <tr className="border-b border-[var(--color-border)]">
-                        <th className="text-left py-3 px-4 text-sm">User</th>
-                        <th className="text-left py-3 px-4 text-sm">Contact</th>
+                        <th className="text-left py-3 px-4 text-sm">Name</th>
+                        <th className="text-left py-3 px-4 text-sm">Email</th>
+                        <th className="text-left py-3 px-4 text-sm">Work Phone</th>
+                        <th className="text-left py-3 px-4 text-sm">Cell Phone</th>
+                        <th className="text-left py-3 px-4 text-sm">Job Title</th>
+                        <th className="text-left py-3 px-4 text-sm">Roles</th>
+                        <th className="text-left py-3 px-4 text-sm">Agency Access</th>
                         <th className="text-left py-3 px-4 text-sm">Status</th>
-                        <th className="text-left py-3 px-4 text-sm">Created</th>
                         <th className="text-right py-3 px-4 text-sm">Actions</th>
                       </tr>
                     </thead>
@@ -472,28 +601,54 @@ export function UserManagement() {
                           <td className="py-4 px-4">
                             <div>
                               <p className="font-medium">{user.fullName}</p>
-                              <p className="text-sm text-[var(--color-text-secondary)]">{user.email}</p>
-                              {user.jobTitle && (
-                                <p className="text-xs text-[var(--color-text-muted)]">{user.jobTitle}</p>
-                              )}
                             </div>
                           </td>
+                          <td className="py-4 px-4 text-sm text-[var(--color-text-secondary)]">
+                            {user.email}
+                          </td>
+                          <td className="py-4 px-4 text-sm text-[var(--color-text-secondary)]">
+                            {user.workPhone || '—'}
+                          </td>
+                          <td className="py-4 px-4 text-sm text-[var(--color-text-secondary)]">
+                            {user.cellPhone || '—'}
+                          </td>
+                          <td className="py-4 px-4 text-sm text-[var(--color-text-secondary)]">
+                            {user.jobTitle || '—'}
+                          </td>
                           <td className="py-4 px-4">
-                            <div className="text-sm text-[var(--color-text-secondary)]">
-                              {user.workPhone && <p>Work: {user.workPhone}</p>}
-                              {user.cellPhone && <p>Cell: {user.cellPhone}</p>}
+                            {user.roles?.length ? (
+                              <div className="flex flex-wrap gap-1">
+                                {user.roles.map((role) => (
+                                  <Badge key={role} variant="default" className="text-xs">
+                                    {role}
+                                  </Badge>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="text-sm text-[var(--color-text-secondary)]">—</span>
+                            )}
+                          </td>
+                          <td className="py-4 px-4">
+                            <div className="text-xs text-[var(--color-text-secondary)] space-y-1">
+                              <div>
+                                Groups: {user.agencyAccess?.groups?.length
+                                  ? user.agencyAccess.groups.join(', ')
+                                  : '—'}
+                              </div>
+                              <div>
+                                Subagencies: {user.agencyAccess?.subagencies?.length
+                                  ? user.agencyAccess.subagencies.join(', ')
+                                  : '—'}
+                              </div>
                             </div>
                           </td>
                           <td className="py-4 px-4">
                             <Badge
                               variant="status"
-                              status={user.isActive ? 'Executed' : 'Expired'}
+                              status={user.active ? 'Executed' : 'Expired'}
                             >
-                              {user.isActive ? 'Active' : 'Inactive'}
+                              {user.active ? 'Active' : 'Inactive'}
                             </Badge>
-                          </td>
-                          <td className="py-4 px-4 text-sm text-[var(--color-text-secondary)]">
-                            {formatDate(user.createdAt)}
                           </td>
                           <td className="py-4 px-4 text-right">
                             <DropdownMenu>
@@ -514,7 +669,7 @@ export function UserManagement() {
                                 <DropdownMenuItem
                                   onClick={() => handleDeleteUser(user)}
                                   className="text-[var(--color-danger)]"
-                                  disabled={!user.isActive}
+                                  disabled={!user.active}
                                 >
                                   <Trash2 className="w-4 h-4 mr-2" />
                                   Deactivate User
@@ -561,7 +716,7 @@ export function UserManagement() {
                             <DropdownMenuItem
                               onClick={() => handleDeleteUser(user)}
                               className="text-[var(--color-danger)]"
-                              disabled={!user.isActive}
+                              disabled={!user.active}
                             >
                               <Trash2 className="w-4 h-4 mr-2" />
                               Deactivate User
@@ -571,29 +726,41 @@ export function UserManagement() {
                       </div>
 
                       <div className="space-y-2 mb-3">
-                        {user.workPhone && (
-                          <div className="text-sm text-[var(--color-text-secondary)]">
-                            Work: {user.workPhone}
-                          </div>
-                        )}
-                        {user.cellPhone && (
-                          <div className="text-sm text-[var(--color-text-secondary)]">
-                            Cell: {user.cellPhone}
-                          </div>
-                        )}
-                        <div className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)]">
-                          <Calendar className="w-4 h-4 flex-shrink-0" />
-                          <span>Created: {formatDate(user.createdAt)}</span>
+                        <div className="text-sm text-[var(--color-text-secondary)]">
+                          Work: {user.workPhone || '—'}
+                        </div>
+                        <div className="text-sm text-[var(--color-text-secondary)]">
+                          Cell: {user.cellPhone || '—'}
+                        </div>
+                        <div className="text-sm text-[var(--color-text-secondary)]">
+                          Job Title: {user.jobTitle || '—'}
+                        </div>
+                        <div className="text-sm text-[var(--color-text-secondary)]">
+                          Agency Access: {user.agencyAccess?.groups?.length
+                            ? user.agencyAccess.groups.join(', ')
+                            : '—'}
+                          {user.agencyAccess?.subagencies?.length
+                            ? ` · ${user.agencyAccess.subagencies.join(', ')}`
+                            : ''}
                         </div>
                       </div>
 
                       <div className="flex flex-wrap gap-2">
                         <Badge
                           variant="status"
-                          status={user.isActive ? 'Executed' : 'Expired'}
+                          status={user.active ? 'Executed' : 'Expired'}
                         >
-                          {user.isActive ? 'Active' : 'Inactive'}
+                          {user.active ? 'Active' : 'Inactive'}
                         </Badge>
+                        {user.roles?.length ? (
+                          user.roles.map((role) => (
+                            <Badge key={role} variant="default" className="text-xs">
+                              {role}
+                            </Badge>
+                          ))
+                        ) : (
+                          <Badge variant="default" className="text-xs">No roles</Badge>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -858,8 +1025,8 @@ export function UserManagement() {
                   Assigned Roles
                 </h4>
                 <div className="space-y-2">
-                  {viewingAccessUser?.roles && viewingAccessUser.roles.length > 0 ? (
-                    viewingAccessUser.roles.map(role => (
+                  {viewingAccessUser?.assignedRoles && viewingAccessUser.assignedRoles.length > 0 ? (
+                    viewingAccessUser.assignedRoles.map(role => (
                       <div
                         key={role.id}
                         className="flex items-center justify-between p-3 border border-[var(--color-border)] rounded-lg"
@@ -904,7 +1071,7 @@ export function UserManagement() {
                       </SelectTrigger>
                       <SelectContent>
                         {roles
-                          .filter(role => !viewingAccessUser?.roles?.some(ur => ur.id === role.id))
+                          .filter(role => !viewingAccessUser?.assignedRoles?.some(ur => ur.id === role.id))
                           .map(role => (
                             <SelectItem key={role.id} value={role.id}>
                               {role.name}
@@ -923,37 +1090,77 @@ export function UserManagement() {
                   <Building className="w-5 h-5" />
                   Agency Access
                 </h4>
-                <div className="space-y-3">
-                  {/* Agency Group Access */}
+                <div className="space-y-4">
                   {userAccessSummary.agencyGroupAccess.length > 0 && (
                     <div>
                       <p className="text-sm font-medium mb-2">Agency Groups</p>
-                      {userAccessSummary.agencyGroupAccess.map(ag => (
+                      {userAccessSummary.agencyGroupAccess.map((group) => (
                         <div
-                          key={ag.agencyGroupId}
+                          key={group.id}
                           className="p-3 border border-[var(--color-border)] rounded-lg mb-2"
                         >
-                          <p className="font-medium">{ag.agencyGroupName}</p>
-                          <p className="text-sm text-[var(--color-text-secondary)]">
-                            {ag.subagencies.length} subagenc{ag.subagencies.length !== 1 ? 'ies' : 'y'}
+                          <div className="flex items-center justify-between">
+                            <button
+                              type="button"
+                              className="font-medium text-left hover:underline"
+                              onClick={() => handleNavigateToGroup(group.id)}
+                            >
+                              {group.name}
+                            </button>
+                            <Badge variant="default" className="text-xs">Group</Badge>
+                          </div>
+                          <p className="text-xs text-[var(--color-text-secondary)] mt-1">
+                            Granted by {group.grantedBy?.name ?? 'Unknown'} · {formatDateTime(group.grantedAt)}
                           </p>
+                          {group.subagencies.length > 0 && (
+                            <div className="mt-2 flex flex-wrap gap-1">
+                              {group.subagencies.map((sub) => (
+                                <button
+                                  key={sub.id}
+                                  type="button"
+                                  className="text-xs px-2 py-1 rounded bg-[var(--color-surface-muted)] hover:bg-slate-100"
+                                  onClick={() => handleNavigateToSubagency(group.id, sub.id)}
+                                >
+                                  {sub.name}
+                                </button>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
                   )}
 
-                  {/* Direct Subagency Access */}
-                  {userAccessSummary.directSubagencyAccess.length > 0 && (
+                  {userAccessSummary.subagencyAccess.length > 0 && (
                     <div>
                       <p className="text-sm font-medium mb-2">Direct Subagency Access</p>
-                      {userAccessSummary.directSubagencyAccess.map(sa => (
+                      {userAccessSummary.subagencyAccess.map((sub) => (
                         <div
-                          key={sa.subagencyId}
+                          key={sub.id}
                           className="p-3 border border-[var(--color-border)] rounded-lg mb-2"
                         >
-                          <p className="font-medium">{sa.subagencyName}</p>
+                          <div className="flex items-center justify-between">
+                            <button
+                              type="button"
+                              className="font-medium text-left hover:underline"
+                              onClick={() => handleNavigateToSubagency(sub.agencyGroup.id, sub.id)}
+                            >
+                              {sub.name}
+                            </button>
+                            <Badge variant="default" className="text-xs">Direct</Badge>
+                          </div>
                           <p className="text-xs text-[var(--color-text-muted)]">
-                            Part of {sa.agencyGroupName}
+                            Group:&nbsp;
+                            <button
+                              type="button"
+                              className="hover:underline"
+                              onClick={() => handleNavigateToGroup(sub.agencyGroup.id)}
+                            >
+                              {sub.agencyGroup.name}
+                            </button>
+                          </p>
+                          <p className="text-xs text-[var(--color-text-secondary)] mt-1">
+                            Granted by {sub.grantedBy?.name ?? 'Unknown'} · {formatDateTime(sub.grantedAt)}
                           </p>
                         </div>
                       ))}
@@ -961,7 +1168,7 @@ export function UserManagement() {
                   )}
 
                   {userAccessSummary.agencyGroupAccess.length === 0 &&
-                   userAccessSummary.directSubagencyAccess.length === 0 && (
+                   userAccessSummary.subagencyAccess.length === 0 && (
                     <p className="text-sm text-[var(--color-text-secondary)]">No agency access configured</p>
                   )}
                 </div>
