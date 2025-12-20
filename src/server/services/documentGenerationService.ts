@@ -328,6 +328,15 @@ async function getTemplateForNda(
     return { id: template.id, name: template.name, content: template.content };
   }
 
+  if (nda.rtfTemplateId) {
+    const selected = await prisma.rtfTemplate.findFirst({
+      where: { id: nda.rtfTemplateId, isActive: true },
+    });
+    if (selected) {
+      return { id: selected.id, name: selected.name, content: selected.content };
+    }
+  }
+
   const agencyDefault = await prisma.rtfTemplate.findFirst({
     where: { agencyGroupId: nda.agencyGroupId, isDefault: true, isActive: true },
     orderBy: { updatedAt: 'desc' },

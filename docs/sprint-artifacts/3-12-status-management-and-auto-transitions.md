@@ -37,23 +37,23 @@ so that **I don't have to manually update status every time**.
 ## Tasks / Subtasks
 
 - [ ] **Task 1: Status Transition Service** (AC: 1, 2, 3)
-  - [ ] 1.1: Create `src/server/services/statusTransitionService.ts`
-  - [ ] 1.2: Define valid transitions matrix
-  - [ ] 1.3: Implement `transitionStatus(ndaId, trigger, metadata)`
-  - [ ] 1.4: Record status history
-  - [ ] 1.5: Add audit logging with before/after values
+  - [x] 1.1: Create `src/server/services/statusTransitionService.ts`
+  - [x] 1.2: Define valid transitions matrix
+  - [x] 1.3: Implement `transitionStatus(ndaId, trigger, metadata)`
+  - [x] 1.4: Record status history
+  - [x] 1.5: Add audit logging with before/after values
 
-- [ ] **Task 2: Auto-Transition Hooks** (AC: 1, 2, 3)
-  - [ ] 2.1: Hook into email send completion
-  - [ ] 2.2: Hook into document upload
-  - [ ] 2.3: Handle fully executed flag on upload
-  - [ ] 2.4: Set fullyExecutedDate automatically
+- [x] **Task 2: Auto-Transition Hooks** (AC: 1, 2, 3)
+  - [x] 2.1: Hook into email send completion
+  - [x] 2.2: Hook into document upload
+  - [x] 2.3: Handle fully executed flag on upload
+  - [x] 2.4: Set fullyExecutedDate automatically
 
-- [ ] **Task 3: Manual Status API** (AC: 4)
-  - [ ] 3.1: Add `PATCH /api/ndas/:id/status` endpoint
-  - [ ] 3.2: Require nda:mark_status permission
-  - [ ] 3.3: Validate transition is allowed
-  - [ ] 3.4: Return updated NDA with status history
+- [x] **Task 3: Manual Status API** (AC: 4)
+  - [x] 3.1: Add `PATCH /api/ndas/:id/status` endpoint
+  - [x] 3.2: Require nda:mark_status permission
+  - [x] 3.3: Validate transition is allowed
+  - [x] 3.4: Return updated NDA with status history
 
 - [ ] **Task 4: Testing** (AC: All)
   - [ ] 4.1: Test all auto-transition triggers
@@ -65,7 +65,20 @@ so that **I don't have to manually update status every time**.
 - [x] [AI-Review][HIGH] Auto-transition on non-fully executed upload is missing; DOCUMENT_UPLOADED trigger is never invoked so EMAILED → IN_REVISION does not happen. [src/server/services/documentService.ts:232]
 - [x] [AI-Review][HIGH] Manual status dropdown/inline change is not implemented in NDA detail; status changes only occur via modal-driven actions. [src/components/screens/NDADetail.tsx:211]
 - [x] [AI-Review][MEDIUM] “Send for signature” updates status directly without sending email; status can become EMAILED even if email send fails or never happens. [src/components/screens/NDADetail.tsx:215]
-- [ ] [AI-Review][MEDIUM] Story marked done but Tasks/Subtasks are all unchecked and no Dev Agent Record/File List exists to verify changes. [docs/sprint-artifacts/3-12-status-management-and-auto-transitions.md:1]
+- [x] [AI-Review][MEDIUM] Story marked done but Tasks/Subtasks are all unchecked and no Dev Agent Record/File List exists to verify changes. [docs/sprint-artifacts/3-12-status-management-and-auto-transitions.md:1]
+
+## Dev Agent Record
+
+### File List
+- src/server/services/statusTransitionService.ts
+- src/server/services/documentService.ts
+- src/server/services/emailService.ts
+- src/server/routes/ndas.ts
+- src/components/screens/NDADetail.tsx
+- src/client/services/ndaService.ts
+
+### Change Log
+- 2025-12-21: Wired status transition service into email/send and document upload flows, added inline manual status dropdown in NDA detail, and ensured send-for-signature emails precede status updates.
 
 ## Dev Notes
 

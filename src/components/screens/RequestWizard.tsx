@@ -35,6 +35,10 @@ import {
   createExternalContact,
   type Contact,
 } from '../../client/services/userService';
+import {
+  listTemplates,
+  type RtfTemplate,
+} from '../../client/services/templateService';
 
 const ndaTypes: { value: NdaType; label: string; description: string }[] = [
   { value: 'MUTUAL', label: 'Mutual', description: 'Both parties will exchange confidential information' },
@@ -67,6 +71,8 @@ export function RequestWizard() {
   const [recentCompanies, setRecentCompanies] = useState<CompanySuggestion[]>([]);
   const [showCompanyDropdown, setShowCompanyDropdown] = useState(false);
   const [agencySuggestions, setAgencySuggestions] = useState<AgencySuggestions | null>(null);
+  const [templates, setTemplates] = useState<RtfTemplate[]>([]);
+  const [templatesLoading, setTemplatesLoading] = useState(false);
   const [contactSuggestions, setContactSuggestions] = useState<Contact[]>([]);
   const [activePocField, setActivePocField] = useState<'relationship' | 'contracts' | 'opportunity' | 'contacts' | null>(null);
   const [hasTouchedPosition, setHasTouchedPosition] = useState(false);
@@ -107,6 +113,7 @@ export function RequestWizard() {
     relationshipPocFax: '',
     contactsPocId: '',
     contactsPocName: '',
+    rtfTemplateId: '',
     systemInput: '',
     confirmed: false,
   });
@@ -175,6 +182,7 @@ export function RequestWizard() {
           contactsPocName: nda.contactsPoc
             ? `${nda.contactsPoc.firstName} ${nda.contactsPoc.lastName}`
             : '',
+          rtfTemplateId: nda.rtfTemplateId || '',
           systemInput: '',
           confirmed: false,
         });
@@ -233,6 +241,7 @@ export function RequestWizard() {
           contactsPocName: nda.contactsPoc
             ? `${nda.contactsPoc.firstName} ${nda.contactsPoc.lastName}`
             : '',
+          rtfTemplateId: nda.rtfTemplateId || '',
           systemInput: '',
           confirmed: false,
         });
@@ -297,6 +306,35 @@ export function RequestWizard() {
         setAgencySuggestions(null);
       });
   }, [formData.agencyGroupId, hasTouchedPosition, hasTouchedNdaType]);
+
+  useEffect(() => {
+    if (!formData.agencyGroupId) {
+      setTemplates([]);
+      setFormData((prev) => ({ ...prev, rtfTemplateId: '' }));
+      return;
+    }
+
+    setTemplatesLoading(true);
+    listTemplates(formData.agencyGroupId)
+      .then((response) => {
+        setTemplates(response.templates);
+        setFormData((prev) => {
+          const stillValid = prev.rtfTemplateId && response.templates.some((t) => t.id === prev.rtfTemplateId);
+          if (stillValid) return prev;
+          const recommended = response.templates.find((template) => template.isRecommended)?.id;
+          const fallback = response.templates[0]?.id || '';
+          return {
+            ...prev,
+            rtfTemplateId: recommended || fallback,
+          };
+        });
+      })
+      .catch((err) => {
+        console.error('Failed to load templates:', err);
+        setTemplates([]);
+      })
+      .finally(() => setTemplatesLoading(false));
+  }, [formData.agencyGroupId]);
 
   const handleCompanyFocus = useCallback(async () => {
     setShowCompanyDropdown(true);
@@ -511,6 +549,7 @@ export function RequestWizard() {
     contractsPocId: contractsPocId || undefined,
     relationshipPocId,
     contactsPocId: contactsPocId || undefined,
+    rtfTemplateId: formData.rtfTemplateId || undefined,
     companyCity: formData.companyCity || undefined,
     companyState: formData.companyState || undefined,
     stateOfIncorporation: formData.stateOfIncorporation || undefined,
@@ -533,6 +572,7 @@ export function RequestWizard() {
     contractsPocId: contractsPocId ?? undefined,
     relationshipPocId: relationshipPocId ?? undefined,
     contactsPocId: formData.contactsPocId || undefined,
+    rtfTemplateId: formData.rtfTemplateId || undefined,
   });
 
   const resolveRelationshipPocId = async (allowCreate: boolean): Promise<string | null> => {
@@ -1115,6 +1155,31 @@ export function RequestWizard() {
                     )}
                   </div>
                 )}
+
+                <div>
+                  <Select
+                    label="RTF template"
+                    value={formData.rtfTemplateId}
+                    onChange={(e) => setFormData({ ...formData, rtfTemplateId: e.target.value })}
+                    disabled={!formData.agencyGroupId || templatesLoading || templates.length === 0}
+                  >
+                    <option value="">
+                      {templatesLoading ? 'Loading templates...' : 'Select a template (optional)'}
+                    </option>
+                    {templates.map((template) => (
+                      <option key={template.id} value={template.id}>
+                        {template.name}{template.isRecommended ? ' (recommended)' : ''}
+                      </option>
+                    ))}
+                  </Select>
+                  <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
+                    {templatesLoading
+                      ? 'Loading templates...'
+                      : templates.length === 0
+                        ? 'No templates available for this agency'
+                        : 'Select a template for document generation'}
+                  </p>
+                </div>
 
                 <div className="border-t border-[var(--color-border)] pt-6">
                   <h3 className="mb-4">Points of contact</h3>
