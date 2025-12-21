@@ -548,11 +548,11 @@ export async function sendEmail(
       console.log('[EmailService] MOCK EMAIL MODE - Email would be sent:');
       console.log('='.repeat(60));
       console.log(`  From: ${fromEmail}`);
-      console.log(`  To: ${email.toAddresses.join(', ')}`);
-      if (email.ccAddresses?.length) console.log(`  CC: ${email.ccAddresses.join(', ')}`);
+      console.log(`  To: ${email.toRecipients.join(', ')}`);
+      if (email.ccRecipients?.length) console.log(`  CC: ${email.ccRecipients.join(', ')}`);
       console.log(`  Subject: ${email.subject}`);
       console.log(`  NDA: ${email.nda.companyName} (ID: ${email.nda.displayId})`);
-      console.log(`  Attachment: ${attachmentFilename} (${Math.round(attachmentSize / 1024)}KB)`);
+      console.log(`  Attachment: ${attachmentFilename} (${Math.round(attachmentBase64.length * 0.75 / 1024)}KB)`);
       console.log(`  Body Preview: ${email.body.substring(0, 200)}${email.body.length > 200 ? '...' : ''}`);
       console.log('='.repeat(60) + '\n');
 
