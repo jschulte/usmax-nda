@@ -33,7 +33,19 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.DEMO_SSH_PRIVATE_KEY }}" > ~/.ssh/demo_key
           chmod 600 ~/.ssh/demo_key
-          ssh-keyscan -H ${{ env.DEMO_HOST }} >> ~/.ssh/known_hosts
+          # Try ssh-keyscan with retries, use StrictHostKeyChecking=no as fallback
+          for i in 1 2 3; do
+            if ssh-keyscan -T 10 -H ${{ env.DEMO_HOST }} >> ~/.ssh/known_hosts 2>/dev/null; then
+              echo "Host key obtained successfully"
+              break
+            fi
+            echo "Attempt $i failed, retrying..."
+            sleep 5
+          done
+          # Add fallback SSH options
+          echo "Host ${{ env.DEMO_HOST }}" >> ~/.ssh/config
+          echo "  StrictHostKeyChecking accept-new" >> ~/.ssh/config
+          echo "  ConnectTimeout 30" >> ~/.ssh/config
 
       - name: Create deployment package
         run: |
