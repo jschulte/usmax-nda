@@ -63,7 +63,8 @@ export interface AccessExportRow {
   roles: string;
   agencyGroups: string;
   subagencies: string;
-  active: boolean;
+  grantedBy: string;
+  grantedAt: string;
 }
 
 // =============================================================================
@@ -207,14 +208,27 @@ export async function exportAllUsersAccess(): Promise<AccessExportRow[]> {
       agencyGroupGrants: {
         include: {
           agencyGroup: {
-            select: { name: true },
+            select: {
+              name: true,
+              subagencies: { select: { id: true, name: true } },
+            },
+          },
+          grantedByUser: {
+            select: { firstName: true, lastName: true, email: true },
           },
         },
       },
       subagencyGrants: {
         include: {
           subagency: {
-            select: { name: true },
+            select: {
+              id: true,
+              name: true,
+              agencyGroup: { select: { id: true, name: true } },
+            },
+          },
+          grantedByUser: {
+            select: { firstName: true, lastName: true, email: true },
           },
         },
       },
@@ -227,10 +241,39 @@ export async function exportAllUsersAccess(): Promise<AccessExportRow[]> {
     const roles = user.contactRoles.map((cr) => cr.role.name).join(', ');
     const agencyGroups = user.agencyGroupGrants.map((g) => g.agencyGroup.name).join(', ');
 
-    // Mark direct subagency access as "(direct)" to distinguish from inherited
-    const subagencies = user.subagencyGrants
-      .map((g) => `${g.subagency.name} (direct)`)
-      .join(', ');
+    const directSubagencyIds = new Set(user.subagencyGrants.map((g) => g.subagency.id));
+    const inheritedSubagencies = user.agencyGroupGrants.flatMap((g) =>
+      g.agencyGroup.subagencies.map((sub) => ({
+        id: sub.id,
+        name: sub.name,
+        groupName: g.agencyGroup.name,
+      }))
+    );
+
+    const subagencies = [
+      ...user.subagencyGrants.map((g) => `${g.subagency.name} (direct)`),
+      ...inheritedSubagencies
+        .filter((sub) => !directSubagencyIds.has(sub.id))
+        .map((sub) => `${sub.name} (via ${sub.groupName})`),
+    ].join(', ');
+
+    const formatGrantor = (grantor: { firstName: string | null; lastName: string | null; email: string | null } | null) => {
+      if (!grantor) return 'Unknown';
+      const name = [grantor.firstName, grantor.lastName].filter(Boolean).join(' ');
+      return name || grantor.email || 'Unknown';
+    };
+
+    const formatDate = (value: Date) => value.toISOString().split('T')[0];
+
+    const grantedBy = [
+      ...user.agencyGroupGrants.map((g) => `${g.agencyGroup.name}: ${formatGrantor(g.grantedByUser)}`),
+      ...user.subagencyGrants.map((g) => `${g.subagency.name}: ${formatGrantor(g.grantedByUser)}`),
+    ].join('; ');
+
+    const grantedAt = [
+      ...user.agencyGroupGrants.map((g) => `${g.agencyGroup.name}: ${formatDate(g.grantedAt)}`),
+      ...user.subagencyGrants.map((g) => `${g.subagency.name}: ${formatDate(g.grantedAt)}`),
+    ].join('; ');
 
     return {
       userName,
@@ -238,7 +281,8 @@ export async function exportAllUsersAccess(): Promise<AccessExportRow[]> {
       roles: roles || 'None',
       agencyGroups: agencyGroups || 'None',
       subagencies: subagencies || 'None',
-      active: user.active,
+      grantedBy: grantedBy || 'None',
+      grantedAt: grantedAt || 'None',
     };
   });
 }
@@ -247,7 +291,7 @@ export async function exportAllUsersAccess(): Promise<AccessExportRow[]> {
  * Convert export data to CSV string
  */
 export function convertToCSV(data: AccessExportRow[]): string {
-  const headers = ['User Name', 'Email', 'Roles', 'Agency Groups', 'Subagencies (Direct)', 'Active'];
+  const headers = ['User Name', 'Email', 'Roles', 'Agency Groups', 'Subagencies', 'Granted By', 'Granted At'];
 
   const escapeCSV = (value: string | boolean): string => {
     const str = String(value);
@@ -264,7 +308,8 @@ export function convertToCSV(data: AccessExportRow[]): string {
     escapeCSV(row.roles),
     escapeCSV(row.agencyGroups),
     escapeCSV(row.subagencies),
-    escapeCSV(row.active),
+    escapeCSV(row.grantedBy),
+    escapeCSV(row.grantedAt),
   ].join(','));
 
   return [headers.join(','), ...rows].join('\n');

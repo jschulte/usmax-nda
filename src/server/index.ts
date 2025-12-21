@@ -235,10 +235,12 @@ app.listen(PORT, () => {
 ╠═══════════════════════════════════════════════════════════╣
 ║  Users Endpoints (Story 2.5, 2.6):                        ║
 ║    GET    /api/users           - List users (paginated)   ║
+║    GET    /api/users/search    - User autocomplete        ║
 ║    GET    /api/users/:id       - Get user details         ║
 ║    POST   /api/users           - Create user              ║
 ║    PUT    /api/users/:id       - Update user              ║
 ║    DELETE /api/users/:id       - Deactivate user          ║
+║    PATCH  /api/users/:id/deactivate - Deactivate user     ║
 ║    GET    /api/users/:id/access-summary - Access summary  ║
 ╠═══════════════════════════════════════════════════════════╣
 ║  Access Export (Story 2.6):                               ║

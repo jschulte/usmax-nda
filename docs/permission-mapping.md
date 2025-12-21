@@ -16,12 +16,15 @@ Legend:
 | GET `/api/admin/users/:id/roles` | **ALL** `admin:manage_users` |
 | POST `/api/admin/users/:id/roles` | **ALL** `admin:manage_users` |
 | DELETE `/api/admin/users/:id/roles/:roleId` | **ALL** `admin:manage_users` |
-| GET `/api/admin/access-export` | **ALL** `admin:manage_users` |
+| GET `/api/admin/access-export` | **ANY** `admin:manage_users`, `admin:view_audit_logs` |
 | GET `/api/users` | **ALL** `admin:manage_users` |
+| GET `/api/users/search` | **ALL** `admin:manage_users` |
 | GET `/api/users/:id` | **ALL** `admin:manage_users` |
 | POST `/api/users` | **ALL** `admin:manage_users` |
 | PUT `/api/users/:id` | **ALL** `admin:manage_users` |
 | DELETE `/api/users/:id` | **ALL** `admin:manage_users` |
+| PATCH `/api/users/:id/deactivate` | **ALL** `admin:manage_users` |
+| GET `/api/users/:id/access-summary` | **ALL** `admin:manage_users` |
 
 ## Audit Logs
 | Route | Permission |

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Card } from '../../ui/AppCard';
 import { Button } from '../../ui/AppButton';
 import { Input, TextArea } from '../../ui/AppInput';
@@ -63,6 +63,8 @@ interface SubagencyFormState {
 
 export function AgencyGroups() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [handledDeepLink, setHandledDeepLink] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -143,9 +145,11 @@ export function AgencyGroups() {
       setSubagenciesByGroup((prev) => ({ ...prev, [groupId]: response.subagencies }));
       const count = response.subagencies.length;
       setSubagencyCounts((prev) => ({ ...prev, [groupId]: count }));
+      return response.subagencies;
     } catch (error) {
       handleApiError(error, 'Failed to load subagencies');
     }
+    return [];
   };
 
   const toggleGroupExpanded = async (groupId: string) => {
@@ -367,6 +371,51 @@ export function AgencyGroups() {
     setShowSubagencyAccessDialog(true);
     await loadSubagencyAccessUsers(subagency.id);
   };
+
+  useEffect(() => {
+    const state = location.state as
+      | { focusGroupId?: string; focusSubagencyId?: string }
+      | null;
+
+    if (!state || handledDeepLink) return;
+    if (!groups.length) return;
+
+    const { focusGroupId, focusSubagencyId } = state;
+    if (!focusGroupId) {
+      setHandledDeepLink(true);
+      return;
+    }
+
+    setExpandedGroupIds((prev) => {
+      const next = new Set(prev);
+      next.add(focusGroupId);
+      return next;
+    });
+
+    const run = async () => {
+      const group = groups.find((g) => g.id === focusGroupId);
+      if (!group) {
+        setHandledDeepLink(true);
+        return;
+      }
+
+      const subagencies =
+        subagenciesByGroup[focusGroupId] ?? (await loadSubagencies(focusGroupId));
+
+      if (focusSubagencyId) {
+        const subagency = subagencies.find((s) => s.id === focusSubagencyId);
+        if (subagency) {
+          await openSubagencyAccess(subagency);
+        }
+      } else {
+        await openManageAccess(group);
+      }
+
+      setHandledDeepLink(true);
+    };
+
+    void run();
+  }, [location.state, handledDeepLink, groups, subagenciesByGroup]);
 
   const handleGrantSubagencyAccess = async (contact: ContactSearchResult) => {
     if (!activeSubagencyForAccess) return;

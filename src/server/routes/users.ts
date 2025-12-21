@@ -19,6 +19,7 @@ import { requirePermission } from '../middleware/checkPermissions.js';
 import { PERMISSIONS } from '../constants/permissions.js';
 import {
   listUsers,
+  searchUsers,
   getUser,
   createUser,
   updateUser,
@@ -58,6 +59,38 @@ router.get('/', async (req, res) => {
     console.error('[Users] Error listing users:', error);
     res.status(500).json({
       error: 'Failed to list users',
+      code: 'INTERNAL_ERROR',
+    });
+  }
+});
+
+/**
+ * GET /api/users/search?q=<query>
+ * Search users for autocomplete (type-ahead)
+ *
+ * Query params:
+ * - q: Search term (min 3 characters)
+ * - active: Filter by active status (true/false, optional)
+ */
+router.get('/search', async (req, res) => {
+  const query = (req.query.q as string | undefined)?.trim() || '';
+  const active =
+    req.query.active === 'true' ? true : req.query.active === 'false' ? false : undefined;
+
+  if (query.length < 3) {
+    return res.status(400).json({
+      error: 'Search query must be at least 3 characters',
+      code: 'QUERY_TOO_SHORT',
+    });
+  }
+
+  try {
+    const users = await searchUsers({ query, active, limit: 10 });
+    return res.json({ users });
+  } catch (error) {
+    console.error('[Users] Error searching users:', error);
+    return res.status(500).json({
+      error: 'Failed to search users',
       code: 'INTERNAL_ERROR',
     });
   }
@@ -274,6 +307,54 @@ router.delete('/:id', async (req, res) => {
 
     console.error('[Users] Error deactivating user:', error);
     res.status(500).json({
+      error: 'Failed to deactivate user',
+      code: 'INTERNAL_ERROR',
+    });
+  }
+});
+
+/**
+ * PATCH /api/users/:id/deactivate
+ * Deactivate a user (soft delete)
+ *
+ * Returns: 204 No Content
+ */
+router.patch('/:id/deactivate', async (req, res) => {
+  try {
+    await deactivateUser(
+      req.params.id,
+      req.userContext!.contactId,
+      {
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent'),
+      }
+    );
+
+    return res.status(204).send();
+  } catch (error) {
+    if (error instanceof UserServiceError) {
+      if (error.code === 'NOT_FOUND') {
+        return res.status(404).json({
+          error: error.message,
+          code: error.code,
+        });
+      }
+      if (error.code === 'ALREADY_DEACTIVATED') {
+        return res.status(409).json({
+          error: error.message,
+          code: error.code,
+        });
+      }
+      if (error.code === 'SELF_DEACTIVATION') {
+        return res.status(400).json({
+          error: error.message,
+          code: error.code,
+        });
+      }
+    }
+
+    console.error('[Users] Error deactivating user:', error);
+    return res.status(500).json({
       error: 'Failed to deactivate user',
       code: 'INTERNAL_ERROR',
     });
