@@ -50,6 +50,7 @@ jobs:
       - name: Create deployment package
         run: |
           # Create a tarball excluding unnecessary files
+          # Use || true to ignore "file changed as we read it" warnings (exit code 1)
           tar --exclude='node_modules' \
               --exclude='.git' \
               --exclude='dist' \
@@ -57,7 +58,8 @@ jobs:
               --exclude='.env*' \
               --exclude='*.log' \
               --exclude='.claude' \
-              -czf deploy.tar.gz .
+              --warning=no-file-changed \
+              -czf deploy.tar.gz . || [[ $? -eq 1 ]]
 
       - name: Copy package to server
         run: |
