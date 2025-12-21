@@ -63,11 +63,27 @@ jobs:
 
       - name: Copy package to server
         run: |
-          scp -i ~/.ssh/demo_key deploy.tar.gz ${{ env.DEMO_USER }}@${{ env.DEMO_HOST }}:/tmp/
+          # Retry SCP with exponential backoff to handle transient network issues
+          for attempt in 1 2 3 4 5; do
+            echo "SCP attempt $attempt..."
+            if scp -v -o ConnectTimeout=60 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 \
+                   -i ~/.ssh/demo_key deploy.tar.gz ${{ env.DEMO_USER }}@${{ env.DEMO_HOST }}:/tmp/; then
+              echo "✅ SCP succeeded on attempt $attempt"
+              exit 0
+            fi
+            echo "Attempt $attempt failed, waiting before retry..."
+            sleep $((attempt * 10))
+          done
+          echo "❌ SCP failed after 5 attempts"
+          exit 1
 
       - name: Deploy on server
         run: |
-          ssh -i ~/.ssh/demo_key ${{ env.DEMO_USER }}@${{ env.DEMO_HOST }} << 'DEPLOY_SCRIPT'
+          # Retry SSH connection with increased timeout
+          for attempt in 1 2 3; do
+            echo "SSH deployment attempt $attempt..."
+            if ssh -o ConnectTimeout=60 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 \
+                   -i ~/.ssh/demo_key ${{ env.DEMO_USER }}@${{ env.DEMO_HOST }} << 'DEPLOY_SCRIPT'
             set -e
 
             # Backup current app
@@ -112,6 +128,15 @@ jobs:
             # Cleanup
             rm -rf /tmp/deploy.tar.gz /tmp/app_deploy
           DEPLOY_SCRIPT
+            then
+              echo "✅ SSH deployment succeeded on attempt $attempt"
+              exit 0
+            fi
+            echo "SSH attempt $attempt failed, waiting before retry..."
+            sleep $((attempt * 15))
+          done
+          echo "❌ SSH deployment failed after 3 attempts"
+          exit 1
 
       - name: Cleanup SSH key
         if: always()
