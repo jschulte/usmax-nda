@@ -106,9 +106,12 @@ export interface ActivityItem {
   action: string;
   entityType: string;
   entityId: string;
-  userId: string | null;
-  userName: string | null;
   timestamp: Date;
+  description: string;
+  user: {
+    id: string;
+    name: string;
+  };
   details: Record<string, any> | null;
   ndaDisplayId?: number;
   companyName?: string;
@@ -551,14 +554,33 @@ async function getRecentActivity(
 
   return activities.map((activity) => {
     const ndaInfo = activity.entityId ? ndaIdMap.get(activity.entityId) : null;
+    const userName = activity.userId ? userMap.get(activity.userId) || 'Unknown User' : 'System';
+
+    // Generate human-readable description
+    const actionDescriptions: Record<string, string> = {
+      nda_created: 'Created NDA',
+      nda_updated: 'Updated NDA',
+      nda_status_changed: 'Changed NDA status',
+      document_uploaded: 'Uploaded document',
+      document_generated: 'Generated document',
+      email_sent: 'Sent email',
+      email_queued: 'Queued email',
+    };
+    const description = ndaInfo
+      ? `${actionDescriptions[activity.action] || activity.action} for ${ndaInfo.companyName}`
+      : actionDescriptions[activity.action] || activity.action;
+
     return {
       id: activity.id,
       action: activity.action,
       entityType: activity.entityType,
       entityId: activity.entityId || '',
-      userId: activity.userId,
-      userName: activity.userId ? userMap.get(activity.userId) || null : null,
       timestamp: activity.createdAt,
+      description,
+      user: {
+        id: activity.userId || 'system',
+        name: userName,
+      },
       details: activity.details as Record<string, any> | null,
       ndaDisplayId: ndaInfo?.displayId,
       companyName: ndaInfo?.companyName,
