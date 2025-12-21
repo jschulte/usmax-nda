@@ -42,3 +42,13 @@ output "estimated_monthly_cost" {
   description = "Estimated monthly cost"
   value       = var.instance_type == "t3.micro" ? "~$9/month" : "~$17/month (t3.small)"
 }
+
+output "cloudfront_url" {
+  description = "CloudFront HTTPS URL for demo access"
+  value       = "https://${aws_cloudfront_distribution.demo.domain_name}"
+}
+
+output "cloudfront_distribution_id" {
+  description = "CloudFront distribution ID for cache invalidation"
+  value       = aws_cloudfront_distribution.demo.id
+}

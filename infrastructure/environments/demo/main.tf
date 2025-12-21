@@ -165,3 +165,81 @@ resource "aws_route53_record" "demo" {
   ttl     = 300
   records = [aws_eip.demo.public_ip]
 }
+
+# CloudFront Distribution for HTTPS
+resource "aws_cloudfront_distribution" "demo" {
+  enabled             = true
+  is_ipv6_enabled     = true
+  comment             = "USMax NDA Demo - HTTPS frontend"
+  price_class         = "PriceClass_100"  # US, Canada, Europe only (cheapest)
+  wait_for_deployment = false
+
+  origin {
+    # CloudFront requires domain name, not IP address
+    # Use the public DNS of the Elastic IP
+    domain_name = aws_eip.demo.public_dns
+    origin_id   = "ec2-origin"
+
+    custom_origin_config {
+      http_port              = 80
+      https_port             = 443
+      origin_protocol_policy = "http-only"  # EC2 serves HTTP, CloudFront terminates HTTPS
+      origin_ssl_protocols   = ["TLSv1.2"]
+    }
+  }
+
+  default_cache_behavior {
+    allowed_methods  = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
+    cached_methods   = ["GET", "HEAD"]
+    target_origin_id = "ec2-origin"
+
+    forwarded_values {
+      query_string = true
+      headers      = ["*"]  # Forward all headers for auth cookies
+
+      cookies {
+        forward = "all"  # Forward all cookies for authentication
+      }
+    }
+
+    viewer_protocol_policy = "redirect-to-https"
+    min_ttl                = 0
+    default_ttl            = 0  # Don't cache by default (dynamic app)
+    max_ttl                = 0
+  }
+
+  # Cache static assets longer
+  ordered_cache_behavior {
+    path_pattern     = "/assets/*"
+    allowed_methods  = ["GET", "HEAD", "OPTIONS"]
+    cached_methods   = ["GET", "HEAD"]
+    target_origin_id = "ec2-origin"
+
+    forwarded_values {
+      query_string = false
+      cookies {
+        forward = "none"
+      }
+    }
+
+    viewer_protocol_policy = "redirect-to-https"
+    min_ttl                = 86400      # 1 day
+    default_ttl            = 604800     # 1 week
+    max_ttl                = 31536000   # 1 year
+    compress               = true
+  }
+
+  restrictions {
+    geo_restriction {
+      restriction_type = "none"
+    }
+  }
+
+  viewer_certificate {
+    cloudfront_default_certificate = true  # Use *.cloudfront.net certificate
+  }
+
+  tags = {
+    Name = "usmax-nda-demo-cdn"
+  }
+}
