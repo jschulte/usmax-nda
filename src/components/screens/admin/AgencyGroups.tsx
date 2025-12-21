@@ -72,6 +72,7 @@ export function AgencyGroups() {
   const [expandedGroupIds, setExpandedGroupIds] = useState<Set<string>>(new Set());
   const [subagenciesByGroup, setSubagenciesByGroup] = useState<Record<string, Subagency[]>>({});
   const [subagencyCounts, setSubagencyCounts] = useState<Record<string, number>>({});
+  const [loadingSubagencyGroups, setLoadingSubagencyGroups] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
 
   // Dialog state
@@ -140,16 +141,33 @@ export function AgencyGroups() {
   };
 
   const loadSubagencies = async (groupId: string) => {
+    // Set loading state
+    setLoadingSubagencyGroups((prev) => {
+      const next = new Set(prev);
+      next.add(groupId);
+      return next;
+    });
     try {
       const response = await agencyService.listSubagencies(groupId);
-      setSubagenciesByGroup((prev) => ({ ...prev, [groupId]: response.subagencies }));
-      const count = response.subagencies.length;
+      // Ensure we always set an array, even if response is malformed
+      const subagencies = Array.isArray(response?.subagencies) ? response.subagencies : [];
+      setSubagenciesByGroup((prev) => ({ ...prev, [groupId]: subagencies }));
+      const count = subagencies.length;
       setSubagencyCounts((prev) => ({ ...prev, [groupId]: count }));
-      return response.subagencies;
+      return subagencies;
     } catch (error) {
+      // On error, set empty array to prevent perpetual loading state
+      setSubagenciesByGroup((prev) => ({ ...prev, [groupId]: [] }));
       handleApiError(error, 'Failed to load subagencies');
+      return [];
+    } finally {
+      // Clear loading state
+      setLoadingSubagencyGroups((prev) => {
+        const next = new Set(prev);
+        next.delete(groupId);
+        return next;
+      });
     }
-    return [];
   };
 
   const toggleGroupExpanded = async (groupId: string) => {
@@ -602,6 +620,7 @@ export function AgencyGroups() {
                 filteredGroups.map((group) => {
                   const isExpanded = expandedGroupIds.has(group.id);
                   const subagencies = subagenciesByGroup[group.id] ?? [];
+                  const isLoadingSubagencies = loadingSubagencyGroups.has(group.id);
                   const subCount = subagencyCounts[group.id] ?? group.subagencyCount ?? 0;
 
                   return (
@@ -670,9 +689,14 @@ export function AgencyGroups() {
                         <TableRow>
                           <TableCell colSpan={5} className="bg-slate-50">
                             <div className="pl-10">
-                              {subagencies.length === 0 ? (
+                              {isLoadingSubagencies ? (
+                                <div className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)] py-3">
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                  Loading subagencies...
+                                </div>
+                              ) : subagencies.length === 0 ? (
                                 <div className="text-sm text-[var(--color-text-secondary)] py-3">
-                                  No subagencies yet. Use “Add subagency” to create one.
+                                  No subagencies yet. Use "Add subagency" to create one.
                                 </div>
                               ) : (
                                 <div className="space-y-2">
