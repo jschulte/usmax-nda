@@ -107,7 +107,7 @@ jobs:
 
             # Install dependencies and build
             cd ${{ env.APP_DIR }}
-            sudo -u ${{ env.APP_USER }} pnpm install --frozen-lockfile
+            sudo -u ${{ env.APP_USER }} pnpm install
             sudo -u ${{ env.APP_USER }} pnpm db:generate
             sudo -u ${{ env.APP_USER }} pnpm build
 
