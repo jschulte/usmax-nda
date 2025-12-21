@@ -66,10 +66,10 @@ development_status:
   3-9-status-progression-visualization: done
   3-10-email-composition-and-sending: done
   3-11-email-notifications-to-stakeholders: done
-  3-12-status-management-and-auto-transitions: in-progress
-  3-13-rtf-template-selection-and-preview: in-progress
-  3-14-poc-management-and-validation: in-progress
-  3-15-inactive-and-cancelled-status-management: in-progress
+  3-12-status-management-and-auto-transitions: done
+  3-13-rtf-template-selection-and-preview: done
+  3-14-poc-management-and-validation: done
+  3-15-inactive-and-cancelled-status-management: done
   epic-3-retrospective: optional
   epic-4: done
   4-1-document-upload-with-drag-drop: done

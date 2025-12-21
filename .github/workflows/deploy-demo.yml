@@ -1,0 +1,124 @@
+# Deploy to Demo Environment (EC2)
+# Triggers automatically on push to main branch
+# Uses SSH to deploy directly to EC2 instance
+
+name: Deploy to Demo
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-demo
+  cancel-in-progress: false
+
+env:
+  DEMO_HOST: 18.235.47.142
+  DEMO_USER: ec2-user
+  APP_USER: usmax
+  APP_DIR: /home/usmax/app
+
+jobs:
+  deploy:
+    name: Deploy to Demo EC2
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup SSH Key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEMO_SSH_PRIVATE_KEY }}" > ~/.ssh/demo_key
+          chmod 600 ~/.ssh/demo_key
+          ssh-keyscan -H ${{ env.DEMO_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Create deployment package
+        run: |
+          # Create a tarball excluding unnecessary files
+          tar --exclude='node_modules' \
+              --exclude='.git' \
+              --exclude='dist' \
+              --exclude='build' \
+              --exclude='.env*' \
+              --exclude='*.log' \
+              --exclude='.claude' \
+              -czf deploy.tar.gz .
+
+      - name: Copy package to server
+        run: |
+          scp -i ~/.ssh/demo_key deploy.tar.gz ${{ env.DEMO_USER }}@${{ env.DEMO_HOST }}:/tmp/
+
+      - name: Deploy on server
+        run: |
+          ssh -i ~/.ssh/demo_key ${{ env.DEMO_USER }}@${{ env.DEMO_HOST }} << 'DEPLOY_SCRIPT'
+            set -e
+
+            # Backup current app
+            sudo -u ${{ env.APP_USER }} cp -r ${{ env.APP_DIR }} ${{ env.APP_DIR }}.backup.$(date +%Y%m%d_%H%M%S) || true
+
+            # Extract new code
+            sudo rm -rf /tmp/app_deploy
+            mkdir -p /tmp/app_deploy
+            tar -xzf /tmp/deploy.tar.gz -C /tmp/app_deploy
+
+            # Sync to app directory (preserve node_modules and .env)
+            sudo rsync -av --delete \
+              --exclude 'node_modules' \
+              --exclude '.env' \
+              --exclude '.env.local' \
+              --exclude 'prisma/*.db' \
+              /tmp/app_deploy/ ${{ env.APP_DIR }}/
+
+            # Fix ownership
+            sudo chown -R ${{ env.APP_USER }}:${{ env.APP_USER }} ${{ env.APP_DIR }}
+
+            # Install dependencies and build
+            cd ${{ env.APP_DIR }}
+            sudo -u ${{ env.APP_USER }} pnpm install --frozen-lockfile
+            sudo -u ${{ env.APP_USER }} pnpm db:generate
+            sudo -u ${{ env.APP_USER }} pnpm build
+
+            # Restart service
+            sudo systemctl restart usmax-nda
+
+            # Wait for service to start
+            sleep 5
+
+            # Health check
+            if curl -sf http://localhost:3000/api/health > /dev/null; then
+              echo "✅ Deployment successful! Service is healthy."
+            else
+              echo "⚠️ Service may not be responding. Check logs."
+              sudo journalctl -u usmax-nda -n 50 --no-pager
+            fi
+
+            # Cleanup
+            rm -rf /tmp/deploy.tar.gz /tmp/app_deploy
+          DEPLOY_SCRIPT
+
+      - name: Cleanup SSH key
+        if: always()
+        run: rm -f ~/.ssh/demo_key
+
+  notify:
+    name: Notify
+    runs-on: ubuntu-latest
+    needs: [deploy]
+    if: always()
+
+    steps:
+      - name: Report status
+        run: |
+          if [ "${{ needs.deploy.result }}" == "success" ]; then
+            echo "✅ Demo deployment successful!"
+            echo "URL: http://${{ env.DEMO_HOST }}"
+            echo "CloudFront: https://d3s83cg96xp6l3.cloudfront.net"
+          else
+            echo "❌ Demo deployment failed!"
+            exit 1
+          fi
+        env:
+          DEMO_HOST: 18.235.47.142
