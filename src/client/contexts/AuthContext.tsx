@@ -38,8 +38,8 @@ export interface AuthContextType {
   clearError: () => void;
 }
 
-// API base URL
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+// API base URL - empty string uses relative URLs (works with reverse proxy)
+const API_URL = import.meta.env.VITE_API_URL || '';
 
 // Context
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
