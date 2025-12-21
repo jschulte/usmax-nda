@@ -1,0 +1,238 @@
+# Deploy to NonProd Environment
+# Triggers automatically on push to main branch after CI passes
+
+name: Deploy to NonProd
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      skip_tests:
+        description: 'Skip tests (emergency deploy)'
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: deploy-nonprod
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: usmax-nda-nonprod
+  ECS_CLUSTER: usmax-nda-nonprod
+  ECS_SERVICE: usmax-nda-nonprod
+  ENVIRONMENT: nonprod
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  # ==========================================================================
+  # Run CI (unless skipped)
+  # ==========================================================================
+  ci:
+    name: CI Checks
+    if: ${{ !inputs.skip_tests }}
+    uses: ./.github/workflows/ci.yml
+    secrets: inherit
+
+  # ==========================================================================
+  # Build and Push Docker Image
+  # ==========================================================================
+  build-and-push:
+    name: Build & Push
+    runs-on: ubuntu-latest
+    needs: [ci]
+    if: always() && (needs.ci.result == 'success' || inputs.skip_tests)
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tags }}
+      image_digest: ${{ steps.build.outputs.digest }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN_NONPROD }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}
+          tags: |
+            type=sha,prefix=
+            type=raw,value=latest
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: false
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+          severity: 'CRITICAL,HIGH'
+          exit-code: '0'
+          format: 'table'
+
+  # ==========================================================================
+  # Database Migration
+  # ==========================================================================
+  migrate:
+    name: Database Migration
+    runs-on: ubuntu-latest
+    needs: [build-and-push]
+    environment: nonprod
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN_NONPROD }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: '9'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Get database credentials
+        id: db-creds
+        run: |
+          DB_SECRET=$(aws secretsmanager get-secret-value --secret-id ${{ secrets.DB_SECRET_ARN_NONPROD }} --query SecretString --output text)
+          echo "DATABASE_URL=$(echo $DB_SECRET | jq -r .database_url)" >> $GITHUB_OUTPUT
+
+      - name: Run migrations
+        run: pnpm db:migrate
+        env:
+          DATABASE_URL: ${{ steps.db-creds.outputs.DATABASE_URL }}
+
+  # ==========================================================================
+  # Deploy to ECS
+  # ==========================================================================
+  deploy:
+    name: Deploy to ECS
+    runs-on: ubuntu-latest
+    needs: [build-and-push, migrate]
+    environment: nonprod
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN_NONPROD }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Download task definition
+        run: |
+          aws ecs describe-task-definition \
+            --task-definition ${{ env.ECS_SERVICE }} \
+            --query taskDefinition > task-definition.json
+
+      - name: Update task definition with new image
+        id: task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: task-definition.json
+          container-name: usmax-nda
+          image: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+
+      - name: Deploy to Amazon ECS
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.task-def.outputs.task-definition }}
+          service: ${{ env.ECS_SERVICE }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true
+          wait-for-minutes: 10
+
+  # ==========================================================================
+  # Post-Deploy Verification
+  # ==========================================================================
+  verify:
+    name: Verify Deployment
+    runs-on: ubuntu-latest
+    needs: [deploy]
+
+    steps:
+      - name: Wait for service to stabilize
+        run: sleep 30
+
+      - name: Health check
+        run: |
+          MAX_RETRIES=10
+          RETRY_DELAY=10
+
+          for i in $(seq 1 $MAX_RETRIES); do
+            if curl -sf "${{ secrets.APP_URL_NONPROD }}/api/health" > /dev/null; then
+              echo "Health check passed!"
+              exit 0
+            fi
+            echo "Attempt $i failed, retrying in ${RETRY_DELAY}s..."
+            sleep $RETRY_DELAY
+          done
+
+          echo "Health check failed after $MAX_RETRIES attempts"
+          exit 1
+
+  # ==========================================================================
+  # Notify
+  # ==========================================================================
+  notify:
+    name: Notify
+    runs-on: ubuntu-latest
+    needs: [verify]
+    if: always()
+
+    steps:
+      - name: Notify success
+        if: needs.verify.result == 'success'
+        run: |
+          echo "✅ Deployment to nonprod successful!"
+          echo "Image: ${{ github.sha }}"
+          echo "URL: ${{ secrets.APP_URL_NONPROD }}"
+
+      - name: Notify failure
+        if: needs.verify.result != 'success'
+        run: |
+          echo "❌ Deployment to nonprod failed!"
+          echo "Check the workflow logs for details."
+          exit 1

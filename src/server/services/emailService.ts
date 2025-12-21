@@ -326,7 +326,7 @@ export async function getEmailPreview(
   }
 
   // Get attachments
-  const attachments = nda.documents.map((doc) => ({
+  const attachments = nda.documents.map((doc: { filename: string; id: string }) => ({
     filename: doc.filename,
     documentId: doc.id,
   }));

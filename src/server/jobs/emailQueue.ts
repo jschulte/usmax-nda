@@ -1,4 +1,4 @@
-import PgBoss from 'pg-boss';
+import { PgBoss, type JobWithMetadata } from 'pg-boss';
 
 export interface EmailJobPayload {
   emailId: string;
@@ -19,23 +19,25 @@ export async function startEmailQueue(
   }
 
   boss = new PgBoss({ connectionString });
-  boss.on('error', (error) => {
+  boss.on('error', (error: Error) => {
     console.error('[EmailQueue] pg-boss error', error);
   });
 
   await boss.start();
+  await boss.createQueue('send-nda-email');
   await boss.work<EmailJobPayload>(
     'send-nda-email',
-    { retryLimit: 3, retryDelay: 1000, retryBackoff: true, includeMetadata: true },
-    async (job) => {
-      try {
-        await handler(job.data);
-      } catch (error) {
-        const isFinalAttempt = job.retryCount >= job.retryLimit;
-        if (isFinalAttempt && onPermanentFailure) {
-          await onPermanentFailure(job.data, error, job.retryCount);
+    { batchSize: 1 },
+    async (jobs: JobWithMetadata<EmailJobPayload>[]) => {
+      for (const job of jobs) {
+        try {
+          await handler(job.data);
+        } catch (error) {
+          if (onPermanentFailure) {
+            await onPermanentFailure(job.data, error, job.retryCount);
+          }
+          throw error;
         }
-        throw error;
       }
     }
   );

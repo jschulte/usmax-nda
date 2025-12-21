@@ -1,0 +1,307 @@
+# Deploy to Production Environment
+# Requires manual approval and uses blue/green deployment
+
+name: Deploy to Production
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'Docker image tag to deploy (defaults to latest from nonprod)'
+        required: false
+        type: string
+      skip_approval:
+        description: 'Skip approval (emergency deploy)'
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY_NONPROD: usmax-nda-nonprod
+  ECR_REPOSITORY_PROD: usmax-nda-prod
+  ECS_CLUSTER: usmax-nda-prod
+  ECS_SERVICE: usmax-nda-prod
+  ENVIRONMENT: prod
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  # ==========================================================================
+  # Determine Image Tag
+  # ==========================================================================
+  prepare:
+    name: Prepare
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.determine-tag.outputs.tag }}
+
+    steps:
+      - name: Determine image tag
+        id: determine-tag
+        run: |
+          if [ -n "${{ inputs.image_tag }}" ]; then
+            echo "tag=${{ inputs.image_tag }}" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event_name }}" == "release" ]; then
+            echo "tag=${{ github.event.release.tag_name }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=latest" >> $GITHUB_OUTPUT
+          fi
+
+  # ==========================================================================
+  # Manual Approval Gate
+  # ==========================================================================
+  approval:
+    name: Approval Gate
+    runs-on: ubuntu-latest
+    needs: [prepare]
+    if: ${{ !inputs.skip_approval }}
+    environment: production-approval
+
+    steps:
+      - name: Approval checkpoint
+        run: |
+          echo "🔒 Production deployment approved"
+          echo "Image tag: ${{ needs.prepare.outputs.image_tag }}"
+
+  # ==========================================================================
+  # Copy Image to Production ECR
+  # ==========================================================================
+  copy-image:
+    name: Copy Image to Prod ECR
+    runs-on: ubuntu-latest
+    needs: [prepare, approval]
+    if: always() && (needs.approval.result == 'success' || inputs.skip_approval)
+    outputs:
+      image_uri: ${{ steps.copy.outputs.image_uri }}
+
+    steps:
+      - name: Configure AWS credentials (nonprod - source)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN_NONPROD }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to nonprod ECR
+        id: login-ecr-nonprod
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Pull image from nonprod
+        run: |
+          docker pull ${{ steps.login-ecr-nonprod.outputs.registry }}/${{ env.ECR_REPOSITORY_NONPROD }}:${{ needs.prepare.outputs.image_tag }}
+
+      - name: Configure AWS credentials (prod - target)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN_PROD }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to prod ECR
+        id: login-ecr-prod
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Tag and push to prod
+        id: copy
+        run: |
+          SOURCE_IMAGE="${{ steps.login-ecr-nonprod.outputs.registry }}/${{ env.ECR_REPOSITORY_NONPROD }}:${{ needs.prepare.outputs.image_tag }}"
+          TARGET_IMAGE="${{ steps.login-ecr-prod.outputs.registry }}/${{ env.ECR_REPOSITORY_PROD }}:${{ needs.prepare.outputs.image_tag }}"
+
+          docker tag $SOURCE_IMAGE $TARGET_IMAGE
+          docker push $TARGET_IMAGE
+
+          echo "image_uri=$TARGET_IMAGE" >> $GITHUB_OUTPUT
+
+  # ==========================================================================
+  # Database Migration (Production)
+  # ==========================================================================
+  migrate:
+    name: Database Migration
+    runs-on: ubuntu-latest
+    needs: [copy-image]
+    environment: prod
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name || github.sha }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN_PROD }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: '9'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Get database credentials
+        id: db-creds
+        run: |
+          DB_SECRET=$(aws secretsmanager get-secret-value --secret-id ${{ secrets.DB_SECRET_ARN_PROD }} --query SecretString --output text)
+          echo "DATABASE_URL=$(echo $DB_SECRET | jq -r .database_url)" >> $GITHUB_OUTPUT
+
+      - name: Run migrations
+        run: pnpm db:migrate
+        env:
+          DATABASE_URL: ${{ steps.db-creds.outputs.DATABASE_URL }}
+
+  # ==========================================================================
+  # Deploy to Production ECS
+  # ==========================================================================
+  deploy:
+    name: Deploy to ECS
+    runs-on: ubuntu-latest
+    needs: [copy-image, migrate]
+    environment: prod
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN_PROD }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Download task definition
+        run: |
+          aws ecs describe-task-definition \
+            --task-definition ${{ env.ECS_SERVICE }} \
+            --query taskDefinition > task-definition.json
+
+      - name: Update task definition with new image
+        id: task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: task-definition.json
+          container-name: usmax-nda
+          image: ${{ needs.copy-image.outputs.image_uri }}
+
+      - name: Deploy to Amazon ECS
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.task-def.outputs.task-definition }}
+          service: ${{ env.ECS_SERVICE }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true
+          wait-for-minutes: 15
+
+  # ==========================================================================
+  # Post-Deploy Verification
+  # ==========================================================================
+  verify:
+    name: Verify Deployment
+    runs-on: ubuntu-latest
+    needs: [deploy]
+
+    steps:
+      - name: Wait for service to stabilize
+        run: sleep 60
+
+      - name: Health check
+        run: |
+          MAX_RETRIES=15
+          RETRY_DELAY=20
+
+          for i in $(seq 1 $MAX_RETRIES); do
+            if curl -sf "${{ secrets.APP_URL_PROD }}/api/health" > /dev/null; then
+              echo "Health check passed!"
+              exit 0
+            fi
+            echo "Attempt $i failed, retrying in ${RETRY_DELAY}s..."
+            sleep $RETRY_DELAY
+          done
+
+          echo "Health check failed after $MAX_RETRIES attempts"
+          exit 1
+
+      - name: Smoke test - API status
+        run: |
+          RESPONSE=$(curl -s "${{ secrets.APP_URL_PROD }}/api/health")
+          echo "API Response: $RESPONSE"
+
+          if echo "$RESPONSE" | grep -q "ok"; then
+            echo "Smoke test passed!"
+          else
+            echo "Smoke test failed!"
+            exit 1
+          fi
+
+  # ==========================================================================
+  # Notify
+  # ==========================================================================
+  notify:
+    name: Notify
+    runs-on: ubuntu-latest
+    needs: [verify]
+    if: always()
+
+    steps:
+      - name: Notify success
+        if: needs.verify.result == 'success'
+        run: |
+          echo "🚀 Production deployment successful!"
+          echo "Version: ${{ needs.prepare.outputs.image_tag || github.event.release.tag_name }}"
+          echo "URL: ${{ secrets.APP_URL_PROD }}"
+
+      - name: Notify failure
+        if: needs.verify.result != 'success'
+        run: |
+          echo "🚨 Production deployment failed!"
+          echo "Immediate investigation required."
+          echo "Consider rolling back to previous version."
+          exit 1
+
+  # ==========================================================================
+  # Rollback (manual trigger)
+  # ==========================================================================
+  rollback:
+    name: Rollback
+    runs-on: ubuntu-latest
+    if: failure() && needs.deploy.result == 'failure'
+    needs: [deploy]
+    environment: prod
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN_PROD }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get previous task definition
+        id: previous
+        run: |
+          PREVIOUS=$(aws ecs describe-services \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --services ${{ env.ECS_SERVICE }} \
+            --query 'services[0].deployments[?status==`PRIMARY`].taskDefinition' \
+            --output text)
+          echo "task_definition=$PREVIOUS" >> $GITHUB_OUTPUT
+
+      - name: Rollback deployment
+        run: |
+          echo "Rolling back to: ${{ steps.previous.outputs.task_definition }}"
+          aws ecs update-service \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --service ${{ env.ECS_SERVICE }} \
+            --task-definition ${{ steps.previous.outputs.task_definition }} \
+            --force-new-deployment

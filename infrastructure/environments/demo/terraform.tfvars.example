@@ -1,0 +1,31 @@
+# Demo Environment Configuration
+# Copy to terraform.tfvars and fill in your values
+
+# AWS Region
+aws_region = "us-east-1"
+
+# EC2 instance type
+# t3.micro = ~$9/mo (1 GB RAM) - minimum for demo
+# t3.small = ~$17/mo (2 GB RAM) - recommended if running into memory issues
+instance_type = "t3.micro"
+
+# REQUIRED: Name of your existing EC2 key pair
+# Create one at: https://console.aws.amazon.com/ec2/home#KeyPairs:
+key_pair_name = "your-key-pair-name"
+
+# SSH access - RESTRICT THIS to your IP!
+# Find your IP: curl ifconfig.me
+ssh_allowed_cidr = ["YOUR.IP.ADDRESS.HERE/32"]
+
+# Optional: Custom domain (leave null to use IP address with self-signed cert)
+# domain_name     = "nda-demo.yourdomain.com"
+# route53_zone_id = "Z1234567890ABC"
+
+# Email for Let's Encrypt certificate notifications
+admin_email = "your-email@example.com"
+
+# Database password (use a strong password!)
+db_password = "ChangeThisToAStrongPassword123!"
+
+# Git repository URL (use HTTPS for public repos, or SSH with deploy key)
+app_repo = "https://github.com/your-org/usmax-nda.git"

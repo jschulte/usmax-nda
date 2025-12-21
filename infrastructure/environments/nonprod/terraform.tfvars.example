@@ -1,0 +1,23 @@
+# Example terraform.tfvars for nonprod environment
+# Copy to terraform.tfvars and fill in your values
+
+project_name = "usmax-nda"
+environment  = "nonprod"
+aws_region   = "us-east-1"
+
+# Optional: Custom domain (leave null to use ALB DNS)
+# domain_name     = "nda-dev.yourdomain.com"
+# route53_zone_id = "Z1234567890ABC"
+# certificate_arn = "arn:aws:acm:us-east-1:123456789:certificate/abc123"
+
+# Frontend URL for CORS
+frontend_url = "https://nda-dev.yourdomain.com"
+
+# SES email (must be verified in SES)
+ses_from_email = "nda@usmax.com"
+
+# Optional: Sentry DSN
+# sentry_dsn = "https://xxx@sentry.io/123"
+
+# GitHub repository for OIDC (for CI/CD)
+github_repo = "your-org/usmax-nda"

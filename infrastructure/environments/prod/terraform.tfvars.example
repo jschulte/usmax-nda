@@ -1,0 +1,24 @@
+# Example terraform.tfvars for production environment
+# Copy to terraform.tfvars and fill in your values
+# IMPORTANT: Never commit terraform.tfvars with real values
+
+project_name = "usmax-nda"
+environment  = "prod"
+aws_region   = "us-east-1"
+
+# Required: Custom domain
+domain_name     = "nda.usmax.com"
+route53_zone_id = "Z1234567890ABC"
+certificate_arn = "arn:aws:acm:us-east-1:123456789:certificate/abc123"
+
+# Frontend URL for CORS
+frontend_url = "https://nda.usmax.com"
+
+# SES email (must be verified in SES with production access)
+ses_from_email = "nda@usmax.com"
+
+# Optional: Sentry DSN
+sentry_dsn = ""
+
+# GitHub repository for OIDC (for CI/CD)
+github_repo = "usmax/usmax-nda"
