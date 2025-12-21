@@ -145,7 +145,7 @@ export function Dashboard() {
     return {
       id: activity.id,
       text: activity.description,
-      user: activity.user.name,
+      user: activity.user?.name ?? 'Unknown User',
       time: formatTimeAgo(activity.timestamp),
       Icon: iconConfig.Icon,
       iconBg: iconConfig.bg,
