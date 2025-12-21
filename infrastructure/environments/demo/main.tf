@@ -120,6 +120,7 @@ resource "aws_instance" "demo" {
   vpc_security_group_ids      = [aws_security_group.demo.id]
   associate_public_ip_address = true
   key_name                    = var.key_pair_name
+  iam_instance_profile        = aws_iam_instance_profile.demo.name
 
   root_block_device {
     volume_size           = 30  # AL2023 AMI requires >= 30GB
@@ -141,8 +142,10 @@ resource "aws_instance" "demo" {
   }
 
   lifecycle {
-    ignore_changes = [ami, user_data]
+    ignore_changes = [ami, user_data, iam_instance_profile]
   }
+
+  depends_on = [aws_iam_instance_profile.demo]
 }
 
 # Elastic IP (so IP doesn't change on restart)
@@ -242,4 +245,96 @@ resource "aws_cloudfront_distribution" "demo" {
   tags = {
     Name = "usmax-nda-demo-cdn"
   }
+}
+
+# S3 Bucket for document storage
+resource "aws_s3_bucket" "documents" {
+  bucket = "usmax-nda-demo-documents-${random_id.bucket_suffix.hex}"
+
+  tags = {
+    Name = "usmax-nda-demo-documents"
+  }
+}
+
+resource "random_id" "bucket_suffix" {
+  byte_length = 4
+}
+
+resource "aws_s3_bucket_versioning" "documents" {
+  bucket = aws_s3_bucket.documents.id
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "documents" {
+  bucket = aws_s3_bucket.documents.id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"
+    }
+  }
+}
+
+resource "aws_s3_bucket_public_access_block" "documents" {
+  bucket = aws_s3_bucket.documents.id
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+# IAM Role for EC2 instance
+resource "aws_iam_role" "demo" {
+  name = "usmax-nda-demo-ec2-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "ec2.amazonaws.com"
+        }
+      }
+    ]
+  })
+
+  tags = {
+    Name = "usmax-nda-demo-role"
+  }
+}
+
+# IAM Policy for S3 access
+resource "aws_iam_role_policy" "s3_access" {
+  name = "usmax-nda-demo-s3-access"
+  role = aws_iam_role.demo.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:PutObject",
+          "s3:DeleteObject",
+          "s3:ListBucket"
+        ]
+        Resource = [
+          aws_s3_bucket.documents.arn,
+          "${aws_s3_bucket.documents.arn}/*"
+        ]
+      }
+    ]
+  })
+}
+
+# IAM Instance Profile
+resource "aws_iam_instance_profile" "demo" {
+  name = "usmax-nda-demo-instance-profile"
+  role = aws_iam_role.demo.name
 }

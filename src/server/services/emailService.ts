@@ -535,19 +535,45 @@ export async function sendEmail(
   rawMessage += `--${boundary}--\r\n`;
 
   try {
-    // Send via SES
-    const command = new SendRawEmailCommand({
-      RawMessage: { Data: Buffer.from(rawMessage) },
-    });
+    // Check if we're in mock email mode (no SES credentials or explicitly set)
+    const useMockEmail = process.env.USE_MOCK_EMAIL === 'true' ||
+      !process.env.AWS_ACCESS_KEY_ID ||
+      !process.env.SES_FROM_EMAIL;
 
-    const result = await sesClient.send(command);
+    let messageId: string;
+
+    if (useMockEmail) {
+      // Log email details for demo/testing - this shows what WOULD be sent
+      console.log('\n' + '='.repeat(60));
+      console.log('[EmailService] MOCK EMAIL MODE - Email would be sent:');
+      console.log('='.repeat(60));
+      console.log(`  From: ${fromEmail}`);
+      console.log(`  To: ${email.toAddresses.join(', ')}`);
+      if (email.ccAddresses?.length) console.log(`  CC: ${email.ccAddresses.join(', ')}`);
+      console.log(`  Subject: ${email.subject}`);
+      console.log(`  NDA: ${email.nda.companyName} (ID: ${email.nda.displayId})`);
+      console.log(`  Attachment: ${attachmentFilename} (${Math.round(attachmentSize / 1024)}KB)`);
+      console.log(`  Body Preview: ${email.body.substring(0, 200)}${email.body.length > 200 ? '...' : ''}`);
+      console.log('='.repeat(60) + '\n');
+
+      // Generate a mock message ID
+      messageId = `mock-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+    } else {
+      // Send via SES
+      const command = new SendRawEmailCommand({
+        RawMessage: { Data: Buffer.from(rawMessage) },
+      });
+
+      const result = await sesClient.send(command);
+      messageId = result.MessageId || `ses-${Date.now()}`;
+    }
 
     // Update email record with success
     await prisma.ndaEmail.update({
       where: { id: emailId },
       data: {
         status: 'SENT',
-        sesMessageId: result.MessageId,
+        sesMessageId: messageId,
       },
     });
 
@@ -559,7 +585,8 @@ export async function sendEmail(
       userId: effectiveContext.contactId,
       details: {
         ndaId: email.ndaId,
-        sesMessageId: result.MessageId,
+        sesMessageId: messageId,
+        mockMode: useMockEmail,
       },
     });
 

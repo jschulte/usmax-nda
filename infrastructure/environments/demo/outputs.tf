@@ -52,3 +52,18 @@ output "cloudfront_distribution_id" {
   description = "CloudFront distribution ID for cache invalidation"
   value       = aws_cloudfront_distribution.demo.id
 }
+
+output "s3_bucket_name" {
+  description = "S3 bucket for document storage"
+  value       = aws_s3_bucket.documents.id
+}
+
+output "s3_bucket_arn" {
+  description = "S3 bucket ARN"
+  value       = aws_s3_bucket.documents.arn
+}
+
+output "iam_instance_profile" {
+  description = "IAM instance profile name"
+  value       = aws_iam_instance_profile.demo.name
+}
