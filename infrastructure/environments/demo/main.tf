@@ -333,6 +333,12 @@ resource "aws_iam_role_policy" "s3_access" {
   })
 }
 
+# Attach SSM Managed Policy for Systems Manager access
+resource "aws_iam_role_policy_attachment" "ssm" {
+  role       = aws_iam_role.demo.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
 # IAM Instance Profile
 resource "aws_iam_instance_profile" "demo" {
   name = "usmax-nda-demo-instance-profile"

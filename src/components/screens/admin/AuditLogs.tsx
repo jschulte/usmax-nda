@@ -24,7 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../ui/select';
-import { Badge } from '../../ui/Badge';
+import { Badge } from '../../ui/badge';
 import {
   Dialog,
   DialogContent,
@@ -32,7 +32,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../../ui/dialog';
-import { Label } from '../../ui/Label';
+import { Label } from '../../ui/label';
 import {
   listAuditLogs,
   exportAuditLogs,
