@@ -413,7 +413,8 @@ export function NotificationSettings() {
             </div>
 
             <div className="space-y-3">
-              {mockTemplates.map(template => (
+              {/* Story 9.15: No templates to display - mockTemplates removed */}
+              {[].map((template: any) => (
                 <div 
                   key={template.id}
                   className="p-4 border border-[var(--color-border)] rounded-lg hover:border-[var(--color-primary)] transition-colors"
