@@ -61,29 +61,57 @@ jobs:
               --warning=no-file-changed \
               -czf deploy.tar.gz . || [[ $? -eq 1 ]]
 
-      - name: Copy package to server
-        run: |
-          # Retry SCP with exponential backoff to handle transient network issues
-          for attempt in 1 2 3 4 5; do
-            echo "SCP attempt $attempt..."
-            if scp -v -o ConnectTimeout=60 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 \
-                   -i ~/.ssh/demo_key deploy.tar.gz ${{ env.DEMO_USER }}@${{ env.DEMO_HOST }}:/tmp/; then
-              echo "✅ SCP succeeded on attempt $attempt"
-              exit 0
-            fi
-            echo "Attempt $attempt failed, waiting before retry..."
-            sleep $((attempt * 10))
-          done
-          echo "❌ SCP failed after 5 attempts"
-          exit 1
+      - name: Configure AWS credentials
+        uses: aws/configure-aws-credentials@v4
+        with:
+          aws-region: us-east-1
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
 
-      - name: Deploy on server
+      - name: Upload package to S3
         run: |
-          # Retry SSH connection with increased timeout
+          aws s3 cp deploy.tar.gz s3://usmax-nda-demo-documents-0cfd49ce/deployments/deploy-$(date +%Y%m%d-%H%M%S).tar.gz
+          aws s3 cp deploy.tar.gz s3://usmax-nda-demo-documents-0cfd49ce/deployments/deploy-latest.tar.gz
+
+      - name: Deploy via SSM
+        run: |
+          echo "🚀 Deploying via AWS Systems Manager..."
+          aws ssm send-command \
+            --instance-ids i-0705895d9aa47a478 \
+            --document-name "AWS-RunShellScript" \
+            --parameters 'commands=[
+              "set -e",
+              "echo \"📦 Downloading deployment package...\"",
+              "aws s3 cp s3://usmax-nda-demo-documents-0cfd49ce/deployments/deploy-latest.tar.gz /tmp/deploy.tar.gz",
+              "echo \"📂 Extracting package...\"",
+              "sudo rm -rf /tmp/app_deploy",
+              "mkdir -p /tmp/app_deploy",
+              "tar -xzf /tmp/deploy.tar.gz -C /tmp/app_deploy",
+              "echo \"📋 Syncing to app directory...\"",
+              "sudo rsync -av --delete --exclude node_modules --exclude .env --exclude .env.local /tmp/app_deploy/ ${{ env.APP_DIR }}/",
+              "sudo chown -R ${{ env.APP_USER }}:${{ env.APP_USER }} ${{ env.APP_DIR }}",
+              "echo \"📥 Installing dependencies...\"",
+              "cd ${{ env.APP_DIR }}",
+              "sudo -u ${{ env.APP_USER }} pnpm install --no-frozen-lockfile",
+              "sudo -u ${{ env.APP_USER }} pnpm db:migrate deploy",
+              "sudo -u ${{ env.APP_USER }} pnpm db:generate",
+              "sudo -u ${{ env.APP_USER }} pnpm build",
+              "echo \"🔄 Restarting service...\"",
+              "sudo systemctl restart usmax-nda",
+              "sleep 5",
+              "echo \"🏥 Health check...\"",
+              "if curl -sf http://localhost:3000/api/health > /dev/null; then echo \"✅ Deployment successful!\"; else echo \"❌ Health check failed\"; sudo journalctl -u usmax-nda -n 20 --no-pager; exit 1; fi",
+              "rm -rf /tmp/deploy.tar.gz /tmp/app_deploy"
+            ]' \
+            --output text
+
+          echo "✅ SSM command sent. Deployment running on instance."
+
+          DEPLOY_OLD_SSH_CODE() {
+          # OLD SSH-BASED CODE (REMOVED - replaced with SSM above)
           for attempt in 1 2 3; do
             echo "SSH deployment attempt $attempt..."
             if ssh -o ConnectTimeout=60 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 \
-                   -i ~/.ssh/demo_key ${{ env.DEMO_USER }}@${{ env.DEMO_HOST }} << 'DEPLOY_SCRIPT'
+                   -i ~/.ssh/demo_key ${{ env.DEMO_USER }}@${{ env.DEMO_HOST }} << 'DEPLOY_SCRIPT_OLD'
             set -e
 
             # Backup current app
