@@ -79,6 +79,7 @@ import {
   type EmailTemplateSummary,
 } from '../../client/services/emailTemplateService';
 import * as notesService from '../../client/services/notesService'; // Story 9.1
+import { formatAuditDetails } from '../../client/utils/formatAuditChanges'; // Story 9.6
 
 export function NDADetail() {
   const { id } = useParams<{ id: string }>();
@@ -1396,11 +1397,32 @@ export function NDADetail() {
                               <span>•</span>
                               <span>{new Date(entry.timestamp).toLocaleString()}</span>
                             </div>
-                            {entry.details && Object.keys(entry.details).length > 0 && (
-                              <div className="mt-2 p-2 bg-gray-50 rounded text-xs">
-                                <pre className="whitespace-pre-wrap">{JSON.stringify(entry.details, null, 2)}</pre>
-                              </div>
-                            )}
+                            {/* Story 9.6: Human-readable changes display */}
+                            {entry.details && Object.keys(entry.details).length > 0 && (() => {
+                              const formatted = formatAuditDetails(entry.details);
+
+                              return (
+                                <div className="mt-2">
+                                  {formatted.changes.length > 0 && (
+                                    <ul className="space-y-1 bg-blue-50 p-2 rounded border border-blue-200">
+                                      {formatted.changes.map((change, i) => (
+                                        <li key={i} className="text-xs">• {change}</li>
+                                      ))}
+                                    </ul>
+                                  )}
+                                  {formatted.hasOtherFields && (
+                                    <details className="mt-2">
+                                      <summary className="cursor-pointer text-xs text-blue-600 hover:text-blue-800">
+                                        Show details
+                                      </summary>
+                                      <pre className="text-xs bg-gray-50 p-2 rounded mt-1">
+                                        {JSON.stringify(formatted.otherFields, null, 2)}
+                                      </pre>
+                                    </details>
+                                  )}
+                                </div>
+                              );
+                            })()}
                           </div>
                         </div>
                       ))

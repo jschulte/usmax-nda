@@ -184,14 +184,14 @@ development_status:
   9-3-fix-agency-groups-three-dots-menu: done
   9-4-add-subagency-creation-button: done
   9-5-fix-role-assignment-error: done
-  9-6-human-readable-audit-trail-display: backlog
-  9-7-fix-nda-edit-page-layout: backlog
-  9-8-change-status-modal-overlay: backlog
-  9-9-fix-notifications-bell-dropdown: backlog
-  9-10-add-active-page-highlighting-to-sidebar: backlog
-  9-11-improve-contact-search-display-format: backlog
-  9-12-improve-empty-nda-list-state: backlog
-  9-13-improve-login-page-branding: backlog
+  9-6-human-readable-audit-trail-display: done
+  9-7-fix-nda-edit-page-layout: done
+  9-8-change-status-modal-overlay: done
+  9-9-fix-notifications-bell-dropdown: done
+  9-10-add-active-page-highlighting-to-sidebar: done
+  9-11-improve-contact-search-display-format: done
+  9-12-improve-empty-nda-list-state: done
+  9-13-improve-login-page-branding: done
   9-14-carry-contact-phone-to-nda-form: backlog
   9-15-enhanced-email-template-bodies: backlog
   9-16-improved-email-template-editor: backlog

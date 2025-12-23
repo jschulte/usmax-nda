@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { formatAuditDetails } from '../../../client/utils/formatAuditChanges'; // Story 9.6
 import { Card } from '../../ui/AppCard';
 import { Button } from '../../ui/AppButton';
 import { Input } from '../../ui/AppInput';
@@ -725,11 +726,42 @@ export function AuditLogs() {
                 </div>
               </div>
 
+              {/* Story 9.6: Human-readable changes display */}
               <div>
                 <Label className="text-xs text-[var(--color-text-secondary)]">Event Details</Label>
-                <pre className="text-xs bg-gray-100 p-3 rounded mt-1 overflow-x-auto">
-                  {JSON.stringify(selectedEvent.details, null, 2)}
-                </pre>
+                {(() => {
+                  const formatted = formatAuditDetails(selectedEvent.details);
+
+                  return (
+                    <div className="mt-2">
+                      {formatted.changes.length > 0 && (
+                        <div className="mb-3">
+                          <p className="text-xs font-medium mb-2">Changes:</p>
+                          <ul className="space-y-1 bg-blue-50 p-3 rounded border border-blue-200">
+                            {formatted.changes.map((change, i) => (
+                              <li key={i} className="text-sm">• {change}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {formatted.hasOtherFields && (
+                        <details className="mt-2">
+                          <summary className="cursor-pointer text-xs text-blue-600 hover:text-blue-800 font-medium">
+                            Show raw details
+                          </summary>
+                          <pre className="text-xs bg-gray-100 p-3 rounded mt-2 overflow-x-auto">
+                            {JSON.stringify(formatted.otherFields, null, 2)}
+                          </pre>
+                        </details>
+                      )}
+
+                      {!formatted.changes.length && !formatted.hasOtherFields && (
+                        <p className="text-xs text-gray-500 mt-2">No additional details</p>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           )}
