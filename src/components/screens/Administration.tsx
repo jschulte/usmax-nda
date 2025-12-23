@@ -97,8 +97,8 @@ export function Administration() {
             <p className="text-[var(--color-success)]">Connected</p>
           </div>
           <div>
-            <p className="text-sm text-[var(--color-text-secondary)] mb-1">Last Backup</p>
-            <p>2 hours ago</p>
+            <p className="text-sm text-[var(--color-text-secondary)] mb-1">Database Backups</p>
+            <p className="text-xs text-[var(--color-text-secondary)]">Automated daily via AWS RDS</p>
           </div>
         </div>
       </Card>
