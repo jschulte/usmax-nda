@@ -1595,24 +1595,23 @@ router.get(
   ]),
   async (req, res) => {
     try {
-      const document = await getDocumentById(req.params.documentId, req.userContext!);
-
-      if (!document) {
-        return res.status(404).json({
-          error: 'Document not found or access denied',
-          code: 'NOT_FOUND',
-        });
-      }
+      // Story 6.3: Use documentService for proper audit logging
+      const { url, filename } = await getDocumentDownloadUrl(
+        req.params.documentId,
+        req.userContext!,
+        {
+          ipAddress: req.ip,
+          userAgent: req.get('user-agent'),
+        }
+      );
 
       const expiresIn = req.query.expiresIn
         ? parseInt(req.query.expiresIn as string, 10)
         : 900;
 
-      const downloadUrl = await getDownloadUrl(document.s3Key, expiresIn);
-
       res.json({
-        downloadUrl,
-        filename: document.filename,
+        downloadUrl: url,
+        filename,
         expiresIn,
       });
     } catch (error) {

@@ -17,6 +17,7 @@ config(); // Also load .env if exists
 
 import authRouter from './routes/auth.js';
 import adminRouter from './routes/admin.js';
+import { auditMiddleware } from './middleware/auditMiddleware.js';
 import agencyGroupsRouter from './routes/agencyGroups.js';
 import subagenciesRouter from './routes/subagencies.js';
 import agencyAccessRouter from './routes/agencyAccess.js';
@@ -61,6 +62,11 @@ if (process.env.NODE_ENV !== 'production') {
     next();
   });
 }
+
+// Audit middleware - automatically logs all POST/PUT/DELETE/PATCH requests
+// Story 6.1: Comprehensive Action Logging
+// Uses res.on('finish') to capture response status after handler completion
+app.use(auditMiddleware);
 
 // === Routes ===
 

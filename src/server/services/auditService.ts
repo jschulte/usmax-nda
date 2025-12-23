@@ -12,6 +12,7 @@
  */
 
 import prisma from '../db/index.js';
+import { reportError } from './errorReportingService.js';
 
 export enum AuditAction {
   // Authentication events (Story 1.1)
@@ -78,6 +79,43 @@ export enum AuditAction {
   EMAIL_FAILED = 'email_failed',
 }
 
+/**
+ * Field change record for audit trail
+ * Story 6.2: Track before/after values for entity updates
+ */
+export interface FieldChange {
+  /** Field name (e.g., "companyName", "status") */
+  field: string;
+  /** Previous value before update */
+  before: unknown;
+  /** New value after update */
+  after: unknown;
+}
+
+/**
+ * Details object for audit log entries
+ * Story 6.1: Added result tracking for success/error status
+ * Story 6.2: Added field change tracking for updates
+ */
+export interface AuditLogDetails {
+  /** Result of the operation: 'success' or 'error' */
+  result?: 'success' | 'error';
+  /** HTTP status code if from HTTP request */
+  statusCode?: number;
+  /** Request duration in milliseconds */
+  duration?: number;
+  /** Error message if result is 'error' */
+  errorMessage?: string;
+  /** Request path */
+  path?: string;
+  /** HTTP method */
+  method?: string;
+  /** Field changes (Story 6.2): before/after values for updated fields */
+  changes?: FieldChange[];
+  /** Additional context-specific details */
+  [key: string]: unknown;
+}
+
 export interface AuditLogEntry {
   action: AuditAction;
   entityType: string;
@@ -85,7 +123,8 @@ export interface AuditLogEntry {
   userId?: string | null;
   ipAddress?: string;
   userAgent?: string;
-  details?: Record<string, any>;
+  /** Additional details including result status (Story 6.1) */
+  details?: AuditLogDetails;
 }
 
 interface StoredAuditEntry extends AuditLogEntry {
@@ -93,6 +132,28 @@ interface StoredAuditEntry extends AuditLogEntry {
   createdAt: Date;
 }
 
+/**
+ * Audit Logging Service
+ *
+ * Story 6.1: Comprehensive Action Logging
+ *
+ * IMPORTANT: This service is APPEND-ONLY by design (AC4).
+ * - The audit_log table should NEVER have UPDATE or DELETE operations.
+ * - Only INSERT operations are permitted to maintain compliance.
+ * - This service intentionally provides NO update or delete methods.
+ * - For compliance: Consider adding PostgreSQL RULE or TRIGGER to
+ *   prevent DELETE/UPDATE at the database level.
+ *
+ * @example
+ * // Log an audit event
+ * await auditService.log({
+ *   action: AuditAction.NDA_CREATED,
+ *   entityType: 'nda',
+ *   entityId: nda.id,
+ *   userId: userContext.contactId,
+ *   details: { result: 'success', statusCode: 201 },
+ * });
+ */
 class AuditService {
   // In-memory store for fallback when database is unavailable
   private logs: StoredAuditEntry[] = [];
@@ -137,13 +198,31 @@ class AuditService {
           },
         });
         return; // Success - don't store in memory
-      } catch (error: any) {
+      } catch (error: unknown) {
+        const err = error as { code?: string; message?: string };
         // Database not available (maybe not migrated yet)
-        if (error.code === 'P1001' || error.code === 'P2021') {
+        if (err.code === 'P1001' || err.code === 'P2021') {
           this.dbAvailable = false;
           console.warn('[AUDIT] Database not available, falling back to in-memory logging');
         } else {
-          console.error('[AUDIT] Database error:', error);
+          // Story 6.1 Task 4: Enhanced failure alerting
+          // Structured console error with timestamp and context
+          console.error('[AUDIT] Database write failed:', {
+            timestamp: new Date().toISOString(),
+            action: entry.action,
+            entityType: entry.entityType,
+            entityId: entry.entityId,
+            userId: entry.userId,
+            error: err.message || String(error),
+          });
+
+          // Report to Sentry if configured (Story 6.1 AC3)
+          reportError(error, {
+            source: 'auditService.log',
+            action: entry.action,
+            entityType: entry.entityType,
+            entityId: entry.entityId,
+          });
         }
       }
     }

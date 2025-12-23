@@ -212,6 +212,13 @@ export async function transitionStatus(
   });
 
   // Audit log with before/after values
+  // Story 6.2: Track status change with structured field change format
+  const statusChange = [{
+    field: 'status',
+    before: currentStatus,
+    after: newStatus,
+  }];
+
   await auditService.log({
     action: AuditAction.NDA_STATUS_CHANGED,
     entityType: 'nda',
@@ -221,9 +228,10 @@ export async function transitionStatus(
     userAgent: auditMeta?.userAgent,
     details: {
       displayId: nda.displayId,
-      previousStatus: currentStatus,
-      newStatus,
+      previousStatus: currentStatus, // Backward compatibility
+      newStatus, // Backward compatibility
       trigger,
+      changes: statusChange, // Story 6.2: Structured field changes
     },
   });
 

@@ -14,6 +14,8 @@ import { prisma } from '../db/index.js';
 import type { Prisma } from '../../generated/prisma/index.js';
 import { auditService, AuditAction } from './auditService.js';
 import { invalidateUserContext } from './userContextService.js';
+// Story 6.2: Field change tracking
+import { detectFieldChanges } from '../utils/detectFieldChanges.js';
 
 // =============================================================================
 // INTERFACES
@@ -401,6 +403,27 @@ export async function updateUser(
     },
   });
 
+  // Story 6.2: Detect field changes for audit trail
+  const beforeValues: Record<string, unknown> = {
+    firstName: existing.firstName,
+    lastName: existing.lastName,
+    email: existing.email,
+    workPhone: existing.workPhone,
+    cellPhone: existing.cellPhone,
+    jobTitle: existing.jobTitle,
+  };
+
+  const afterValues: Record<string, unknown> = {
+    firstName: input.firstName ?? existing.firstName,
+    lastName: input.lastName ?? existing.lastName,
+    email: normalizedEmail ?? existing.email,
+    workPhone: input.workPhone ?? existing.workPhone,
+    cellPhone: input.cellPhone ?? existing.cellPhone,
+    jobTitle: input.jobTitle ?? existing.jobTitle,
+  };
+
+  const fieldChanges = detectFieldChanges(beforeValues, afterValues);
+
   // Audit log
   await auditService.log({
     action: AuditAction.USER_UPDATED,
@@ -408,9 +431,9 @@ export async function updateUser(
     entityId: user.id,
     userId: updatedBy,
     details: {
-      changes: input,
-      previousEmail: existing.email,
-      newEmail: user.email,
+      changes: fieldChanges, // Story 6.2: Structured field changes
+      previousEmail: existing.email, // Backward compatibility
+      newEmail: user.email, // Backward compatibility
     },
     ipAddress: auditContext?.ipAddress,
     userAgent: auditContext?.userAgent,

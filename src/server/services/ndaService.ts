@@ -26,6 +26,8 @@ import { scopeNDAsToUser } from './agencyScopeService.js';
 import { findNdaWithScope } from '../utils/scopedQuery.js';
 // Story H-1 Task 13: Import POC assignment notification
 import { notifyPocAssignment } from './notificationService.js';
+// Story 6.2: Field change tracking
+import { detectFieldChanges } from '../utils/detectFieldChanges.js';
 
 // Re-export enums for use in other modules
 export { NdaStatus, UsMaxPosition, NdaType };
@@ -1089,6 +1091,50 @@ export async function updateNda(
     },
   });
 
+  // Story 6.2: Detect field changes for audit trail
+  // Build comparable before/after objects
+  const beforeValues: Record<string, unknown> = {
+    companyName: existing.companyName,
+    companyCity: existing.companyCity,
+    companyState: existing.companyState,
+    stateOfIncorporation: existing.stateOfIncorporation,
+    agencyGroupId: existing.agencyGroupId,
+    subagencyId: existing.subagencyId,
+    agencyOfficeName: existing.agencyOfficeName,
+    ndaType: existing.ndaType,
+    abbreviatedName: existing.abbreviatedName,
+    authorizedPurpose: existing.authorizedPurpose,
+    effectiveDate: existing.effectiveDate,
+    usMaxPosition: existing.usMaxPosition,
+    isNonUsMax: existing.isNonUsMax,
+    contractsPocId: existing.contractsPoc?.id ?? null,
+    relationshipPocId: existing.relationshipPoc?.id ?? null,
+    contactsPocId: existing.contactsPoc?.id ?? null,
+    rtfTemplateId: existing.rtfTemplate?.id ?? null,
+  };
+
+  const afterValues: Record<string, unknown> = {
+    companyName: input.companyName ?? existing.companyName,
+    companyCity: input.companyCity ?? existing.companyCity,
+    companyState: input.companyState ?? existing.companyState,
+    stateOfIncorporation: input.stateOfIncorporation ?? existing.stateOfIncorporation,
+    agencyGroupId: input.agencyGroupId ?? existing.agencyGroupId,
+    subagencyId: input.subagencyId ?? existing.subagencyId,
+    agencyOfficeName: input.agencyOfficeName ?? existing.agencyOfficeName,
+    ndaType: input.ndaType ?? existing.ndaType,
+    abbreviatedName: input.abbreviatedName ?? existing.abbreviatedName,
+    authorizedPurpose: input.authorizedPurpose ?? existing.authorizedPurpose,
+    effectiveDate: effectiveDate ?? existing.effectiveDate,
+    usMaxPosition: input.usMaxPosition ?? existing.usMaxPosition,
+    isNonUsMax: input.isNonUsMax ?? existing.isNonUsMax,
+    contractsPocId: input.contractsPocId ?? existing.contractsPoc?.id ?? null,
+    relationshipPocId: input.relationshipPocId ?? existing.relationshipPoc?.id ?? null,
+    contactsPocId: input.contactsPocId ?? existing.contactsPoc?.id ?? null,
+    rtfTemplateId: input.rtfTemplateId ?? existing.rtfTemplate?.id ?? null,
+  };
+
+  const fieldChanges = detectFieldChanges(beforeValues, afterValues);
+
   // Audit log
   await auditService.log({
     action: AuditAction.NDA_UPDATED,
@@ -1099,7 +1145,7 @@ export async function updateNda(
     userAgent: auditMeta?.userAgent,
     details: {
       displayId: nda.displayId,
-      changes: input,
+      changes: fieldChanges, // Story 6.2: Include structured field changes
     },
   });
 

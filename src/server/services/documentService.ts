@@ -377,23 +377,29 @@ export async function getDocumentDownloadUrl(
     throw new DocumentServiceError('Document not found', 'DOCUMENT_NOT_FOUND');
   }
 
-  // Generate pre-signed URL (15 minutes TTL)
-  const url = await getDownloadUrl(document.s3Key, 900);
+  // Story 6.3: Log audit BEFORE generating pre-signed URL (AC2 compliance)
+  // Non-blocking: Don't fail download if audit logging fails
+  try {
+    await auditService.log({
+      action: AuditAction.DOCUMENT_DOWNLOADED,
+      entityType: 'document',
+      entityId: document.id,
+      userId: userContext.contactId,
+      ipAddress: auditMeta?.ipAddress,
+      userAgent: auditMeta?.userAgent,
+      details: {
+        ndaId: document.ndaId,
+        ndaDisplayId: document.nda.displayId,
+        filename: document.filename,
+      },
+    });
+  } catch (error) {
+    // Log error but don't block download (Story 6.3 AC2)
+    console.error('[DocumentService] Failed to log download audit:', error);
+  }
 
-  // Log audit
-  await auditService.log({
-    action: AuditAction.DOCUMENT_DOWNLOADED,
-    entityType: 'document',
-    entityId: document.id,
-    userId: userContext.contactId,
-    ipAddress: auditMeta?.ipAddress,
-    userAgent: auditMeta?.userAgent,
-    details: {
-      ndaId: document.ndaId,
-      ndaDisplayId: document.nda.displayId,
-      filename: document.filename,
-    },
-  });
+  // Generate pre-signed URL (15 minutes TTL) - AFTER audit log attempt
+  const url = await getDownloadUrl(document.s3Key, 900);
 
   return { url, filename: document.filename };
 }
