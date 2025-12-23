@@ -1751,7 +1751,7 @@ export function NDADetail() {
       </Dialog>
       
       <Dialog open={showEmailComposer} onOpenChange={setShowEmailComposer}>
-        <DialogContent className="sm:max-w-[720px]">
+        <DialogContent className="sm:max-w-[720px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Compose NDA Email</DialogTitle>
             <DialogDescription>
