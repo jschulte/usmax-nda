@@ -38,130 +38,130 @@ tracking_system: file-system
 story_location: docs/sprint-artifacts
 
 development_status:
-  epic-1: done
-  1-1-aws-cognito-mfa-integration: done
-  1-2-jwt-middleware-and-user-context: done
-  1-3-rbac-permission-system: done
-  1-4-row-level-security-implementation: done
-  epic-1-retrospective: completed
+  epic-1: in-progress
+  1-1-aws-cognito-mfa-integration: ready-for-dev
+  1-2-jwt-middleware-and-user-context: ready-for-dev
+  1-3-rbac-permission-system: ready-for-dev
+  1-4-row-level-security-implementation: ready-for-dev
+  epic-1-retrospective: optional
 
-  epic-2: done
-  2-1-agency-groups-crud: done
-  2-2-subagencies-crud: done
-  2-3-grant-agency-group-access-to-users: done
-  2-4-grant-subagency-specific-access: done
-  2-5-user-contact-management: done
-  2-6-access-control-summary-view: done
+  epic-2: in-progress
+  2-1-agency-groups-crud: ready-for-dev
+  2-2-subagencies-crud: ready-for-dev
+  2-3-grant-agency-group-access-to-users: ready-for-dev
+  2-4-grant-subagency-specific-access: ready-for-dev
+  2-5-user-contact-management: ready-for-dev
+  2-6-access-control-summary-view: ready-for-dev
   epic-2-retrospective: optional
 
-  epic-3: done
-  3-1-create-nda-with-basic-form: done
-  3-2-smart-form-auto-fill-company-first-entry-path: done
-  3-3-clone-duplicate-nda-second-entry-path: done
-  3-4-agency-first-entry-path-with-suggestions: done
-  3-5-rtf-document-generation: done
-  3-6-draft-management-and-auto-save: done
-  3-7-nda-list-with-filtering: done
-  3-8-nda-detail-view: done
-  3-9-status-progression-visualization: done
-  3-10-email-composition-and-sending: done
-  3-11-email-notifications-to-stakeholders: done
-  3-12-status-management-and-auto-transitions: done
-  3-13-rtf-template-selection-and-preview: done
-  3-14-poc-management-and-validation: done
-  3-15-inactive-and-cancelled-status-management: done
+  epic-3: in-progress
+  3-1-create-nda-with-basic-form: ready-for-dev
+  3-2-smart-form-auto-fill-company-first-entry-path: ready-for-dev
+  3-3-clone-duplicate-nda-second-entry-path: ready-for-dev
+  3-4-agency-first-entry-path-with-suggestions: ready-for-dev
+  3-5-rtf-document-generation: ready-for-dev
+  3-6-draft-management-and-auto-save: ready-for-dev
+  3-7-nda-list-with-filtering: ready-for-dev
+  3-8-nda-detail-view: ready-for-dev
+  3-9-status-progression-visualization: ready-for-dev
+  3-10-email-composition-and-sending: ready-for-dev
+  3-11-email-notifications-to-stakeholders: ready-for-dev
+  3-12-status-management-and-auto-transitions: ready-for-dev
+  3-13-rtf-template-selection-and-preview: ready-for-dev
+  3-14-poc-management-and-validation: ready-for-dev
+  3-15-inactive-and-cancelled-status-management: ready-for-dev
   epic-3-retrospective: optional
-  epic-4: done
-  4-1-document-upload-with-drag-drop: done
-  4-2-mark-document-as-fully-executed: done
-  4-3-document-download-with-pre-signed-urls: done
-  4-4-document-version-history: done
-  4-5-download-all-versions-as-zip: done
-  4-6-document-metadata-tracking: done
-  4-7-indefinite-document-preservation: done
+  epic-4: in-progress
+  4-1-document-upload-with-drag-drop: ready-for-dev
+  4-2-mark-document-as-fully-executed: ready-for-dev
+  4-3-document-download-with-pre-signed-urls: ready-for-dev
+  4-4-document-version-history: ready-for-dev
+  4-5-download-all-versions-as-zip: ready-for-dev
+  4-6-document-metadata-tracking: ready-for-dev
+  4-7-indefinite-document-preservation: ready-for-dev
   epic-4-retrospective: optional
 
-  epic-5: done
-  5-1-global-nda-search: done
-  5-2-column-sorting-with-persistence: done
-  5-3-advanced-filtering-system: done
-  5-4-filter-presets: done
-  5-5-date-range-shortcuts: done
-  5-6-pagination-with-configurable-page-size: done
-  5-7-recently-used-values-in-dropdowns: done
-  5-8-personalized-dashboard: done
-  5-9-at-a-glance-metrics: done
-  5-10-stale-nda-identification: done
-  5-11-waiting-on-3rd-party-tracking: done
-  5-12-expiration-alerts: done
-  5-13-email-notification-preferences: done
-  5-14-nda-stakeholder-subscriptions: done
+  epic-5: in-progress
+  5-1-global-nda-search: ready-for-dev
+  5-2-column-sorting-with-persistence: ready-for-dev
+  5-3-advanced-filtering-system: ready-for-dev
+  5-4-filter-presets: ready-for-dev
+  5-5-date-range-shortcuts: ready-for-dev
+  5-6-pagination-with-configurable-page-size: ready-for-dev
+  5-7-recently-used-values-in-dropdowns: ready-for-dev
+  5-8-personalized-dashboard: ready-for-dev
+  5-9-at-a-glance-metrics: ready-for-dev
+  5-10-stale-nda-identification: ready-for-dev
+  5-11-waiting-on-3rd-party-tracking: ready-for-dev
+  5-12-expiration-alerts: ready-for-dev
+  5-13-email-notification-preferences: ready-for-dev
+  5-14-nda-stakeholder-subscriptions: ready-for-dev
   epic-5-retrospective: optional
 
-  epic-6: done
-  6-1-comprehensive-action-logging: done
-  6-2-field-change-tracking: done
-  6-3-document-download-tracking: done
-  6-4-login-attempt-tracking: done
-  6-5-nda-audit-trail-viewer: done
-  6-6-visual-timeline-display: done
-  6-7-centralized-audit-log-viewer-admin: done
-  6-8-audit-log-filtering: done
-  6-9-audit-log-export: done
-  6-10-email-event-tracking: done
-  6-11-immutable-audit-trail: done
+  epic-6: backlog
+  6-1-comprehensive-action-logging: backlog
+  6-2-field-change-tracking: backlog
+  6-3-document-download-tracking: backlog
+  6-4-login-attempt-tracking: backlog
+  6-5-nda-audit-trail-viewer: backlog
+  6-6-visual-timeline-display: backlog
+  6-7-centralized-audit-log-viewer-admin: backlog
+  6-8-audit-log-filtering: backlog
+  6-9-audit-log-export: backlog
+  6-10-email-event-tracking: backlog
+  6-11-immutable-audit-trail: backlog
   epic-6-retrospective: optional
 
-  epic-7: done
-  7-1-rtf-template-creation: done
-  7-2-rtf-template-management: done
-  7-3-default-template-assignment: done
-  7-4-template-field-merging: done
-  7-5-template-selection-during-creation: done
-  7-6-email-template-creation: done
-  7-7-email-template-management: done
-  7-8-template-suggestions: done
-  7-9-smart-company-suggestions: done
-  7-10-historical-field-suggestions: done
-  7-11-previous-nda-context-display: done
-  7-12-email-recipient-suggestions: done
-  7-13-learning-suggestions-over-time: done
-  7-14-admin-status-configuration: done
-  7-15-auto-transition-rule-configuration: done
-  7-16-notification-rule-configuration: done
-  7-17-dashboard-alert-threshold-configuration: done
-  7-18-default-email-cc-bcc-configuration: done
-  7-19-dropdown-field-configuration: done
+  epic-7: backlog
+  7-1-rtf-template-creation: backlog
+  7-2-rtf-template-management: backlog
+  7-3-default-template-assignment: backlog
+  7-4-template-field-merging: backlog
+  7-5-template-selection-during-creation: backlog
+  7-6-email-template-creation: backlog
+  7-7-email-template-management: backlog
+  7-8-template-suggestions: backlog
+  7-9-smart-company-suggestions: backlog
+  7-10-historical-field-suggestions: backlog
+  7-11-previous-nda-context-display: backlog
+  7-12-email-recipient-suggestions: backlog
+  7-13-learning-suggestions-over-time: backlog
+  7-14-admin-status-configuration: backlog
+  7-15-auto-transition-rule-configuration: backlog
+  7-16-notification-rule-configuration: backlog
+  7-17-dashboard-alert-threshold-configuration: backlog
+  7-18-default-email-cc-bcc-configuration: backlog
+  7-19-dropdown-field-configuration: backlog
   epic-7-retrospective: optional
 
-  epic-8: done
+  epic-8: backlog
   # Note: Most Epic 8 stories are infrastructure/AWS configuration done outside codebase
   # Validation and error handling patterns are implemented throughout the application
-  8-1-error-monitoring-with-sentry: done  # Infrastructure - AWS/Sentry config
-  8-2-system-health-dashboards: done  # Infrastructure - CloudWatch config
-  8-3-email-retry-logic: done  # Implemented in emailService
-  8-4-failsafe-error-logging: done  # Implemented via auditService
-  8-5-data-validation-required-fields: done  # Implemented in service layer
-  8-6-format-validation: done  # Implemented in routes/services
-  8-7-character-limit-enforcement: done  # Implemented (e.g., authorizedPurpose 255 char)
-  8-8-date-range-validation: done  # Implemented in filter params
-  8-9-file-upload-validation: done  # Implemented in fileUpload middleware
-  8-10-referential-integrity: done  # Enforced by Prisma/PostgreSQL
-  8-11-real-time-inline-validation: done  # Frontend implementation
-  8-12-database-encryption-at-rest: done  # AWS RDS encryption enabled
-  8-13-s3-document-encryption: done  # AWS S3 default encryption
-  8-14-tls-1.3-enforcement: done  # Infrastructure - load balancer config
-  8-15-pre-signed-s3-urls: done  # Implemented in s3Service/documentService
-  8-16-s3-multi-region-replication: done  # Infrastructure - AWS config
-  8-17-automated-database-snapshots: done  # Infrastructure - AWS RDS config
-  8-18-database-restore-capability: done  # Infrastructure - AWS RDS feature
-  8-19-dr-testing: done  # Infrastructure - operational procedure
-  8-20-user-friendly-errors: done  # Implemented in error handlers
-  8-21-operation-retry: done  # Frontend retry patterns
-  8-22-email-queue-retry: done  # Implemented in emailService
-  8-23-graceful-degradation: done  # Implemented in error handling
-  8-24-offline-detection: done  # Frontend implementation
-  8-25-form-data-preservation: done  # Implemented in draft auto-save (Story 3.6)
-  8-26-nda-list-export: done  # GET /api/ndas/export CSV endpoint
-  8-27-data-import-tool-phase-2: done  # Phase 2 scope - deferred
+  8-1-error-monitoring-with-sentry: backlog  # Infrastructure - AWS/Sentry config
+  8-2-system-health-dashboards: backlog  # Infrastructure - CloudWatch config
+  8-3-email-retry-logic: backlog  # Implemented in emailService
+  8-4-failsafe-error-logging: backlog  # Implemented via auditService
+  8-5-data-validation-required-fields: backlog  # Implemented in service layer
+  8-6-format-validation: backlog  # Implemented in routes/services
+  8-7-character-limit-enforcement: backlog  # Implemented (e.g., authorizedPurpose 255 char)
+  8-8-date-range-validation: backlog  # Implemented in filter params
+  8-9-file-upload-validation: backlog  # Implemented in fileUpload middleware
+  8-10-referential-integrity: backlog  # Enforced by Prisma/PostgreSQL
+  8-11-real-time-inline-validation: backlog  # Frontend implementation
+  8-12-database-encryption-at-rest: backlog  # AWS RDS encryption enabled
+  8-13-s3-document-encryption: backlog  # AWS S3 default encryption
+  8-14-tls-1.3-enforcement: backlog  # Infrastructure - load balancer config
+  8-15-pre-signed-s3-urls: backlog  # Implemented in s3Service/documentService
+  8-16-s3-multi-region-replication: backlog  # Infrastructure - AWS config
+  8-17-automated-database-snapshots: backlog  # Infrastructure - AWS RDS config
+  8-18-database-restore-capability: backlog  # Infrastructure - AWS RDS feature
+  8-19-dr-testing: backlog  # Infrastructure - operational procedure
+  8-20-user-friendly-errors: backlog  # Implemented in error handlers
+  8-21-operation-retry: backlog  # Frontend retry patterns
+  8-22-email-queue-retry: backlog  # Implemented in emailService
+  8-23-graceful-degradation: backlog  # Implemented in error handling
+  8-24-offline-detection: backlog  # Frontend implementation
+  8-25-form-data-preservation: backlog  # Implemented in draft auto-save (Story 3.6)
+  8-26-nda-list-export: backlog  # GET /api/ndas/export CSV endpoint
+  8-27-data-import-tool-phase-2: backlog  # Phase 2 scope - deferred
   epic-8-retrospective: optional

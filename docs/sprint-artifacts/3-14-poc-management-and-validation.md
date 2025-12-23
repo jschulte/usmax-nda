@@ -1,6 +1,6 @@
 # Story 3.14: POC Management & Validation
 
-Status: in-progress
+Status: ready-for-dev
 
 ## Story
 
@@ -10,14 +10,14 @@ so that **emails reach the right people and data is accurate**.
 
 ## Acceptance Criteria
 
-### AC1: Opportunity POC (Internal User)
+### AC1: Opportunity POC Selection
 **Given** Creating NDA form
 **When** I enter Opportunity POC
 **Then** Dropdown shows internal USMax users only (where is_internal=true)
 **And** Auto-complete works (type 3 letters → matches)
 **And** Selected user's email signature included in email template
 
-### AC2: Relationship POC (External Contact - Required)
+### AC2: External POC Validation
 **Given** I enter Relationship POC (required external contact)
 **When** Entering email, phone, fax
 **Then** Email validated in real-time (must be valid format)
@@ -37,122 +37,274 @@ so that **emails reach the right people and data is accurate**.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: Internal User Lookup** (AC: 1)
-  - [x] 1.1: Add `is_internal` flag to Contact model
-  - [x] 1.2: Add `GET /api/contacts/internal-users` endpoint
-  - [x] 1.3: Implement auto-complete search (3+ chars)
-  - [x] 1.4: Include email signature in response
+- [ ] **Task 1: POC Validation Service** (AC: 2)
+  - [ ] 1.1: Create src/server/validators/pocValidator.ts
+  - [ ] 1.2: Implement email format validation (RFC 5322)
+  - [ ] 1.3: Implement phone format validation (US format)
+  - [ ] 1.4: Implement fax format validation (optional)
+  - [ ] 1.5: Return structured validation errors
 
-- [x] **Task 2: POC Validation** (AC: 2)
-  - [x] 2.1: Create `src/server/validators/pocValidator.ts`
-  - [x] 2.2: Implement email format validation
-  - [x] 2.3: Implement phone format validation
-  - [x] 2.4: Add required field rules for Relationship POC
+- [ ] **Task 2: Internal User Autocomplete** (AC: 1)
+  - [ ] 2.1: Reuse UserAutocomplete from Story 2-3
+  - [ ] 2.2: Filter to isInternal=true
+  - [ ] 2.3: Display: name, email, job title
+  - [ ] 2.4: On select, fetch email signature
+  - [ ] 2.5: Store email signature with NDA for email composition
 
-- [x] **Task 3: External Contact Management** (AC: 2, 3)
-  - [x] 3.1: Add external contact fields to NDA model
-  - [x] 3.2: Store POC details inline or as Contact records
-  - [x] 3.3: Implement copy functionality between POC fields
+- [ ] **Task 3: External Contact Selection** (AC: 2)
+  - [ ] 3.1: Create ContactSelector component
+  - [ ] 3.2: Support selecting existing contact or creating new inline
+  - [ ] 3.3: If new contact, validate email/phone before creating
+  - [ ] 3.4: Add to contacts table with isInternal=false
+  - [ ] 3.5: Link to NDA via POC foreign key
 
-- [ ] **Task 4: Testing** (AC: All)
-  - [ ] 4.1: Test internal user lookup
-  - [ ] 4.2: Test POC validation rules
-  - [ ] 4.3: Test copy POC functionality
+- [ ] **Task 4: Frontend - POC Form Fields** (AC: 1, 2, 3)
+  - [ ] 4.1: Opportunity POC: UserAutocomplete (internal only)
+  - [ ] 4.2: Contracts POC: ContactSelector (internal or external)
+  - [ ] 4.3: Relationship POC: ContactSelector (required, usually external)
+  - [ ] 4.4: Contacts POC: ContactSelector (optional, TBD status)
+  - [ ] 4.5: Add "Copy" button from Contracts to Relationship
 
-### Review Follow-ups (AI)
-- [x] [AI-Review][HIGH] Opportunity POC lookup is not restricted to internal users and triggers at 2 characters, not 3; UI calls `searchContacts` with `type='all'`. [src/components/screens/RequestWizard.tsx:211]
-- [x] [AI-Review][HIGH] Email signature is never included in the email body; preview generation only uses Relationship POC and does not fetch internal user signature. [src/server/services/emailService.ts:150]
-- [x] [AI-Review][HIGH] Copy POC details button/workflow is missing in the Request Wizard POC section. [src/components/screens/RequestWizard.tsx:500]
-- [x] [AI-Review][MEDIUM] Required format hints/real-time validation for email/phone/fax are not exposed in the UI; there are no external-contact input fields, only contact search. [src/components/screens/RequestWizard.tsx:503]
-- [ ] [AI-Review][MEDIUM] Contacts POC (TBD) is not represented in the NDA model or UI, so AC4 cannot be satisfied. [prisma/schema.prisma:239]
-- [x] [AI-Review][MEDIUM] Story marked done but Tasks/Subtasks are all unchecked and no Dev Agent Record/File List exists to verify changes. [docs/sprint-artifacts/3-14-poc-management-and-validation.md:1]
+- [ ] **Task 5: Email/Phone Validation** (AC: 2)
+  - [ ] 5.1: Use Zod schema for email validation
+  - [ ] 5.2: Use Zod schema for phone validation
+  - [ ] 5.3: Show inline errors on blur
+  - [ ] 5.4: Format phone on blur: (555) 555-5555
+  - [ ] 5.5: Red border for invalid, green checkmark for valid
 
-## Dev Agent Record
+- [ ] **Task 6: Copy POC Details Function** (AC: 3)
+  - [ ] 6.1: Implement copyPocDetails(fromField, toField)
+  - [ ] 6.2: Copy all contact fields: name, email, phone, fax
+  - [ ] 6.3: Update form values
+  - [ ] 6.4: Show toast: "POC details copied"
 
-### File List
-- src/components/screens/RequestWizard.tsx
-- src/client/services/userService.ts
-- src/server/services/emailService.ts
-- src/server/routes/users.ts
-- prisma/schema.prisma
+- [ ] **Task 7: Email Signature Integration** (AC: 1)
+  - [ ] 7.1: When Opportunity POC selected, fetch contact.emailSignature
+  - [ ] 7.2: Store with NDA for later email composition (Story 3-10)
+  - [ ] 7.3: Include in email template footer
+  - [ ] 7.4: Or fetch dynamically when composing email
 
-### Change Log
-- 2025-12-21: Limited opportunity POC searches to internal users with 3+ characters, added external POC validation and copy support in the wizard, and included internal signatures in email previews.
+- [ ] **Task 8: Testing** (AC: All)
+  - [ ] 8.1: Unit tests for POC validator
+  - [ ] 8.2: Test email format validation
+  - [ ] 8.3: Test phone format validation
+  - [ ] 8.4: Component tests for POC selectors
+  - [ ] 8.5: Test copy POC details functionality
 
 ## Dev Notes
 
-### Contact Schema Update
-
-```prisma
-model Contact {
-  // ... existing fields
-  isInternal    Boolean   @default(false)
-  emailSignature String?  @db.Text
-}
-```
-
-### POC Validation Rules
+### POC Validation Schemas
 
 ```typescript
-const pocValidation = {
-  email: {
-    pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-    message: 'Please enter a valid email address',
-  },
-  phone: {
-    pattern: /^\(\d{3}\) \d{3}-\d{4}$/,
-    hint: '(XXX) XXX-XXXX',
-    message: 'Please enter phone in format (XXX) XXX-XXXX',
-  },
-  fax: {
-    pattern: /^\(\d{3}\) \d{3}-\d{4}$/,
-    hint: '(XXX) XXX-XXXX',
-    optional: true,
-  },
-};
+import { z } from 'zod';
+
+export const emailSchema = z.string().email('Invalid email format');
+
+export const phoneSchema = z.string().regex(
+  /^\(?([0-9]{3})\)?[-. ]?([0-9]{3})[-. ]?([0-9]{4})$/,
+  'Phone must be in format: (XXX) XXX-XXXX'
+);
+
+export const pocSchema = z.object({
+  firstName: z.string().min(1, 'First name required'),
+  lastName: z.string().min(1, 'Last name required'),
+  email: emailSchema,
+  workPhone: phoneSchema.optional(),
+  cellPhone: phoneSchema.optional(),
+  fax: phoneSchema.optional()
+});
 ```
 
-### Internal User Search
+### Contact Selector Component
 
-```typescript
-// GET /api/contacts/internal-users?search=kel
-async function searchInternalUsers(search: string): Promise<Contact[]> {
-  return prisma.contact.findMany({
-    where: {
-      isInternal: true,
-      active: true,
-      OR: [
-        { firstName: { contains: search, mode: 'insensitive' } },
-        { lastName: { contains: search, mode: 'insensitive' } },
-        { email: { contains: search, mode: 'insensitive' } },
-      ],
-    },
-    take: 10,
-    select: {
-      id: true,
-      firstName: true,
-      lastName: true,
-      email: true,
-      emailSignature: true,
-    },
+```tsx
+function ContactSelector({
+  label,
+  value,
+  onChange,
+  allowInternal = true,
+  allowExternal = true,
+  required = false
+}: ContactSelectorProps) {
+  const [search, setSearch] = useState('');
+  const [showCreateForm, setShowCreateForm] = useState(false);
+
+  const { data: contacts } = useQuery({
+    queryKey: ['contacts', { search, allowInternal, allowExternal }],
+    queryFn: () => api.get('/api/contacts/search', {
+      params: { q: search, internal: allowInternal, external: allowExternal }
+    }).then(res => res.data),
+    enabled: search.length >= 2
   });
+
+  return (
+    <div>
+      <Label>
+        {label} {required && <span className="text-red-500">*</span>}
+      </Label>
+
+      <Combobox
+        value={value}
+        onValueChange={onChange}
+        options={contacts}
+        placeholder="Search contacts..."
+      />
+
+      <Button
+        size="sm"
+        variant="link"
+        onClick={() => setShowCreateForm(true)}
+      >
+        + Create New Contact
+      </Button>
+
+      {showCreateForm && (
+        <CreateContactInlineForm
+          onCreated={(contact) => {
+            onChange(contact.id);
+            setShowCreateForm(false);
+          }}
+        />
+      )}
+    </div>
+  );
 }
 ```
 
-### NDA POC Fields
+### Copy POC Details Implementation
 
-```typescript
-// Option 1: Store as Contact relations
-relationshipPocId: string;  // Required, reference to Contact
-contractsPocId?: string;    // Optional, reference to Contact
+```tsx
+function POCFields() {
+  const form = useForm();
 
-// Option 2: Store inline for external contacts
-relationshipPocEmail: string;
-relationshipPocPhone: string;
-relationshipPocName: string;
+  const copyContractsTtoRelationship = () => {
+    const contractsContactId = form.getValues('contractsContactId');
+    form.setValue('relationshipContactId', contractsContactId);
+    toast.success('POC details copied');
+  };
+
+  return (
+    <div className="space-y-4">
+      <FormField name="opportunityContactId" label="Opportunity POC (Internal)">
+        <UserAutocomplete internalOnly />
+      </FormField>
+
+      <FormField name="contractsContactId" label="Contracts POC">
+        <ContactSelector />
+      </FormField>
+
+      <FormField name="relationshipContactId" label="Relationship POC" required>
+        <ContactSelector />
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={copyContractsToRelationship}
+          className="mt-2"
+        >
+          <Copy className="mr-2 h-4 w-4" />
+          Copy from Contracts POC
+        </Button>
+      </FormField>
+
+      {/* Contacts POC - TBD, hide or show based on customer decision */}
+      {SHOW_CONTACTS_POC && (
+        <FormField name="contactsContactId" label="Contacts POC">
+          <ContactSelector />
+        </FormField>
+      )}
+    </div>
+  );
+}
 ```
 
-## Dependencies
+### Email Signature Integration
 
-- Story 3.1: Create NDA with Basic Form
-- Story 2.5: User/Contact Management
+**From Story 2-5, contacts have emailSignature field:**
+```typescript
+// When generating email (Story 3-10)
+const opportunityPoc = await prisma.contact.findUnique({
+  where: { id: nda.opportunityContactId },
+  select: { firstName: true, lastName: true, emailSignature: true }
+});
+
+const emailBody = `
+${emailBodyTemplate}
+
+---
+${opportunityPoc.emailSignature || `${opportunityPoc.firstName} ${opportunityPoc.lastName}`}
+`;
+```
+
+### Contacts POC (TBD Status)
+
+**Customer Decision Pending:**
+- If Contacts POC is distinct from Contracts POC → Implement as 4th POC
+- If Contacts POC same as Contracts POC → Hide field, use contracts_contact_id for both
+
+**Implementation:**
+- Field exists in NDA model (contacts_contact_id, nullable)
+- UI controlled by config flag or feature flag
+- Can enable/disable without code changes
+
+### Integration with Previous Stories
+
+**Builds on:**
+- Story 2-5: Contact model with email signatures
+- Story 2-3: UserAutocomplete pattern
+- Story 3-1: NDA model with 4 POC FKs
+
+**Used by:**
+- Story 3-10: Email composition (uses POC emails and signatures)
+- Story 3-11: Notifications (sends to POCs as stakeholders)
+
+### Project Structure Notes
+
+**New Files:**
+- `src/server/validators/pocValidator.ts` - NEW
+- `src/components/ui/ContactSelector.tsx` - NEW
+- `src/components/forms/CreateContactInlineForm.tsx` - NEW
+
+**Files to Modify:**
+- `src/components/screens/CreateNDA.tsx` - ENHANCE POC fields with validation
+
+**Follows established patterns:**
+- Validation with Zod from Story 3-1
+- Autocomplete from Story 2-3
+- Contact model from Story 2-5
+
+### References
+
+- [Source: docs/epics.md#Epic 3: Core NDA Lifecycle - Story 3.14]
+- [Source: Story 2-5 - Contact model with email signatures]
+- [Source: Story 3-1 - NDA model with POC FKs]
+- [Source: Story 3-10 - Email composition using POCs]
+
+## Dev Agent Record
+
+### Agent Model Used
+
+Claude Sonnet 4.5 (claude-sonnet-4-5-20250929)
+
+### Context Reference
+
+Story created from PRD/Epics specifications without code anchoring.
+
+### Completion Notes List
+
+- Story created using BMAD create-story workflow
+- POC validation with email/phone format checking
+- Contact selector with inline creation
+- Copy POC details functionality
+- Email signature integration for email composition
+- Contacts POC marked as TBD pending customer clarification
+
+### File List
+
+Files to be created/modified during implementation:
+- `src/server/validators/pocValidator.ts` - NEW
+- `src/components/ui/ContactSelector.tsx` - NEW
+- `src/components/forms/CreateContactInlineForm.tsx` - NEW
+- `src/components/screens/CreateNDA.tsx` - MODIFY (enhance POC fields)
+- `src/server/validators/__tests__/pocValidator.test.ts` - NEW
+- `src/components/ui/__tests__/ContactSelector.test.tsx` - NEW

@@ -1,6 +1,6 @@
 # Story 1.4: Row-Level Security Implementation
 
-Status: done
+Status: ready-for-dev
 
 ## Story
 
@@ -34,55 +34,62 @@ so that **I don't access NDAs outside my scope (compliance requirement)**.
 **Then** Returns Prisma where clause filtering by authorized subagencies
 **And** This helper is used on EVERY prisma.nda.findMany/findFirst/count call
 
-### AC5: Combined Agency Group and Subagency Access
-**Given** User has agency group "DoD" access AND specific subagency "Commercial Company A"
-**When** User queries NDAs
-**Then** User sees all DoD subagency NDAs + Commercial Company A NDAs
-**And** Other Commercial subagencies are NOT visible
-
 ## Tasks / Subtasks
 
-- [x] **Task 1: scopeToAgencies Middleware** (AC: 1, 2, 3)
-  - [x] 1.1: Create `src/server/middleware/scopeToAgencies.ts`
-  - [x] 1.2: Read user's authorizedAgencyGroups and authorizedSubagencies from req.user
-  - [x] 1.3: Compute complete list of authorized subagency IDs
-  - [x] 1.4: Attach `req.agencyScope` with Prisma where clause
-  - [x] 1.5: Handle case where user has no agency access (return empty results)
+- [ ] **Task 1: Agency Scope Service** (AC: 1, 2, 4)
+  - [ ] 1.1: Create src/server/services/agencyScopeService.ts
+  - [ ] 1.2: Implement getUserAgencyScope(userId) function
+  - [ ] 1.3: Query subagency_grants for direct subagency access
+  - [ ] 1.4: Query agency_group_grants and expand to all subagencies in each group
+  - [ ] 1.5: Return UNION of both (deduplicated subagency IDs)
+  - [ ] 1.6: Return Prisma where clause: { subagencyId: { in: [...ids] } }
 
-- [x] **Task 2: getUserAgencyScope Helper** (AC: 4, 5)
-  - [x] 2.1: Create `src/server/services/agencyScopeService.ts`
-  - [x] 2.2: Implement `getUserAgencyScope(userId)` function
-  - [x] 2.3: Query subagency_grants for direct subagency access
-  - [x] 2.4: Query agency_group_grants and expand to all subagencies in each group
-  - [x] 2.5: Return `{ subagencyId: { in: [...authorizedIds] } }` Prisma clause
-  - [x] 2.6: Cache authorized IDs with TTL (reuse from userContextService)
+- [ ] **Task 2: scopeToAgencies Middleware** (AC: 1, 2, 3)
+  - [ ] 2.1: Create src/server/middleware/scopeToAgencies.ts
+  - [ ] 2.2: Load user's authorized subagency IDs
+  - [ ] 2.3: Attach req.agencyScope with Prisma where clause
+  - [ ] 2.4: Handle case where user has no agency access (empty results)
+  - [ ] 2.5: Return 401 if not authenticated
 
-- [x] **Task 3: Scope Helper Integration** (AC: 1, 2, 4)
-  - [x] 3.1: Create `applyAgencyScope(baseWhere, req.user)` wrapper function
-  - [x] 3.2: Document mandatory usage pattern in code comments
-  - [x] 3.3: Create ESLint rule or code review checklist for scope enforcement
+- [ ] **Task 3: Scoped Query Helper** (AC: 3, 4)
+  - [ ] 3.1: Create src/server/utils/scopedQuery.ts
+  - [ ] 3.2: Implement findNdaWithScope(ndaId, userId) helper
+  - [ ] 3.3: Query with both ID and agency scope filters
+  - [ ] 3.4: Return null if NDA not found OR unauthorized (same result)
+  - [ ] 3.5: Caller returns 404 in both cases (no information leakage)
 
-- [x] **Task 4: 404 Not Found Pattern** (AC: 3)
-  - [x] 4.1: Create `withAgencyScope` wrapper for findUnique/findFirst
-  - [x] 4.2: Return null when NDA exists but user not authorized (becomes 404)
-  - [x] 4.3: Ensure no information leakage in error responses
-  - [x] 4.4: Log unauthorized access attempts to audit log (silently)
+- [ ] **Task 4: Caching Authorized Subagencies** (AC: Performance)
+  - [ ] 4.1: Cache authorized subagency IDs in userContextService (Story 1.2)
+  - [ ] 4.2: Include in UserContext object: authorizedSubagencies
+  - [ ] 4.3: Reuse cached IDs in scopeToAgencies middleware
+  - [ ] 4.4: Invalidate cache when user's agency access changes
 
-- [x] **Task 5: Apply to NDA Routes** (AC: All)
-  - [x] 5.1: Update `GET /api/ndas` to use agency scope
-  - [x] 5.2: Update `GET /api/ndas/:id` to use agency scope with 404 pattern
-  - [x] 5.3: Update `GET /api/ndas/:id/documents` to scope by NDA
-  - [x] 5.4: Update `GET /api/ndas/:id/history` to scope by NDA
-  - [x] 5.5: Update any count/aggregation queries
+- [ ] **Task 5: Audit Logging for Unauthorized Access** (AC: 3)
+  - [ ] 5.1: When 404 returned, silently check if NDA actually exists
+  - [ ] 5.2: If exists, log unauthorized_access_attempt to audit_log
+  - [ ] 5.3: Capture: user, NDA ID, attempted subagency
+  - [ ] 5.4: Don't reveal to user (still return 404)
 
-- [x] **Task 6: Testing** (AC: All)
-  - [x] 6.1: Unit tests for getUserAgencyScope helper
-  - [x] 6.2: Test agency group access (all subagencies visible)
-  - [x] 6.3: Test specific subagency access (only that subagency visible)
-  - [x] 6.4: Test combined access (union of both)
-  - [x] 6.5: Test 404 response for unauthorized NDA access
-  - [x] 6.6: Test no agency access returns empty results
-  - [x] 6.7: Integration tests for scoped NDA endpoints
+- [ ] **Task 6: Apply Scope to NDA Routes** (AC: 4)
+  - [ ] 6.1: Add scopeToAgencies middleware to all NDA endpoints
+  - [ ] 6.2: Update GET /api/ndas to use req.agencyScope
+  - [ ] 6.3: Update GET /api/ndas/:id to use findNdaWithScope helper
+  - [ ] 6.4: Document mandatory usage in code comments
+
+- [ ] **Task 7: TypeScript Type Extensions** (AC: 4)
+  - [ ] 7.1: Extend Express Request type with agencyScope property
+  - [ ] 7.2: Type agencyScope as Prisma.NdaWhereInput
+  - [ ] 7.3: Update UserContext to include authorizedSubagencies array
+
+- [ ] **Task 8: Testing** (AC: All)
+  - [ ] 8.1: Unit tests for getUserAgencyScope helper
+  - [ ] 8.2: Test agency group access (all subagencies visible)
+  - [ ] 8.3: Test specific subagency access (only that one visible)
+  - [ ] 8.4: Test combined access (union of both)
+  - [ ] 8.5: Test 404 response for unauthorized NDA access
+  - [ ] 8.6: Test no agency access returns empty results
+  - [ ] 8.7: Integration tests for scoped NDA endpoints
+
 ## Dev Notes
 
 ### Row-Level Security SQL Pattern
@@ -90,41 +97,38 @@ so that **I don't access NDAs outside my scope (compliance requirement)**.
 From architecture.md:
 
 ```sql
--- User can see NDA if:
+-- User can see NDA if subagency_id is in their authorized list:
 SELECT * FROM ndas
 WHERE subagency_id IN (
-  -- Has direct subagency access
-  SELECT subagency_id FROM subagency_grants WHERE contact_id = $userId
+  -- Direct subagency grants
+  SELECT subagency_id FROM subagency_grants
+  WHERE contact_id = $userId
+
   UNION
-  -- Has agency group access (sees all subagencies in group)
+
+  -- Agency group grants (expanded to all subagencies in group)
   SELECT s.id FROM subagencies s
-  INNER JOIN agency_group_grants aga ON s.agency_group_id = aga.agency_group_id
-  WHERE aga.contact_id = $userId
+  INNER JOIN agency_group_grants agg ON s.agency_group_id = agg.agency_group_id
+  WHERE agg.contact_id = $userId
 );
 ```
 
-### Prisma Helper Implementation
+### Agency Scope Service Implementation
 
 ```typescript
-// src/server/services/agencyScopeService.ts
-import { prisma } from '../db';
-
-/**
- * Get Prisma where clause for user's authorized subagencies.
- * This MUST be applied to all NDA queries for row-level security.
- */
-export async function getUserAgencyScope(userId: string): Promise<{ subagencyId: { in: string[] } }> {
+export async function getUserAgencyScope(userId: string) {
+  // Load user with agency grants
   const user = await prisma.contact.findUnique({
     where: { id: userId },
     include: {
+      subagencyGrants: true,
       agencyGroupGrants: {
         include: {
           agencyGroup: {
             include: { subagencies: true }
           }
         }
-      },
-      subagencyGrants: true
+      }
     }
   });
 
@@ -135,49 +139,38 @@ export async function getUserAgencyScope(userId: string): Promise<{ subagencyId:
   // Direct subagency access
   const directSubagencyIds = user.subagencyGrants.map(sg => sg.subagencyId);
 
-  // Agency group access (expands to all subagencies in group)
+  // Agency group access (all subagencies in each group)
   const groupSubagencyIds = user.agencyGroupGrants.flatMap(
     agg => agg.agencyGroup.subagencies.map(s => s.id)
   );
 
-  // Union of both (deduplicated)
-  const authorizedSubagencyIds = [...new Set([...directSubagencyIds, ...groupSubagencyIds])];
+  // Union and deduplicate
+  const authorizedIds = [...new Set([...directSubagencyIds, ...groupSubagencyIds])];
 
-  return { subagencyId: { in: authorizedSubagencyIds } };
+  return { subagencyId: { in: authorizedIds } };
 }
 ```
 
-### Middleware Implementation
+### scopeToAgencies Middleware
 
 ```typescript
-// src/server/middleware/scopeToAgencies.ts
-import type { Request, Response, NextFunction } from 'express';
-import { getUserAgencyScope } from '../services/agencyScopeService';
-
-/**
- * Middleware that computes and attaches agency scope to request.
- * Use req.agencyScope in route handlers for NDA queries.
- */
 export async function scopeToAgencies(req: Request, res: Response, next: NextFunction) {
-  const user = req.user;
-
-  if (!user) {
+  if (!req.user) {
     return res.status(401).json({
       error: 'Authentication required',
-      code: 'NOT_AUTHENTICATED',
+      code: 'NOT_AUTHENTICATED'
     });
   }
 
   try {
-    // Compute authorized subagencies (from user context or fresh query)
-    const scope = await getUserAgencyScope(user.contactId);
+    // Get authorized subagencies (from cache in req.user or fresh query)
+    const scope = await getUserAgencyScope(req.user.contactId);
     req.agencyScope = scope;
     next();
   } catch (error) {
-    console.error('Error computing agency scope:', error);
     return res.status(500).json({
       error: 'Failed to determine access scope',
-      code: 'SCOPE_ERROR',
+      code: 'SCOPE_ERROR'
     });
   }
 }
@@ -192,75 +185,38 @@ declare global {
 }
 ```
 
-### Route Handler Pattern
+### 404 Pattern (Security Requirement)
 
 ```typescript
-// ✅ CORRECT: Always apply agency scope
-router.get('/api/ndas', authenticateJWT, attachUserContext, scopeToAgencies, async (req, res) => {
-  const { status, search } = req.query;
-
-  const ndas = await prisma.nda.findMany({
-    where: {
-      ...(status && { status }),
-      ...(search && {
-        OR: [
-          { companyName: { contains: search, mode: 'insensitive' } },
-          { pocName: { contains: search, mode: 'insensitive' } },
-        ],
-      }),
-      ...req.agencyScope, // MANDATORY - applies row-level security
-    },
-    include: {
-      subagency: { include: { agencyGroup: true } },
-    },
-    orderBy: { updatedAt: 'desc' },
-  });
-
-  res.json(ndas);
-});
-
-// ❌ WRONG: Missing agency scope (security vulnerability!)
-router.get('/api/ndas', async (req, res) => {
-  const ndas = await prisma.nda.findMany(); // User sees ALL NDAs!
-});
-```
-
-### 404 Pattern for Single NDA Access
-
-```typescript
-// src/server/utils/scopedQuery.ts
-export async function findNdaWithScope(
-  ndaId: string,
-  userId: string
-): Promise<NDA | null> {
+// Helper for single NDA access with scope
+export async function findNdaWithScope(ndaId: string, userId: string) {
   const scope = await getUserAgencyScope(userId);
 
-  // Query with both ID and agency scope
   const nda = await prisma.nda.findFirst({
     where: {
       id: ndaId,
-      ...scope, // Filters to authorized subagencies
+      ...scope // Filters to authorized subagencies only
     },
     include: {
-      subagency: true,
-      documents: true,
-    },
+      subagency: { include: { agencyGroup: true } }
+    }
   });
 
-  // Returns null if NDA doesn't exist OR user not authorized
+  // Returns null if:
+  // - NDA doesn't exist, OR
+  // - NDA exists but user not authorized
   // Caller returns 404 in both cases (no information leakage)
   return nda;
 }
 
-// Usage in route handler
+// Usage in route
 router.get('/api/ndas/:id', async (req, res) => {
   const nda = await findNdaWithScope(req.params.id, req.user.contactId);
 
   if (!nda) {
-    // Could be: doesn't exist OR unauthorized - same response
     return res.status(404).json({
       error: 'NDA not found',
-      code: 'NOT_FOUND',
+      code: 'NOT_FOUND'
     });
   }
 
@@ -268,112 +224,116 @@ router.get('/api/ndas/:id', async (req, res) => {
 });
 ```
 
-### Audit Logging for Unauthorized Access
+### Mandatory Usage Pattern
 
 ```typescript
-// When user attempts to access NDA outside their scope
-// Log silently for security monitoring, but return 404 to user
-if (!nda) {
-  // Check if NDA actually exists (for audit only)
-  const exists = await prisma.nda.findUnique({
-    where: { id: ndaId },
-    select: { id: true, subagencyId: true },
+// ✅ CORRECT: Always apply agency scope
+router.get('/api/ndas', scopeToAgencies, async (req, res) => {
+  const ndas = await prisma.nda.findMany({
+    where: {
+      ...req.agencyScope, // MANDATORY
+      ...otherFilters
+    }
   });
+});
 
-  if (exists) {
-    // NDA exists but user not authorized - log for security review
-    await auditService.log({
-      action: AuditAction.UNAUTHORIZED_ACCESS_ATTEMPT,
-      entityType: 'nda',
-      entityId: ndaId,
-      userId: req.user.contactId,
-      details: {
-        attemptedSubagency: exists.subagencyId,
-        userScope: req.agencyScope,
-      },
-    });
-  }
-
-  return res.status(404).json({ error: 'NDA not found', code: 'NOT_FOUND' });
-}
+// ❌ WRONG: Missing scope (security vulnerability!)
+router.get('/api/ndas', async (req, res) => {
+  const ndas = await prisma.nda.findMany(); // User sees ALL NDAs!
+});
 ```
 
-### Middleware Pipeline Order
+### Combined Access Example
 
+**User has:**
+- Agency Group: DoD (includes Air Force, Army, Navy)
+- Direct Subagency: Commercial Company A
+
+**User sees NDAs from:**
+- Air Force, Army, Navy (via DoD group)
+- Commercial Company A (via direct grant)
+
+**User does NOT see:**
+- Other Commercial subagencies (only has specific grant)
+- Other agency groups (Fed Civ, Healthcare, etc.)
+
+### Performance Optimization
+
+**Caching:**
+- Authorized subagency IDs cached in UserContext (Story 1.2)
+- 5-minute TTL
+- Invalidate when agency grants change
+
+**Database Index:**
+```sql
+CREATE INDEX idx_ndas_subagency ON ndas(subagency_id);
 ```
-Request → authenticateJWT → attachUserContext → checkPermissions → scopeToAgencies → Route Handler
-          └── Story 1.1    └── Story 1.2       └── Story 1.3      └── THIS STORY
+
+### Integration with Previous Stories
+
+**Depends on:**
+- Story 1.1: Authentication (req.user.id available)
+- Story 1.2: UserContext with authorizedSubagencies
+- Story 1.3: checkPermissions (runs before scopeToAgencies)
+
+**Middleware Pipeline:**
+```
+authenticateJWT (1.1) → attachUserContext (1.2) → checkPermissions (1.3) → scopeToAgencies (THIS) → Handler
 ```
 
-Note: scopeToAgencies runs AFTER checkPermissions. User must have the required permission (e.g., nda:view) before agency scope is applied.
+### Project Structure Notes
 
-### Performance Considerations
+**New Files:**
+- `src/server/services/agencyScopeService.ts` - NEW
+- `src/server/middleware/scopeToAgencies.ts` - NEW
+- `src/server/utils/scopedQuery.ts` - NEW
 
-1. **Caching**: User's authorized subagency IDs should be cached in userContextService (Story 1.2)
-2. **Index**: Ensure `ndas.subagency_id` is indexed for fast filtering
-3. **Pre-computation**: Consider materializing authorized subagencies during login/context load
+**Files to Modify:**
+- `src/server/types/auth.ts` - EXTEND Request type with agencyScope
+- `src/server/services/userContextService.ts` - INCLUDE authorizedSubagencies
+- Future NDA routes - APPLY scopeToAgencies middleware
 
-### Dependencies
-
-- Story 1.1: Authentication (completed)
-- Story 1.2: User context with authorizedAgencyGroups/authorizedSubagencies
-- Story 1.3: Permission checks (runs before agency scope)
+**Follows established patterns:**
+- Middleware pattern from Stories 1.1-1.3
+- Service layer for business logic
+- Caching from Story 1.2
+- Audit logging for security events
 
 ### References
 
-- [Source: docs/architecture.md#Row-Level-Security-Pattern]
-- [Source: docs/architecture.md#Middleware-Pipeline]
-- [Source: docs/epics.md#Story-1.4-Row-Level-Security]
-- [Source: docs/PRD.md#FR37-Agency-Based-Filtering]
-- [Source: docs/PRD.md#FR38-Subagency-Scoping]
+- [Source: docs/epics.md#Epic 1: Foundation & Authentication - Story 1.4]
+- [Source: docs/architecture.md#Row-Level Security Pattern]
+- [Source: docs/architecture.md#Middleware Pipeline]
+- [Source: Story 1.2 - UserContext foundation]
+- [Source: Story 1.3 - Permission enforcement]
 
 ## Dev Agent Record
 
-### Context Reference
-- Epic 1: Foundation & Authentication
-- FRs Covered: FR37, FR38, FR39
-- Dependencies: Story 1.1 (completed), Story 1.2 (user context), Story 1.3 (permissions)
-
 ### Agent Model Used
-- Claude Opus 4.5 (claude-opus-4-5-20250929)
-- OpenAI Codex (GPT-5) - review fixes
 
-### Debug Log References
-N/A
+Claude Sonnet 4.5 (claude-sonnet-4-5-20250929)
+
+### Context Reference
+
+Story created from PRD/Epics specifications without code anchoring.
 
 ### Completion Notes List
-- Added cached agency scope expansion and contactId-aware lookup for scope computation
-- Scoped NDA data access through buildSecurityFilter/findNdaWithScope, including 404 pattern and audit logging
-- Fixed combined agency group + direct subagency access in middleware
-- Added row-level security checklist and expanded tests (scope helper, NDA route integration, updated service tests)
+
+- Story created using BMAD create-story workflow
+- Final story in Epic 1
+- Completes authentication middleware pipeline
+- Row-level security pattern from architecture.md
+- 404 pattern for security (no information leakage)
+- Integration with Stories 1.1-1.3 middleware chain
 
 ### File List
-Files to create:
-- `docs/checklists/nda-scope-checklist.md`
-- `src/server/services/__tests__/agencyScopeService.test.ts`
-- `src/server/routes/__tests__/ndas.test.ts`
 
-Files to modify:
-- `src/server/services/userContextService.ts`
-- `src/server/services/agencyScopeService.ts`
-- `src/server/middleware/scopeToAgencies.ts`
-- `src/server/routes/ndas.ts`
-- `src/server/services/ndaService.ts`
-- `src/server/services/emailService.ts`
-- `src/server/services/notificationService.ts`
-- `src/server/routes/auditLogs.ts`
-- `src/server/services/companySuggestionsService.ts`
-- `src/server/services/agencySuggestionsService.ts`
-- `src/server/services/dashboardService.ts`
-- `src/server/utils/scopedQuery.ts`
-- `src/server/services/documentService.ts`
-- `src/server/services/documentGenerationService.ts`
-- `src/server/services/templateService.ts`
-- `src/server/middleware/__tests__/scopeToAgencies.test.ts`
-- `src/server/services/__tests__/documentService.test.ts`
-- `src/server/services/__tests__/ndaService.test.ts`
-- `src/server/services/__tests__/documentGenerationService.test.ts`
-- `src/server/services/__tests__/agencySuggestionsService.test.ts`
-- `src/server/services/__tests__/companySuggestionsService.test.ts`
-- `src/server/services/__tests__/emailService.test.ts`
-- `src/server/services/__tests__/notificationService.test.ts`
+Files to be created/modified during implementation:
+- `src/server/services/agencyScopeService.ts` - NEW
+- `src/server/middleware/scopeToAgencies.ts` - NEW
+- `src/server/utils/scopedQuery.ts` - NEW
+- `src/server/types/auth.ts` - MODIFY (add agencyScope to Request)
+- `src/server/services/userContextService.ts` - MODIFY (include authorizedSubagencies)
+- `src/server/services/__tests__/agencyScopeService.test.ts` - NEW
+- `src/server/middleware/__tests__/scopeToAgencies.test.ts` - NEW
+- Migration file for database indexes

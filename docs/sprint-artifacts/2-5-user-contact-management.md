@@ -1,6 +1,6 @@
 # Story 2.5: User/Contact Management
 
-Status: done
+Status: ready-for-dev
 
 ## Story
 
@@ -10,172 +10,414 @@ so that **I can assign roles, access, and use contacts for NDA POCs**.
 
 ## Acceptance Criteria
 
-### AC1: View User Directory
+### AC1: User Directory Display
 **Given** I am logged in as admin
 **When** I navigate to Admin → Users
 **Then** I see user directory with columns: Name, Email, Work Phone, Cell Phone, Job Title, Roles, Agency Access
 
-### AC2: Create User
+### AC2: Create User/Contact
 **Given** I click "Create User"
-**When** I enter: firstName, lastName, email, workPhone, cellPhone, jobTitle
+**When** I enter: firstName="Jennifer", lastName="Park", email="j.park@usmax.com", isInternal=true
 **And** Submit
 **Then** Contact created in database
 **And** Available in user search/autocomplete
 **And** Can be assigned to NDAs as POC
 **And** audit_log records "user_created"
 
-### AC3: Assign Role to User
+### AC3: Assign Roles
 **Given** I want to assign Jennifer to "NDA User" role
 **When** I select Jennifer, click "Manage Roles", select "NDA User"
 **Then** contact_roles table updated
-**And** Jennifer's permissions now include nda:create, nda:update, etc.
+**And** Jennifer's permissions now include nda:create, nda:update, nda:upload_document, nda:send_email, nda:mark_status, nda:view
 **And** audit_log records "role_assigned"
 
-### AC4: User Search Autocomplete
+### AC4: User Search with Auto-Complete
 **Given** User search with auto-complete
 **When** I type "jen" in search box
-**Then** Shows "Jennifer Park (NDA User, IT Services)" with role and job title context
+**Then** Shows "Jennifer Park (NDA User, IT Services)" with role and department context
 **And** Results update as I type (type-ahead)
-
-### AC5: Edit User
-**Given** I click "Edit" on a user
-**When** I modify contact information
-**Then** Changes are saved
-**And** audit_log records "user_updated"
-
-### AC6: Deactivate User
-**Given** I want to deactivate a user (soft delete)
-**When** I click "Deactivate"
-**Then** User's active flag set to false
-**And** User can no longer log in
-**And** User's access preserved for audit purposes
-**And** audit_log records "user_deactivated"
 
 ## Tasks / Subtasks
 
-- [x] **Task 1: Users API Routes** (AC: 1, 2, 3, 4, 5, 6)
-  - [x] 1.1: Create `src/server/routes/users.ts`
-  - [x] 1.2: Implement `GET /api/users` - List all users with pagination
-  - [x] 1.3: Implement `GET /api/users/:id` - Get user details
-  - [x] 1.4: Implement `POST /api/users` - Create user
-  - [x] 1.5: Implement `PUT /api/users/:id` - Update user
-  - [x] 1.6: Implement `PATCH /api/users/:id/deactivate` - Deactivate user
-  - [x] 1.7: Protect routes with `requirePermission(ADMIN_MANAGE_USERS)`
+- [ ] **Task 1: Database Schema - Contacts** (AC: 1, 2)
+  - [ ] 1.1: Verify contacts table exists in Prisma schema
+  - [ ] 1.2: Fields: id, firstName, lastName, email (unique), workPhone, cellPhone, jobTitle, department
+  - [ ] 1.3: Fields: isInternal (boolean), emailSignature (text), active (boolean)
+  - [ ] 1.4: Fields: cognitoUserId (for internal users), created_at, updated_at
+  - [ ] 1.5: Run migration if needed
 
-- [x] **Task 2: User Role Management API** (AC: 3)
-  - [x] 2.1: Use existing `POST /api/admin/users/:id/roles` from Story 1.3
-  - [x] 2.2: Use existing `DELETE /api/admin/users/:id/roles/:roleId`
-  - [x] 2.3: Ensure proper cache invalidation on role changes
+- [ ] **Task 2: User Service** (AC: 2, 3)
+  - [ ] 2.1: Create src/server/services/userService.ts
+  - [ ] 2.2: Implement listUsers(filters) - paginated user directory
+  - [ ] 2.3: Implement createUser(userData, createdBy)
+  - [ ] 2.4: Implement updateUser(id, data, updatedBy)
+  - [ ] 2.5: Implement deactivateUser(id, deactivatedBy) - soft delete
+  - [ ] 2.6: Record audit log for all mutations
 
-- [x] **Task 3: User Search Service** (AC: 4)
-  - [x] 3.1: Implement `searchUsers` in `src/server/services/userService.ts`
-  - [x] 3.2: Implement case-insensitive search on name and email
-  - [x] 3.3: Return with context (roles, job title)
-  - [x] 3.4: Limit to 10 results for performance
+- [ ] **Task 3: Role Assignment Service** (AC: 3)
+  - [ ] 3.1: Create src/server/services/roleService.ts (or extend userService)
+  - [ ] 3.2: Implement assignRole(userId, roleId, assignedBy)
+  - [ ] 3.3: Implement removeRole(userId, roleId, removedBy)
+  - [ ] 3.4: Implement getUserRoles(userId)
+  - [ ] 3.5: Invalidate user context cache after role changes
+  - [ ] 3.6: Record audit log
 
-- [x] **Task 4: Frontend Users Page** (AC: 1, 2, 3, 4, 5, 6)
-  - [x] 4.1: Implement `src/components/screens/admin/UserManagement.tsx`
-  - [x] 4.2: Implement user directory with DataTable
-  - [x] 4.3: Add search/filter and autocomplete capabilities
-  - [x] 4.4: Create user create/edit modal
-  - [x] 4.5: Create role management modal
-  - [x] 4.6: Add deactivate confirmation dialog
+- [ ] **Task 4: User Management API** (AC: All)
+  - [ ] 4.1: Create src/server/routes/users.ts
+  - [ ] 4.2: Implement GET /api/users - list all (with pagination)
+  - [ ] 4.3: Implement GET /api/users/search?q={query} - autocomplete (from Story 2-3)
+  - [ ] 4.4: Implement POST /api/users - create new
+  - [ ] 4.5: Implement PUT /api/users/:id - update
+  - [ ] 4.6: Implement POST /api/users/:id/roles - assign role
+  - [ ] 4.7: Implement DELETE /api/users/:id/roles/:roleId - remove role
+  - [ ] 4.8: Apply requirePermission('admin:manage_users')
 
-- [x] **Task 5: Testing** (AC: All)
-  - [x] 5.1: Unit tests for user service
-  - [x] 5.2: API integration tests
-  - [x] 5.3: Test role assignment/removal
-  - [x] 5.4: Test user deactivation
+- [ ] **Task 5: Frontend - User Directory Page** (AC: 1, 4)
+  - [ ] 5.1: Create src/components/screens/admin/UserManagement.tsx
+  - [ ] 5.2: Add route: /admin/users
+  - [ ] 5.3: Display users table with all columns
+  - [ ] 5.4: Add search box with debounced filtering
+  - [ ] 5.5: Show role badges for each user
+  - [ ] 5.6: Show agency access summary (count or badges)
+
+- [ ] **Task 6: Frontend - Create/Edit User Modal** (AC: 2)
+  - [ ] 6.1: Create user form modal
+  - [ ] 6.2: Fields: first name, last name, email, phones, job title, department
+  - [ ] 6.3: Checkbox: isInternal (internal user vs external contact)
+  - [ ] 6.4: Form validation with Zod
+  - [ ] 6.5: Submit calls POST /api/users
+
+- [ ] **Task 7: Frontend - Role Management** (AC: 3)
+  - [ ] 7.1: Add "Manage Roles" button per user
+  - [ ] 7.2: Create role assignment modal
+  - [ ] 7.3: Show current roles with remove option
+  - [ ] 7.4: Show available roles to add
+  - [ ] 7.5: Call POST /api/users/:id/roles to assign
+
+- [ ] **Task 8: Testing** (AC: All)
+  - [ ] 8.1: Unit tests for userService
+  - [ ] 8.2: Unit tests for roleService
+  - [ ] 8.3: API tests for user CRUD
+  - [ ] 8.4: API tests for role assignment
+  - [ ] 8.5: API tests for user search
+  - [ ] 8.6: Component tests for user directory
 
 ## Dev Notes
 
-### API Endpoints
+### Unified Contact Model
 
-```typescript
-// GET /api/users?page=1&limit=20&search=jen&active=true
-{
-  users: [
-    {
-      id, firstName, lastName, email,
-      workPhone, cellPhone, jobTitle,
-      active, roles: ["NDA User"],
-      agencyAccess: { groups: ["DoD"], subagencies: ["Air Force"] },
-      createdAt, updatedAt
-    }
-  ],
-  pagination: { page, limit, total, totalPages }
-}
+From architecture.md:
+- **contacts** table serves dual purpose:
+  1. Internal users (USMax staff) - isInternal=true, has cognitoUserId
+  2. External contacts (partner POCs) - isInternal=false, no cognitoUserId
 
-// GET /api/users/search?q=jen&active=true
-// Returns up to 10 users with roles/jobTitle context
+**Why unified:**
+- External contacts can be NDAs POCs (Contracts POC, Relationship POC)
+- Avoids duplication when external contact becomes internal user
+- Single directory for all contact search/autocomplete
 
-// POST /api/users
-// Body: { firstName, lastName, email, workPhone?, cellPhone?, jobTitle? }
-// Returns: Created user
+### Database Schema
 
-// PUT /api/users/:id
-// Body: { firstName, lastName, email, workPhone?, cellPhone?, jobTitle? }
-// Returns: Updated user
-
-// PATCH /api/users/:id/deactivate
-// Returns: 204 on success
-```
-
-### Prisma Schema Update
-
-The Contact model needs additional fields:
 ```prisma
 model Contact {
-  // ... existing fields
-  workPhone   String?  @map("work_phone")
-  cellPhone   String?  @map("cell_phone")
-  jobTitle    String?  @map("job_title")
+  id              String   @id @default(uuid())
+  cognitoUserId   String?  @unique @map("cognito_user_id") // Null for external contacts
+  email           String   @unique @db.VarChar(255)
+  firstName       String   @map("first_name") @db.VarChar(100)
+  lastName        String   @map("last_name") @db.VarChar(100)
+  workPhone       String?  @map("work_phone") @db.VarChar(20)
+  cellPhone       String?  @map("cell_phone") @db.VarChar(20)
+  jobTitle        String?  @map("job_title") @db.VarChar(100)
+  department      String?  @db.VarChar(100)
+  emailSignature  String?  @map("email_signature") @db.Text
+  isInternal      Boolean  @map("is_internal") @default(false)
+  active          Boolean  @default(true)
+  createdAt       DateTime @map("created_at") @default(now())
+  updatedAt       DateTime @map("updated_at") @updatedAt
+
+  // Relations
+  contactRoles          ContactRole[]
+  agencyGroupGrants     AgencyGroupGrant[]
+  subagencyGrants       SubagencyGrant[]
+  createdNdas           Nda[] @relation("CreatedBy")
+  opportunityNdas       Nda[] @relation("OpportunityPOC")
+  contractsNdas         Nda[] @relation("ContractsPOC")
+  relationshipNdas      Nda[] @relation("RelationshipPOC")
+
+  @@map("contacts")
 }
 ```
 
-### Dependencies
+### User Service Implementation
 
-- Story 1.3: RBAC (role management API exists)
-- Story 2.3: Agency access (for access summary display)
+```typescript
+async function createUser(data: CreateUserInput, createdBy: string) {
+  // Validate email unique
+  const existing = await prisma.contact.findUnique({
+    where: { email: data.email }
+  });
+
+  if (existing) {
+    throw new BadRequestError('Email already exists');
+  }
+
+  const user = await prisma.contact.create({
+    data: {
+      firstName: data.firstName,
+      lastName: data.lastName,
+      email: data.email,
+      workPhone: data.workPhone,
+      cellPhone: data.cellPhone,
+      jobTitle: data.jobTitle,
+      department: data.department,
+      isInternal: data.isInternal,
+      emailSignature: data.emailSignature,
+      active: true
+    }
+  });
+
+  // Audit log
+  await auditService.log({
+    action: 'user_created',
+    entityType: 'contact',
+    entityId: user.id,
+    userId: createdBy,
+    metadata: { email: data.email, isInternal: data.isInternal }
+  });
+
+  return user;
+}
+```
+
+### Role Assignment
+
+```typescript
+async function assignRole(userId: string, roleId: string, assignedBy: string) {
+  const [user, role] = await Promise.all([
+    prisma.contact.findUnique({ where: { id: userId } }),
+    prisma.role.findUnique({ where: { id: roleId } })
+  ]);
+
+  if (!user) throw new NotFoundError('User not found');
+  if (!role) throw new NotFoundError('Role not found');
+
+  // Create role assignment
+  await prisma.contactRole.create({
+    data: {
+      contactId: userId,
+      roleId,
+      grantedBy: assignedBy,
+      grantedAt: new Date()
+    }
+  });
+
+  // Invalidate user context cache
+  userContextService.invalidateContext(user.cognitoUserId);
+
+  // Audit log
+  await auditService.log({
+    action: 'role_assigned',
+    entityType: 'contact_role',
+    userId: assignedBy,
+    metadata: {
+      targetUserId: userId,
+      roleId,
+      roleName: role.name
+    }
+  });
+}
+```
+
+### Frontend User Directory
+
+```tsx
+function UserManagement() {
+  const [search, setSearch] = useState('');
+  const debouncedSearch = useDebouncedValue(search, 300);
+
+  const { data: users } = useQuery({
+    queryKey: ['users', { search: debouncedSearch }],
+    queryFn: () => api.get('/api/users', {
+      params: { search: debouncedSearch }
+    }).then(res => res.data)
+  });
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <h1>User Management</h1>
+        <Button onClick={() => setShowCreateModal(true)}>
+          <Plus className="mr-2 h-4 w-4" />
+          Create User
+        </Button>
+      </div>
+
+      <Input
+        placeholder="Search users..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        className="mb-4"
+      />
+
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Name</TableHead>
+            <TableHead>Email</TableHead>
+            <TableHead>Work Phone</TableHead>
+            <TableHead>Cell Phone</TableHead>
+            <TableHead>Job Title</TableHead>
+            <TableHead>Roles</TableHead>
+            <TableHead>Agency Access</TableHead>
+            <TableHead>Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {users?.map(user => (
+            <TableRow key={user.id}>
+              <TableCell>{user.firstName} {user.lastName}</TableCell>
+              <TableCell>{user.email}</TableCell>
+              <TableCell>{user.workPhone}</TableCell>
+              <TableCell>{user.cellPhone}</TableCell>
+              <TableCell>{user.jobTitle}</TableCell>
+              <TableCell>
+                {user.contactRoles?.map(cr => (
+                  <Badge key={cr.roleId} className="mr-1">
+                    {cr.role.name}
+                  </Badge>
+                ))}
+              </TableCell>
+              <TableCell>
+                <Badge variant="outline">
+                  {user.agencyGroupGrants?.length || 0} groups
+                </Badge>
+              </TableCell>
+              <TableCell>
+                <Button size="sm" variant="ghost" onClick={() => handleManageRoles(user)}>
+                  <Shield className="h-4 w-4" />
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => handleEdit(user)}>
+                  <Edit className="h-4 w-4" />
+                </Button>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
+```
+
+### User Search Enhancement
+
+**From Story 2-3, extend with role/department context:**
+```typescript
+async function searchUsers(query: string) {
+  const users = await prisma.contact.findMany({
+    where: {
+      isInternal: true,
+      active: true,
+      OR: [
+        { firstName: { contains: query, mode: 'insensitive' } },
+        { lastName: { contains: query, mode: 'insensitive' } },
+        { email: { contains: query, mode: 'insensitive' } }
+      ]
+    },
+    include: {
+      contactRoles: { include: { role: true } }
+    },
+    take: 10
+  });
+
+  // Format with context for autocomplete
+  return users.map(u => ({
+    id: u.id,
+    label: `${u.firstName} ${u.lastName} (${getRoleNames(u)}, ${u.department || 'No Dept'})`,
+    email: u.email,
+    roles: getRoleNames(u)
+  }));
+}
+```
+
+### Integration with Previous Stories
+
+**Builds on:**
+- Story 1-2: contact_roles table for role assignment
+- Story 2-3: User search API foundation
+- Story 2-4: Access grant patterns
+
+**Used by:**
+- Future NDA stories (contacts are POCs)
+- Email functionality (email signatures)
+- Access control (roles and grants)
+
+### Security Considerations
+
+**Authorization:**
+- Requires admin:manage_users permission
+- Only admins can create/edit users
+- Only admins can assign roles
+
+**Data Protection:**
+- Soft delete (active=false) preserves audit trail
+- Cannot delete contact if assigned as POC on NDAs
+
+### Project Structure Notes
+
+**New Files:**
+- `src/server/services/userService.ts` - NEW
+- `src/server/services/roleService.ts` - NEW
+- `src/server/routes/users.ts` - NEW (or extend from Story 2-3)
+- `src/components/screens/admin/UserManagement.tsx` - NEW
+- `src/components/admin/UserFormModal.tsx` - NEW
+- `src/components/admin/RoleManagementModal.tsx` - NEW
+
+**Files to Modify:**
+- `prisma/schema.prisma` - VERIFY contacts table completeness
+- `src/server/routes/users.ts` - EXTEND with CRUD endpoints
+
+**Follows established patterns:**
+- Service layer for business logic
+- Admin permission enforcement
+- Audit logging
+- React Query for data fetching
 
 ### References
 
-- [Source: docs/epics.md#Story-2.5-User-Contact-Management]
-- [Source: docs/PRD.md#FR74-80]
+- [Source: docs/epics.md#Epic 2: Agency & User Management - Story 2.5]
+- [Source: docs/architecture.md#Database Schema - contacts table]
+- [Source: Story 1-2 - contact_roles foundation]
+- [Source: Story 2-3 - User search pattern]
 
 ## Dev Agent Record
 
-### Context Reference
-- Epic 2: Agency & User Management
-- FRs Covered: FR74-80
-- Dependencies: Story 1.3, Story 2.3
-
 ### Agent Model Used
-Claude Opus 4.5
 
-### Debug Log References
-N/A
+Claude Sonnet 4.5 (claude-sonnet-4-5-20250929)
+
+### Context Reference
+
+Story created from PRD/Epics specifications without code anchoring.
 
 ### Completion Notes List
-- User directory now shows roles and agency access columns per AC1
-- User creation marks contacts as internal for NDA POC eligibility
-- Added user autocomplete search with role/job title context
-- Added PATCH deactivate endpoint and DB-backed integration tests
+
+- Story created using BMAD create-story workflow
+- Unified contact model (internal users + external POCs)
+- User directory with comprehensive columns
+- Role assignment integration with Story 1-2
+- User search enhanced from Story 2-3
+- Soft delete pattern for data preservation
 
 ### File List
-Files created:
-- `src/server/routes/__tests__/users.integration.test.ts`
 
-Files modified:
-- `src/server/routes/users.ts`
-- `src/server/services/userService.ts`
-- `src/client/services/userService.ts`
-- `src/components/screens/admin/UserManagement.tsx`
-- `src/server/services/__tests__/userService.test.ts`
-- `src/test/dbUtils.ts`
-- `src/test/setupEnv.ts`
-- `src/test/globalSetup.ts`
-- `.env.test.local`
-- `src/server/index.ts`
-- `docs/permission-mapping.md`
-- `prisma/schema.prisma`
+Files to be created/modified during implementation:
+- `src/server/services/userService.ts` - NEW
+- `src/server/services/roleService.ts` - NEW
+- `src/server/routes/users.ts` - EXTEND with CRUD
+- `src/components/screens/admin/UserManagement.tsx` - NEW
+- `src/components/admin/UserFormModal.tsx` - NEW
+- `src/components/admin/RoleManagementModal.tsx` - NEW
+- `prisma/schema.prisma` - VERIFY contacts table
+- `src/server/services/__tests__/userService.test.ts` - NEW
+- `src/server/services/__tests__/roleService.test.ts` - NEW

@@ -1,6 +1,6 @@
 # Story 3.15: Inactive & Cancelled Status Management
 
-Status: in-progress
+Status: ready-for-dev
 
 ## Story
 
@@ -36,109 +36,240 @@ so that **I can archive deals that didn't proceed or expired agreements**.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: Inactive Status Logic** (AC: 1, 2, 3)
-  - [x] 1.1: Implement inactive status transition
-  - [x] 1.2: Update list filtering to exclude inactive by default
-  - [x] 1.3: Add "Show Inactive" filter option
-  - [x] 1.4: Allow status change back from Inactive
+- [ ] **Task 1: Default List Filtering** (AC: 1, 2, 4)
+  - [ ] 1.1: Extend ndaService.listNdas() to exclude Inactive/Cancelled by default
+  - [ ] 1.2: Add showInactive and showCancelled boolean params
+  - [ ] 1.3: Default: status NOT IN ['INACTIVE', 'CANCELLED']
+  - [ ] 1.4: If showInactive=true, include INACTIVE in results
+  - [ ] 1.5: If showCancelled=true, include CANCELLED in results
 
-- [x] **Task 2: Cancelled Status Logic** (AC: 4)
-  - [x] 2.1: Implement cancelled status (terminal)
-  - [x] 2.2: Add "Show Cancelled" filter option
-  - [x] 2.3: Prevent reactivation from Cancelled
+- [ ] **Task 2: Status Transition Rules** (AC: 1, 3, 4)
+  - [ ] 2.1: Verify statusTransitionService from Story 3-12
+  - [ ] 2.2: INACTIVE transitions: Can go back to Created, Emailed, In Revision
+  - [ ] 2.3: CANCELLED transitions: Terminal (no transitions out)
+  - [ ] 2.4: Any active status can go to Inactive or Cancelled
 
-- [x] **Task 3: List View Updates** (AC: 2, 4)
-  - [x] 3.1: Add status badge/indicator for Inactive
-  - [x] 3.2: Add status badge/indicator for Cancelled
-  - [x] 3.3: Apply default filtering in API
+- [ ] **Task 3: Filter Toggles API** (AC: 2, 4)
+  - [ ] 3.1: Extend GET /api/ndas to accept showInactive and showCancelled params
+  - [ ] 3.2: Apply filtering logic based on params
+  - [ ] 3.3: Document API behavior: default excludes both
 
-- [ ] **Task 4: Testing** (AC: All)
-  - [ ] 4.1: Test inactive transition and filtering
-  - [ ] 4.2: Test cancelled transition (terminal)
-  - [ ] 4.3: Test reactivation from inactive
-  - [ ] 4.4: Test default list excludes inactive/cancelled
+- [ ] **Task 4: Frontend - Show Inactive/Cancelled Toggles** (AC: 2, 4)
+  - [ ] 4.1: Add checkboxes to filter panel
+  - [ ] 4.2: "Show Inactive NDAs" checkbox
+  - [ ] 4.3: "Show Cancelled NDAs" checkbox
+  - [ ] 4.4: Update query params when toggled
+  - [ ] 4.5: Persist in URL for shareable links
 
-### Review Follow-ups (AI)
-- [x] [AI-Review][HIGH] Default list view includes inactive/cancelled because Requests always sets `showInactive`/`showCancelled` to true, violating default hidden requirement. [src/components/screens/Requests.tsx:98]
-- [x] [AI-Review][HIGH] No UI to mark an NDA Inactive or reactivate it; there is no status dropdown or action for INACTIVE in detail view. [src/components/screens/NDADetail.tsx:1060]
-- [x] [AI-Review][MEDIUM] “Show Inactive” / “Show Cancelled” filter toggles are not present; only a status dropdown exists. [src/components/screens/Requests.tsx:228]
-- [x] [AI-Review][MEDIUM] Story marked done but Tasks/Subtasks are all unchecked and no Dev Agent Record/File List exists to verify changes. [docs/sprint-artifacts/3-15-inactive-and-cancelled-status-management.md:1]
+- [ ] **Task 5: Frontend - Visual Indicators** (AC: 2, 4)
+  - [ ] 5.1: Display Inactive NDAs with gray badge
+  - [ ] 5.2: Display Cancelled NDAs with red badge
+  - [ ] 5.3: Optionally gray out entire row for Inactive/Cancelled
+  - [ ] 5.4: Show strikethrough on company name (optional)
+  - [ ] 5.5: Clear visual distinction from active NDAs
 
-## Dev Agent Record
+- [ ] **Task 6: Status Badge Colors** (AC: 2, 4)
+  - [ ] 6.1: Update StatusBadge component with Inactive/Cancelled colors
+  - [ ] 6.2: INACTIVE: gray background, muted text
+  - [ ] 6.3: CANCELLED: red background, danger text
+  - [ ] 6.4: Use Badge component with appropriate variant
 
-### File List
-- src/components/screens/Requests.tsx
-- src/components/screens/NDADetail.tsx
-- src/server/services/statusTransitionService.ts
-- src/server/routes/ndas.ts
-- src/client/services/ndaService.ts
+- [ ] **Task 7: Frontend - Reactivation** (AC: 3)
+  - [ ] 7.1: Status dropdown for Inactive NDAs shows active statuses
+  - [ ] 7.2: Status dropdown for Cancelled NDAs is disabled (terminal)
+  - [ ] 7.3: Tooltip on Cancelled: "Cannot reactivate cancelled NDAs"
+  - [ ] 7.4: Confirmation dialog for reactivation from Inactive
 
-### Change Log
-- 2025-12-21: Added inactive/cancelled default filtering with opt-in toggles, surfaced status controls in NDA detail, and enforced terminal behavior for cancelled statuses.
+- [ ] **Task 8: Testing** (AC: All)
+  - [ ] 8.1: API tests for default filtering (excludes Inactive/Cancelled)
+  - [ ] 8.2: API tests for showInactive and showCancelled params
+  - [ ] 8.3: Test status transitions to/from Inactive
+  - [ ] 8.4: Test Cancelled is terminal (no transitions out)
+  - [ ] 8.5: Component tests for filter toggles
 
 ## Dev Notes
 
-### Default List Filtering
+### Default List Filtering Logic
 
 ```typescript
-// Default NDA list excludes inactive and cancelled
-async function listNdas(params: NdaListParams): Promise<NdaListResult> {
+async function listNdas(params: ListNdaParams, userId: string) {
   const where: Prisma.NdaWhereInput = {
-    // Row-level security
-    ...getAgencyScopeFilter(userContext),
+    ...scope, // Row-level security
 
-    // Default status filter (unless show flags are set)
+    // Default: exclude Inactive and Cancelled
     status: {
       notIn: [
-        ...(params.showInactive ? [] : [NdaStatus.INACTIVE]),
-        ...(params.showCancelled ? [] : [NdaStatus.CANCELLED]),
-      ],
+        ...(params.showInactive ? [] : ['INACTIVE']),
+        ...(params.showCancelled ? [] : ['CANCELLED'])
+      ]
     },
+
+    // Other filters
+    ...otherFilters
   };
 
-  return prisma.nda.findMany({ where });
+  return await prisma.nda.findMany({ where });
 }
 ```
 
-### Transition Rules
+### Status Transition Rules (from Story 3.12)
 
+**Extended with Inactive/Cancelled:**
 ```typescript
-const TRANSITIONS: Record<NdaStatus, NdaStatus[]> = {
-  // ... other statuses
-  [NdaStatus.INACTIVE]: [
-    NdaStatus.CREATED,
-    NdaStatus.EMAILED,
-    NdaStatus.IN_REVISION,
-    NdaStatus.FULLY_EXECUTED,
-  ], // Inactive is reversible
-  [NdaStatus.CANCELLED]: [], // Cancelled is terminal - no way back
-};
-
-function canReactivate(status: NdaStatus): boolean {
-  return status === NdaStatus.INACTIVE;
-}
-```
-
-### Status Badge Display
-
-```typescript
-interface StatusDisplayInfo {
-  label: string;
-  color: string;
-  variant: 'default' | 'muted' | 'danger';
-}
-
-const STATUS_DISPLAY: Record<NdaStatus, StatusDisplayInfo> = {
-  [NdaStatus.CREATED]: { label: 'Created', color: 'blue', variant: 'default' },
-  [NdaStatus.EMAILED]: { label: 'Emailed', color: 'green', variant: 'default' },
-  [NdaStatus.IN_REVISION]: { label: 'In Revision', color: 'yellow', variant: 'default' },
-  [NdaStatus.FULLY_EXECUTED]: { label: 'Fully Executed', color: 'emerald', variant: 'default' },
-  [NdaStatus.INACTIVE]: { label: 'Inactive', color: 'gray', variant: 'muted' },
-  [NdaStatus.CANCELLED]: { label: 'Cancelled', color: 'red', variant: 'danger' },
+const VALID_TRANSITIONS: Record<NdaStatus, NdaStatus[]> = {
+  CREATED: ['EMAILED', 'IN_REVISION', 'FULLY_EXECUTED', 'INACTIVE', 'CANCELLED'],
+  EMAILED: ['IN_REVISION', 'FULLY_EXECUTED', 'INACTIVE', 'CANCELLED'],
+  IN_REVISION: ['FULLY_EXECUTED', 'INACTIVE', 'CANCELLED'],
+  FULLY_EXECUTED: ['INACTIVE'], // Can only archive executed NDAs
+  INACTIVE: ['CREATED', 'EMAILED', 'IN_REVISION'], // Reversible - can reactivate
+  CANCELLED: [] // Terminal - cannot reactivate
 };
 ```
 
-## Dependencies
+### Frontend Filter Toggles
 
-- Story 3.12: Status Management & Auto-Transitions
-- Story 3.7: NDA List with Filtering
+```tsx
+function FilterPanel({ filters, onChange }: FilterPanelProps) {
+  return (
+    <div className="space-y-4">
+      {/* Other filters */}
+
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <Checkbox
+            id="showInactive"
+            checked={filters.showInactive || false}
+            onCheckedChange={(checked) =>
+              onChange({ ...filters, showInactive: checked })
+            }
+          />
+          <Label htmlFor="showInactive">Show Inactive NDAs</Label>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Checkbox
+            id="showCancelled"
+            checked={filters.showCancelled || false}
+            onCheckedChange={(checked) =>
+              onChange({ ...filters, showCancelled: checked })
+            }
+          />
+          <Label htmlFor="showCancelled">Show Cancelled NDAs</Label>
+        </div>
+      </div>
+    </div>
+  );
+}
+```
+
+### Status Badge Styling
+
+```tsx
+function StatusBadge({ status }: { status: NdaStatus }) {
+  const config = {
+    CREATED: { variant: 'default', color: 'blue' },
+    EMAILED: { variant: 'success', color: 'green' },
+    IN_REVISION: { variant: 'warning', color: 'yellow' },
+    FULLY_EXECUTED: { variant: 'success', color: 'emerald' },
+    INACTIVE: { variant: 'secondary', color: 'gray' },
+    CANCELLED: { variant: 'destructive', color: 'red' }
+  }[status];
+
+  return (
+    <Badge variant={config.variant}>
+      {status.replace('_', ' ')}
+    </Badge>
+  );
+}
+```
+
+### Visual Row Styling
+
+```tsx
+<TableRow
+  className={
+    nda.status === 'INACTIVE' ? 'opacity-50 bg-gray-50' :
+    nda.status === 'CANCELLED' ? 'opacity-60 bg-red-50' :
+    ''
+  }
+>
+  {/* cells */}
+</TableRow>
+```
+
+### Business Rules
+
+**Inactive:**
+- Used for: Expired agreements, deals that fell through but might resume
+- Reversible: Can change back to active status
+- Not deleted: Preserved in database and audit trail
+- Hidden by default: Reduces clutter in main list
+
+**Cancelled:**
+- Used for: Deals abandoned, requirements changed, partner withdrew
+- Terminal: Cannot reactivate (permanent decision)
+- Not deleted: Preserved for compliance and history
+- Hidden by default: Keeps list focused on active work
+
+### Integration with Previous Stories
+
+**Builds on:**
+- Story 3-12: Status transition service and rules
+- Story 3-7: NDA list filtering
+- Story 5-4: Filter presets (will add "Active NDAs" preset)
+
+**Extends:**
+- Default filtering behavior
+- Status badge colors
+- Status transition matrix
+
+### Project Structure Notes
+
+**Files to Modify:**
+- `src/server/services/ndaService.ts` - MODIFY listNdas (default filtering)
+- `src/server/services/statusTransitionService.ts` - VERIFY transition rules include Inactive/Cancelled
+- `src/components/ui/StatusBadge.tsx` - MODIFY (add Inactive/Cancelled colors)
+- `src/components/screens/NDAList.tsx` - ADD filter toggles
+
+**No New Files:**
+- Extends existing components and services
+
+**Follows established patterns:**
+- Status management from Story 3-12
+- Filtering from Story 3-7
+- UI component updates
+
+### References
+
+- [Source: docs/epics.md#Epic 3: Core NDA Lifecycle - Story 3.15]
+- [Source: Story 3-12 - Status transition rules]
+- [Source: Story 3-7 - NDA list filtering]
+
+## Dev Agent Record
+
+### Agent Model Used
+
+Claude Sonnet 4.5 (claude-sonnet-4-5-20250929)
+
+### Context Reference
+
+Story created from PRD/Epics specifications without code anchoring.
+
+### Completion Notes List
+
+- Story created using BMAD create-story workflow
+- Final story in Epic 3
+- Inactive and Cancelled status management
+- Default filtering excludes both (keeps list clean)
+- Inactive is reversible, Cancelled is terminal
+- Visual indicators (badges, row styling)
+- Filter toggles to show archived NDAs
+
+### File List
+
+Files to be created/modified during implementation:
+- `src/server/services/ndaService.ts` - MODIFY (default list filtering)
+- `src/server/services/statusTransitionService.ts` - VERIFY transition rules
+- `src/components/ui/StatusBadge.tsx` - MODIFY (add Inactive/Cancelled styling)
+- `src/components/screens/NDAList.tsx` - MODIFY (add filter toggles)
+- `src/server/services/__tests__/ndaService.test.ts` - MODIFY (test filtering)

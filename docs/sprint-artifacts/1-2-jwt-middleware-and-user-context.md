@@ -1,6 +1,6 @@
 # Story 1.2: JWT Middleware & User Context
 
-Status: done
+Status: ready-for-dev
 
 ## Story
 
@@ -23,172 +23,87 @@ so that **all endpoints are protected and have access to user permissions**.
 **Given** A user makes an API request without JWT
 **When** The request reaches authenticateJWT middleware
 **Then** 401 Unauthorized is returned with message "Authentication required"
-**And** Response includes code: "NO_TOKEN"
 
 ### AC3: Expired JWT Token
 **Given** A user makes an API request with expired JWT
 **When** The token validation occurs
 **Then** 401 Unauthorized is returned with message "Token expired, please login again"
-**And** Response includes code: "TOKEN_EXPIRED"
-
-### AC4: User Context Loading
-**Given** A valid JWT is processed
-**When** User context is loaded from database
-**Then** Contact record is fetched by Cognito user ID
-**And** User's roles are loaded via contact_roles junction table
-**And** User's permissions are aggregated from role_permissions
-**And** User's agency_group_grants are loaded
-**And** User's subagency_grants are loaded (more specific than agency groups)
 
 ## Tasks / Subtasks
 
-- [x] **Task 1: Database Schema for Authorization** (AC: 1, 4)
-  - [x] 1.1: Create `roles` table with default roles (Admin, NDA User, Limited User, Read-Only)
-  - [x] 1.2: Create `permissions` table with 11 permissions (7 NDA + 4 admin)
-  - [x] 1.3: Create `role_permissions` junction table
-  - [x] 1.4: Create `contact_roles` junction table (contacts ↔ roles)
-  - [x] 1.5: Create `agency_group_grants` table (user → agency group access)
-  - [x] 1.6: Create `subagency_grants` table (user → specific subagency access)
-  - [x] 1.7: Create Prisma schema and migration
-  - [x] 1.8: Create seed data for default roles and permissions
+- [ ] **Task 1: Database Schema for Authorization** (AC: 1)
+  - [ ] 1.1: Create roles table (Admin, NDA User, Limited User, Read-Only)
+  - [ ] 1.2: Create permissions table (7 NDA + 4 admin permissions)
+  - [ ] 1.3: Create role_permissions junction table
+  - [ ] 1.4: Create contact_roles junction table (users ↔ roles)
+  - [ ] 1.5: Create agency_group_grants table (user → agency group access)
+  - [ ] 1.6: Create subagency_grants table (user → specific subagency access)
+  - [ ] 1.7: Run Prisma migration
 
-- [x] **Task 2: User Context Service** (AC: 1, 4)
-  - [x] 2.1: Create `src/server/services/userContextService.ts`
-  - [x] 2.2: Implement `loadUserById(userId)` - fetches contact + roles + permissions
-  - [x] 2.3: Implement `loadUserPermissions(userId)` - aggregates permissions from roles
-  - [x] 2.4: Implement `loadUserAgencyAccess(userId)` - returns authorized agency groups and subagencies
-  - [x] 2.5: Cache user context with TTL (5 minutes recommended)
-  - [x] 2.6: Add cache invalidation on role/permission changes
+- [ ] **Task 2: Seed Default Roles and Permissions** (AC: 1)
+  - [ ] 2.1: Seed 4 default roles with descriptions
+  - [ ] 2.2: Seed 11 permissions (codes and descriptions)
+  - [ ] 2.3: Map permissions to roles (role-permission matrix)
+  - [ ] 2.4: Create seed script in prisma/seed.ts
 
-- [x] **Task 3: Attach User Context Middleware** (AC: 1, 4)
-  - [x] 3.1: Create `src/server/middleware/attachUserContext.ts`
-  - [x] 3.2: Load full user context after JWT validation
-  - [x] 3.3: Populate `req.user` with complete context:
-    - `id`: Cognito sub (user ID)
-    - `email`: User's email
-    - `contactId`: Database contact ID
-    - `permissions`: Set<string> of permission codes
-    - `roles`: Array of role names
-    - `authorizedAgencyGroups`: Array of agency group IDs
-    - `authorizedSubagencies`: Array of subagency IDs
-  - [x] 3.4: Handle case where user exists in Cognito but not in database (first login)
+- [ ] **Task 3: User Context Service** (AC: 1)
+  - [ ] 3.1: Create src/server/services/userContextService.ts
+  - [ ] 3.2: Implement loadUserById(userId) - fetch contact + roles
+  - [ ] 3.3: Implement loadUserPermissions(userId) - aggregate from roles
+  - [ ] 3.4: Implement loadUserAgencyAccess(userId) - get authorized agencies/subagencies
+  - [ ] 3.5: Return complete UserContext object
+  - [ ] 3.6: Implement caching with 5-minute TTL
 
-- [x] **Task 4: Update JWT Middleware for Real Tokens** (AC: 1, 2, 3)
-  - [x] 4.1: Update `authenticateJWT.ts` to use `aws-jwt-verify` with real Cognito when `USE_MOCK_AUTH=false`
-  - [x] 4.2: Configure CognitoJwtVerifier with User Pool ID and Client ID
-  - [x] 4.3: Implement JWKS caching (aws-jwt-verify handles automatically)
-  - [x] 4.4: Extract user ID (`sub` claim) and email from validated token
-  - [x] 4.5: Ensure mock mode still works for development
+- [ ] **Task 4: Attach User Context Middleware** (AC: 1)
+  - [ ] 4.1: Create src/server/middleware/attachUserContext.ts
+  - [ ] 4.2: Load user context after JWT validation
+  - [ ] 4.3: Populate req.user with permissions and agency access
+  - [ ] 4.4: Handle first-login scenario (Cognito user, no DB record)
+  - [ ] 4.5: Return 401 if user not found or inactive
 
-- [x] **Task 5: Middleware Pipeline Integration** (AC: All)
-  - [x] 5.1: Update `src/server/index.ts` with proper middleware order:
-    1. authenticateJWT
-    2. attachUserContext
-    3. (Future: checkPermissions, scopeToAgencies)
-  - [x] 5.2: Create TypeScript types for extended Request object
-  - [x] 5.3: Update Express Request type declaration with `user` property
+- [ ] **Task 5: TypeScript Types** (AC: 1)
+  - [ ] 5.1: Create src/server/types/auth.ts
+  - [ ] 5.2: Define UserContext interface
+  - [ ] 5.3: Extend Express Request type globally
+  - [ ] 5.4: Export types for use in routes and services
 
-- [x] **Task 6: Testing** (AC: All)
-  - [x] 6.1: Unit tests for userContextService
-  - [x] 6.2: Unit tests for attachUserContext middleware
-  - [x] 6.3: Integration tests for full middleware pipeline
-  - [x] 6.4: Test cache invalidation behavior
-  - [x] 6.5: Test first-login scenario (Cognito user, no DB contact)
+- [ ] **Task 6: Middleware Pipeline Integration** (AC: 1, 2, 3)
+  - [ ] 6.1: Update Express app to use middleware in order:
+    - authenticateJWT (from Story 1.1)
+    - attachUserContext (this story)
+  - [ ] 6.2: Apply to all protected routes
+  - [ ] 6.3: Keep public routes (login, MFA) without middleware
+
+- [ ] **Task 7: Testing** (AC: All)
+  - [ ] 7.1: Unit tests for userContextService
+  - [ ] 7.2: Unit tests for attachUserContext middleware
+  - [ ] 7.3: Integration tests for full middleware pipeline
+  - [ ] 7.4: Test cache invalidation
+  - [ ] 7.5: Test first-login auto-provisioning
 
 ## Dev Notes
 
-### Technical Requirements
+### Middleware Pipeline Architecture
 
-**Middleware Pipeline (from architecture.md):**
+From architecture.md, the complete pipeline is:
 ```
 Request → authenticateJWT → attachUserContext → checkPermissions → scopeToAgencies → Route Handler
+          └── Story 1.1    └── THIS STORY      └── Story 1.3      └── Story 1.4
 ```
 
-This story implements steps 1-2. Stories 1.3 and 1.4 implement steps 3-4.
+This story implements step 2: loading complete user context.
 
-### Database Schema
-
-**From architecture.md - 6 tables for authorization:**
-
-```sql
--- 1. roles table
-CREATE TABLE roles (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name VARCHAR(50) UNIQUE NOT NULL,
-  description TEXT,
-  is_system_role BOOLEAN DEFAULT false, -- Can't delete system roles
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
-);
-
--- Default roles (seed data)
--- Admin: Full access
--- NDA User: Can create, edit, email NDAs
--- Limited User: Can view and upload documents only
--- Read-Only: Can only view NDAs
-
--- 2. permissions table
-CREATE TABLE permissions (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  code VARCHAR(50) UNIQUE NOT NULL, -- e.g., 'nda:create'
-  name VARCHAR(100) NOT NULL,
-  description TEXT,
-  category VARCHAR(50) NOT NULL -- 'nda' or 'admin'
-);
-
--- Permissions (11 total):
--- NDA: nda:create, nda:update, nda:upload_document, nda:send_email, nda:mark_status, nda:view, nda:delete
--- Admin: admin:manage_users, admin:manage_agencies, admin:manage_templates, admin:view_audit_logs
-
--- 3. role_permissions junction
-CREATE TABLE role_permissions (
-  role_id UUID REFERENCES roles(id) ON DELETE CASCADE,
-  permission_id UUID REFERENCES permissions(id) ON DELETE CASCADE,
-  PRIMARY KEY (role_id, permission_id)
-);
-
--- 4. contact_roles junction (user-role assignment)
-CREATE TABLE contact_roles (
-  contact_id UUID REFERENCES contacts(id) ON DELETE CASCADE,
-  role_id UUID REFERENCES roles(id) ON DELETE CASCADE,
-  granted_by UUID REFERENCES contacts(id),
-  granted_at TIMESTAMP DEFAULT NOW(),
-  PRIMARY KEY (contact_id, role_id)
-);
-
--- 5. agency_group_grants (user → agency group)
-CREATE TABLE agency_group_grants (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  contact_id UUID REFERENCES contacts(id) ON DELETE CASCADE,
-  agency_group_id UUID REFERENCES agency_groups(id) ON DELETE CASCADE,
-  granted_by UUID REFERENCES contacts(id),
-  granted_at TIMESTAMP DEFAULT NOW(),
-  UNIQUE(contact_id, agency_group_id)
-);
-
--- 6. subagency_grants (user → specific subagency, overrides agency group)
-CREATE TABLE subagency_grants (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  contact_id UUID REFERENCES contacts(id) ON DELETE CASCADE,
-  subagency_id UUID REFERENCES subagencies(id) ON DELETE CASCADE,
-  granted_by UUID REFERENCES contacts(id),
-  granted_at TIMESTAMP DEFAULT NOW(),
-  UNIQUE(contact_id, subagency_id)
-);
-```
-
-### UserContext Type
+### UserContext Type Definition
 
 ```typescript
-// src/server/types/auth.ts
 export interface UserContext {
-  id: string;                      // Cognito sub
-  email: string;                   // From token
-  contactId: string;               // Database contact ID
-  permissions: Set<string>;        // Aggregated from roles
-  roles: string[];                 // Role names
-  authorizedAgencyGroups: string[]; // Agency group IDs
-  authorizedSubagencies: string[];  // Subagency IDs (more specific)
+  id: string;                        // Cognito sub
+  email: string;                     // From JWT token
+  contactId: string;                 // Database contact ID
+  permissions: Set<string>;          // Aggregated permission codes
+  roles: string[];                   // Role names
+  authorizedAgencyGroups: string[];  // Agency group IDs
+  authorizedSubagencies: string[];   // Subagency IDs (more specific)
 }
 
 // Extend Express Request
@@ -201,93 +116,174 @@ declare global {
 }
 ```
 
-### First Login Handling
+### User Context Loading Logic
 
-When a user authenticates via Cognito but doesn't exist in the contacts table:
-1. Create a new contact record with Cognito sub and email
-2. Assign default "Read-Only" role
-3. Admin must later grant specific roles and agency access
-4. Log this as audit event: "user_auto_provisioned"
+```typescript
+async function loadUserContext(cognitoUserId: string, email: string): Promise<UserContext> {
+  // Find contact by Cognito ID
+  let contact = await prisma.contact.findUnique({
+    where: { cognitoUserId },
+    include: {
+      contactRoles: {
+        include: {
+          role: {
+            include: {
+              rolePermissions: {
+                include: { permission: true }
+              }
+            }
+          }
+        }
+      },
+      agencyGroupGrants: true,
+      subagencyGrants: true
+    }
+  });
+
+  // First login - auto-provision
+  if (!contact) {
+    contact = await prisma.contact.create({
+      data: {
+        cognitoUserId,
+        email,
+        isInternal: true,
+        // Assign Read-Only role by default
+        contactRoles: {
+          create: {
+            roleId: await getReadOnlyRoleId()
+          }
+        }
+      }
+    });
+  }
+
+  // Aggregate permissions from all roles
+  const permissions = new Set<string>();
+  contact.contactRoles.forEach(cr => {
+    cr.role.rolePermissions.forEach(rp => {
+      permissions.add(rp.permission.code);
+    });
+  });
+
+  // Get agency access
+  const agencyGroupIds = contact.agencyGroupGrants.map(agg => agg.agencyGroupId);
+  const subagencyIds = contact.subagencyGrants.map(sg => sg.subagencyId);
+
+  return {
+    id: cognitoUserId,
+    email,
+    contactId: contact.id,
+    permissions,
+    roles: contact.contactRoles.map(cr => cr.role.name),
+    authorizedAgencyGroups: agencyGroupIds,
+    authorizedSubagencies: subagencyIds
+  };
+}
+```
+
+### Database Tables (6 Authorization Tables)
+
+From architecture.md:
+1. **roles** - Role definitions (Admin, NDA User, Limited User, Read-Only)
+2. **permissions** - 11 permissions (nda:create, nda:view, admin:manage_users, etc.)
+3. **role_permissions** - Junction (roles ↔ permissions)
+4. **contact_roles** - Junction (contacts ↔ roles)
+5. **agency_group_grants** - User access to entire agency groups
+6. **subagency_grants** - User access to specific subagencies
 
 ### Caching Strategy
 
 ```typescript
-// Simple in-memory cache with TTL
-const userContextCache = new Map<string, { context: UserContext; expires: number }>();
+import NodeCache from 'node-cache';
 
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const userContextCache = new NodeCache({ stdTTL: 300 }); // 5 minutes
 
-function getCachedUserContext(userId: string): UserContext | null {
-  const cached = userContextCache.get(userId);
-  if (cached && cached.expires > Date.now()) {
-    return cached.context;
-  }
-  return null;
+export function getCachedContext(userId: string): UserContext | null {
+  return userContextCache.get(userId) || null;
 }
 
-function setCachedUserContext(userId: string, context: UserContext): void {
-  userContextCache.set(userId, {
-    context,
-    expires: Date.now() + CACHE_TTL_MS,
-  });
+export function setCachedContext(userId: string, context: UserContext): void {
+  userContextCache.set(userId, context);
 }
 
-function invalidateUserContext(userId: string): void {
-  userContextCache.delete(userId);
+export function invalidateContext(userId: string): void {
+  userContextCache.del(userId);
 }
 ```
 
-### Dependencies on Story 1.1
+### First Login Auto-Provisioning
 
-This story builds on Story 1.1:
-- Uses existing `authenticateJWT` middleware
-- Uses existing mock token system for development
-- Uses existing Express server setup
-- Uses existing Cognito service
+**Business Rule:**
+- User exists in Cognito (authenticated successfully)
+- No contact record in database yet
+- Auto-create contact with Read-Only role
+- Admin must later grant proper roles and agency access
+
+### Integration with Story 1.1
+
+**Builds on:**
+- authenticateJWT middleware (extracts basic user ID/email)
+- JWT token validation
+- Cookie handling
+
+**Extends:**
+- req.user now includes permissions and agency access (not just ID/email)
+
+### Project Structure Notes
+
+**New Files:**
+- `src/server/services/userContextService.ts` - User context loading
+- `src/server/middleware/attachUserContext.ts` - Middleware
+- `src/server/types/auth.ts` - TypeScript types
+- `prisma/schema.prisma` - MODIFY (add 6 auth tables)
+- `prisma/seed.ts` - Seed roles and permissions
+- Migration files for auth tables
+
+**Files to Modify:**
+- `src/server/index.ts` - Add attachUserContext to pipeline
+- `src/server/middleware/authenticateJWT.ts` - Ensure it works with real Cognito
+
+**Follows established patterns:**
+- Service layer for business logic
+- Middleware for cross-cutting concerns
+- Caching for performance
+- Mock mode for development
 
 ### References
 
-- [Source: docs/architecture.md#Authentication-Flow]
-- [Source: docs/architecture.md#Middleware-Pipeline]
-- [Source: docs/architecture.md#Database-Schema-roles-permissions]
-- [Source: docs/epics.md#Story-1.2-JWT-Middleware-User-Context]
-- [Source: docs/PRD.md#FR33-Granular-RBAC]
+- [Source: docs/epics.md#Epic 1: Foundation & Authentication - Story 1.2]
+- [Source: docs/architecture.md#Middleware Pipeline]
+- [Source: docs/architecture.md#Database Schema - Authorization tables]
+- [Source: Story 1.1 - Authentication foundation]
 
 ## Dev Agent Record
 
-### Context Reference
-- Epic 1: Foundation & Authentication
-- FRs Covered: FR33 (Granular RBAC), FR39-40 (User context)
-- Dependencies: Story 1.1 (completed)
-
 ### Agent Model Used
-Claude Opus 4.5 (claude-opus-4-5-20250929)
 
-### Debug Log References
-N/A
+Claude Sonnet 4.5 (claude-sonnet-4-5-20250929)
+
+### Context Reference
+
+Story created from PRD/Epics specifications without code anchoring.
 
 ### Completion Notes List
-- This story provides the foundation for RBAC (Story 1.3) and Row-Level Security (Story 1.4)
-- The `req.user.permissions` set will be used by `checkPermissions` middleware in Story 1.3
-- The `req.user.authorizedAgencyGroups/authorizedSubagencies` will be used by `scopeToAgencies` middleware in Story 1.4
-- Middleware now merges full user context into `req.user` and blocks inactive users
-- Added unit and integration tests for user context service/middleware and cache invalidation
+
+- Story created using BMAD create-story workflow
+- Builds on Story 1.1 JWT validation
+- Establishes user context pattern for all future stories
+- 6 authorization tables specified
+- Caching strategy defined
+- First-login auto-provisioning logic
 
 ### File List
-Files created:
-- `src/server/middleware/__tests__/attachUserContext.test.ts`
-- `src/server/middleware/__tests__/middlewarePipeline.test.ts`
-- `src/server/services/__tests__/userContextService.test.ts`
 
-Files modified:
-- `prisma/schema.prisma` updates (roles, permissions tables)
-- `prisma/migrations/` - Migration for auth tables
-- `prisma/seed.ts` - Seed data for roles/permissions
-- `src/server/services/userContextService.ts`
-- `src/server/middleware/attachUserContext.ts`
-- `src/server/types/auth.ts` - TypeScript types
-- `src/server/middleware/authenticateJWT.ts` - Add real Cognito support
-- `src/server/index.ts` - Update middleware pipeline
-- `src/server/services/__tests__/companySuggestionsService.test.ts` - Fix UserContext type import
-- `src/server/services/__tests__/agencySuggestionsService.test.ts` - Fix UserContext type import
-- `src/server/services/__tests__/documentGenerationService.test.ts` - Fix UserContext type import
+Files to be created/modified during implementation:
+- `prisma/schema.prisma` - ADD 6 authorization tables
+- `prisma/seed.ts` - ADD roles and permissions seed data
+- `src/server/services/userContextService.ts` - NEW
+- `src/server/middleware/attachUserContext.ts` - NEW
+- `src/server/types/auth.ts` - NEW
+- `src/server/index.ts` - MODIFY (add middleware to pipeline)
+- Migration files for authorization schema
+- `src/server/services/__tests__/userContextService.test.ts` - NEW
+- `src/server/middleware/__tests__/attachUserContext.test.ts` - NEW

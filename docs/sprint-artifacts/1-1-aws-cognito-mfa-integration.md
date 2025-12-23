@@ -1,174 +1,188 @@
 # Story 1.1: AWS Cognito MFA Integration
 
-Status: review
+Status: ready-for-dev
 
 ## Story
 
 As a **USMax staff member**,
 I want **to log in with my email and MFA code**,
-so that **I can securely access the NDA system with government-grade authentication**.
+so that **I can securely access the NDA system**.
 
 ## Acceptance Criteria
 
 ### AC1: Successful MFA Authentication Flow
-**Given** I have a valid USMax email account in Cognito User Pool
+**Given** I have a valid USMax email account
 **When** I enter my email and password on the login page
-**Then** I receive an MFA challenge (TOTP authenticator app preferred, SMS fallback)
-**And** After entering the correct MFA code, I receive a JWT access token (stored in HttpOnly cookie)
+**Then** I receive an MFA challenge (SMS or authenticator app)
+**And** After entering the correct MFA code, I receive a JWT access token
 **And** I am redirected to the dashboard
 
 ### AC2: Invalid MFA Code Handling
 **Given** I enter an incorrect MFA code
 **When** I submit the code
 **Then** I see an error message "Invalid MFA code, please try again"
-**And** I can retry up to 3 times before temporary lockout (5 minutes)
-**And** Failed attempts are logged to audit_log table
+**And** I can retry up to 3 times before lockout
 
 ### AC3: Session Timeout with Warning
 **Given** I am logged in
-**When** My session reaches 5 minutes before the configured timeout (default 4 hours)
-**Then** I see a modal warning "Your session expires in 5 minutes - Save your work!"
-**And** I can click "Extend Session" to refresh the token
-**And** If no action, I am logged out and redirected to login page
-
-### AC4: Secure Token Storage
-**Given** I successfully authenticate
-**When** Tokens are received from Cognito
-**Then** Access token is stored in HttpOnly cookie (not localStorage - XSS prevention)
-**And** Refresh token is stored in HttpOnly cookie with Secure flag
-**And** CSRF token is generated and included in responses
-**And** No tokens are accessible to client-side JavaScript
-
-### AC5: Logout Clears All State
-**Given** I am logged in
-**When** I click "Logout" or session expires
-**Then** All cookies are cleared (access token, refresh token)
-**And** Client-side state is cleared (Zustand store reset)
-**And** I am redirected to login page
-**And** Audit log records logout event
+**When** My session reaches the configured timeout (default 4 hours)
+**Then** I see a warning 5 minutes before expiration
+**And** I am logged out and redirected to login if I don't refresh
 
 ## Tasks / Subtasks
 
-- [x] **Task 1: AWS Cognito User Pool Setup** (AC: 1, 2) - Terraform IaC created, actual deployment deferred
-  - [x] 1.1: Create Cognito User Pool via Terraform IaC (infrastructure/cognito.tf)
-  - [x] 1.2: Configure MFA settings (TOTP required, SMS as backup)
-  - [x] 1.3: Configure password policy (min 12 chars, require uppercase, lowercase, number, special)
-  - [x] 1.4: Create App Client with no client secret (for SPA)
-  - [x] 1.5: Configure token expiration (access: 4 hours, refresh: 30 days)
-  - [x] 1.6: Document User Pool ID and App Client ID in environment variables (.env.local)
-  - **TODO**: Actual AWS deployment pending - run `terraform apply` in infrastructure/ when ready
+- [ ] **Task 1: AWS Cognito User Pool Configuration** (AC: 1, 2)
+  - [ ] 1.1: Create Terraform configuration for Cognito User Pool
+  - [ ] 1.2: Configure MFA requirement (TOTP preferred, SMS fallback)
+  - [ ] 1.3: Configure password policy (CMMC Level 1 requirements)
+  - [ ] 1.4: Create App Client for SPA (no client secret)
+  - [ ] 1.5: Set token expiration (access: 4 hours, refresh: 30 days)
+  - [ ] 1.6: Deploy User Pool to AWS or document for later deployment
 
-- [x] **Task 2: Express Backend Authentication Setup** (AC: 1, 4)
-  - [x] 2.1: Install dependencies: `aws-jwt-verify`, `cookie-parser`, `cors`
-  - [x] 2.2: Create `/api/auth/login` endpoint (initiates Cognito auth)
-  - [x] 2.3: Create `/api/auth/mfa-challenge` endpoint (handles MFA verification)
-  - [x] 2.4: Create `/api/auth/refresh` endpoint (refreshes tokens)
-  - [x] 2.5: Create `/api/auth/logout` endpoint (clears cookies)
-  - [x] 2.6: Configure CORS with credentials (frontend domain only)
-  - [x] 2.7: Set up HttpOnly cookie middleware for token storage
+- [ ] **Task 2: Backend Authentication Endpoints** (AC: 1, 2)
+  - [ ] 2.1: Install AWS Cognito SDK (@aws-sdk/client-cognito-identity-provider)
+  - [ ] 2.2: Create cognitoService for AWS interactions
+  - [ ] 2.3: Implement POST /api/auth/login (initiates auth, returns MFA challenge)
+  - [ ] 2.4: Implement POST /api/auth/mfa-challenge (verifies MFA, returns tokens)
+  - [ ] 2.5: Implement POST /api/auth/refresh (refreshes access token)
+  - [ ] 2.6: Implement POST /api/auth/logout (clears cookies)
 
-- [x] **Task 3: JWT Validation Middleware** (AC: 1, 4)
-  - [x] 3.1: Create `authenticateJWT` middleware (supports mock and real AWS)
-  - [x] 3.2: Configure CognitoJwtVerifier with User Pool ID and App Client ID
-  - [x] 3.3: Extract user ID from validated token
-  - [x] 3.4: Populate `req.user` with `{id, email}` (permissions loaded in Story 1.3)
-  - [x] 3.5: Return 401 with appropriate message for invalid/expired tokens
-  - [x] 3.6: Add JWKS caching for performance (aws-jwt-verify handles this)
+- [ ] **Task 3: JWT Token Handling** (AC: 1)
+  - [ ] 3.1: Install cookie-parser middleware
+  - [ ] 3.2: Configure HttpOnly cookies (NOT localStorage)
+  - [ ] 3.3: Set Secure flag for HTTPS
+  - [ ] 3.4: Set SameSite=Strict for CSRF protection
+  - [ ] 3.5: Store access_token and refresh_token in separate cookies
 
-- [x] **Task 4: React Login UI Components** (AC: 1, 2, 3)
-  - [x] 4.1: Create `LoginPage` component with email/password form
-  - [x] 4.2: Create `MFAChallengePage` component for code entry
-  - [x] 4.3: Implement form validation with real-time feedback
-  - [x] 4.4: Create error display for invalid credentials/MFA codes
-  - [x] 4.5: Add loading states during authentication
-  - [x] 4.6: Implement retry counter display (X of 3 attempts remaining)
+- [ ] **Task 4: JWT Validation Middleware** (AC: 1)
+  - [ ] 4.1: Install aws-jwt-verify library
+  - [ ] 4.2: Create authenticateJWT middleware
+  - [ ] 4.3: Validate JWT signature against Cognito public keys (JWKS)
+  - [ ] 4.4: Extract user ID (sub) and email from token
+  - [ ] 4.5: Populate req.user with basic info (full context in Story 1.2)
+  - [ ] 4.6: Return 401 for missing, expired, or invalid tokens
 
-- [x] **Task 5: Session Management** (AC: 3, 5)
-  - [x] 5.1: Create session timeout warning modal (5-min countdown)
-  - [x] 5.2: Implement token refresh on "Extend Session" click
-  - [x] 5.3: Create logout function that clears all cookies and state
-  - [x] 5.4: Add `useAuth` hook via AuthContext for React components
-  - [x] 5.5: Implement automatic redirect on 401 responses (ProtectedRoute)
-  - [x] 5.6: Reset Zustand store on logout
+- [ ] **Task 5: Mock Authentication Mode** (AC: Development)
+  - [ ] 5.1: Create mock auth mode for development (USE_MOCK_AUTH=true)
+  - [ ] 5.2: Mock users: admin@usmax.com, test@usmax.com with test passwords
+  - [ ] 5.3: Mock MFA code: 123456 (always succeeds)
+  - [ ] 5.4: Generate mock JWT tokens for development
+  - [ ] 5.5: Allow switching between mock and real Cognito
 
-- [x] **Task 6: Audit Logging for Auth Events** (AC: 2, 5)
-  - [x] 6.1: Create audit log entries for: login_success, login_failed, mfa_success, mfa_failed, logout
-  - [x] 6.2: Capture IP address, user agent, timestamp for each event
-  - [x] 6.3: Log failed attempts with reason (invalid_password, invalid_mfa, account_locked)
-  - [x] 6.4: Ensure audit logging is async (doesn't block auth flow)
+- [ ] **Task 6: Frontend Login Components** (AC: 1, 2)
+  - [ ] 6.1: Create LoginPage component with email/password form
+  - [ ] 6.2: Create MFAChallengePage component for MFA code entry
+  - [ ] 6.3: Implement form validation with React Hook Form + Zod
+  - [ ] 6.4: Show loading states during authentication
+  - [ ] 6.5: Display error messages for invalid credentials/MFA
+  - [ ] 6.6: Show retry counter (X of 3 attempts remaining)
 
-- [x] **Task 7: Testing** (AC: All)
-  - [x] 7.1: Unit tests for JWT validation middleware (7 tests passing)
-  - [x] 7.2: Integration tests for auth endpoints using supertest (11 tests passing)
-  - [x] 7.3: CognitoService unit tests for mock mode (5 tests passing)
-  - [ ] 7.4: E2E test for complete login flow (Playwright) - deferred, needs Playwright setup
-  - [ ] 7.5: Test session timeout and warning modal - visual/manual testing
+- [ ] **Task 7: Frontend Auth Context** (AC: 1, 3)
+  - [ ] 7.1: Create AuthContext for React app
+  - [ ] 7.2: Implement login(), verifyMFA(), logout() functions
+  - [ ] 7.3: Store user state in context (not tokens - those in cookies)
+  - [ ] 7.4: Create useAuth() hook
+  - [ ] 7.5: Create ProtectedRoute component (redirect to login if not authenticated)
+
+- [ ] **Task 8: Session Timeout Warning** (AC: 3)
+  - [ ] 8.1: Create SessionWarningModal component
+  - [ ] 8.2: Calculate time until expiration from token
+  - [ ] 8.3: Show modal 5 minutes before expiration
+  - [ ] 8.4: Implement "Extend Session" button (calls refresh endpoint)
+  - [ ] 8.5: Auto-logout on timeout with redirect
+
+- [ ] **Task 9: Audit Logging for Auth Events** (AC: 2)
+  - [ ] 9.1: Create auditService if not exists
+  - [ ] 9.2: Log login_success, login_failed events
+  - [ ] 9.3: Log mfa_success, mfa_failed events with attempt count
+  - [ ] 9.4: Log logout events
+  - [ ] 9.5: Capture IP address, user agent, timestamp
+
+- [ ] **Task 10: Testing** (AC: All)
+  - [ ] 10.1: Unit tests for cognitoService (with mocked AWS SDK)
+  - [ ] 10.2: Unit tests for authenticateJWT middleware
+  - [ ] 10.3: Integration tests for auth endpoints (login, MFA, refresh, logout)
+  - [ ] 10.4: Component tests for LoginPage and MFAChallengePage
+  - [ ] 10.5: E2E test for complete login flow (Playwright)
 
 ## Dev Notes
 
-### Technical Stack Requirements
-- **AWS Cognito SDK**: Use `@aws-sdk/client-cognito-identity-provider` for server-side auth
-- **JWT Validation**: Use `aws-jwt-verify` (official AWS library, 0 dependencies, auto-JWKS caching)
-- **Cookie Handling**: Use `cookie-parser` middleware
-- **CORS**: Configure `cors` middleware with `credentials: true`
+### Technical Stack for Authentication
 
-### Critical Security Requirements (CMMC Level 1)
-1. **MFA is MANDATORY** - No exceptions, all users must complete MFA (FR32)
-2. **HttpOnly cookies ONLY** - Never store tokens in localStorage (XSS prevention)
-3. **Secure flag on cookies** - Only transmitted over HTTPS
-4. **SameSite=Strict** - Prevent CSRF attacks
-5. **No client secrets in SPA** - Use public app client
+**Backend:**
+- AWS Cognito SDK: `@aws-sdk/client-cognito-identity-provider`
+- JWT Verification: `aws-jwt-verify` (official AWS library)
+- Cookie handling: `cookie-parser` middleware
+- CORS: `cors` middleware with `credentials: true`
 
-### Architecture Patterns (from docs/architecture.md)
+**Frontend:**
+- Form handling: React Hook Form + Zod validation
+- Auth state: React Context API
+- HTTP client: Axios with cookie support
+
+### Authentication Flow
+
 ```
-src/
-├── server/
-│   ├── middleware/
-│   │   ├── authenticateJWT.ts      # JWT validation - THIS STORY
-│   │   ├── checkPermissions.ts     # Story 1.3
-│   │   └── scopeToAgencies.ts      # Story 1.4
-│   ├── routes/
-│   │   └── auth.ts                 # Auth endpoints - THIS STORY
-│   └── services/
-│       └── cognitoService.ts       # Cognito interactions - THIS STORY
-├── client/
-│   ├── pages/
-│   │   ├── LoginPage.tsx           # THIS STORY
-│   │   └── MFAChallengePage.tsx    # THIS STORY
-│   ├── hooks/
-│   │   └── useAuth.ts              # Auth state hook - THIS STORY
-│   └── contexts/
-│       └── AuthContext.tsx         # Auth provider - THIS STORY
+1. User enters email + password → POST /api/auth/login
+2. Backend calls Cognito InitiateAuth
+3. Cognito returns MFA challenge
+4. Frontend shows MFA page with code input
+5. User enters MFA code → POST /api/auth/mfa-challenge
+6. Backend calls Cognito RespondToAuthChallenge
+7. Cognito returns access + refresh tokens
+8. Backend sets HttpOnly cookies
+9. Frontend redirects to dashboard
 ```
 
-### Database Tables Used
-- `contacts` table - User lookup (email → user record)
-- `audit_log` table - Auth event logging
+### Security Requirements (CMMC Level 1)
 
-```sql
--- Audit log entry structure for auth events
-INSERT INTO audit_log (
-  action,
-  entity_type,
-  entity_id,
-  user_id,
-  ip_address,
-  user_agent,
-  details,
-  created_at
-) VALUES (
-  'login_success',  -- or login_failed, mfa_success, mfa_failed, logout
-  'authentication',
-  NULL,
-  $userId,
-  $ipAddress,
-  $userAgent,
-  '{"method": "cognito_mfa"}',
-  NOW()
-);
+**Mandatory:**
+- MFA required for ALL users (no exceptions)
+- HttpOnly cookies ONLY (never localStorage - prevents XSS)
+- Secure flag on cookies (HTTPS only)
+- SameSite=Strict (prevents CSRF)
+- No client secrets in SPA
+- Session timeout after 4 hours
+- Failed attempt logging
+
+### Cookie Configuration
+
+```typescript
+res.cookie('access_token', accessToken, {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'strict',
+  maxAge: 4 * 60 * 60 * 1000 // 4 hours
+});
+
+res.cookie('refresh_token', refreshToken, {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'strict',
+  maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
+});
 ```
 
-### Environment Variables Required
+### Mock Authentication for Development
+
+```typescript
+// Enable with: USE_MOCK_AUTH=true in .env
+if (process.env.USE_MOCK_AUTH === 'true') {
+  // Mock users
+  const MOCK_USERS = {
+    'admin@usmax.com': { password: 'Admin123!@#$', role: 'Admin' },
+    'test@usmax.com': { password: 'Test1234!@#$', role: 'NDA User' }
+  };
+
+  // Mock MFA code: 123456 (always succeeds)
+  const MOCK_MFA_CODE = '123456';
+
+  // Generate mock JWT with same structure as real Cognito tokens
+}
+```
+
+### Environment Variables
+
 ```bash
 # AWS Cognito
 COGNITO_USER_POOL_ID=us-east-1_xxxxxxxxx
@@ -179,233 +193,112 @@ COGNITO_REGION=us-east-1
 SESSION_TIMEOUT_HOURS=4
 SESSION_WARNING_MINUTES=5
 
-# Cookie settings
-COOKIE_DOMAIN=.usmax-nda.com
-COOKIE_SECURE=true
+# Development
+USE_MOCK_AUTH=true  # Set to false for real AWS
 ```
 
-### API Endpoint Specifications
+### Terraform Infrastructure
 
-#### POST /api/auth/login
-```typescript
-// Request
-{ email: string, password: string }
+```hcl
+resource "aws_cognito_user_pool" "main" {
+  name = "usmax-nda-users-${var.environment}"
 
-// Response (success) - initiates MFA challenge
-{
-  challengeName: 'SOFTWARE_TOKEN_MFA',
-  session: string  // Cognito session token for MFA step
-}
+  mfa_configuration = "ON"  # MFA required
 
-// Response (error)
-{ error: 'Invalid credentials', code: 'INVALID_CREDENTIALS' }
-```
-
-#### POST /api/auth/mfa-challenge
-```typescript
-// Request
-{ session: string, mfaCode: string }
-
-// Response (success) - sets HttpOnly cookies
-{
-  user: { id: string, email: string },
-  expiresAt: number  // Unix timestamp
-}
-// Cookies set: access_token, refresh_token (HttpOnly, Secure, SameSite=Strict)
-
-// Response (error)
-{ error: 'Invalid MFA code', attemptsRemaining: 2, code: 'INVALID_MFA' }
-```
-
-#### POST /api/auth/refresh
-```typescript
-// Request - uses refresh_token from cookie
-{}
-
-// Response (success) - updates access_token cookie
-{ expiresAt: number }
-
-// Response (error) - requires re-login
-{ error: 'Session expired', code: 'SESSION_EXPIRED' }
-```
-
-#### POST /api/auth/logout
-```typescript
-// Request
-{}
-
-// Response - clears all auth cookies
-{ success: true }
-```
-
-### JWT Validation Middleware Pattern
-```typescript
-// src/server/middleware/authenticateJWT.ts
-import { CognitoJwtVerifier } from 'aws-jwt-verify';
-
-const verifier = CognitoJwtVerifier.create({
-  userPoolId: process.env.COGNITO_USER_POOL_ID!,
-  tokenUse: 'access',
-  clientId: process.env.COGNITO_APP_CLIENT_ID!,
-});
-
-export const authenticateJWT = async (req, res, next) => {
-  const token = req.cookies.access_token;
-
-  if (!token) {
-    return res.status(401).json({
-      error: 'Authentication required',
-      code: 'NO_TOKEN'
-    });
+  password_policy {
+    minimum_length    = 12
+    require_uppercase = true
+    require_lowercase = true
+    require_numbers   = true
+    require_symbols   = true
   }
 
-  try {
-    const payload = await verifier.verify(token);
-    req.user = {
-      id: payload.sub,
-      email: payload.email,
-      // permissions added in Story 1.3
-    };
-    next();
-  } catch (err) {
-    if (err.name === 'TokenExpiredError') {
-      return res.status(401).json({
-        error: 'Token expired, please login again',
-        code: 'TOKEN_EXPIRED'
-      });
+  account_recovery_setting {
+    recovery_mechanism {
+      name     = "verified_email"
+      priority = 1
     }
-    return res.status(401).json({
-      error: 'Invalid token',
-      code: 'INVALID_TOKEN'
-    });
   }
-};
-```
 
-### React Auth Context Pattern
-```typescript
-// src/client/contexts/AuthContext.tsx
-interface AuthContextType {
-  user: User | null;
-  isAuthenticated: boolean;
-  isLoading: boolean;
-  login: (email: string, password: string) => Promise<MFAChallenge>;
-  verifyMFA: (session: string, code: string) => Promise<void>;
-  logout: () => Promise<void>;
-  refreshSession: () => Promise<void>;
+  auto_verified_attributes = ["email"]
+}
+
+resource "aws_cognito_user_pool_client" "spa" {
+  name         = "usmax-nda-spa"
+  user_pool_id = aws_cognito_user_pool.main.id
+
+  explicit_auth_flows = [
+    "ALLOW_USER_SRP_AUTH",
+    "ALLOW_REFRESH_TOKEN_AUTH"
+  ]
+
+  # No client secret (public SPA)
+  generate_secret = false
+
+  token_validity_units {
+    access_token  = "hours"
+    refresh_token = "days"
+  }
+
+  access_token_validity  = 4   # 4 hours
+  refresh_token_validity = 30  # 30 days
 }
 ```
 
-### Testing Patterns
+### Project Structure Notes
 
-#### Mock Cognito for Testing
-```typescript
-// Use aws-sdk-client-mock for Cognito mocking
-import { mockClient } from 'aws-sdk-client-mock';
-import { CognitoIdentityProviderClient } from '@aws-sdk/client-cognito-identity-provider';
+**New Files:**
+- `infrastructure/modules/cognito/main.tf` - Cognito User Pool IaC
+- `src/server/services/cognitoService.ts` - Cognito SDK wrapper
+- `src/server/routes/auth.ts` - Authentication endpoints
+- `src/server/middleware/authenticateJWT.ts` - JWT validation
+- `src/client/pages/LoginPage.tsx` - Login form
+- `src/client/pages/MFAChallengePage.tsx` - MFA code entry
+- `src/client/contexts/AuthContext.tsx` - Auth state management
+- `src/client/components/SessionWarningModal.tsx` - Timeout warning
 
-const cognitoMock = mockClient(CognitoIdentityProviderClient);
-
-// Mock successful auth
-cognitoMock.on(InitiateAuthCommand).resolves({
-  ChallengeName: 'SOFTWARE_TOKEN_MFA',
-  Session: 'mock-session-token',
-});
-```
-
-#### Playwright E2E Test Structure
-```typescript
-test('complete login flow with MFA', async ({ page }) => {
-  await page.goto('/login');
-  await page.fill('[name="email"]', 'test@usmax.com');
-  await page.fill('[name="password"]', 'TestPassword123!');
-  await page.click('button[type="submit"]');
-
-  // MFA challenge page
-  await expect(page).toHaveURL('/mfa-challenge');
-  await page.fill('[name="mfaCode"]', '123456');
-  await page.click('button[type="submit"]');
-
-  // Redirected to dashboard
-  await expect(page).toHaveURL('/dashboard');
-});
-```
-
-### Error Handling
-- All auth errors should return structured JSON: `{ error: string, code: string }`
-- Log detailed errors to Sentry, return user-friendly messages to client
-- Never expose internal error details or stack traces
-
-### Performance Considerations
-- JWKS is cached automatically by `aws-jwt-verify` (refreshed periodically)
-- Session warning modal should use `setInterval` with cleanup
-- Token refresh should be silent (no loading spinner)
-
-### Accessibility (Section 508)
-- Login form must have proper ARIA labels
-- Error messages announced to screen readers
-- MFA code input should accept paste
-- Session warning modal must trap focus
+**Follows patterns:**
+- Express route → service layer → AWS SDK
+- React Context for global auth state
+- Middleware pipeline architecture
+- Mock mode for development velocity
 
 ### References
-- [Source: docs/architecture.md#Authentication-Flow]
-- [Source: docs/architecture.md#Middleware-Pipeline]
-- [Source: docs/PRD.md#FR32-MFA-Enforcement]
-- [Source: docs/PRD.md#FR111-113-Session-Management]
-- [Source: docs/epics.md#Story-1.1-AWS-Cognito-MFA-Integration]
-- [AWS: aws-jwt-verify](https://github.com/awslabs/aws-jwt-verify)
-- [AWS: Verifying JWTs](https://docs.aws.amazon.com/cognito/latest/developerguide/amazon-cognito-user-pools-using-tokens-verifying-a-jwt.html)
-- [Best Practice: HttpOnly Cookies for Auth](https://medium.com/@krutiamrutiya1998/secure-authentication-in-node-js-and-react-js-with-httponly-cookies-612deaad5d99)
+
+- [Source: docs/epics.md#Epic 1: Foundation & Authentication - Story 1.1]
+- [Source: docs/architecture.md#Authentication Flow (AWS Cognito + MFA)]
+- [Source: docs/architecture.md#Security Architecture]
+- [Source: docs/prd.md#FR32: MFA Enforcement]
 
 ## Dev Agent Record
 
-### Context Reference
-- Epic 1: Foundation & Authentication
-- FRs Covered: FR32, FR111-113
-- Dependencies: None (this is the first story)
-
 ### Agent Model Used
-Claude Opus 4.5 (claude-opus-4-5-20250929)
 
-### Debug Log References
-N/A - First story in epic
+Claude Sonnet 4.5 (claude-sonnet-4-5-20250929)
+
+### Context Reference
+
+Story created from PRD/Epics specifications without code anchoring.
 
 ### Completion Notes List
-- This is the foundational authentication story - all other stories depend on it
-- Row-level security (Story 1.4) requires authenticated user context from this story
-- RBAC (Story 1.3) will extend req.user with permissions
+
+- Story created using BMAD create-story workflow
+- First story in epic (no previous story context)
+- Unanchored from existing implementation
+- All requirements extracted from epics.md
+- Security requirements emphasized (CMMC Level 1)
+- Mock mode for development velocity specified
 
 ### File List
 
-**Files Created:**
-- `infrastructure/cognito.tf` - Terraform IaC for AWS Cognito User Pool
-- `src/server/index.ts` - Express server entry point
-- `src/server/middleware/authenticateJWT.ts` - JWT validation middleware (mock + real)
-- `src/server/routes/auth.ts` - Auth API endpoints
-- `src/server/services/cognitoService.ts` - Cognito service with mock mode
-- `src/server/services/auditService.ts` - Audit logging service
-- `src/client/pages/LoginPage.tsx` - Login form component
-- `src/client/pages/MFAChallengePage.tsx` - MFA code entry component
-- `src/client/contexts/AuthContext.tsx` - React auth context provider
-- `src/client/hooks/useAuth.ts` - Re-export of useAuth from context
-- `src/client/components/SessionWarningModal.tsx` - Session timeout warning modal
-- `src/client/stores/appStore.ts` - Zustand store for client state
-- `tsconfig.server.json` - TypeScript config for server code
-- `vitest.config.ts` - Vitest test configuration
-- `src/server/middleware/__tests__/authenticateJWT.test.ts` - JWT middleware tests
-- `src/server/routes/__tests__/auth.test.ts` - Auth routes integration tests
-- `.env.local` - Local development environment variables
-
-**Files Modified:**
-- `package.json` - Added dependencies and scripts (express, aws-jwt-verify, zustand, etc.)
-- `src/App.tsx` - Added AuthProvider, ProtectedRoute, SessionWarningModal
-- `.gitignore` - Added env files and terraform state
-
-**Mock Authentication:**
-- `USE_MOCK_AUTH=true` enables development without AWS
-- Mock users: `admin@usmax.com` / `Admin123!@#$`, `test@usmax.com` / `Test1234!@#$`
-- Mock MFA code: `123456`
-
-**Testing:**
-- 23 tests passing (7 middleware + 11 integration + 5 service)
-- Run with: `pnpm test`
+Files to be created/modified during implementation:
+- `infrastructure/modules/cognito/main.tf` - NEW
+- `src/server/services/cognitoService.ts` - NEW
+- `src/server/routes/auth.ts` - NEW
+- `src/server/middleware/authenticateJWT.ts` - NEW
+- `src/client/pages/LoginPage.tsx` - NEW
+- `src/client/pages/MFAChallengePage.tsx` - NEW
+- `src/client/contexts/AuthContext.tsx` - NEW
+- `src/client/components/SessionWarningModal.tsx` - NEW
+- `src/server/services/auditService.ts` - NEW (for auth logging)
+- `.env.example` - ADD Cognito environment variables

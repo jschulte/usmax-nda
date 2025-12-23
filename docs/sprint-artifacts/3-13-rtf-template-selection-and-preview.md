@@ -1,6 +1,6 @@
 # Story 3.13: RTF Template Selection & Preview
 
-Status: in-progress
+Status: ready-for-dev
 
 ## Story
 
@@ -10,7 +10,7 @@ so that **I can ensure the document looks correct for this specific agency/type*
 
 ## Acceptance Criteria
 
-### AC1: Template Dropdown with Recommendations
+### AC1: Template Selection with Recommendations
 **Given** Multiple RTF templates exist in database
 **When** Creating NDA for "DoD Air Force"
 **Then** Template dropdown shows: "DoD Standard NDA (recommended)", "Generic USMax NDA", "Research Partnership NDA"
@@ -23,7 +23,7 @@ so that **I can ensure the document looks correct for this specific agency/type*
 **And** I can see all merged fields: Company Name, Authorized Purpose, Effective Date, etc.
 **And** I can click "Edit Template" if content needs adjustment before sending
 
-### AC3: Edit Generated Document
+### AC3: NDA-Specific Template Editing
 **Given** I edit template content
 **When** I make changes to generated RTF
 **Then** Changes apply to THIS NDA only (doesn't modify template)
@@ -31,102 +31,282 @@ so that **I can ensure the document looks correct for this specific agency/type*
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: RTF Template Model** (AC: 1)
-  - [x] 1.1: Create RtfTemplate model in Prisma
-  - [x] 1.2: Add agency/type association fields
-  - [x] 1.3: Seed default templates
+- [ ] **Task 1: Template Recommendation Logic** (AC: 1)
+  - [ ] 1.1: Extend templateService (or create in documentGenerationService)
+  - [ ] 1.2: Implement getRecommendedTemplate(agencyGroupId, ndaType)
+  - [ ] 1.3: Query templates by agency_group_id
+  - [ ] 1.4: Return default template if agency-specific not found
+  - [ ] 1.5: Consider template usage history for recommendations
 
-- [x] **Task 2: Template Selection API** (AC: 1)
-  - [x] 2.1: Add `GET /api/rtf-templates` endpoint
-  - [x] 2.2: Filter by agency group
-  - [x] 2.3: Return with recommended flag
+- [ ] **Task 2: Template List API** (AC: 1)
+  - [ ] 2.1: Create GET /api/templates endpoint
+  - [ ] 2.2: Filter by agency if provided
+  - [ ] 2.3: Mark recommended template in response
+  - [ ] 2.4: Return all available templates
+  - [ ] 2.5: Apply requirePermission('nda:create')
 
-- [x] **Task 3: Preview API** (AC: 2)
-  - [x] 3.1: Add `POST /api/ndas/:id/preview-document` endpoint
-  - [x] 3.2: Generate document with template
-  - [x] 3.3: Return preview URL (temporary S3 link)
+- [ ] **Task 3: RTF Preview Generation** (AC: 2)
+  - [ ] 3.1: Create POST /api/ndas/:id/preview-rtf endpoint
+  - [ ] 3.2: Accept templateId in request
+  - [ ] 3.3: Generate RTF using documentGenerationService (from Story 3-5)
+  - [ ] 3.4: Return preview URL or Base64 encoded content
+  - [ ] 3.5: Don't save to database (temporary preview)
 
-- [x] **Task 4: Document Edit** (AC: 3)
-  - [x] 4.1: Add `POST /api/ndas/:id/save-edited-document` endpoint
-  - [x] 4.2: Accept edited content
-  - [x] 4.3: Store as new version in S3
-  - [x] 4.4: Mark as edited in database
+- [ ] **Task 4: Template Editing** (AC: 3)
+  - [ ] 4.1: Add customTemplate field to NDA model (optional text)
+  - [ ] 4.2: When user edits template, store in nda.customTemplate
+  - [ ] 4.3: On document generation, use customTemplate if exists, else use template
+  - [ ] 4.4: Custom template stored with NDA (not in rtf_templates table)
 
-- [ ] **Task 5: Testing** (AC: All)
-  - [ ] 5.1: Test template listing with recommendations
-  - [ ] 5.2: Test preview generation
-  - [ ] 5.3: Test edited document saving
+- [ ] **Task 5: Frontend - Template Selector** (AC: 1)
+  - [ ] 5.1: Add template dropdown to NDA create/edit form
+  - [ ] 5.2: Fetch templates for selected agency
+  - [ ] 5.3: Show "Recommended" badge on suggested template
+  - [ ] 5.4: Pre-select recommended template
+  - [ ] 5.5: Allow user to change selection
 
-### Review Follow-ups (AI)
-- [x] [AI-Review][HIGH] Template selection/preview UI is missing in the NDA creation flow; Request Wizard only shows a static info card. [src/components/screens/RequestWizard.tsx:193]
-- [x] [AI-Review][HIGH] Preview generation ignores template content; `generatePreview` calls document generation from NDA fields instead of merging the selected RTF template. [src/server/services/templateService.ts:231]
-- [x] [AI-Review][MEDIUM] Client expects `mergedFields: string[]` but server returns an object map; preview response shape mismatch will break UI consumption. [src/client/services/templateService.ts:38]
-- [x] [AI-Review][MEDIUM] Edited documents are saved without version metadata or an “edited” flag; stored as `documentType: GENERATED` with no way to distinguish edited vs original. [src/server/services/templateService.ts:312]
-- [x] [AI-Review][MEDIUM] Story marked done but Tasks/Subtasks are all unchecked and no Dev Agent Record/File List exists to verify changes. [docs/sprint-artifacts/3-13-rtf-template-selection-and-preview.md:1]
+- [ ] **Task 6: Frontend - Preview Button and Display** (AC: 2)
+  - [ ] 6.1: Add "Preview RTF" button to form
+  - [ ] 6.2: On click, call POST /api/ndas/:id/preview-rtf
+  - [ ] 6.3: Display preview in modal or side panel
+  - [ ] 6.4: Show loading state while generating
+  - [ ] 6.5: Preview shows merged content (all NDA fields filled in)
 
-## Dev Agent Record
+- [ ] **Task 7: Frontend - Template Editor** (AC: 3)
+  - [ ] 7.1: Add "Edit Template" button in preview
+  - [ ] 7.2: Open rich text editor with template content
+  - [ ] 7.3: User can modify content
+  - [ ] 7.4: Save edited content to nda.customTemplate field
+  - [ ] 7.5: Show indicator that template was customized for this NDA
 
-### File List
-- prisma/schema.prisma
-- prisma/migrations/20251221200000_add_nda_rtf_template_selection/migration.sql
-- src/server/services/templateService.ts
-- src/server/services/documentGenerationService.ts
-- src/server/services/ndaService.ts
-- src/server/routes/ndas.ts
-- src/components/screens/RequestWizard.tsx
-- src/components/screens/NDADetail.tsx
-- src/client/services/templateService.ts
-- src/client/services/ndaService.ts
-
-### Change Log
-- 2025-12-21: Added NDA-level template persistence, request wizard template selection, and respected stored template IDs for preview and document generation.
+- [ ] **Task 8: Testing** (AC: All)
+  - [ ] 8.1: Unit tests for template recommendation logic
+  - [ ] 8.2: API tests for template list endpoint
+  - [ ] 8.3: API tests for preview generation
+  - [ ] 8.4: Test custom template storage
+  - [ ] 8.5: Component tests for template selector
 
 ## Dev Notes
 
-### RTF Template Schema
-
-```prisma
-model RtfTemplate {
-  id              String       @id @default(uuid())
-  name            String
-  description     String?
-  content         Bytes        // RTF template content
-  agencyGroupId   String?      // null = generic template
-  agencyGroup     AgencyGroup? @relation(fields: [agencyGroupId], references: [id])
-  isDefault       Boolean      @default(false)
-  isActive        Boolean      @default(true)
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
-}
-```
-
-### Template Selection Logic
+### Template Recommendation Logic
 
 ```typescript
-async function getTemplatesForNda(agencyGroupId: string): Promise<RtfTemplateWithRecommendation[]> {
-  const templates = await prisma.rtfTemplate.findMany({
-    where: { isActive: true },
-    orderBy: { name: 'asc' },
+async function getRecommendedTemplate(
+  agencyGroupId: string,
+  ndaType?: string
+): Promise<RtfTemplate> {
+  // Try agency-specific template first
+  const agencyTemplate = await prisma.rtfTemplate.findFirst({
+    where: {
+      agencyGroupId,
+      isDefault: true
+    }
   });
 
-  return templates.map(t => ({
-    ...t,
-    isRecommended: t.agencyGroupId === agencyGroupId || (t.isDefault && !t.agencyGroupId),
-  }));
+  if (agencyTemplate) return agencyTemplate;
+
+  // Fall back to generic default
+  const defaultTemplate = await prisma.rtfTemplate.findFirst({
+    where: {
+      agencyGroupId: null, // Generic
+      isDefault: true
+    }
+  });
+
+  if (!defaultTemplate) {
+    throw new Error('No default template found');
+  }
+
+  return defaultTemplate;
 }
 ```
 
-### Preview Response
+### RTF Preview Implementation
 
 ```typescript
-interface PreviewResponse {
-  previewUrl: string;      // Pre-signed S3 URL (expires in 15 min)
-  mergedFields: Record<string, string>;  // Show which fields were merged
-  templateUsed: { id: string; name: string };
+async function previewRtf(ndaId: string, templateId: string, userId: string) {
+  // Use same generation logic as Story 3-5
+  const buffer = await documentGenerationService.generateRtf(
+    ndaId,
+    templateId,
+    userId
+  );
+
+  // Return Base64 for frontend display or temporary S3 URL
+  return {
+    content: buffer.toString('base64'),
+    contentType: 'application/rtf',
+    filename: `NDA-Preview-${Date.now()}.rtf`
+  };
 }
 ```
 
-## Dependencies
+### Custom Template Storage
 
-- Story 3.5: RTF Document Generation
-- Story 3.1: Create NDA with Basic Form
+**Extend NDA Model:**
+```prisma
+model Nda {
+  // ... existing fields
+  rtfTemplateId    String?  @map("rtf_template_id")
+  customTemplate   String?  @map("custom_template") @db.Text // NDA-specific edits
+
+  rtfTemplate      RtfTemplate? @relation(fields: [rtfTemplateId], references: [id])
+}
+```
+
+**Generation Priority:**
+1. Use nda.customTemplate if exists (user edited)
+2. Else use nda.rtfTemplateId template
+3. Else use recommended template for agency
+
+### Frontend Template Selector
+
+```tsx
+function TemplateSelector({ agencyGroupId, value, onChange }: TemplateSelectorProps) {
+  const { data: templates } = useQuery({
+    queryKey: ['templates', agencyGroupId],
+    queryFn: () => api.get('/api/templates', {
+      params: { agencyGroupId }
+    }).then(res => res.data)
+  });
+
+  const recommendedTemplate = templates?.find(t => t.isRecommended);
+
+  return (
+    <div>
+      <Label>RTF Template</Label>
+      <Select value={value} onValueChange={onChange}>
+        <SelectTrigger>
+          <SelectValue placeholder="Select template" />
+        </SelectTrigger>
+        <SelectContent>
+          {templates?.map(template => (
+            <SelectItem key={template.id} value={template.id}>
+              {template.name}
+              {template.isRecommended && (
+                <Badge variant="secondary" className="ml-2">Recommended</Badge>
+              )}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+```
+
+### Preview Modal
+
+```tsx
+function RTFPreviewModal({ ndaId, templateId }: RTFPreviewModalProps) {
+  const { data: preview, isLoading } = useQuery({
+    queryKey: ['rtf-preview', ndaId, templateId],
+    queryFn: () => api.post(`/api/ndas/${ndaId}/preview-rtf`, { templateId }).then(res => res.data),
+    enabled: !!templateId
+  });
+
+  return (
+    <Dialog>
+      <DialogContent className="max-w-4xl">
+        <DialogHeader>
+          <DialogTitle>RTF Preview</DialogTitle>
+        </DialogHeader>
+
+        {isLoading && <Loader2 className="animate-spin" />}
+
+        {preview && (
+          <div className="border rounded p-4 bg-white max-h-96 overflow-y-auto">
+            {/* Preview content - could be iframe, object, or download link */}
+            <object
+              data={`data:application/rtf;base64,${preview.content}`}
+              type="application/rtf"
+              className="w-full h-full"
+            >
+              <p>
+                Preview not supported.{' '}
+                <a href={`data:application/rtf;base64,${preview.content}`} download={preview.filename}>
+                  Download to view
+                </a>
+              </p>
+            </object>
+          </div>
+        )}
+
+        <DialogFooter>
+          <Button variant="outline" onClick={handleEditTemplate}>
+            Edit Template
+          </Button>
+          <Button onClick={handleUseTemplate}>
+            Use This Template
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+```
+
+### Integration with Story 3-5
+
+**Reuses:**
+- documentGenerationService for preview generation
+- Same template merging logic
+- Same Handlebars field placeholders
+
+**Extends:**
+- Adds template selection UI
+- Adds preview capability
+- Adds per-NDA customization
+
+### Project Structure Notes
+
+**New Files:**
+- `src/components/modals/RTFPreviewModal.tsx` - NEW
+- `src/components/ui/TemplateSelector.tsx` - NEW
+
+**Files to Modify:**
+- `prisma/schema.prisma` - MODIFY Nda model (add rtfTemplateId, customTemplate)
+- `src/server/routes/ndas.ts` - ADD preview-rtf endpoint
+- `src/server/services/documentGenerationService.ts` - ADD previewRtf function
+- `src/components/screens/CreateNDA.tsx` - ADD template selector
+
+**Follows established patterns:**
+- Template system from Story 3-5
+- Service layer for business logic
+- Modal UI pattern
+- React Query for data fetching
+
+### References
+
+- [Source: docs/epics.md#Epic 3: Core NDA Lifecycle - Story 3.13]
+- [Source: Story 3-5 - RTF generation foundation]
+- [Source: Story 3-4 - Template suggestions pattern]
+
+## Dev Agent Record
+
+### Agent Model Used
+
+Claude Sonnet 4.5 (claude-sonnet-4-5-20250929)
+
+### Context Reference
+
+Story created from PRD/Epics specifications without code anchoring.
+
+### Completion Notes List
+
+- Story created using BMAD create-story workflow
+- Template selection with recommendations
+- RTF preview before finalizing
+- NDA-specific template customization
+- Extends documentGenerationService from Story 3-5
+
+### File List
+
+Files to be created/modified during implementation:
+- `prisma/schema.prisma` - MODIFY Nda (add rtfTemplateId, customTemplate)
+- `src/components/modals/RTFPreviewModal.tsx` - NEW
+- `src/components/ui/TemplateSelector.tsx` - NEW
+- `src/server/routes/ndas.ts` - MODIFY (add preview endpoint)
+- `src/server/services/documentGenerationService.ts` - MODIFY (add previewRtf)
+- `src/components/screens/CreateNDA.tsx` - MODIFY (add template selector)
+- Migration file for NDA template fields
