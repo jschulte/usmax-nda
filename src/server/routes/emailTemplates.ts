@@ -1,9 +1,9 @@
-import express from 'express';
+import express, { type Router } from 'express';
 import { listEmailTemplates } from '../services/emailTemplateService.js';
 import { PERMISSIONS } from '../constants/permissions.js';
 import { requirePermission } from '../middleware/checkPermissions.js';
 
-const router = express.Router();
+const router: Router = express.Router();
 
 /**
  * GET /api/email-templates
