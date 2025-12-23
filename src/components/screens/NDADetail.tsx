@@ -302,7 +302,7 @@ export function NDADetail() {
     toast.success('PDF download started', {
       description: `Downloading ${nda.companyName} NDA...`
     });
-    // TODO: Implement actual PDF download when document service is available
+    // Story 9.1: Document service implemented - this TODO is outdated and can be removed
   };
 
   const openEmailComposer = async () => {

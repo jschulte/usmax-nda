@@ -4,7 +4,7 @@ import { Badge } from '../ui/AppBadge';
 import { Button } from '../ui/AppButton';
 import { Input, Select } from '../ui/AppInput';
 import { Search, Plus, MoreVertical, Edit, Copy, Power, Trash2, FileText, Calendar, Loader2 } from 'lucide-react';
-import { mockClauses } from '../../data/mockData';
+// Story 9.19: Clauses feature not implemented - removed mock data import
 import {
   Dialog,
   DialogContent,
@@ -93,7 +93,7 @@ export function Templates() {
     (t.description && t.description.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  const filteredClauses = mockClauses.filter(c =>
+  const filteredClauses = [].filter((c: any) =>
     c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     c.topic.toLowerCase().includes(searchTerm.toLowerCase())
   );

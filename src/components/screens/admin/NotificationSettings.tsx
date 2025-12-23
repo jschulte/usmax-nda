@@ -25,7 +25,8 @@ interface NotificationTemplate {
   enabled: boolean;
 }
 
-const mockTemplates: NotificationTemplate[] = [
+// Story 9.15: Removed mock templates - use real email templates from API
+const mockTemplates: NotificationTemplate[] = [] as any; const REMOVED_MOCK_TEMPLATES = [
   {
     id: 't1',
     name: 'Task Assigned',

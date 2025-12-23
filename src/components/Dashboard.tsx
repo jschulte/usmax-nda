@@ -55,21 +55,10 @@ export function Dashboard() {
     }
   ];
 
-  const recentActivity = [
-    {
-      id: 1,
-      event: 'Vendor X NDA signed by Counterparty',
-      actor: 'External Party',
-      time: '2 hours ago',
-      type: 'signature'
-    },
-    {
-      id: 2,
-      event: 'Legal approved NDA for Project Y',
-      actor: 'Sarah Johnson',
-      time: '5 hours ago',
-      type: 'approval'
-    },
+  // Story 9.6: Removed fake activity data - use real audit trail API
+  const recentActivity: any[] = []; // TODO: Load from GET /api/audit-logs?limit=5
+  const REMOVED_FAKE_ACTIVITY = [
+    // Removed hardcoded fake timestamps
     {
       id: 3,
       event: 'New NDA request submitted',
