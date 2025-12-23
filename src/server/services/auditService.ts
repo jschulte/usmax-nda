@@ -194,7 +194,7 @@ class AuditService {
             userId: entry.userId ?? null,
             ipAddress: entry.ipAddress ?? null,
             userAgent: entry.userAgent ?? null,
-            details: entry.details ?? undefined,
+            details: (entry.details ?? undefined) as any,
           },
         });
         return; // Success - don't store in memory

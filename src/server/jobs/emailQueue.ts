@@ -27,8 +27,8 @@ export async function startEmailQueue(
   await boss.createQueue('send-nda-email');
   await boss.work<EmailJobPayload>(
     'send-nda-email',
-    { batchSize: 1 },
-    async (jobs: JobWithMetadata<EmailJobPayload>[]) => {
+    { batchSize: 1 } as any,
+    async (jobs: any[]) => {
       for (const job of jobs) {
         try {
           await handler(job.data);

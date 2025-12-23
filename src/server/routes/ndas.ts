@@ -108,7 +108,7 @@ import {
 } from '../services/notificationService.js';
 import { documentUpload } from '../middleware/fileUpload.js';
 
-const router = Router();
+const router: Router = Router();
 
 // All routes require authentication and user context
 router.use(authenticateJWT);

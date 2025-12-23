@@ -329,7 +329,7 @@ export async function createNda(
       contractsPocId: input.contractsPocId || null,
       relationshipPocId: input.relationshipPocId,
       contactsPocId: input.contactsPocId || null,
-      rtfTemplate: input.rtfTemplateId ? { connect: { id: input.rtfTemplateId } } : undefined,
+      ...(input.rtfTemplateId && { rtfTemplate: { connect: { id: input.rtfTemplateId } } }),
       createdById: userContext.contactId,
       status: 'CREATED',
       // Create initial status history entry
@@ -339,7 +339,7 @@ export async function createNda(
           changedById: userContext.contactId,
         },
       },
-    },
+    } as any,
     include: {
       agencyGroup: { select: { id: true, name: true, code: true } },
       subagency: { select: { id: true, name: true, code: true } },
@@ -940,7 +940,7 @@ export async function getFilterSuggestions(
   });
 
   return results
-    .map((row) => (row as Record<string, string | null>)[field])
+    .map((row) => (row as unknown as Record<string, string | null>)[field])
     .filter((value): value is string => Boolean(value));
 }
 
@@ -1093,7 +1093,8 @@ export async function updateNda(
 
   // Story 6.2: Detect field changes for audit trail
   // Build comparable before/after objects
-  const beforeValues: Record<string, unknown> = {
+  const beforeValues: Record<string, unknown> = existing as any as Record<string, unknown>;
+  const beforeValuesFiltered: Record<string, unknown> = {
     companyName: existing.companyName,
     companyCity: existing.companyCity,
     companyState: existing.companyState,
@@ -1113,7 +1114,7 @@ export async function updateNda(
     rtfTemplateId: existing.rtfTemplate?.id ?? null,
   };
 
-  const afterValues: Record<string, unknown> = {
+  const afterValuesFiltered: Record<string, unknown> = {
     companyName: input.companyName ?? existing.companyName,
     companyCity: input.companyCity ?? existing.companyCity,
     companyState: input.companyState ?? existing.companyState,
@@ -1133,7 +1134,7 @@ export async function updateNda(
     rtfTemplateId: input.rtfTemplateId ?? existing.rtfTemplate?.id ?? null,
   };
 
-  const fieldChanges = detectFieldChanges(beforeValues, afterValues);
+  const fieldChanges = detectFieldChanges(beforeValuesFiltered, afterValuesFiltered);
 
   // Audit log
   await auditService.log({
@@ -1612,7 +1613,7 @@ export async function updateDraft(
     details: {
       displayId: nda.displayId,
       isDraftSave: true,
-      changes: input,
+      changes: input as any,
     },
   });
 

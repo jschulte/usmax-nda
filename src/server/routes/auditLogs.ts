@@ -19,7 +19,7 @@ import { Prisma } from '../../generated/prisma/index.js';
 import { auditService, AuditAction } from '../services/auditService.js';
 import { buildSecurityFilter } from '../services/ndaService.js';
 
-const router = Router();
+const router: Router = Router();
 
 // All routes require authentication and user context
 router.use(authenticateJWT);

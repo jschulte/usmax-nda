@@ -29,7 +29,7 @@ import {
 } from '../services/userService.js';
 import { getUserAccessSummary } from '../services/accessSummaryService.js';
 
-const router = Router();
+const router: Router = Router();
 
 // All routes require authentication, user context, and admin:manage_users permission
 router.use(authenticateJWT);

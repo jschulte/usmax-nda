@@ -17,7 +17,7 @@ import { requireAnyPermission } from '../middleware/checkPermissions.js';
 import { PERMISSIONS } from '../constants/permissions.js';
 import { getDashboard, getDashboardConfig } from '../services/dashboardService.js';
 
-const router = Router();
+const router: Router = Router();
 
 // All routes require authentication and user context
 router.use(authenticateJWT);

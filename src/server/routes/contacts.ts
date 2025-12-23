@@ -32,7 +32,7 @@ import {
   POC_FORMAT_HINTS,
 } from '../validators/pocValidator.js';
 
-const router = Router();
+const router: Router = Router();
 
 // Apply authentication middleware
 router.use(authenticateJWT);

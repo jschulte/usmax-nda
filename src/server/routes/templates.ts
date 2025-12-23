@@ -29,7 +29,7 @@ import {
   TemplateServiceError,
 } from '../services/templateService.js';
 
-const router = Router();
+const router: Router = Router();
 
 // All routes require authentication and user context
 router.use(authenticateJWT);

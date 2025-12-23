@@ -327,7 +327,7 @@ export async function updateSubagency(
           ...(normalizedName !== undefined ? { name: normalizedName } : {}),
           ...(normalizedCode !== undefined ? { code: normalizedCode } : {}),
           ...(input.description !== undefined ? { description: input.description } : {}),
-        },
+        } as any,
         previousName: existing.name,
         newName: subagency.name,
         agencyGroupName: existing.agencyGroup.name,

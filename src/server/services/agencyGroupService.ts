@@ -382,10 +382,10 @@ export async function updateAgencyGroup(
           entityId: group.id,
           userId,
           details: {
-            changes: input,
+            changes: input as any,
             previousName: existing.name,
             newName: group.name,
-          },
+          } as any,
           ipAddress: auditContext?.ipAddress ?? null,
           userAgent: auditContext?.userAgent ?? null,
         },

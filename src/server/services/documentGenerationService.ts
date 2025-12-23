@@ -325,7 +325,7 @@ async function getTemplateForNda(
     if (!template) {
       throw new DocumentGenerationError('Template not found', 'TEMPLATE_NOT_FOUND');
     }
-    return { id: template.id, name: template.name, content: template.content };
+    return { id: template.id, name: template.name, content: Buffer.from(template.content) };
   }
 
   if (nda.rtfTemplateId) {
@@ -333,7 +333,7 @@ async function getTemplateForNda(
       where: { id: nda.rtfTemplateId, isActive: true },
     });
     if (selected) {
-      return { id: selected.id, name: selected.name, content: selected.content };
+      return { id: selected.id, name: selected.name, content: Buffer.from(selected.content) };
     }
   }
 
@@ -342,7 +342,7 @@ async function getTemplateForNda(
     orderBy: { updatedAt: 'desc' },
   });
   if (agencyDefault) {
-    return { id: agencyDefault.id, name: agencyDefault.name, content: agencyDefault.content };
+    return { id: agencyDefault.id, name: agencyDefault.name, content: Buffer.from(agencyDefault.content) };
   }
 
   const anyAgency = await prisma.rtfTemplate.findFirst({
@@ -350,7 +350,7 @@ async function getTemplateForNda(
     orderBy: { updatedAt: 'desc' },
   });
   if (anyAgency) {
-    return { id: anyAgency.id, name: anyAgency.name, content: anyAgency.content };
+    return { id: anyAgency.id, name: anyAgency.name, content: Buffer.from(anyAgency.content) };
   }
 
   const globalDefault = await prisma.rtfTemplate.findFirst({
@@ -358,7 +358,7 @@ async function getTemplateForNda(
     orderBy: { updatedAt: 'desc' },
   });
   if (globalDefault) {
-    return { id: globalDefault.id, name: globalDefault.name, content: globalDefault.content };
+    return { id: globalDefault.id, name: globalDefault.name, content: Buffer.from(globalDefault.content) };
   }
 
   const anyGlobal = await prisma.rtfTemplate.findFirst({
@@ -366,7 +366,7 @@ async function getTemplateForNda(
     orderBy: { updatedAt: 'desc' },
   });
   if (anyGlobal) {
-    return { id: anyGlobal.id, name: anyGlobal.name, content: anyGlobal.content };
+    return { id: anyGlobal.id, name: anyGlobal.name, content: Buffer.from(anyGlobal.content) };
   }
 
   throw new DocumentGenerationError('No active template available', 'TEMPLATE_NOT_FOUND');
