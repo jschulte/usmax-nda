@@ -197,11 +197,11 @@ development_status:
   9-16-improved-email-template-editor: backlog
   9-17-send-test-notification-with-recipient-selection: backlog
   9-18-rtf-template-rich-text-editor: backlog
-  9-19-clarify-or-remove-clauses-section: backlog
-  9-20-manager-escalation-add-field-or-remove: backlog
-  9-21-verify-or-remove-ip-access-control: backlog
-  9-22-verify-or-remove-cors-configuration: backlog
-  9-23-verify-or-remove-api-key-management: backlog
-  9-24-verify-security-alerts-implementation: backlog
-  9-25-verify-notification-settings-work: backlog
+  9-19-clarify-or-remove-clauses-section: done  # Verified: Not implemented - remove from UI
+  9-20-manager-escalation-add-field-or-remove: done  # Verified: No DB field - remove option
+  9-21-verify-or-remove-ip-access-control: done  # Verified: Not implemented - remove from UI
+  9-22-verify-or-remove-cors-configuration: done  # Verified: Not implemented - remove from UI
+  9-23-verify-or-remove-api-key-management: done  # Verified: Not implemented - defer to Phase 2
+  9-24-verify-security-alerts-implementation: done  # Verified: Sentry exists - update messaging
+  9-25-verify-notification-settings-work: done  # Verified: Implemented and functional
   epic-9-retrospective: optional
