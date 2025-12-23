@@ -2713,3 +2713,591 @@ System is bulletproof, monitored, validated, and admins can manage health/recove
 **Total Story Count:** 113 user stories across all 8 epics
 
 **Coverage:** 100% of 159 Functional Requirements + 100% of 63 Non-Functional Requirements
+
+## Epic 9: Post-Launch Refinement & Bug Fixes
+
+**Epic Goal:** Fix bugs discovered during demo testing, complete partially-implemented features, and polish UI/UX
+
+**Trigger:** User testing session after Epic 6-8 completion revealed implementation gaps and usability issues
+
+**Priority:** HIGH - These issues block production readiness
+
+---
+
+### Story 9.1: Fix Internal Notes Display
+
+**As an** NDA User,
+**I want** to see internal notes I've added to an NDA,
+**So that** I can reference my private notes about the NDA.
+
+**Acceptance Criteria:**
+
+**Given** I add an internal note to an NDA
+**When** I save the note
+**Then** the note appears in the Internal Notes section
+**And** I can see all my previous notes with timestamps
+**And** I can edit or delete my notes
+
+**Technical Notes:**
+- Issue #4: Notes save successfully but don't display
+- Gap in Story 3.8 (NDA Detail View) implementation
+- Backend likely works, frontend display component missing
+
+---
+
+### Story 9.2: Filter System Events from User Audit Trail
+
+**As an** Admin,
+**I want** to see only meaningful user actions in the audit trail,
+**So that** I'm not overwhelmed with automated system events.
+
+**Acceptance Criteria:**
+
+**Given** I view the audit trail
+**When** the list loads
+**Then** I do NOT see permission checks, health checks, or other automated system events
+**And** I only see meaningful user actions (created NDA, sent email, changed status, etc.)
+**And** system events are still logged in database but filtered from UI display
+
+**Technical Notes:**
+- Issue #8: CRITICAL - 139 pages of permission check logs
+- Story 6.1 bug: auditMiddleware logs too much
+- Solution: Filter by action type in frontend or add "user_visible" flag
+
+---
+
+### Story 9.3: Fix Agency Groups Three-Dots Menu
+
+**As an** Admin,
+**I want** the three-dots menu on Agency Groups to work,
+**So that** I can edit, delete, or manage subagencies.
+
+**Acceptance Criteria:**
+
+**Given** I'm on the Agency Groups page
+**When** I click the three-dots icon next to an agency
+**Then** a dropdown menu appears with options:
+- Edit Agency Group
+- Delete Agency Group
+- Add Subagency
+- View Subagencies
+**And** clicking an option performs the expected action
+
+**Technical Notes:**
+- Issue #14: Three-dots menu not functioning
+- Gap in Story 2.1 (Agency Groups CRUD) frontend
+- Dropdown component likely missing onClick handler
+
+---
+
+### Story 9.4: Add Subagency Creation Button
+
+**As an** Admin,
+**I want** a visible "Add Subagency" button,
+**So that** I can create subagencies without confusion.
+
+**Acceptance Criteria:**
+
+**Given** I'm viewing an Agency Group's subagencies
+**When** the subagencies section displays
+**Then** I see an "Add Subagency" button at the top of the section
+**And** clicking it opens the create subagency form
+**And** the empty state message aligns with available actions
+
+**Technical Notes:**
+- Issue #15: Message references non-existent button
+- Gap in Story 2.2 (Subagencies CRUD) frontend
+- Button exists in code but not rendered, or three-dots menu should trigger it
+
+---
+
+### Story 9.5: Fix Role Assignment Error
+
+**As an** Admin,
+**I want** to assign the Read Only role to users without errors,
+**So that** I can grant appropriate access levels.
+
+**Acceptance Criteria:**
+
+**Given** I'm editing a user's roles
+**When** I try to add the "Read Only" role
+**Then** the role is assigned successfully
+**And** no "User does not have this role" error appears
+**And** the user's permissions update correctly
+
+**Technical Notes:**
+- Issue #16: "User does not have this role" error
+- Bug in Story 1.3 (RBAC) or Story 2.5 (User Management)
+- Logic error: checking if user HAS role when ADDING role
+
+---
+
+### Story 9.6: Human-Readable Audit Trail Display
+
+**As an** Admin,
+**I want** audit trail entries displayed in human-readable format,
+**So that** I can understand what changed without reading JSON.
+
+**Acceptance Criteria:**
+
+**Given** I view an audit trail entry
+**When** the entry includes field changes
+**Then** I see changes formatted as:
+- "Company Name changed from 'ACME Corp' to 'ACME Corporation'"
+- "Status changed from 'Created' to 'Emailed'"
+- "Effective Date changed from '01/15/2024' to '02/01/2024'"
+**And** I can expand to see raw JSON if needed
+**And** complex nested objects display in formatted tables
+
+**Technical Notes:**
+- Issue #1: Raw JSON blobs not user-friendly
+- Story 6.2 provides formatFieldChanges utility - use it in UI
+- Frontend needs to parse changes array and display formatted
+
+---
+
+### Story 9.7: Fix NDA Edit Page Layout
+
+**As an** NDA User,
+**I want** proper button layout on the NDA edit page,
+**So that** I can access all actions without overflow/crowding.
+
+**Acceptance Criteria:**
+
+**Given** I'm editing an NDA
+**When** the page loads
+**Then** I see a full-width navigation bar across the top
+**And** all action buttons fit properly without overflow
+**And** buttons have adequate spacing
+**And** the sidebar doesn't interfere with the button area
+
+**Technical Notes:**
+- Issue #2: Button overflow/crowding at top
+- UI layout refinement needed
+- Consider sticky nav bar pattern
+
+---
+
+### Story 9.8: Change Status Modal Overlay
+
+**As an** NDA User,
+**I want** a modal dialog when I click "Change Status",
+**So that** I can immediately see and select the new status.
+
+**Acceptance Criteria:**
+
+**Given** I'm viewing an NDA
+**When** I click "Change Status" button
+**Then** a modal overlay appears immediately
+**And** the modal contains the status dropdown
+**And** I don't need to scroll to find the dropdown
+**And** clicking outside modal or "Cancel" closes it
+
+**Technical Notes:**
+- Issue #3: Button scrolls to dropdown (confusing UX)
+- Replace scroll-to-anchor with modal pattern
+- Better immediate feedback for user
+
+---
+
+### Story 9.9: Fix Notifications Bell Dropdown
+
+**As an** NDA User,
+**I want** to see my notifications when I click the bell icon,
+**So that** I can read and manage my notifications.
+
+**Acceptance Criteria:**
+
+**Given** I have unread notifications (badge count > 0)
+**When** I click the notification bell icon in header
+**Then** a dropdown panel appears below the bell
+**And** I see my recent notifications with:
+- Notification message
+- Timestamp
+- Mark as read option
+- Link to related NDA/document
+**And** clicking outside closes the dropdown
+
+**Technical Notes:**
+- Issue #9: Bell shows badge but nothing happens on click
+- Gap in Story 3.11/5.13 implementation
+- Frontend click handler missing or not triggering dropdown
+
+---
+
+### Story 9.10: Add Active Page Highlighting to Sidebar
+
+**As a** User,
+**I want** the current page highlighted in the sidebar navigation,
+**So that** I know which section I'm currently viewing.
+
+**Acceptance Criteria:**
+
+**Given** I'm on any page in the application
+**When** I look at the sidebar
+**Then** the current page's nav item is highlighted (different color/background)
+**And** other nav items are not highlighted
+**And** highlighting updates when I navigate to different pages
+
+**Technical Notes:**
+- Issue #17: No visual indication of current page
+- Standard sidebar pattern - use React Router's useLocation
+- Add active class based on current pathname
+
+---
+
+### Story 9.11: Improve Contact Search Display Format
+
+**As an** NDA User,
+**I want** to see contact names (not just emails) in search results,
+**So that** I can easily identify and select the right person.
+
+**Acceptance Criteria:**
+
+**Given** I'm searching for a contact/POC
+**When** search results appear
+**Then** each result displays: "FirstName LastName (email@address.com)"
+**And** if no name available, shows just email
+**And** format is consistent across all contact search fields
+
+**Technical Notes:**
+- Issue #22: Autocomplete only shows email
+- Gap in Story 3.14 (POC Management) frontend
+- Backend likely returns full contact, frontend not displaying name
+
+---
+
+### Story 9.12: Improve Empty NDA List State
+
+**As an** NDA User,
+**I want** a clear call-to-action when the NDA list is empty,
+**So that** I know how to create my first NDA.
+
+**Acceptance Criteria:**
+
+**Given** I have no NDAs matching current filters (or no NDAs at all)
+**When** the empty state displays
+**Then** I see a prominent "Create New NDA" button
+**And** optionally see helpful text like "No NDAs found" or "Get started by creating your first NDA"
+**And** clicking the button navigates to NDA creation form
+
+**Technical Notes:**
+- Issue #23: Current message feels negative/instructional
+- Simple empty state pattern improvement
+- Focus on action, not explanation
+
+---
+
+### Story 9.13: Improve Login Page Branding
+
+**As a** User,
+**I want** visually balanced branding on the login page,
+**So that** the page feels professional and polished.
+
+**Acceptance Criteria:**
+
+**Given** I'm on the login page
+**When** I see the branding
+**Then** the USMax logo and "NDA System" text have appropriate visual hierarchy
+**And** text size is proportional to logo size
+**And** layout feels balanced and professional
+
+**Technical Notes:**
+- Issue #25: "NDA System" text feels too large relative to logo
+- UI polish / design refinement
+- May need to adjust font sizes, spacing, or layout
+
+---
+
+### Story 9.14: Carry Contact Phone to NDA Form
+
+**As an** NDA User,
+**I want** contact phone numbers carried over when creating contacts inline,
+**So that** I don't have to re-enter information I just typed.
+
+**Acceptance Criteria:**
+
+**Given** I'm creating an NDA and need to add a new contact as POC
+**When** I create a new contact with name, email, and phone
+**Then** after saving the contact, the NDA form is populated with:
+- Contact name
+- Contact email
+- **Contact phone number**
+**And** all fields I entered are carried over, not just name
+
+**Technical Notes:**
+- Issue #5: Only name carried over, phone lost
+- Gap in Story 3.14 (POC Management) integration
+- Frontend likely not reading all fields from contact creation response
+
+---
+
+### Story 9.15: Enhanced Email Template Bodies
+
+**As an** Admin,
+**I want** realistic, professional email template content,
+**So that** users can send polished emails without extensive editing.
+
+**Acceptance Criteria:**
+
+**Given** I'm viewing or selecting an email template
+**When** I see the template body
+**Then** the content includes:
+- Professional greeting
+- Clear purpose/context
+- Relevant NDA information placeholders
+- Professional closing
+- Appropriate tone for government contractor communication
+
+**Technical Notes:**
+- Issue #10: Current templates may be too minimal/generic
+- Content enhancement, not code change
+- May involve creating new seed data
+
+---
+
+### Story 9.16: Improved Email Template Editor
+
+**As an** Admin,
+**I want** a larger, better text editor for email templates,
+**So that** I can comfortably edit and view full template markup.
+
+**Acceptance Criteria:**
+
+**Given** I'm editing an email template
+**When** I view the template body field
+**Then** I see a large, multi-line text editor (minimum 10 lines visible)
+**And** the editor shows proper formatting/markup
+**And** I can see most/all of the template without scrolling within the field
+**And** the editor has basic formatting helpers (if HTML templates)
+
+**Technical Notes:**
+- Issue #11: Current editor too small
+- UI component improvement - use textarea with adequate rows
+- Consider adding syntax highlighting for HTML
+
+---
+
+### Story 9.17: Send Test Notification with Recipient Selection
+
+**As an** Admin,
+**I want** to specify who receives test notifications and what notification to send,
+**So that** I can verify notification delivery before enabling for all users.
+
+**Acceptance Criteria:**
+
+**Given** I'm configuring notifications
+**When** I click "Send Test"
+**Then** a dialog appears asking:
+- Which notification type to test
+- Recipient email address (default: my email)
+- Optional: test NDA to use for context
+**And** I can confirm or cancel
+**And** success message shows who received the test and what was sent
+
+**Technical Notes:**
+- Issue #12: Test button gives no control over what/who
+- Gap in Story 7.16 (Notification Rule Configuration)
+- Add modal dialog before sending test
+
+---
+
+### Story 9.18: RTF Template Rich Text Editor
+
+**As an** Admin,
+**I want** to create and edit RTF templates using a visual editor or file upload,
+**So that** I don't need to manually convert files to Base64.
+
+**Acceptance Criteria:**
+
+**Given** I'm creating or editing an RTF template
+**When** I open the template editor
+**Then** I can either:
+- Upload an RTF/DOCX file (system converts to Base64 internally)
+- Use a rich text editor to create/edit content visually
+- View preview of current template
+**And** I never see or interact with Base64 encoding
+**And** field placeholders ({{fieldName}}) are clearly marked
+
+**Technical Notes:**
+- Issue #6: Base64 input completely unusable for humans
+- MAJOR gap in Story 7.1 (RTF Template Creation)
+- Need file upload component + rich text editor (TinyMCE, Quill, or similar)
+- This is a significant frontend enhancement
+
+---
+
+### Story 9.19: Clarify or Remove Clauses Section
+
+**As an** Admin or Developer,
+**I want** to understand the purpose of the Clauses section,
+**So that** we can either implement it properly or remove it.
+
+**Acceptance Criteria:**
+
+**Investigation:**
+- Determine original intent of Clauses feature
+- Check if it's referenced in PRD or legacy requirements
+- Decide: Implement fully, simplify, or remove
+
+**If Implement:**
+- Define what clauses are and how they're used
+- Create UI for managing clause library
+- Integrate clauses into NDA creation flow
+
+**If Remove:**
+- Remove Clauses section from UI
+- Clean up any backend code
+- Document decision
+
+**Technical Notes:**
+- Issue #7: Feature exists but purpose unclear and not functional
+- Needs product decision before technical work
+
+---
+
+### Story 9.20: Manager Escalation - Add Field or Remove Option
+
+**As an** Admin,
+**I want** manager escalation to work correctly,
+**So that** notifications are routed appropriately.
+
+**Acceptance Criteria:**
+
+**Investigation:**
+- Verify if "manager" relationship is needed for MVP
+- Check notification escalation requirements
+
+**Option A: Add Manager Field**
+- Add managerId field to Contact model
+- Add UI to assign manager in user profile
+- Update notification logic to use manager relationship
+
+**Option B: Remove Manager Escalation**
+- Remove "Escalate to manager" from notification settings
+- Document that this feature is deferred to Phase 2
+
+**Technical Notes:**
+- Issue #13: Feature references non-existent relationship
+- Product decision needed: essential or nice-to-have?
+
+---
+
+### Story 9.21: Verify or Remove IP Access Control
+
+**As an** Admin or Developer,
+**I want** to know if IP Access Control is functional,
+**So that** we can complete it or remove confusing UI.
+
+**Acceptance Criteria:**
+
+**Investigation:**
+- Test if IP restrictions actually block access
+- Check backend implementation status
+- Review if feature is required for MVP
+
+**If Functional:** Document how to use
+**If Partially Implemented:** Complete implementation
+**If Not Implemented:** Remove from UI or mark "Coming Soon"
+
+**Technical Notes:**
+- Issue #18: Unclear if feature works
+- May be placeholder UI from earlier implementation
+
+---
+
+### Story 9.22: Verify or Remove CORS Configuration
+
+**As an** Admin or Developer,
+**I want** to know if CORS Configuration is functional,
+**So that** we can complete it or remove confusing UI.
+
+**Acceptance Criteria:**
+
+**Investigation:**
+- Check if CORS config UI actually updates server CORS settings
+- Determine if runtime CORS configuration is needed vs env vars
+- Decide if feature belongs in UI or should be infrastructure-only
+
+**If Functional:** Document usage
+**If Not Needed:** Remove from UI (CORS should be env vars)
+
+**Technical Notes:**
+- Issue #19: Unclear if feature works
+- CORS typically configured via environment variables, not runtime UI
+
+---
+
+### Story 9.23: Verify or Remove API Key Management
+
+**As an** Admin or Developer,
+**I want** to understand what API keys this refers to,
+**So that** we can implement properly or remove.
+
+**Acceptance Criteria:**
+
+**Investigation:**
+- Determine what API keys this feature is for
+- Check if API key authentication is planned/needed
+- Verify if there's a use case for programmatic API access
+
+**Decision:**
+- If needed: Implement API key generation/management
+- If not needed: Remove from UI
+- If Phase 2: Mark as "Coming Soon"
+
+**Technical Notes:**
+- Issue #20: Purpose unclear
+- May be premature feature for future API consumers
+
+---
+
+### Story 9.24: Verify Security Alerts Implementation
+
+**As an** Admin,
+**I want** accurate messaging about security monitoring,
+**So that** users aren't misled about system capabilities.
+
+**Acceptance Criteria:**
+
+**Investigation:**
+- Check if automated alerts to admins are actually implemented
+- Verify Story 6.4 security monitoring utilities are integrated
+- Determine if Sentry/CloudWatch alerts are configured
+
+**If Implemented:** Document what triggers alerts
+**If Not Implemented:** Update messaging to be accurate ("Security events are logged" not "will trigger immediate alerts")
+
+**Technical Notes:**
+- Issue #21: Message claims auto-alerting may not exist
+- Story 6.4 created utilities, but alerting integration unclear
+
+---
+
+### Story 9.25: Verify All Notification Settings Work
+
+**As an** NDA User,
+**I want** all notification preference toggles to actually work,
+**So that** I only receive emails I've opted into.
+
+**Acceptance Criteria:**
+
+**Investigation:**
+- Test each notification setting toggle
+- Verify they actually enable/disable email sends
+- Check if notification preferences are checked before sending
+
+**If Working:** Document behavior
+**If Broken:** Fix notification service to respect preferences
+**If Incomplete:** Finish implementation
+
+**Technical Notes:**
+- Issue #24: Unclear if toggles are functional
+- Story 5.13 (Email Notification Preferences) - verify implementation complete
+
+---
+
+**Total Story Count:** 138 user stories across all 9 epics (25 new stories in Epic 9)
+
+**Epic 9 Completion:** Brings system to production-ready quality
+

@@ -176,3 +176,32 @@ development_status:
   8-26-nda-list-export: done  # Implemented - GET /api/ndas/export endpoint
   8-27-data-import-tool-phase-2: done  # Phase 2 scope - deferred (documented as out of scope)
   epic-8-retrospective: optional
+
+  # Epic 9: Post-Launch Refinement & Bug Fixes - Discovered during demo testing
+  epic-9: in-progress
+  9-1-fix-internal-notes-display: backlog
+  9-2-filter-system-events-from-audit-trail: backlog
+  9-3-fix-agency-groups-three-dots-menu: backlog
+  9-4-add-subagency-creation-button: backlog
+  9-5-fix-role-assignment-error: backlog
+  9-6-human-readable-audit-trail-display: backlog
+  9-7-fix-nda-edit-page-layout: backlog
+  9-8-change-status-modal-overlay: backlog
+  9-9-fix-notifications-bell-dropdown: backlog
+  9-10-add-active-page-highlighting-to-sidebar: backlog
+  9-11-improve-contact-search-display-format: backlog
+  9-12-improve-empty-nda-list-state: backlog
+  9-13-improve-login-page-branding: backlog
+  9-14-carry-contact-phone-to-nda-form: backlog
+  9-15-enhanced-email-template-bodies: backlog
+  9-16-improved-email-template-editor: backlog
+  9-17-send-test-notification-with-recipient-selection: backlog
+  9-18-rtf-template-rich-text-editor: backlog
+  9-19-clarify-or-remove-clauses-section: backlog
+  9-20-manager-escalation-add-field-or-remove: backlog
+  9-21-verify-or-remove-ip-access-control: backlog
+  9-22-verify-or-remove-cors-configuration: backlog
+  9-23-verify-or-remove-api-key-management: backlog
+  9-24-verify-security-alerts-implementation: backlog
+  9-25-verify-notification-settings-work: backlog
+  epic-9-retrospective: optional
