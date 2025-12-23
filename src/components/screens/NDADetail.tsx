@@ -78,6 +78,7 @@ import {
   listEmailTemplates,
   type EmailTemplateSummary,
 } from '../../client/services/emailTemplateService';
+import * as notesService from '../../client/services/notesService'; // Story 9.1
 
 export function NDADetail() {
   const { id } = useParams<{ id: string }>();
@@ -126,6 +127,7 @@ export function NDADetail() {
   const [showMarkExecutedDialog, setShowMarkExecutedDialog] = useState(false);
   const [reviewNotes, setReviewNotes] = useState('');
   const [internalNotes, setInternalNotes] = useState('');
+  const [savedNotes, setSavedNotes] = useState<notesService.InternalNote[]>([]); // Story 9.1
 
   // Load NDA data on mount
   useEffect(() => {
@@ -515,13 +517,44 @@ export function NDADetail() {
     }
   };
 
-  const handleAddNote = () => {
-    if (internalNotes.trim()) {
-      toast.success('Note added', {
-        description: 'Internal note has been saved successfully.'
-      });
-      setInternalNotes('');
-      // TODO: Implement note saving when comment/note API is available
+  // Story 9.1: Load internal notes
+  useEffect(() => {
+    if (id) {
+      notesService.getNotes(id)
+        .then(data => setSavedNotes(data.notes))
+        .catch(err => console.error('Failed to load notes:', err));
+    }
+  }, [id]);
+
+  const handleAddNote = async () => {
+    if (internalNotes.trim() && id) {
+      try {
+        await notesService.createNote(id, internalNotes);
+        toast.success('Note added', {
+          description: 'Internal note has been saved successfully.'
+        });
+        setInternalNotes('');
+        // Reload notes
+        const data = await notesService.getNotes(id);
+        setSavedNotes(data.notes);
+      } catch (error) {
+        toast.error('Failed to save note');
+        console.error('Error saving note:', error);
+      }
+    }
+  };
+
+  const handleDeleteNote = async (noteId: string) => {
+    if (!id) return;
+    try {
+      await notesService.deleteNote(id, noteId);
+      toast.success('Note deleted');
+      // Reload notes
+      const data = await notesService.getNotes(id);
+      setSavedNotes(data.notes);
+    } catch (error) {
+      toast.error('Failed to delete note');
+      console.error('Error deleting note:', error);
     }
   };
 
@@ -1611,6 +1644,32 @@ export function NDADetail() {
           {/* Notes */}
           <Card>
             <h3 className="mb-4">Internal notes</h3>
+
+            {/* Story 9.1: Display saved notes */}
+            {savedNotes.length > 0 && (
+              <div className="mb-4 space-y-3">
+                {savedNotes.map((note) => (
+                  <div key={note.id} className="border border-[var(--color-border)] rounded-md p-3 bg-slate-50">
+                    <p className="text-sm mb-2">{note.noteText}</p>
+                    <div className="flex items-center justify-between text-xs text-[var(--color-text-secondary)]">
+                      <span>
+                        {note.user.firstName} {note.user.lastName} • {new Date(note.createdAt).toLocaleString()}
+                      </span>
+                      <Button
+                        variant="subtle"
+                        size="sm"
+                        icon={<Trash2 className="w-3 h-3" />}
+                        onClick={() => handleDeleteNote(note.id)}
+                        className="text-xs"
+                      >
+                        Delete
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
             <textarea
               placeholder="Add internal notes (visible only to your team)..."
               className="w-full px-3 py-2 border border-[var(--color-border)] rounded-md text-sm min-h-[100px] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"

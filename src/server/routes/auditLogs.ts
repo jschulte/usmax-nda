@@ -26,6 +26,16 @@ router.use(authenticateJWT);
 router.use(attachUserContext);
 
 /**
+ * System events that should be filtered from user-facing audit trail views
+ * Story 9.2: These events are logged for security monitoring but hidden from UI by default
+ */
+const SYSTEM_EVENTS = [
+  AuditAction.PERMISSION_DENIED,
+  AuditAction.UNAUTHORIZED_ACCESS_ATTEMPT,
+  // Add other system events here as needed
+];
+
+/**
  * GET /api/admin/audit-logs
  * Get all audit logs with filtering (admin only)
  * Story 6.7: Centralized Audit Log Viewer
@@ -54,6 +64,12 @@ router.get(
 
       // Build filter conditions
       const where: Prisma.AuditLogWhereInput = {};
+
+      // Story 9.2: Filter system events from UI (unless explicitly requested)
+      const includeSystemEvents = req.query.includeSystemEvents === 'true';
+      if (!includeSystemEvents) {
+        where.action = { notIn: SYSTEM_EVENTS };
+      }
 
       if (req.query.userId) {
         where.userId = req.query.userId as string;
@@ -342,6 +358,8 @@ router.get(
       const where: Prisma.AuditLogWhereInput = {
         entityId: ndaId,
         entityType: { in: ['nda', 'document', 'email', 'notification'] },
+        // Story 9.2: Always filter system events from NDA timeline
+        action: { notIn: SYSTEM_EVENTS },
       };
 
       // Optional action type filter

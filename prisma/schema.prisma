@@ -71,6 +71,9 @@ model Contact {
   // Template relations (Story 3.13)
   rtfTemplatesCreated    RtfTemplate[]
 
+  // Internal notes (Story 9.1)
+  internalNotes          InternalNote[]
+
   @@map("contacts")
 }
 
@@ -306,6 +309,7 @@ model Nda {
   documents     Document[]
   emails        NdaEmail[]
   subscriptions NdaSubscription[]
+  internalNotes InternalNote[] // Story 9.1
 
   @@index([agencyGroupId])
   @@index([subagencyId])
@@ -508,6 +512,26 @@ model AuditLog {
   @@index([userId])
   @@index([createdAt])
   @@map("audit_log")
+}
+
+// ============================================================================
+// INTERNAL NOTES
+// Story 9.1: Fix Internal Notes Display
+// ============================================================================
+
+model InternalNote {
+  id        String   @id @default(uuid())
+  ndaId     String   @map("nda_id")
+  nda       Nda      @relation(fields: [ndaId], references: [id], onDelete: Cascade)
+  userId    String   @map("user_id")
+  user      Contact  @relation(fields: [userId], references: [id])
+  noteText  String   @db.Text @map("note_text")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([ndaId])
+  @@index([userId])
+  @@map("internal_notes")
 }
 
 // ============================================================================

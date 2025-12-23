@@ -727,13 +727,20 @@ export function AgencyGroups() {
                           {new Date(group.createdAt).toLocaleDateString()}
                         </TableCell>
                         <TableCell className="text-right">
+                          {/* Story 9.3: Ensure dropdown menu works reliably */}
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="subtle" size="sm" className="px-2">
+                              <Button
+                                variant="subtle"
+                                size="sm"
+                                className="px-2"
+                                type="button"
+                                aria-label="Agency options"
+                              >
                                 <MoreVertical className="w-4 h-4" />
                               </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
+                            <DropdownMenuContent align="end" sideOffset={5}>
                               <DropdownMenuItem onClick={() => openCreateSubagency(group)}>
                                 <Plus className="w-4 h-4 mr-2" />
                                 Add subagency
@@ -765,11 +772,37 @@ export function AgencyGroups() {
                                   Loading subagencies...
                                 </div>
                               ) : subagencies.length === 0 ? (
-                                <div className="text-sm text-[var(--color-text-secondary)] py-3">
-                                  No subagencies yet. Use "Add subagency" to create one.
+                                // Story 9.4: Add actionable button to empty state
+                                <div className="py-4 text-center">
+                                  <p className="text-sm text-[var(--color-text-secondary)] mb-3">
+                                    No subagencies yet
+                                  </p>
+                                  <Button
+                                    variant="primary"
+                                    size="sm"
+                                    icon={<Plus className="w-4 h-4" />}
+                                    onClick={() => openCreateSubagency(group)}
+                                  >
+                                    Add Subagency
+                                  </Button>
                                 </div>
                               ) : (
-                                <div className="space-y-2">
+                                // Story 9.4: Add header button when subagencies exist
+                                <>
+                                  <div className="flex items-center justify-between mb-3">
+                                    <h4 className="text-sm font-medium text-[var(--color-text-secondary)]">
+                                      Subagencies ({subagencies.length})
+                                    </h4>
+                                    <Button
+                                      variant="subtle"
+                                      size="sm"
+                                      icon={<Plus className="w-4 h-4" />}
+                                      onClick={() => openCreateSubagency(group)}
+                                    >
+                                      Add Subagency
+                                    </Button>
+                                  </div>
+                                  <div className="space-y-2">
                                   {subagencies.map((subagency) => (
                                     <div
                                       key={subagency.id}
@@ -813,7 +846,8 @@ export function AgencyGroups() {
                                       </div>
                                     </div>
                                   ))}
-                                </div>
+                                  </div>
+                                </>
                               )}
                             </div>
                           </TableCell>

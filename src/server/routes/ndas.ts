@@ -36,6 +36,7 @@
  */
 
 import { Router } from 'express';
+import { prisma } from '../db/index.js'; // Story 9.1: Internal notes
 import { authenticateJWT } from '../middleware/authenticateJWT.js';
 import { attachUserContext } from '../middleware/attachUserContext.js';
 import { requirePermission, requireAnyPermission } from '../middleware/checkPermissions.js';
@@ -1908,6 +1909,250 @@ router.post(
       console.error('[NDAs] Error saving edited document:', error);
       res.status(500).json({
         error: 'Failed to save edited document',
+        code: 'INTERNAL_ERROR',
+      });
+    }
+  }
+);
+
+/**
+ * GET /api/ndas/:id/notes
+ * Get internal notes for an NDA
+ * Story 9.1: Fix Internal Notes Display
+ *
+ * Returns array of internal notes (user's own notes only)
+ * Requires: nda:view permission
+ */
+router.get(
+  '/:id/notes',
+  requireAnyPermission([
+    PERMISSIONS.NDA_VIEW,
+    PERMISSIONS.NDA_CREATE,
+    PERMISSIONS.NDA_UPDATE,
+  ]),
+  async (req, res) => {
+    try {
+      // Verify NDA exists and user has access
+      const nda = await getNda(req.params.id, req.userContext!);
+      if (!nda) {
+        return res.status(404).json({
+          error: 'NDA not found',
+          code: 'NDA_NOT_FOUND',
+        });
+      }
+
+      // Get user's own notes only
+      const notes = await prisma.internalNote.findMany({
+        where: {
+          ndaId: req.params.id,
+          userId: req.userContext!.contactId,
+        },
+        orderBy: { createdAt: 'desc' },
+        include: {
+          user: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+            },
+          },
+        },
+      });
+
+      res.json({ notes });
+    } catch (error) {
+      console.error('[NDAs] Error getting internal notes:', error);
+      res.status(500).json({
+        error: 'Failed to get notes',
+        code: 'INTERNAL_ERROR',
+      });
+    }
+  }
+);
+
+/**
+ * POST /api/ndas/:id/notes
+ * Create an internal note for an NDA
+ * Story 9.1: Fix Internal Notes Display
+ *
+ * Body: { noteText: string }
+ * Requires: nda:view permission
+ */
+router.post(
+  '/:id/notes',
+  requireAnyPermission([
+    PERMISSIONS.NDA_VIEW,
+    PERMISSIONS.NDA_CREATE,
+    PERMISSIONS.NDA_UPDATE,
+  ]),
+  async (req, res) => {
+    try {
+      const { noteText } = req.body;
+
+      if (!noteText || !noteText.trim()) {
+        return res.status(400).json({
+          error: 'Note text is required',
+          code: 'VALIDATION_ERROR',
+        });
+      }
+
+      // Verify NDA exists and user has access
+      const nda = await getNda(req.params.id, req.userContext!);
+      if (!nda) {
+        return res.status(404).json({
+          error: 'NDA not found',
+          code: 'NDA_NOT_FOUND',
+        });
+      }
+
+      // Create note
+      const note = await prisma.internalNote.create({
+        data: {
+          ndaId: req.params.id,
+          userId: req.userContext!.contactId,
+          noteText: noteText.trim(),
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+            },
+          },
+        },
+      });
+
+      res.status(201).json({ note });
+    } catch (error) {
+      console.error('[NDAs] Error creating internal note:', error);
+      res.status(500).json({
+        error: 'Failed to create note',
+        code: 'INTERNAL_ERROR',
+      });
+    }
+  }
+);
+
+/**
+ * PUT /api/ndas/:id/notes/:noteId
+ * Update an internal note
+ * Story 9.1: Fix Internal Notes Display
+ *
+ * Body: { noteText: string }
+ * Requires: User must own the note
+ */
+router.put(
+  '/:id/notes/:noteId',
+  requireAnyPermission([
+    PERMISSIONS.NDA_VIEW,
+    PERMISSIONS.NDA_CREATE,
+    PERMISSIONS.NDA_UPDATE,
+  ]),
+  async (req, res) => {
+    try {
+      const { noteText } = req.body;
+
+      if (!noteText || !noteText.trim()) {
+        return res.status(400).json({
+          error: 'Note text is required',
+          code: 'VALIDATION_ERROR',
+        });
+      }
+
+      // Verify note exists and user owns it
+      const existing = await prisma.internalNote.findUnique({
+        where: { id: req.params.noteId },
+      });
+
+      if (!existing) {
+        return res.status(404).json({
+          error: 'Note not found',
+          code: 'NOTE_NOT_FOUND',
+        });
+      }
+
+      if (existing.userId !== req.userContext!.contactId) {
+        return res.status(403).json({
+          error: 'You can only edit your own notes',
+          code: 'FORBIDDEN',
+        });
+      }
+
+      // Update note
+      const note = await prisma.internalNote.update({
+        where: { id: req.params.noteId },
+        data: { noteText: noteText.trim() },
+        include: {
+          user: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+            },
+          },
+        },
+      });
+
+      res.json({ note });
+    } catch (error) {
+      console.error('[NDAs] Error updating internal note:', error);
+      res.status(500).json({
+        error: 'Failed to update note',
+        code: 'INTERNAL_ERROR',
+      });
+    }
+  }
+);
+
+/**
+ * DELETE /api/ndas/:id/notes/:noteId
+ * Delete an internal note
+ * Story 9.1: Fix Internal Notes Display
+ *
+ * Requires: User must own the note
+ */
+router.delete(
+  '/:id/notes/:noteId',
+  requireAnyPermission([
+    PERMISSIONS.NDA_VIEW,
+    PERMISSIONS.NDA_CREATE,
+    PERMISSIONS.NDA_UPDATE,
+  ]),
+  async (req, res) => {
+    try {
+      // Verify note exists and user owns it
+      const existing = await prisma.internalNote.findUnique({
+        where: { id: req.params.noteId },
+      });
+
+      if (!existing) {
+        return res.status(404).json({
+          error: 'Note not found',
+          code: 'NOTE_NOT_FOUND',
+        });
+      }
+
+      if (existing.userId !== req.userContext!.contactId) {
+        return res.status(403).json({
+          error: 'You can only delete your own notes',
+          code: 'FORBIDDEN',
+        });
+      }
+
+      // Delete note
+      await prisma.internalNote.delete({
+        where: { id: req.params.noteId },
+      });
+
+      res.json({ message: 'Note deleted successfully' });
+    } catch (error) {
+      console.error('[NDAs] Error deleting internal note:', error);
+      res.status(500).json({
+        error: 'Failed to delete note',
         code: 'INTERNAL_ERROR',
       });
     }

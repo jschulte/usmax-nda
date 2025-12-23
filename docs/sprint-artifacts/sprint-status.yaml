@@ -179,11 +179,11 @@ development_status:
 
   # Epic 9: Post-Launch Refinement & Bug Fixes - Discovered during demo testing
   epic-9: in-progress
-  9-1-fix-internal-notes-display: backlog
-  9-2-filter-system-events-from-audit-trail: backlog
-  9-3-fix-agency-groups-three-dots-menu: backlog
-  9-4-add-subagency-creation-button: backlog
-  9-5-fix-role-assignment-error: backlog
+  9-1-fix-internal-notes-display: done
+  9-2-filter-system-events-from-audit-trail: done
+  9-3-fix-agency-groups-three-dots-menu: done
+  9-4-add-subagency-creation-button: done
+  9-5-fix-role-assignment-error: done
   9-6-human-readable-audit-trail-display: backlog
   9-7-fix-nda-edit-page-layout: backlog
   9-8-change-status-modal-overlay: backlog

@@ -448,6 +448,8 @@ export function UserManagement() {
 
   const handleAssignRole = async (userId: string, roleId: string) => {
     try {
+      // Story 9.5: Add logging to help diagnose role assignment issues
+      console.log('[UserManagement] Assigning role:', { userId, roleId });
       await adminService.assignRole(userId, roleId);
       toast.success('Role assigned successfully');
       if (viewingAccessUser?.id === userId) {
@@ -455,8 +457,13 @@ export function UserManagement() {
       }
       loadUsers(); // Refresh the list
     } catch (err) {
+      // Story 9.5: Better error handling and logging
+      console.error('[UserManagement] Role assignment failed:', err);
       const errorMessage = err instanceof ApiError ? err.message : 'Failed to assign role';
-      toast.error('Error assigning role', { description: errorMessage });
+      const errorCode = err instanceof ApiError ? err.code : 'UNKNOWN';
+      toast.error('Error assigning role', {
+        description: `${errorMessage} (${errorCode})`
+      });
     }
   };
 
