@@ -2,7 +2,7 @@
 # Auto-generated for deployment
 
 aws_region    = "us-east-1"
-instance_type = "t3.micro"
+instance_type = "t3.small"
 
 # EC2 Key Pair
 key_pair_name = "jonah-schulte-aws"
