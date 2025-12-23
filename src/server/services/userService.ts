@@ -470,6 +470,47 @@ export async function deactivateUser(
   return user;
 }
 
+/**
+ * Reactivate a deactivated user
+ * Story H-1: Show Inactive Users - allows reactivating users via "Show Inactive" filter
+ */
+export async function reactivateUser(
+  id: string,
+  reactivatedBy: string,
+  auditContext?: { ipAddress?: string; userAgent?: string }
+) {
+  // Check user exists
+  const existing = await prisma.contact.findUnique({ where: { id } });
+  if (!existing) {
+    throw new UserServiceError('User not found', 'NOT_FOUND');
+  }
+
+  if (existing.active) {
+    throw new UserServiceError('User is already active', 'ALREADY_ACTIVE');
+  }
+
+  const user = await prisma.contact.update({
+    where: { id },
+    data: { active: true },
+  });
+
+  // Audit log
+  await auditService.log({
+    action: AuditAction.USER_REACTIVATED,
+    entityType: 'contact',
+    entityId: user.id,
+    userId: reactivatedBy,
+    details: {
+      email: user.email,
+      name: [user.firstName, user.lastName].filter(Boolean).join(' '),
+    },
+    ipAddress: auditContext?.ipAddress,
+    userAgent: auditContext?.userAgent,
+  });
+
+  return user;
+}
+
 // =============================================================================
 // ERROR CLASS
 // =============================================================================

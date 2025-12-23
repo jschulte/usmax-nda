@@ -15,7 +15,8 @@ import {
   Building,
   Download,
   Loader2,
-  X
+  X,
+  RefreshCw,
 } from 'lucide-react';
 import { toast } from 'sonner@2.0.3';
 import {
@@ -404,6 +405,20 @@ export function UserManagement() {
     }
   };
 
+  // Story H-1: Reactivate a deactivated user
+  const handleReactivateUser = async (user: User) => {
+    try {
+      await userService.reactivateUser(user.id);
+      toast.success('User reactivated', {
+        description: `${user.fullName} has been reactivated`
+      });
+      loadUsers(); // Refresh the list
+    } catch (err) {
+      const errorMessage = err instanceof ApiError ? err.message : 'Failed to reactivate user';
+      toast.error('Error reactivating user', { description: errorMessage });
+    }
+  };
+
   const handleViewAccess = async (user: User) => {
     setViewingAccessUser(user);
     setShowAccessDialog(true);
@@ -666,14 +681,23 @@ export function UserManagement() {
                                   <Shield className="w-4 h-4 mr-2" />
                                   Manage Access
                                 </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={() => handleDeleteUser(user)}
-                                  className="text-[var(--color-danger)]"
-                                  disabled={!user.active}
-                                >
-                                  <Trash2 className="w-4 h-4 mr-2" />
-                                  Deactivate User
-                                </DropdownMenuItem>
+                                {user.active ? (
+                                  <DropdownMenuItem
+                                    onClick={() => handleDeleteUser(user)}
+                                    className="text-[var(--color-danger)]"
+                                  >
+                                    <Trash2 className="w-4 h-4 mr-2" />
+                                    Deactivate User
+                                  </DropdownMenuItem>
+                                ) : (
+                                  <DropdownMenuItem
+                                    onClick={() => handleReactivateUser(user)}
+                                    className="text-[var(--color-success)]"
+                                  >
+                                    <RefreshCw className="w-4 h-4 mr-2" />
+                                    Reactivate User
+                                  </DropdownMenuItem>
+                                )}
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </td>
@@ -713,14 +737,23 @@ export function UserManagement() {
                               <Shield className="w-4 h-4 mr-2" />
                               Manage Access
                             </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => handleDeleteUser(user)}
-                              className="text-[var(--color-danger)]"
-                              disabled={!user.active}
-                            >
-                              <Trash2 className="w-4 h-4 mr-2" />
-                              Deactivate User
-                            </DropdownMenuItem>
+                            {user.active ? (
+                              <DropdownMenuItem
+                                onClick={() => handleDeleteUser(user)}
+                                className="text-[var(--color-danger)]"
+                              >
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                Deactivate User
+                              </DropdownMenuItem>
+                            ) : (
+                              <DropdownMenuItem
+                                onClick={() => handleReactivateUser(user)}
+                                className="text-[var(--color-success)]"
+                              >
+                                <RefreshCw className="w-4 h-4 mr-2" />
+                                Reactivate User
+                              </DropdownMenuItem>
+                            )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </div>

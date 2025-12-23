@@ -24,6 +24,8 @@ import type { Prisma } from '../../generated/prisma/index.js';
 import type { UserContext } from '../types/auth.js';
 import { scopeNDAsToUser } from './agencyScopeService.js';
 import { findNdaWithScope } from '../utils/scopedQuery.js';
+// Story H-1 Task 13: Import POC assignment notification
+import { notifyPocAssignment } from './notificationService.js';
 
 // Re-export enums for use in other modules
 export { NdaStatus, UsMaxPosition, NdaType };
@@ -362,6 +364,36 @@ export async function createNda(
       subagencyId: nda.subagencyId,
     },
   });
+
+  // Story H-1 Task 13: Notify POCs when assigned during creation
+  // Don't notify the creator since they initiated the action
+  const pocAssignments: Array<{ pocId: string; pocType: string }> = [];
+
+  if (opportunityPocId && opportunityPocId !== userContext.contactId) {
+    pocAssignments.push({ pocId: opportunityPocId, pocType: 'Opportunity POC' });
+  }
+  if (input.contractsPocId && input.contractsPocId !== userContext.contactId) {
+    pocAssignments.push({ pocId: input.contractsPocId, pocType: 'Contracts POC' });
+  }
+  if (input.relationshipPocId && input.relationshipPocId !== userContext.contactId) {
+    pocAssignments.push({ pocId: input.relationshipPocId, pocType: 'Relationship POC' });
+  }
+  if (input.contactsPocId && input.contactsPocId !== userContext.contactId) {
+    pocAssignments.push({ pocId: input.contactsPocId, pocType: 'Contacts POC' });
+  }
+
+  // Send notifications asynchronously (don't block the create response)
+  if (pocAssignments.length > 0) {
+    Promise.all(
+      pocAssignments.map(({ pocId, pocType }) =>
+        notifyPocAssignment(nda.id, pocId, pocType, userContext).catch((err) =>
+          console.error(`[NdaService] Failed to notify ${pocType}:`, err)
+        )
+      )
+    ).catch(() => {
+      // Suppress unhandled rejection - notifications are best-effort
+    });
+  }
 
   return nda;
 }
@@ -1070,6 +1102,33 @@ export async function updateNda(
       changes: input,
     },
   });
+
+  // Story H-1 Task 13: Notify POCs when assigned
+  // Check if any POC fields changed and notify the newly assigned users
+  const pocChanges: Array<{ pocId: string; pocType: string }> = [];
+
+  if (input.contractsPocId && input.contractsPocId !== existing.contractsPoc?.id) {
+    pocChanges.push({ pocId: input.contractsPocId, pocType: 'Contracts POC' });
+  }
+  if (input.relationshipPocId && input.relationshipPocId !== existing.relationshipPoc?.id) {
+    pocChanges.push({ pocId: input.relationshipPocId, pocType: 'Relationship POC' });
+  }
+  if (input.contactsPocId && input.contactsPocId !== existing.contactsPoc?.id) {
+    pocChanges.push({ pocId: input.contactsPocId, pocType: 'Contacts POC' });
+  }
+
+  // Send notifications asynchronously (don't block the update response)
+  if (pocChanges.length > 0) {
+    Promise.all(
+      pocChanges.map(({ pocId, pocType }) =>
+        notifyPocAssignment(nda.id, pocId, pocType, userContext).catch((err) =>
+          console.error(`[NdaService] Failed to notify ${pocType}:`, err)
+        )
+      )
+    ).catch(() => {
+      // Suppress unhandled rejection - notifications are best-effort
+    });
+  }
 
   return nda;
 }

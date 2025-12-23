@@ -24,6 +24,7 @@ import {
   createUser,
   updateUser,
   deactivateUser,
+  reactivateUser,
   UserServiceError,
 } from '../services/userService.js';
 import { getUserAccessSummary } from '../services/accessSummaryService.js';
@@ -356,6 +357,49 @@ router.patch('/:id/deactivate', async (req, res) => {
     console.error('[Users] Error deactivating user:', error);
     return res.status(500).json({
       error: 'Failed to deactivate user',
+      code: 'INTERNAL_ERROR',
+    });
+  }
+});
+
+/**
+ * PATCH /api/users/:id/reactivate
+ * Reactivate a deactivated user
+ * Story H-1: Show Inactive Users - reactivation feature
+ *
+ * Returns: 204 No Content
+ */
+router.patch('/:id/reactivate', async (req, res) => {
+  try {
+    await reactivateUser(
+      req.params.id,
+      req.userContext!.contactId,
+      {
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent'),
+      }
+    );
+
+    return res.status(204).send();
+  } catch (error) {
+    if (error instanceof UserServiceError) {
+      if (error.code === 'NOT_FOUND') {
+        return res.status(404).json({
+          error: error.message,
+          code: error.code,
+        });
+      }
+      if (error.code === 'ALREADY_ACTIVE') {
+        return res.status(409).json({
+          error: error.message,
+          code: error.code,
+        });
+      }
+    }
+
+    console.error('[Users] Error reactivating user:', error);
+    return res.status(500).json({
+      error: 'Failed to reactivate user',
       code: 'INTERNAL_ERROR',
     });
   }

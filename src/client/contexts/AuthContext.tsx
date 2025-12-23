@@ -17,6 +17,8 @@ import { resetAppStore } from '../stores/appStore';
 export interface User {
   id: string;
   email: string;
+  permissions?: string[];
+  roles?: string[];
 }
 
 export interface MFAChallenge {

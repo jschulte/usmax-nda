@@ -57,10 +57,42 @@ export interface UpdateSubagencyData {
 }
 
 /**
- * List all agency groups with subagency counts
+ * Pagination params for agency groups
+ * Story H-1: Agency Groups Pagination
  */
-export async function listAgencyGroups(): Promise<{ agencyGroups: AgencyGroup[] }> {
-  return get<{ agencyGroups: AgencyGroup[] }>('/api/agency-groups');
+export interface ListAgencyGroupsParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+}
+
+/**
+ * Paginated response for agency groups
+ * Story H-1: Agency Groups Pagination
+ */
+export interface AgencyGroupsListResponse {
+  agencyGroups: AgencyGroup[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
+/**
+ * List all agency groups with subagency counts
+ * Story H-1: Added pagination support
+ */
+export async function listAgencyGroups(
+  params?: ListAgencyGroupsParams
+): Promise<AgencyGroupsListResponse> {
+  const queryParams: Record<string, string> = {};
+  if (params?.page) queryParams.page = params.page.toString();
+  if (params?.limit) queryParams.limit = params.limit.toString();
+  if (params?.search) queryParams.search = params.search;
+
+  return get<AgencyGroupsListResponse>('/api/agency-groups', queryParams);
 }
 
 /**

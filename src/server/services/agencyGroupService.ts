@@ -96,19 +96,76 @@ function mapGroupWithCount(group: AgencyGroupRecordWithCount): AgencyGroupWithCo
 }
 
 /**
- * Get all agency groups with subagency counts
+ * Pagination parameters for agency groups
+ * Story H-1: Agency Groups Pagination
  */
-export async function listAgencyGroups(): Promise<AgencyGroupWithCount[]> {
+export interface ListAgencyGroupsParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+}
+
+/**
+ * Paginated response for agency groups
+ * Story H-1: Agency Groups Pagination
+ */
+export interface AgencyGroupsListResult {
+  agencyGroups: AgencyGroupWithCount[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
+/**
+ * Get all agency groups with subagency counts
+ * Story H-1: Added pagination support
+ */
+export async function listAgencyGroups(
+  params?: ListAgencyGroupsParams
+): Promise<AgencyGroupsListResult> {
+  const page = params?.page ?? 1;
+  const limit = params?.limit ?? 50; // Default to 50, can be increased
+  const search = params?.search?.trim();
+  const skip = (page - 1) * limit;
+
+  // Build where clause for optional search
+  const where = search
+    ? {
+        OR: [
+          { name: { contains: search, mode: 'insensitive' as const } },
+          { code: { contains: search, mode: 'insensitive' as const } },
+        ],
+      }
+    : undefined;
+
+  // Get total count for pagination
+  const total = await prisma.agencyGroup.count({ where });
+
+  // Get paginated groups
   const groups = await prisma.agencyGroup.findMany({
+    where,
     include: {
       _count: {
         select: { subagencies: true },
       },
     },
     orderBy: { name: 'asc' },
+    skip,
+    take: limit,
   });
 
-  return groups.map(mapGroupWithCount);
+  return {
+    agencyGroups: groups.map(mapGroupWithCount),
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+    },
+  };
 }
 
 /**

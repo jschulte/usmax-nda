@@ -1,6 +1,7 @@
 /**
  * Agency Scope Middleware
  * Story 1.4: Row-Level Security Implementation
+ * Story H-1: Added explicit audit logging for unauthorized access attempts
  *
  * Middleware that computes and attaches the user's agency scope to the request.
  * This scope is used to filter NDA queries to only return authorized data.
@@ -16,6 +17,7 @@ import {
   getUserAgencyScope,
   type AgencyScope,
 } from '../services/agencyScopeService.js';
+import { auditService, AuditAction } from '../services/auditService.js';
 
 /**
  * Middleware that computes the user's agency scope and attaches it to the request.
@@ -63,7 +65,21 @@ export async function scopeToAgencies(
       (req.userContext.authorizedSubagencies?.length ?? 0) > 0;
 
     if (!hasGroupAccess && !hasDirectSubagencyAccess) {
-      // User explicitly has no agency access
+      // User explicitly has no agency access - log this for audit trail
+      // Story H-1: Explicit audit logging for unauthorized access attempts
+      await auditService.log({
+        action: AuditAction.UNAUTHORIZED_ACCESS_ATTEMPT,
+        entityType: 'agency_scope',
+        userId: req.userContext.contactId,
+        ipAddress: req.ip || 'unknown',
+        userAgent: req.get('user-agent') || 'unknown',
+        details: {
+          reason: 'no_agency_access',
+          path: req.path,
+          method: req.method,
+          message: 'User attempted to access agency-scoped resource without any agency access',
+        },
+      });
       scope = { subagencyId: { in: [] } };
     } else if (!hasGroupAccess && hasDirectSubagencyAccess) {
       // Use cached direct subagency access when no groups are assigned

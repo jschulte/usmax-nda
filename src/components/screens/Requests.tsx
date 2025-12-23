@@ -41,6 +41,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../ui/select';
+import { DateRangeShortcuts } from '../ui/DateRangeShortcuts';
 import {
   listNDAs,
   updateNDAStatus,
@@ -60,6 +61,9 @@ import {
 import { searchContacts, type Contact } from '../../client/services/userService';
 
 const RECENT_FILTERS_KEY = 'ndaListRecentFilters';
+
+// Story H-1: Sort preferences persistence
+const SORT_PREFS_KEY = 'ndaListSortPreferences';
 
 type PresetKey = ListNdasParams['preset'] | 'all';
 
@@ -154,6 +158,33 @@ function saveRecentFilters(filters: RecentFilters) {
   localStorage.setItem(RECENT_FILTERS_KEY, JSON.stringify(filters));
 }
 
+// Story H-1: Sort preferences persistence
+interface SortPreferences {
+  sortBy: SortKey;
+  sortOrder: 'asc' | 'desc';
+}
+
+function loadSortPreferences(): SortPreferences {
+  try {
+    const raw = localStorage.getItem(SORT_PREFS_KEY);
+    if (!raw) {
+      return { sortBy: 'latestChange', sortOrder: 'desc' };
+    }
+    const parsed = JSON.parse(raw) as Partial<SortPreferences>;
+    // Validate sortBy is a valid SortKey
+    const validSortKeys: SortKey[] = ['displayId', 'companyName', 'agency', 'status', 'effectiveDate', 'requestedDate', 'latestChange'];
+    const sortBy = validSortKeys.includes(parsed.sortBy as SortKey) ? (parsed.sortBy as SortKey) : 'latestChange';
+    const sortOrder = parsed.sortOrder === 'asc' || parsed.sortOrder === 'desc' ? parsed.sortOrder : 'desc';
+    return { sortBy, sortOrder };
+  } catch {
+    return { sortBy: 'latestChange', sortOrder: 'desc' };
+  }
+}
+
+function saveSortPreferences(prefs: SortPreferences) {
+  localStorage.setItem(SORT_PREFS_KEY, JSON.stringify(prefs));
+}
+
 function mergeRecentSuggestions(recent: string[], suggestions: string[]): string[] {
   const normalized = new Set<string>();
   const result: string[] = [];
@@ -230,9 +261,9 @@ export function Requests({
   const [error, setError] = useState<string | null>(null);
   const [totalCount, setTotalCount] = useState(0);
 
-  // Sorting state
-  const [sortBy, setSortBy] = useState<SortKey>('latestChange');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  // Sorting state - Story H-1: Load from localStorage
+  const [sortBy, setSortBy] = useState<SortKey>(() => loadSortPreferences().sortBy);
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>(() => loadSortPreferences().sortOrder);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -265,6 +296,11 @@ export function Requests({
 
     return () => clearTimeout(timer);
   }, [searchTerm]);
+
+  // Story H-1: Save sort preferences when they change
+  useEffect(() => {
+    saveSortPreferences({ sortBy, sortOrder });
+  }, [sortBy, sortOrder]);
 
   // Load agency groups for filter typeahead
   useEffect(() => {
@@ -860,6 +896,16 @@ export function Requests({
                 className="w-full px-3 py-2 border border-[var(--color-border)] rounded-lg text-sm"
               />
             </div>
+            {/* Story H-1 Task 12: Date range shortcuts for Effective Date */}
+            <div className="col-span-2">
+              <label className="text-xs text-[var(--color-text-secondary)] block mb-1">Effective Date Shortcuts</label>
+              <DateRangeShortcuts
+                onSelect={(from, to) => {
+                  setEffectiveDateFrom(from);
+                  setEffectiveDateTo(to);
+                }}
+              />
+            </div>
             <div>
               <label className="text-xs text-[var(--color-text-secondary)]">Requested Date From</label>
               <input
@@ -876,6 +922,16 @@ export function Requests({
                 value={requestedDateTo}
                 onChange={(e) => setRequestedDateTo(e.target.value)}
                 className="w-full px-3 py-2 border border-[var(--color-border)] rounded-lg text-sm"
+              />
+            </div>
+            {/* Story H-1 Task 12: Date range shortcuts for Requested Date */}
+            <div className="col-span-2">
+              <label className="text-xs text-[var(--color-text-secondary)] block mb-1">Requested Date Shortcuts</label>
+              <DateRangeShortcuts
+                onSelect={(from, to) => {
+                  setRequestedDateFrom(from);
+                  setRequestedDateTo(to);
+                }}
               />
             </div>
 

@@ -8,3 +8,13 @@
 
 export { useAuth } from '../contexts/AuthContext';
 export type { AuthContextType, User, MFAChallenge } from '../contexts/AuthContext';
+
+/**
+ * usePermissions Hook
+ * Story H-1: Gap Analysis Hardening - Epic 1 Auth Fixes
+ *
+ * Re-exports the usePermissions hook for convenience.
+ * See usePermissions.ts for full documentation and examples.
+ */
+export { usePermissions, PERMISSIONS, ROLE_NAMES } from './usePermissions';
+export type { PermissionCode, RoleName, UsePermissionsReturn } from './usePermissions';

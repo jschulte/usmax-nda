@@ -4,7 +4,7 @@
  * Handles user/contact management operations
  */
 
-import { get, post, put, del } from './api';
+import { get, post, put, del, patch } from './api';
 
 export interface User {
   id: string;
@@ -171,6 +171,14 @@ export async function updateUser(
  */
 export async function deactivateUser(id: string): Promise<{ message: string }> {
   return del<{ message: string }>(`/api/users/${id}`);
+}
+
+/**
+ * Reactivate a deactivated user
+ * Story H-1: Show Inactive Users - reactivation feature
+ */
+export async function reactivateUser(id: string): Promise<void> {
+  await patch<void>(`/api/users/${id}/reactivate`, {});
 }
 
 /**

@@ -26,6 +26,7 @@ import {
   updateAgencyGroup,
   deleteAgencyGroup,
   AgencyGroupError,
+  type ListAgencyGroupsParams,
 } from '../services/agencyGroupService.js';
 
 const router: RouterType = Router();
@@ -38,6 +39,12 @@ router.use(attachUserContext);
  * GET /api/agency-groups
  * List all agency groups with subagency counts
  * Task 1.4
+ * Story H-1: Added pagination support
+ *
+ * Query params:
+ * - page: Page number (default: 1)
+ * - limit: Items per page (default: 50)
+ * - search: Search by name or code
  *
  * Requires: nda:view, nda:create, or admin:manage_agencies permission
  */
@@ -51,10 +58,31 @@ router.get(
   async (req: Request, res: Response) => {
     try {
       const isAdmin = req.userContext?.permissions?.has(PERMISSIONS.ADMIN_MANAGE_AGENCIES);
-      const groups = isAdmin
-        ? await listAgencyGroups()
-        : await listAgencyGroupsForUser(req.userContext!);
-      return res.json({ agencyGroups: groups });
+
+      // Parse pagination params
+      const params: ListAgencyGroupsParams = {
+        page: req.query.page ? parseInt(req.query.page as string, 10) : undefined,
+        limit: req.query.limit ? parseInt(req.query.limit as string, 10) : undefined,
+        search: req.query.search as string | undefined,
+      };
+
+      if (isAdmin) {
+        // Admin gets paginated response
+        const result = await listAgencyGroups(params);
+        return res.json(result);
+      } else {
+        // Non-admin users get scoped list (no pagination for now)
+        const groups = await listAgencyGroupsForUser(req.userContext!);
+        return res.json({
+          agencyGroups: groups,
+          pagination: {
+            page: 1,
+            limit: groups.length,
+            total: groups.length,
+            totalPages: 1,
+          },
+        });
+      }
     } catch (error) {
       console.error('[AgencyGroups] Error listing agency groups:', error);
       return res.status(500).json({

@@ -14,6 +14,7 @@ import { buildSecurityFilter } from './ndaService.js';
 
 /**
  * Notification event types
+ * Story H-1 Task 13: Added ASSIGNED_TO_ME for POC assignment notifications
  */
 export enum NotificationEvent {
   NDA_CREATED = 'nda_created',
@@ -21,6 +22,8 @@ export enum NotificationEvent {
   DOCUMENT_UPLOADED = 'document_uploaded',
   STATUS_CHANGED = 'status_changed',
   FULLY_EXECUTED = 'fully_executed',
+  // Story H-1 Task 13: Notify when assigned as POC
+  ASSIGNED_TO_ME = 'assigned_to_me',
 }
 
 /**
@@ -39,6 +42,8 @@ export interface NotificationDetails {
 
 /**
  * Notification preference structure
+ * Story H-1 Task 13: Added onAssignedToMe preference
+ * NOTE: Requires database migration to add onAssignedToMe column to NotificationPreference table
  */
 export interface NotificationPreferences {
   onNdaCreated: boolean;
@@ -46,6 +51,8 @@ export interface NotificationPreferences {
   onDocumentUploaded: boolean;
   onStatusChanged: boolean;
   onFullyExecuted: boolean;
+  // Story H-1 Task 13: Notify when assigned as POC
+  onAssignedToMe: boolean;
 }
 
 /**
@@ -72,6 +79,7 @@ export async function getNotificationPreferences(
   });
 
   // Return defaults if no preferences exist
+  // Story H-1 Task 13: Added onAssignedToMe default
   if (!prefs) {
     return {
       onNdaCreated: true,
@@ -79,15 +87,18 @@ export async function getNotificationPreferences(
       onDocumentUploaded: true,
       onStatusChanged: true,
       onFullyExecuted: true,
+      onAssignedToMe: true,
     };
   }
 
+  // Story H-1 Task 13: Added onAssignedToMe
   return {
     onNdaCreated: prefs.onNdaCreated,
     onNdaEmailed: prefs.onNdaEmailed,
     onDocumentUploaded: prefs.onDocumentUploaded,
     onStatusChanged: prefs.onStatusChanged,
     onFullyExecuted: prefs.onFullyExecuted,
+    onAssignedToMe: prefs.onAssignedToMe,
   };
 }
 
@@ -107,6 +118,7 @@ export async function updateNotificationPreferences(
     );
   }
 
+  // Story H-1 Task 13: Added onAssignedToMe preference
   const updated = await prisma.notificationPreference.upsert({
     where: { contactId },
     create: {
@@ -116,6 +128,7 @@ export async function updateNotificationPreferences(
       onDocumentUploaded: preferences.onDocumentUploaded ?? true,
       onStatusChanged: preferences.onStatusChanged ?? true,
       onFullyExecuted: preferences.onFullyExecuted ?? true,
+      onAssignedToMe: preferences.onAssignedToMe ?? true,
     },
     update: {
       ...(preferences.onNdaCreated !== undefined && { onNdaCreated: preferences.onNdaCreated }),
@@ -123,15 +136,18 @@ export async function updateNotificationPreferences(
       ...(preferences.onDocumentUploaded !== undefined && { onDocumentUploaded: preferences.onDocumentUploaded }),
       ...(preferences.onStatusChanged !== undefined && { onStatusChanged: preferences.onStatusChanged }),
       ...(preferences.onFullyExecuted !== undefined && { onFullyExecuted: preferences.onFullyExecuted }),
+      ...(preferences.onAssignedToMe !== undefined && { onAssignedToMe: preferences.onAssignedToMe }),
     },
   });
 
+  // Story H-1 Task 13: Added onAssignedToMe
   return {
     onNdaCreated: updated.onNdaCreated,
     onNdaEmailed: updated.onNdaEmailed,
     onDocumentUploaded: updated.onDocumentUploaded,
     onStatusChanged: updated.onStatusChanged,
     onFullyExecuted: updated.onFullyExecuted,
+    onAssignedToMe: updated.onAssignedToMe,
   };
 }
 
@@ -299,6 +315,7 @@ export async function autoSubscribePocs(ndaId: string): Promise<void> {
 
 /**
  * Map event to preference field
+ * Story H-1 Task 13: Added ASSIGNED_TO_ME mapping
  */
 function eventToPreferenceField(event: NotificationEvent): keyof NotificationPreferences {
   switch (event) {
@@ -312,6 +329,8 @@ function eventToPreferenceField(event: NotificationEvent): keyof NotificationPre
       return 'onStatusChanged';
     case NotificationEvent.FULLY_EXECUTED:
       return 'onFullyExecuted';
+    case NotificationEvent.ASSIGNED_TO_ME:
+      return 'onAssignedToMe';
     default:
       return 'onStatusChanged';
   }
@@ -319,6 +338,7 @@ function eventToPreferenceField(event: NotificationEvent): keyof NotificationPre
 
 /**
  * Generate notification email subject
+ * Story H-1 Task 13: Added ASSIGNED_TO_ME label
  */
 function generateNotificationSubject(details: NotificationDetails): string {
   const eventLabels: Record<NotificationEvent, string> = {
@@ -327,6 +347,7 @@ function generateNotificationSubject(details: NotificationDetails): string {
     [NotificationEvent.DOCUMENT_UPLOADED]: 'Document Uploaded',
     [NotificationEvent.STATUS_CHANGED]: `Now ${details.newValue || 'Updated'}`,
     [NotificationEvent.FULLY_EXECUTED]: 'Fully Executed',
+    [NotificationEvent.ASSIGNED_TO_ME]: 'You Were Assigned',
   };
 
   const label = eventLabels[details.event];
@@ -335,6 +356,7 @@ function generateNotificationSubject(details: NotificationDetails): string {
 
 /**
  * Generate notification email body
+ * Story H-1 Task 13: Added ASSIGNED_TO_ME message
  */
 function generateNotificationBody(details: NotificationDetails): string {
   const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
@@ -345,6 +367,7 @@ function generateNotificationBody(details: NotificationDetails): string {
     [NotificationEvent.DOCUMENT_UPLOADED]: 'A new document has been uploaded to the NDA.',
     [NotificationEvent.STATUS_CHANGED]: `The NDA status has changed from "${details.previousValue}" to "${details.newValue}".`,
     [NotificationEvent.FULLY_EXECUTED]: 'The NDA has been marked as fully executed.',
+    [NotificationEvent.ASSIGNED_TO_ME]: `You have been assigned as a Point of Contact for this NDA${details.newValue ? ` (${details.newValue})` : ''}.`,
   };
 
   return `Hello,
@@ -471,4 +494,108 @@ export async function getUserSubscriptions(
     },
     orderBy: { createdAt: 'desc' },
   });
+}
+
+/**
+ * Notify a user when they are assigned as a POC for an NDA
+ * Story H-1 Task 13: POC assignment notifications
+ *
+ * @param ndaId - The NDA the user is being assigned to
+ * @param assignedContactId - The user being assigned
+ * @param pocType - Type of POC role (e.g., 'Opportunity POC', 'Contracts POC')
+ * @param assignedBy - User context of who made the assignment
+ */
+export async function notifyPocAssignment(
+  ndaId: string,
+  assignedContactId: string,
+  pocType: string,
+  assignedBy: UserContext
+): Promise<void> {
+  // Don't notify if user is assigning themselves
+  if (assignedContactId === assignedBy.contactId) {
+    return;
+  }
+
+  // Get NDA details
+  const nda = await prisma.nda.findUnique({
+    where: { id: ndaId },
+    select: {
+      id: true,
+      displayId: true,
+      companyName: true,
+    },
+  });
+
+  if (!nda) {
+    console.warn('[Notification] Cannot notify POC assignment - NDA not found:', ndaId);
+    return;
+  }
+
+  // Check user's notification preferences
+  const prefs = await getNotificationPreferences(assignedContactId);
+  if (!prefs.onAssignedToMe) {
+    console.log('[Notification] POC assignment notification skipped - user preference disabled');
+    return;
+  }
+
+  // Get assigned user's email
+  const assignedContact = await prisma.contact.findUnique({
+    where: { id: assignedContactId },
+    select: { email: true, firstName: true, lastName: true },
+  });
+
+  if (!assignedContact) {
+    console.warn('[Notification] Cannot notify POC assignment - contact not found:', assignedContactId);
+    return;
+  }
+
+  // Get assigner's name
+  const assigner = await prisma.contact.findUnique({
+    where: { id: assignedBy.contactId },
+    select: { firstName: true, lastName: true },
+  });
+  const assignerName = assigner
+    ? `${assigner.firstName || ''} ${assigner.lastName || ''}`.trim() || 'A user'
+    : 'A user';
+
+  // Build and send notification
+  const details: NotificationDetails = {
+    ndaId: nda.id,
+    displayId: nda.displayId,
+    companyName: nda.companyName,
+    event: NotificationEvent.ASSIGNED_TO_ME,
+    changedBy: { id: assignedBy.contactId, name: assignerName },
+    timestamp: new Date(),
+    newValue: pocType,
+  };
+
+  try {
+    const subject = generateNotificationSubject(details);
+    const body = generateNotificationBody(details);
+
+    await queueEmail(
+      {
+        ndaId: nda.id,
+        subject,
+        toRecipients: [assignedContact.email],
+        ccRecipients: [],
+        bccRecipients: [],
+        body,
+      },
+      assignedBy
+    );
+
+    // Auto-subscribe the POC to future notifications
+    await prisma.ndaSubscription.upsert({
+      where: {
+        ndaId_contactId: { ndaId: nda.id, contactId: assignedContactId },
+      },
+      create: { ndaId: nda.id, contactId: assignedContactId },
+      update: {},
+    });
+
+    console.log(`[Notification] POC assignment notification sent to ${assignedContact.email} for NDA #${nda.displayId}`);
+  } catch (error) {
+    console.error('[Notification] Failed to send POC assignment notification:', error);
+  }
 }

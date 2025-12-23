@@ -15,6 +15,7 @@ import { randomBytes } from 'crypto';
 import { cognitoService } from '../services/cognitoService.js';
 import { auditService, AuditAction } from '../services/auditService.js';
 import { authenticateJWT } from '../middleware/authenticateJWT.js';
+import { attachUserContext } from '../middleware/attachUserContext.js';
 
 const router: RouterType = Router();
 
@@ -301,10 +302,11 @@ router.post('/logout', requireCsrfToken, async (req: Request, res: Response) => 
 
 /**
  * GET /api/auth/me
- * Returns current authenticated user info
+ * Returns current authenticated user info with permissions
+ * Story H-1: Added attachUserContext to expose permissions for usePermissions hook
  * Requires valid access token
  */
-router.get('/me', authenticateJWT, (req: Request, res: Response) => {
+router.get('/me', authenticateJWT, attachUserContext, (req: Request, res: Response) => {
   if (!req.user) {
     return res.status(500).json({
       error: 'Authentication context missing',
@@ -316,8 +318,18 @@ router.get('/me', authenticateJWT, (req: Request, res: Response) => {
   const expiresAt = accessToken ? getTokenExpiry(accessToken) : null;
   const csrfToken = getOrSetCsrfToken(req, res);
 
+  // Include permissions and roles from userContext for frontend usePermissions hook
+  const permissions = req.userContext?.permissions
+    ? Array.from(req.userContext.permissions)
+    : [];
+  const roles = req.userContext?.roles ?? [];
+
   return res.json({
-    user: req.user,
+    user: {
+      ...req.user,
+      permissions,
+      roles,
+    },
     expiresAt,
     csrfToken,
   });

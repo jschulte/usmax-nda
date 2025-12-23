@@ -90,6 +90,23 @@ export function AgencyGroups() {
     subagencyCount?: number;
   } | null>(null);
 
+  // Story H-1: Confirmation state for revoke access operations
+  const [revokeTarget, setRevokeTarget] = useState<{
+    type: 'group' | 'subagency';
+    contactId: string;
+    userName: string;
+    entityName: string;
+  } | null>(null);
+  const [showRevokeDialog, setShowRevokeDialog] = useState(false);
+
+  // Story H-1: Pagination state for agency groups
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 20,
+    total: 0,
+    totalPages: 0,
+  });
+
   const [editingGroup, setEditingGroup] = useState<AgencyGroup | null>(null);
   const [editingSubagency, setEditingSubagency] = useState<Subagency | null>(null);
   const [activeGroupForSubagency, setActiveGroupForSubagency] = useState<AgencyGroup | null>(null);
@@ -118,15 +135,25 @@ export function AgencyGroups() {
     description: '',
   });
 
+  // Story H-1: Load groups when pagination or search changes
   useEffect(() => {
     void loadGroups();
-  }, []);
+  }, [pagination.page, searchQuery]);
 
   const loadGroups = async () => {
     setIsLoading(true);
     try {
-      const response = await agencyService.listAgencyGroups();
+      const response = await agencyService.listAgencyGroups({
+        page: pagination.page,
+        limit: pagination.limit,
+        search: searchQuery || undefined,
+      });
       setGroups(response.agencyGroups);
+      setPagination((prev) => ({
+        ...prev,
+        total: response.pagination.total,
+        totalPages: response.pagination.totalPages,
+      }));
       setSubagencyCounts(
         response.agencyGroups.reduce((acc, group) => {
           acc[group.id] = group.subagencyCount ?? 0;
@@ -139,6 +166,11 @@ export function AgencyGroups() {
       setIsLoading(false);
     }
   };
+
+  // Reset to page 1 when search changes
+  useEffect(() => {
+    setPagination((prev) => (prev.page === 1 ? prev : { ...prev, page: 1 }));
+  }, [searchQuery]);
 
   const loadSubagencies = async (groupId: string) => {
     // Set loading state
@@ -358,6 +390,18 @@ export function AgencyGroups() {
     }
   };
 
+  // Story H-1: Show confirmation dialog before revoking agency group access
+  const confirmRevokeAccess = (user: AgencyAccessUser) => {
+    if (!activeGroupForAccess) return;
+    setRevokeTarget({
+      type: 'group',
+      contactId: user.contactId,
+      userName: user.name ?? user.email ?? 'Unknown User',
+      entityName: activeGroupForAccess.name,
+    });
+    setShowRevokeDialog(true);
+  };
+
   const handleRevokeAccess = async (contactId: string) => {
     if (!activeGroupForAccess) return;
     setRevokingAccessId(contactId);
@@ -449,6 +493,18 @@ export function AgencyGroups() {
     }
   };
 
+  // Story H-1: Show confirmation dialog before revoking subagency access
+  const confirmRevokeSubagencyAccess = (user: SubagencyAccessUser) => {
+    if (!activeSubagencyForAccess) return;
+    setRevokeTarget({
+      type: 'subagency',
+      contactId: user.contactId,
+      userName: user.name ?? user.email ?? 'Unknown User',
+      entityName: activeSubagencyForAccess.name,
+    });
+    setShowRevokeDialog(true);
+  };
+
   const handleRevokeSubagencyAccess = async (contactId: string) => {
     if (!activeSubagencyForAccess) return;
     setRevokingSubagencyAccessId(contactId);
@@ -461,6 +517,20 @@ export function AgencyGroups() {
     } finally {
       setRevokingSubagencyAccessId(null);
     }
+  };
+
+  // Story H-1: Execute revoke after confirmation
+  const executeRevokeAccess = async () => {
+    if (!revokeTarget) return;
+
+    if (revokeTarget.type === 'group') {
+      await handleRevokeAccess(revokeTarget.contactId);
+    } else {
+      await handleRevokeSubagencyAccess(revokeTarget.contactId);
+    }
+
+    setShowRevokeDialog(false);
+    setRevokeTarget(null);
   };
 
   const confirmDeleteGroup = (group: AgencyGroup) => {
@@ -756,6 +826,34 @@ export function AgencyGroups() {
             </TableBody>
           </Table>
         )}
+
+        {/* Story H-1: Pagination controls */}
+        {pagination.totalPages > 1 && (
+          <div className="flex items-center justify-between mt-6 pt-6 border-t border-[var(--color-border)]">
+            <p className="text-sm text-[var(--color-text-secondary)]">
+              Showing {((pagination.page - 1) * pagination.limit) + 1} to{' '}
+              {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} groups
+            </p>
+            <div className="flex gap-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setPagination((prev) => ({ ...prev, page: prev.page - 1 }))}
+                disabled={pagination.page === 1 || isLoading}
+              >
+                Previous
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setPagination((prev) => ({ ...prev, page: prev.page + 1 }))}
+                disabled={pagination.page >= pagination.totalPages || isLoading}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+        )}
       </Card>
 
       <Dialog open={showGroupDialog} onOpenChange={setShowGroupDialog}>
@@ -895,7 +993,7 @@ export function AgencyGroups() {
                       <Button
                         variant="destructive"
                         size="sm"
-                        onClick={() => handleRevokeAccess(user.contactId)}
+                        onClick={() => confirmRevokeAccess(user)}
                         disabled={revokingAccessId === user.contactId}
                       >
                         {revokingAccessId === user.contactId ? (
@@ -976,7 +1074,7 @@ export function AgencyGroups() {
                         <Button
                           variant="destructive"
                           size="sm"
-                          onClick={() => handleRevokeSubagencyAccess(user.contactId)}
+                          onClick={() => confirmRevokeSubagencyAccess(user)}
                           disabled={isInherited || revokingSubagencyAccessId === user.contactId}
                         >
                           {revokingSubagencyAccessId === user.contactId ? (
@@ -1024,6 +1122,51 @@ export function AgencyGroups() {
             </Button>
             <Button variant="destructive" onClick={performDelete} disabled={isDeleting}>
               {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Story H-1: Revoke access confirmation dialog */}
+      <Dialog
+        open={showRevokeDialog}
+        onOpenChange={(open) => {
+          setShowRevokeDialog(open);
+          if (!open) setRevokeTarget(null);
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Confirm access revocation</DialogTitle>
+            <DialogDescription>
+              This will remove the user's access to the {revokeTarget?.type === 'group' ? 'agency group' : 'subagency'}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-md border border-[var(--color-border)] bg-slate-50 p-3 text-sm">
+            Are you sure you want to revoke access for <strong>{revokeTarget?.userName}</strong> to{' '}
+            <strong>{revokeTarget?.entityName}</strong>?
+          </div>
+          <DialogFooter>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setShowRevokeDialog(false);
+                setRevokeTarget(null);
+              }}
+              disabled={revokingAccessId !== null || revokingSubagencyAccessId !== null}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={executeRevokeAccess}
+              disabled={revokingAccessId !== null || revokingSubagencyAccessId !== null}
+            >
+              {revokingAccessId !== null || revokingSubagencyAccessId !== null ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                'Revoke Access'
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

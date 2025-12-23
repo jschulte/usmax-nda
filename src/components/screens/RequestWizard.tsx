@@ -4,7 +4,15 @@ import { Button } from '../ui/AppButton';
 import { Input, TextArea, Select } from '../ui/AppInput';
 import { Stepper } from '../ui/Stepper';
 import { Badge } from '../ui/AppBadge';
-import { ArrowLeft, ArrowRight, Info } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Info, Plus, Loader2 } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '../ui/dialog';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
@@ -125,6 +133,22 @@ export function RequestWizard() {
     contractsEmail: '',
     contractsPhone: '',
     contractsFax: '',
+  });
+
+  // Story H-1 Task 7: Inline contact creation state
+  const [showCreateContactModal, setShowCreateContactModal] = useState(false);
+  const [createContactPocType, setCreateContactPocType] = useState<'relationship' | 'contracts' | 'opportunity' | 'contacts' | null>(null);
+  const [createContactForm, setCreateContactForm] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+  });
+  const [isCreatingContact, setIsCreatingContact] = useState(false);
+  const [createContactErrors, setCreateContactErrors] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
   });
 
   const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -452,6 +476,86 @@ export function RequestWizard() {
     },
     []
   );
+
+  // Story H-1 Task 7: Inline contact creation handlers
+  const openCreateContactModal = useCallback((pocType: 'relationship' | 'contracts' | 'opportunity' | 'contacts') => {
+    setCreateContactPocType(pocType);
+    setCreateContactForm({ firstName: '', lastName: '', email: '', phone: '' });
+    setCreateContactErrors({ firstName: '', lastName: '', email: '' });
+    setContactSuggestions([]);
+    setShowCreateContactModal(true);
+  }, []);
+
+  const handleCreateContact = useCallback(async () => {
+    // Validate
+    const errors = { firstName: '', lastName: '', email: '' };
+    if (!createContactForm.firstName.trim()) {
+      errors.firstName = 'First name is required';
+    }
+    if (!createContactForm.lastName.trim()) {
+      errors.lastName = 'Last name is required';
+    }
+    if (!createContactForm.email.trim()) {
+      errors.email = 'Email is required';
+    } else if (!EMAIL_PATTERN.test(createContactForm.email)) {
+      errors.email = 'Please enter a valid email address';
+    }
+
+    if (errors.firstName || errors.lastName || errors.email) {
+      setCreateContactErrors(errors);
+      return;
+    }
+
+    setIsCreatingContact(true);
+    try {
+      const created = await createExternalContact({
+        firstName: createContactForm.firstName.trim(),
+        lastName: createContactForm.lastName.trim(),
+        email: createContactForm.email.trim(),
+        phone: createContactForm.phone.trim() || undefined,
+      });
+
+      // Update the appropriate POC field based on type
+      const fullName = `${created.firstName} ${created.lastName}`.trim();
+      if (createContactPocType === 'relationship') {
+        setFormData((prev) => ({
+          ...prev,
+          relationshipPocId: created.id,
+          relationshipPocName: fullName,
+          relationshipPocEmail: created.email || '',
+        }));
+        markTouched('relationshipPoc');
+        setPocErrors((prev) => ({ ...prev, relationshipEmail: '' }));
+      } else if (createContactPocType === 'contracts') {
+        setFormData((prev) => ({
+          ...prev,
+          contractsPocId: created.id,
+          contractsPocName: fullName,
+          contractsPocEmail: created.email || '',
+        }));
+      } else if (createContactPocType === 'opportunity') {
+        setFormData((prev) => ({
+          ...prev,
+          opportunityPocId: created.id,
+          opportunityPocName: fullName,
+        }));
+      } else if (createContactPocType === 'contacts') {
+        setFormData((prev) => ({
+          ...prev,
+          contactsPocId: created.id,
+          contactsPocName: fullName,
+        }));
+      }
+
+      toast.success('Contact created', { description: `${fullName} has been added` });
+      setShowCreateContactModal(false);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to create contact';
+      toast.error('Error creating contact', { description: message });
+    } finally {
+      setIsCreatingContact(false);
+    }
+  }, [createContactForm, createContactPocType]);
 
   const relationshipPocNameValid = formData.relationshipPocName.trim().length > 0;
   const relationshipPocEmailValid = EMAIL_PATTERN.test(formData.relationshipPocEmail);
@@ -1198,7 +1302,7 @@ export function RequestWizard() {
                         error={requiredErrors.relationshipPoc}
                         helperText="Required: Primary relationship point of contact"
                       />
-                      {activePocField === 'relationship' && contactSuggestions.length > 0 && !formData.relationshipPocId && (
+                      {activePocField === 'relationship' && !formData.relationshipPocId && formData.relationshipPocName.length >= 2 && (
                         <div className="absolute z-10 w-full mt-1 bg-white border border-[var(--color-border)] rounded-lg shadow-lg max-h-48 overflow-y-auto">
                           {contactSuggestions.map((contact) => (
                             <button
@@ -1222,6 +1326,14 @@ export function RequestWizard() {
                               <div className="text-xs text-[var(--color-text-secondary)]">{contact.email}</div>
                             </button>
                           ))}
+                          {/* Story H-1 Task 7: Create New Contact option */}
+                          <button
+                            onClick={() => openCreateContactModal('relationship')}
+                            className="w-full px-4 py-2 text-left hover:bg-gray-50 transition-colors border-t border-[var(--color-border)] flex items-center gap-2 text-[var(--color-primary)]"
+                          >
+                            <Plus className="w-4 h-4" />
+                            <span>Create New Contact</span>
+                          </button>
                         </div>
                       )}
                     </div>
@@ -1283,7 +1395,7 @@ export function RequestWizard() {
                           handleContactSearch(e.target.value, 'contracts');
                         }}
                       />
-                      {activePocField === 'contracts' && contactSuggestions.length > 0 && !formData.contractsPocId && formData.contractsPocName && (
+                      {activePocField === 'contracts' && !formData.contractsPocId && formData.contractsPocName && formData.contractsPocName.length >= 2 && (
                         <div className="absolute z-10 w-full mt-1 bg-white border border-[var(--color-border)] rounded-lg shadow-lg max-h-48 overflow-y-auto">
                           {contactSuggestions.map((contact) => (
                             <button
@@ -1306,6 +1418,14 @@ export function RequestWizard() {
                               <div className="text-xs text-[var(--color-text-secondary)]">{contact.email}</div>
                             </button>
                           ))}
+                          {/* Story H-1 Task 7: Create New Contact option */}
+                          <button
+                            onClick={() => openCreateContactModal('contracts')}
+                            className="w-full px-4 py-2 text-left hover:bg-gray-50 transition-colors border-t border-[var(--color-border)] flex items-center gap-2 text-[var(--color-primary)]"
+                          >
+                            <Plus className="w-4 h-4" />
+                            <span>Create New Contact</span>
+                          </button>
                         </div>
                       )}
                     </div>
@@ -1392,34 +1512,34 @@ export function RequestWizard() {
                       )}
                     </div>
 
-                    <div className="flex">
-                      <Button
-                        variant="subtle"
-                        size="sm"
-                        onClick={() => {
-                          if (!formData.contractsPocName && !formData.contractsPocEmail) {
-                            toast.error('Select or enter Contracts POC details first');
-                            return;
-                          }
-                          setFormData({
-                            ...formData,
-                            relationshipPocId: formData.contractsPocId,
-                            relationshipPocName: formData.contractsPocName,
-                            relationshipPocEmail: formData.contractsPocEmail,
-                            relationshipPocPhone: formData.contractsPocPhone,
-                            relationshipPocFax: formData.contractsPocFax,
-                          });
-                          setPocErrors((prev) => ({
-                            ...prev,
-                            relationshipEmail: '',
-                            relationshipPhone: '',
-                            relationshipFax: '',
-                          }));
-                        }}
-                      >
-                        Copy to Relationship POC
-                      </Button>
-                    </div>
+                    {/* Story H-1 Task 6: Only show Copy button if Contracts POC is filled */}
+                    {(formData.contractsPocName || formData.contractsPocEmail) && (
+                      <div className="flex">
+                        <Button
+                          variant="subtle"
+                          size="sm"
+                          onClick={() => {
+                            setFormData({
+                              ...formData,
+                              relationshipPocId: formData.contractsPocId,
+                              relationshipPocName: formData.contractsPocName,
+                              relationshipPocEmail: formData.contractsPocEmail,
+                              relationshipPocPhone: formData.contractsPocPhone,
+                              relationshipPocFax: formData.contractsPocFax,
+                            });
+                            setPocErrors((prev) => ({
+                              ...prev,
+                              relationshipEmail: '',
+                              relationshipPhone: '',
+                              relationshipFax: '',
+                            }));
+                            toast.success('Copied Contracts POC to Relationship POC');
+                          }}
+                        >
+                          Copy to Relationship POC
+                        </Button>
+                      </div>
+                    )}
 
                     <div className="relative">
                       <Input
@@ -1677,6 +1797,80 @@ export function RequestWizard() {
           </Card>
         </div>
       </div>
+
+      {/* Story H-1 Task 7: Create Contact Modal */}
+      <Dialog open={showCreateContactModal} onOpenChange={setShowCreateContactModal}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Create New Contact</DialogTitle>
+            <DialogDescription>
+              Add a new external contact for{' '}
+              {createContactPocType === 'relationship' ? 'Relationship POC' :
+               createContactPocType === 'contracts' ? 'Contracts POC' :
+               createContactPocType === 'contacts' ? 'Contacts POC' : 'POC'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <Input
+                label="First Name *"
+                placeholder="First name"
+                value={createContactForm.firstName}
+                onChange={(e) => {
+                  setCreateContactForm((prev) => ({ ...prev, firstName: e.target.value }));
+                  setCreateContactErrors((prev) => ({ ...prev, firstName: '' }));
+                }}
+                error={createContactErrors.firstName}
+              />
+              <Input
+                label="Last Name *"
+                placeholder="Last name"
+                value={createContactForm.lastName}
+                onChange={(e) => {
+                  setCreateContactForm((prev) => ({ ...prev, lastName: e.target.value }));
+                  setCreateContactErrors((prev) => ({ ...prev, lastName: '' }));
+                }}
+                error={createContactErrors.lastName}
+              />
+            </div>
+            <Input
+              label="Email *"
+              placeholder="email@example.com"
+              value={createContactForm.email}
+              onChange={(e) => {
+                setCreateContactForm((prev) => ({ ...prev, email: e.target.value }));
+                setCreateContactErrors((prev) => ({ ...prev, email: '' }));
+              }}
+              error={createContactErrors.email}
+            />
+            <Input
+              label="Phone"
+              placeholder="(XXX) XXX-XXXX (optional)"
+              value={createContactForm.phone}
+              onChange={(e) => setCreateContactForm((prev) => ({ ...prev, phone: e.target.value }))}
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowCreateContactModal(false)}
+              disabled={isCreatingContact}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleCreateContact} disabled={isCreatingContact}>
+              {isCreatingContact ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                'Create Contact'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

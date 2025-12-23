@@ -53,6 +53,7 @@ export enum AuditAction {
   USER_CREATED = 'user_created',
   USER_UPDATED = 'user_updated',
   USER_DEACTIVATED = 'user_deactivated',
+  USER_REACTIVATED = 'user_reactivated', // Story H-1: Reactivation feature
 
   // Access export events (Story 2.6)
   ACCESS_EXPORT = 'access_export',

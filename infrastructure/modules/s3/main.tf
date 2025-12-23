@@ -42,6 +42,9 @@ resource "aws_s3_bucket_public_access_block" "documents" {
 }
 
 # Lifecycle rules
+# Story H-1 Task 9: Updated lifecycle rules for compliance
+# - Glacier transition at 6 years (2190 days) instead of 1 year
+# - Noncurrent versions preserved indefinitely (no expiration)
 resource "aws_s3_bucket_lifecycle_configuration" "documents" {
   bucket = aws_s3_bucket.documents.id
 
@@ -54,8 +57,9 @@ resource "aws_s3_bucket_lifecycle_configuration" "documents" {
       storage_class = "STANDARD_IA"
     }
 
+    # Story H-1: Glacier transition at 6 years per compliance requirements
     transition {
-      days          = 365
+      days          = 2190
       storage_class = "GLACIER"
     }
 
@@ -64,9 +68,8 @@ resource "aws_s3_bucket_lifecycle_configuration" "documents" {
       storage_class   = "STANDARD_IA"
     }
 
-    noncurrent_version_expiration {
-      noncurrent_days = 730
-    }
+    # Story H-1: REMOVED noncurrent_version_expiration
+    # Documents must be preserved indefinitely per compliance requirements
   }
 
   rule {

@@ -13,6 +13,7 @@ import {
   autoSubscribePocs,
   notifyStakeholders,
   getUserSubscriptions,
+  notifyPocAssignment,
   NotificationEvent,
   NotificationServiceError,
 } from '../notificationService.js';
@@ -34,6 +35,9 @@ vi.mock('../../db/index.js', () => ({
     },
     nda: {
       findFirst: vi.fn(),
+      findUnique: vi.fn(),
+    },
+    contact: {
       findUnique: vi.fn(),
     },
   },
@@ -466,6 +470,204 @@ describe('Notification Service', () => {
       expect(subs).toHaveLength(2);
       expect(subs[0].nda.companyName).toBe('TechCorp');
       expect(subs[1].nda.companyName).toBe('AnotherCorp');
+    });
+  });
+
+  // Story H-1 Task 15.4: Tests for ASSIGNED_TO_ME notification trigger
+  describe('notifyPocAssignment', () => {
+    it('should send notification when POC is assigned', async () => {
+      // Mock NDA
+      mockPrisma.nda.findUnique.mockResolvedValue({
+        id: 'nda-123',
+        displayId: 1590,
+        companyName: 'TechCorp',
+      } as any);
+
+      // Mock assigned contact
+      mockPrisma.contact.findUnique
+        .mockResolvedValueOnce({
+          id: 'poc-123',
+          email: 'poc@test.com',
+          firstName: 'John',
+          lastName: 'POC',
+        } as any)
+        // Mock assigner (for name)
+        .mockResolvedValueOnce({
+          id: 'user-123',
+          firstName: 'Admin',
+          lastName: 'User',
+        } as any);
+
+      // Mock preferences (enabled)
+      mockPrisma.notificationPreference.findUnique.mockResolvedValue({
+        id: 'pref-1',
+        contactId: 'poc-123',
+        onNdaCreated: true,
+        onNdaEmailed: true,
+        onDocumentUploaded: true,
+        onStatusChanged: true,
+        onFullyExecuted: true,
+        onAssignedToMe: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      } as any);
+
+      // Mock subscription upsert
+      mockPrisma.ndaSubscription.upsert.mockResolvedValue({
+        id: 'sub-1',
+        ndaId: 'nda-123',
+        contactId: 'poc-123',
+        createdAt: new Date(),
+      });
+
+      await notifyPocAssignment('nda-123', 'poc-123', 'Contracts POC', mockUserContext);
+
+      // Verify email was queued
+      const { queueEmail } = await import('../emailService.js');
+      expect(queueEmail).toHaveBeenCalledWith(
+        expect.objectContaining({
+          ndaId: 'nda-123',
+          toRecipients: ['poc@test.com'],
+          subject: expect.stringContaining('TechCorp'),
+        }),
+        mockUserContext
+      );
+
+      // Verify auto-subscription
+      expect(mockPrisma.ndaSubscription.upsert).toHaveBeenCalledWith({
+        where: {
+          ndaId_contactId: { ndaId: 'nda-123', contactId: 'poc-123' },
+        },
+        create: { ndaId: 'nda-123', contactId: 'poc-123' },
+        update: {},
+      });
+    });
+
+    it('should not send notification when user assigns themselves', async () => {
+      const selfAssignContext: UserContext = {
+        ...mockUserContext,
+        contactId: 'poc-123',
+      };
+
+      await notifyPocAssignment('nda-123', 'poc-123', 'Opportunity POC', selfAssignContext);
+
+      // Should not query NDA or send email
+      expect(mockPrisma.nda.findUnique).not.toHaveBeenCalled();
+
+      const { queueEmail } = await import('../emailService.js');
+      expect(queueEmail).not.toHaveBeenCalled();
+    });
+
+    it('should not send notification when preference is disabled', async () => {
+      // Mock NDA
+      mockPrisma.nda.findUnique.mockResolvedValue({
+        id: 'nda-123',
+        displayId: 1590,
+        companyName: 'TechCorp',
+      } as any);
+
+      // Mock preferences (onAssignedToMe disabled)
+      mockPrisma.notificationPreference.findUnique.mockResolvedValue({
+        id: 'pref-1',
+        contactId: 'poc-123',
+        onNdaCreated: true,
+        onNdaEmailed: true,
+        onDocumentUploaded: true,
+        onStatusChanged: true,
+        onFullyExecuted: true,
+        onAssignedToMe: false, // Disabled
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      } as any);
+
+      await notifyPocAssignment('nda-123', 'poc-123', 'Relationship POC', mockUserContext);
+
+      // Email should not be queued
+      const { queueEmail } = await import('../emailService.js');
+      expect(queueEmail).not.toHaveBeenCalled();
+    });
+
+    it('should handle non-existent NDA gracefully', async () => {
+      mockPrisma.nda.findUnique.mockResolvedValue(null);
+
+      // Should not throw, just log warning
+      await expect(
+        notifyPocAssignment('nonexistent', 'poc-123', 'Contracts POC', mockUserContext)
+      ).resolves.toBeUndefined();
+    });
+
+    it('should handle non-existent contact gracefully', async () => {
+      mockPrisma.nda.findUnique.mockResolvedValue({
+        id: 'nda-123',
+        displayId: 1590,
+        companyName: 'TechCorp',
+      } as any);
+
+      // Preferences found
+      mockPrisma.notificationPreference.findUnique.mockResolvedValue({
+        id: 'pref-1',
+        onAssignedToMe: true,
+      } as any);
+
+      // Contact not found
+      mockPrisma.contact.findUnique.mockResolvedValue(null);
+
+      // Should not throw
+      await expect(
+        notifyPocAssignment('nda-123', 'nonexistent', 'Contracts POC', mockUserContext)
+      ).resolves.toBeUndefined();
+    });
+  });
+
+  describe('ASSIGNED_TO_ME event handling', () => {
+    it('should include onAssignedToMe in default preferences', async () => {
+      mockPrisma.notificationPreference.findUnique.mockResolvedValue(null);
+
+      const prefs = await getNotificationPreferences('user-123');
+
+      expect(prefs.onAssignedToMe).toBe(true);
+    });
+
+    it('should return onAssignedToMe from existing preferences', async () => {
+      mockPrisma.notificationPreference.findUnique.mockResolvedValue({
+        id: 'pref-1',
+        contactId: 'user-123',
+        onNdaCreated: true,
+        onNdaEmailed: true,
+        onDocumentUploaded: true,
+        onStatusChanged: true,
+        onFullyExecuted: true,
+        onAssignedToMe: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      } as any);
+
+      const prefs = await getNotificationPreferences('user-123');
+
+      expect(prefs.onAssignedToMe).toBe(false);
+    });
+
+    it('should update onAssignedToMe preference', async () => {
+      mockPrisma.notificationPreference.upsert.mockResolvedValue({
+        id: 'pref-1',
+        contactId: 'user-123',
+        onNdaCreated: true,
+        onNdaEmailed: true,
+        onDocumentUploaded: true,
+        onStatusChanged: true,
+        onFullyExecuted: true,
+        onAssignedToMe: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      } as any);
+
+      const prefs = await updateNotificationPreferences(
+        'user-123',
+        { onAssignedToMe: false },
+        mockUserContext
+      );
+
+      expect(prefs.onAssignedToMe).toBe(false);
     });
   });
 });

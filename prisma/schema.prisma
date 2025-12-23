@@ -436,6 +436,8 @@ model NotificationPreference {
   onDocumentUploaded Boolean @default(true) @map("on_document_uploaded")
   onStatusChanged  Boolean @default(true) @map("on_status_changed")
   onFullyExecuted  Boolean @default(true) @map("on_fully_executed")
+  // Story H-1 Task 13: Notify when assigned as POC
+  onAssignedToMe   Boolean @default(true) @map("on_assigned_to_me")
 
   createdAt        DateTime @default(now()) @map("created_at")
   updatedAt        DateTime @updatedAt @map("updated_at")

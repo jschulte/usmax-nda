@@ -17,6 +17,7 @@ import {
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { randomUUID } from 'crypto';
+import { retryWithBackoff } from '../utils/retry.js';
 
 /**
  * S3 Service Error
@@ -34,12 +35,14 @@ export class S3ServiceError extends Error {
 
 /**
  * Document metadata for upload
+ * Story H-1 Task 10: Added uploadedById for metadata tracking
  */
 export interface UploadDocumentInput {
   ndaId: string;
   filename: string;
   content: Buffer | Uint8Array | string;
   contentType?: string;
+  uploadedById?: string; // Story H-1: User ID for audit trail
 }
 
 /**
@@ -68,10 +71,11 @@ const BUCKET_NAME = process.env.S3_BUCKET_NAME || 'usmax-nda-documents';
 
 /**
  * Upload a document to S3
+ * Story H-1 Task 11: Added retry with exponential backoff (3 attempts)
  *
  * @param input - Document upload parameters
  * @returns S3 key and document ID
- * @throws S3ServiceError on upload failure
+ * @throws S3ServiceError on upload failure after all retries
  */
 export async function uploadDocument(
   input: UploadDocumentInput
@@ -80,6 +84,9 @@ export async function uploadDocument(
   const s3Key = buildS3Key(input.ndaId, documentId, input.filename);
 
   try {
+    // Story H-1 Task 10: Enhanced metadata with upload timestamp and user ID
+    const uploadTimestamp = new Date().toISOString();
+
     const command = new PutObjectCommand({
       Bucket: BUCKET_NAME,
       Key: s3Key,
@@ -92,10 +99,20 @@ export async function uploadDocument(
         'nda-id': input.ndaId,
         'document-id': documentId,
         'original-filename': input.filename,
+        // Story H-1 Task 10: New metadata fields
+        'upload-timestamp': uploadTimestamp,
+        ...(input.uploadedById && { 'uploaded-by-id': input.uploadedById }),
       },
     });
 
-    await s3Client.send(command);
+    // Story H-1 Task 11: Retry with exponential backoff (3 attempts)
+    await retryWithBackoff(
+      () => s3Client.send(command),
+      {
+        maxAttempts: 3,
+        baseDelayMs: 1000,
+      }
+    );
 
     return {
       s3Key,
@@ -104,7 +121,7 @@ export async function uploadDocument(
     };
   } catch (error) {
     throw new S3ServiceError(
-      'Failed to upload document to S3',
+      'Failed to upload document to S3 after retries',
       'UPLOAD_FAILED',
       error instanceof Error ? error : undefined
     );
@@ -187,24 +204,43 @@ export async function getDocumentContent(s3Key: string): Promise<Buffer> {
 /**
  * Delete a document from S3
  *
+ * @deprecated Story H-1 Task 8: Document deletion is not allowed in production.
+ * Documents must be retained indefinitely per compliance requirements.
+ * This function is kept only for emergency situations requiring direct DBA intervention.
+ * DO NOT call this function from application code or expose through any API.
+ *
  * @param s3Key - S3 key of the document to delete
  * @throws S3ServiceError on deletion failure
+ * @internal This function should never be used in normal application flow
  */
 export async function deleteDocument(s3Key: string): Promise<void> {
-  try {
-    const command = new DeleteObjectCommand({
-      Bucket: BUCKET_NAME,
-      Key: s3Key,
-    });
+  // Log warning for any usage
+  console.warn(
+    '[S3Service] DEPRECATED: deleteDocument called for key:',
+    s3Key,
+    '- Document deletion is disabled per compliance requirements'
+  );
 
-    await s3Client.send(command);
-  } catch (error) {
-    throw new S3ServiceError(
-      'Failed to delete document from S3',
-      'DELETE_FAILED',
-      error instanceof Error ? error : undefined
-    );
-  }
+  // Story H-1: Prevent deletion by throwing error
+  throw new S3ServiceError(
+    'Document deletion is not allowed. Documents must be retained indefinitely per compliance requirements.',
+    'DELETE_NOT_ALLOWED'
+  );
+
+  // Original implementation kept for reference only:
+  // try {
+  //   const command = new DeleteObjectCommand({
+  //     Bucket: BUCKET_NAME,
+  //     Key: s3Key,
+  //   });
+  //   await s3Client.send(command);
+  // } catch (error) {
+  //   throw new S3ServiceError(
+  //     'Failed to delete document from S3',
+  //     'DELETE_FAILED',
+  //     error instanceof Error ? error : undefined
+  //   );
+  // }
 }
 
 /**
