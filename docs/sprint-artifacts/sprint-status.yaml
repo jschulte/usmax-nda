@@ -205,3 +205,31 @@ development_status:
   9-24-verify-security-alerts-implementation: done  # Verified: Sentry exists - update messaging
   9-25-verify-notification-settings-work: done  # Verified: Implemented and functional
   epic-9-retrospective: optional
+
+  # Epic 10: Customer Feedback Implementation - Customer clarifications from 2025-12-23
+  # Core implementation: 17/17 stories DONE | Follow-up: 4 stories backlog (notifications, tests, migration)
+  epic-10: done
+  10-1-add-usmax-position-field: done  # Data model: Prime/Sub-contractor/Other dropdown
+  10-2-add-nda-type-field: done  # Data model: Mutual NDA/Consultant dropdown
+  10-3-update-status-values-legacy-alignment: done  # Status names: Created/Pending Release, Sent/Pending Signature, etc.
+  10-4-implement-auto-expiration-logic: done  # Auto-expire 1 year from execution date
+  10-5-add-non-usmax-nda-flag: done  # Flag for partner NDAs, prevent accidental sends (field exists, Story 10.14 adds safeguards)
+  10-6-implement-approval-workflow: done  # Two-step: draft → route → approve → send (backend complete, UI buttons in 10.7/10.8)
+  10-7-add-preview-before-send: done  # Preview NDA before routing/sending (automatic preview + confirmation)
+  10-8-support-creator-equals-approver: done  # Self-approval scenario (notice banner + confirmation prompt)
+  10-9-automate-bcc-from-notify-checkbox: done  # Auto-populate BCC from "Notify on NDA Changes" (NdaSubscription → BCC)
+  10-10-enhance-cc-bcc-management: done  # Default CC/BCC + ad-hoc additions (systemConfig already implemented)
+  10-11-enable-base-email-template-editing: done  # Edit template once, applies to all future (read-only implemented, full CRUD in Epic 7)
+  10-12-global-spelling-correction-usmax: done  # USmax not USMax everywhere (completed in Story 10.1 code review)
+  10-13-add-request-nda-header-button: done  # Prominent header button
+  10-14-add-non-usmax-nda-safeguards: done  # Warning banners, confirmation prompts
+  10-15-remove-specified-users: done  # Deactivate Chris, Sae, Angela, John (Only John found in demo DB - others don't exist)
+  10-16-clarify-type-field-meaning: done  # Customer clarified: Type filter uses Status values
+  10-17-clarify-contacts-vs-contracts-poc: done  # Schema already has 4 separate POC types (Opportunity, Contracts, Relationship, Contacts)
+
+  # Epic 10 Follow-up Stories (Code Review Findings)
+  10-18-implement-approval-notifications: backlog  # Send notifications to approvers when routed, notify creator when rejected
+  10-19-add-expiration-job-tests: backlog  # Unit tests for expirationJob.ts expireNdas() function
+  10-20-add-approval-workflow-frontend-tests: backlog  # Tests for Route/Approve/Reject buttons and flows
+  10-21-create-production-migration: backlog  # Consolidated migration for all Epic 10 schema changes
+  epic-10-retrospective: optional

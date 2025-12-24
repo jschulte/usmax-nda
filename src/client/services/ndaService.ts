@@ -15,21 +15,18 @@ import { get, post, put, patch } from './api';
 // Types based on backend routes
 export type NdaStatus =
   | 'CREATED'
-  | 'EMAILED'
+  | 'PENDING_APPROVAL'
+  | 'SENT_PENDING_SIGNATURE'
   | 'IN_REVISION'
   | 'FULLY_EXECUTED'
-  | 'INACTIVE'
-  | 'CANCELLED';
+  | 'INACTIVE_CANCELED'
+  | 'EXPIRED';
 
 export type NdaType =
   | 'MUTUAL'
-  | 'ONE_WAY_GOVERNMENT'
-  | 'ONE_WAY_COUNTERPARTY'
-  | 'VISITOR'
-  | 'RESEARCH'
-  | 'VENDOR_ACCESS';
+  | 'CONSULTANT';
 
-export type UsMaxPosition = 'PRIME' | 'SUB' | 'TEAMING' | 'OTHER';
+export type UsMaxPosition = 'PRIME' | 'SUB_CONTRACTOR' | 'OTHER';
 
 export interface NdaListItem {
   id: string;
@@ -556,4 +553,28 @@ export async function exportNDAs(params: ListNdasParams = {}): Promise<Blob> {
   }
 
   return response.blob();
+}
+
+/**
+ * Route NDA for approval
+ * Story 10.6: Two-Step Approval Workflow
+ */
+export async function routeForApproval(ndaId: string): Promise<void> {
+  await post(`/api/ndas/${ndaId}/route-for-approval`, {});
+}
+
+/**
+ * Approve a pending NDA
+ * Story 10.6: Two-Step Approval Workflow
+ */
+export async function approveNda(ndaId: string): Promise<void> {
+  await post(`/api/ndas/${ndaId}/approve`, {});
+}
+
+/**
+ * Reject a pending NDA
+ * Story 10.6: Two-Step Approval Workflow
+ */
+export async function rejectNda(ndaId: string, reason?: string): Promise<void> {
+  await post(`/api/ndas/${ndaId}/reject`, { reason });
 }

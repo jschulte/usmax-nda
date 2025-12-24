@@ -58,32 +58,34 @@ export class StatusTransitionError extends Error {
  */
 export const VALID_TRANSITIONS: Record<NdaStatus, NdaStatus[]> = {
   [NdaStatus.CREATED]: [
-    NdaStatus.EMAILED,
-    NdaStatus.INACTIVE,
-    NdaStatus.CANCELLED,
+    NdaStatus.PENDING_APPROVAL, // Story 10.6: Route for approval
+    NdaStatus.SENT_PENDING_SIGNATURE,
+    NdaStatus.INACTIVE_CANCELED,
   ],
-  [NdaStatus.EMAILED]: [
+  [NdaStatus.PENDING_APPROVAL]: [ // Story 10.6
+    NdaStatus.SENT_PENDING_SIGNATURE, // Approved
+    NdaStatus.CREATED, // Rejected/Request Changes
+  ],
+  [NdaStatus.SENT_PENDING_SIGNATURE]: [
     NdaStatus.IN_REVISION,
     NdaStatus.FULLY_EXECUTED,
-    NdaStatus.INACTIVE,
-    NdaStatus.CANCELLED,
+    NdaStatus.INACTIVE_CANCELED,
   ],
   [NdaStatus.IN_REVISION]: [
-    NdaStatus.EMAILED,
+    NdaStatus.SENT_PENDING_SIGNATURE,
     NdaStatus.FULLY_EXECUTED,
-    NdaStatus.INACTIVE,
-    NdaStatus.CANCELLED,
+    NdaStatus.INACTIVE_CANCELED,
   ],
   [NdaStatus.FULLY_EXECUTED]: [
-    NdaStatus.INACTIVE,
+    NdaStatus.INACTIVE_CANCELED,
   ],
-  [NdaStatus.INACTIVE]: [
+  [NdaStatus.INACTIVE_CANCELED]: [
     NdaStatus.CREATED,
-    NdaStatus.EMAILED,
+    NdaStatus.SENT_PENDING_SIGNATURE,
     NdaStatus.IN_REVISION,
     NdaStatus.FULLY_EXECUTED,
   ],
-  [NdaStatus.CANCELLED]: [], // Terminal state - no transitions allowed
+  [NdaStatus.EXPIRED]: [], // Terminal state - no transitions allowed
 };
 
 /**
@@ -92,14 +94,14 @@ export const VALID_TRANSITIONS: Record<NdaStatus, NdaStatus[]> = {
 export const AUTO_TRANSITION_RULES: Partial<Record<StatusTrigger, { from: NdaStatus[]; to: NdaStatus }>> = {
   [StatusTrigger.EMAIL_SENT]: {
     from: [NdaStatus.CREATED],
-    to: NdaStatus.EMAILED,
+    to: NdaStatus.SENT_PENDING_SIGNATURE,
   },
   [StatusTrigger.DOCUMENT_UPLOADED]: {
-    from: [NdaStatus.EMAILED],
+    from: [NdaStatus.SENT_PENDING_SIGNATURE],
     to: NdaStatus.IN_REVISION,
   },
   [StatusTrigger.FULLY_EXECUTED_UPLOAD]: {
-    from: [NdaStatus.CREATED, NdaStatus.EMAILED, NdaStatus.IN_REVISION],
+    from: [NdaStatus.CREATED, NdaStatus.SENT_PENDING_SIGNATURE, NdaStatus.IN_REVISION],
     to: NdaStatus.FULLY_EXECUTED,
   },
 };
@@ -312,8 +314,7 @@ export function isTerminalStatus(status: NdaStatus): boolean {
  * Statuses that are hidden from default list views
  */
 export const HIDDEN_BY_DEFAULT_STATUSES: NdaStatus[] = [
-  NdaStatus.INACTIVE,
-  NdaStatus.CANCELLED,
+  NdaStatus.INACTIVE_CANCELED,
 ];
 
 /**
@@ -327,7 +328,7 @@ export function isHiddenByDefault(status: NdaStatus): boolean {
  * Check if an NDA can be reactivated (only from INACTIVE, not CANCELLED)
  */
 export function canReactivate(status: NdaStatus): boolean {
-  return status === NdaStatus.INACTIVE;
+  return status === NdaStatus.INACTIVE_CANCELED;
 }
 
 /**
@@ -354,7 +355,15 @@ export const STATUS_DISPLAY: Record<NdaStatus, StatusDisplayInfo> = {
     isTerminal: false,
     canReactivate: false,
   },
-  [NdaStatus.EMAILED]: {
+  [NdaStatus.PENDING_APPROVAL]: { // Story 10.6
+    label: 'Pending Approval',
+    color: 'orange',
+    variant: 'warning',
+    hiddenByDefault: false,
+    isTerminal: false,
+    canReactivate: false,
+  },
+  [NdaStatus.SENT_PENDING_SIGNATURE]: {
     label: 'Emailed',
     color: 'green',
     variant: 'default',
@@ -378,19 +387,19 @@ export const STATUS_DISPLAY: Record<NdaStatus, StatusDisplayInfo> = {
     isTerminal: false,
     canReactivate: false,
   },
-  [NdaStatus.INACTIVE]: {
-    label: 'Inactive',
+  [NdaStatus.INACTIVE_CANCELED]: {
+    label: 'Inactive/Canceled',
     color: 'gray',
     variant: 'muted',
     hiddenByDefault: true,
     isTerminal: false,
     canReactivate: true,
   },
-  [NdaStatus.CANCELLED]: {
-    label: 'Cancelled',
+  [NdaStatus.EXPIRED]: {
+    label: 'Expired',
     color: 'red',
     variant: 'danger',
-    hiddenByDefault: true,
+    hiddenByDefault: false,
     isTerminal: true,
     canReactivate: false,
   },

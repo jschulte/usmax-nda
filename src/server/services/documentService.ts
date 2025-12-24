@@ -506,6 +506,19 @@ export async function markDocumentFullyExecuted(
     },
   });
 
+  // Story 10.4: Set execution date and calculate expiration (365 days)
+  const executionDate = new Date();
+  const expirationDate = new Date(executionDate);
+  expirationDate.setFullYear(expirationDate.getFullYear() + 1);
+
+  await prisma.nda.update({
+    where: { id: document.ndaId },
+    data: {
+      fullyExecutedDate: executionDate,
+      expirationDate: expirationDate,
+    },
+  });
+
   // Auto-transition NDA status
   try {
     await transitionStatus(

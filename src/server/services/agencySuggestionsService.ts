@@ -4,7 +4,7 @@
  *
  * Provides intelligent suggestions when user selects agency first:
  * - getCommonCompanies: Top companies by NDA count for agency
- * - getTypicalPosition: Most common USMax position for agency
+ * - getTypicalPosition: Most common USmax position for agency
  * - getDefaultTemplate: Most used RTF template for agency
  */
 
@@ -67,7 +67,7 @@ export async function getCommonCompanies(
 }
 
 /**
- * Get typical USMax position for an agency group
+ * Get typical USmax position for an agency group
  * Returns the most common position and counts for all positions
  */
 export async function getTypicalPosition(

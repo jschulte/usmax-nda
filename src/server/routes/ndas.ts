@@ -58,6 +58,7 @@ import {
   NdaServiceError,
   NdaStatus,
   NdaType,
+  UsMaxPosition,
 } from '../services/ndaService.js';
 import {
   getRecentCompanies,
@@ -229,6 +230,7 @@ router.get(
         stateOfIncorporation: req.query.stateOfIncorporation as string | undefined,
         agencyOfficeName: req.query.agencyOfficeName as string | undefined,
         isNonUsMax: req.query.isNonUsMax === undefined ? undefined : req.query.isNonUsMax === 'true',
+        usMaxPosition: req.query.usMaxPosition as UsMaxPosition | undefined,
         createdDateFrom: req.query.createdDateFrom as string | undefined,
         createdDateTo: req.query.createdDateTo as string | undefined,
         opportunityPocName: req.query.opportunityPocName as string | undefined,
@@ -331,6 +333,7 @@ router.get(
         agencyOfficeName: req.query.agencyOfficeName as string | undefined,
         ndaType: req.query.ndaType as NdaType | undefined,
         isNonUsMax: req.query.isNonUsMax === undefined ? undefined : req.query.isNonUsMax === 'true',
+        usMaxPosition: req.query.usMaxPosition as UsMaxPosition | undefined,
         createdDateFrom: req.query.createdDateFrom as string | undefined,
         createdDateTo: req.query.createdDateTo as string | undefined,
         opportunityPocName: req.query.opportunityPocName as string | undefined,
@@ -569,7 +572,7 @@ router.get(
  *
  * Returns:
  * - commonCompanies: Top 5 companies for this agency
- * - typicalPosition: Most common USMax position
+ * - typicalPosition: Most common USmax position
  * - positionCounts: Counts for all positions
  * - defaultTemplateId/Name: Most used template (when available)
  *
@@ -695,7 +698,7 @@ router.get(
  * - abbreviatedName: string (required)
  * - authorizedPurpose: string (required, max 255 chars)
  * - effectiveDate: ISO date string (optional)
- * - usMaxPosition: 'PRIME' | 'SUB' | 'TEAMING' | 'OTHER' (optional, default: PRIME)
+ * - usMaxPosition: 'PRIME' | 'SUB_CONTRACTOR' | 'OTHER' (optional, default: PRIME)
  * - isNonUsMax: boolean (optional, default: false)
  * - opportunityPocId: string (optional, defaults to current user)
  * - contractsPocId: string (optional)
@@ -829,7 +832,7 @@ router.post('/', requirePermission(PERMISSIONS.NDA_CREATE), async (req, res) => 
  * - abbreviatedName: string
  * - authorizedPurpose: string (max 255 chars)
  * - effectiveDate: ISO date string | null
- * - usMaxPosition: 'PRIME' | 'SUB' | 'TEAMING' | 'OTHER'
+ * - usMaxPosition: 'PRIME' | 'SUB_CONTRACTOR' | 'OTHER'
  * - isNonUsMax: boolean
  * - contractsPocId: string | null
  * - relationshipPocId: string
@@ -934,7 +937,7 @@ router.put('/:id', requirePermission(PERMISSIONS.NDA_UPDATE), async (req, res) =
  * Change NDA status
  *
  * Body:
- * - status: 'CREATED' | 'EMAILED' | 'IN_REVISION' | 'FULLY_EXECUTED' | 'INACTIVE' | 'CANCELLED'
+ * - status: 'CREATED' | 'SENT_PENDING_SIGNATURE' | 'IN_REVISION' | 'FULLY_EXECUTED' | 'INACTIVE_CANCELED' | 'EXPIRED'
  *
  * Requires: nda:mark_status permission
  */
@@ -950,7 +953,7 @@ router.patch('/:id/status', requirePermission(PERMISSIONS.NDA_MARK_STATUS), asyn
     }
 
     // Validate status value
-    const validStatuses = ['CREATED', 'EMAILED', 'IN_REVISION', 'FULLY_EXECUTED', 'INACTIVE', 'CANCELLED'];
+    const validStatuses = ['CREATED', 'SENT_PENDING_SIGNATURE', 'IN_REVISION', 'FULLY_EXECUTED', 'INACTIVE_CANCELED', 'EXPIRED'];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({
         error: `Invalid status. Must be one of: ${validStatuses.join(', ')}`,
@@ -970,7 +973,7 @@ router.patch('/:id/status', requirePermission(PERMISSIONS.NDA_MARK_STATUS), asyn
           : undefined;
       const newStatus = nda.status as string;
       const event =
-        newStatus === 'EMAILED'
+        newStatus === 'SENT_PENDING_SIGNATURE'
           ? NotificationEvent.NDA_EMAILED
           : newStatus === 'FULLY_EXECUTED'
             ? NotificationEvent.FULLY_EXECUTED
@@ -2158,5 +2161,107 @@ router.delete(
     }
   }
 );
+
+/**
+ * POST /api/ndas/:id/route-for-approval
+ * Route NDA for approval
+ * Story 10.6: Two-Step Approval Workflow
+ */
+router.post('/:id/route-for-approval', requirePermission(PERMISSIONS.NDA_CREATE), async (req, res) => {
+  try {
+    const nda = await changeNdaStatus(req.params.id, 'PENDING_APPROVAL', req.userContext!, {
+      ipAddress: req.ip,
+      userAgent: req.get('User-Agent'),
+    });
+
+    // TODO: Send notifications to approvers
+    // Find users with nda:approve permission for this agency
+    // Send approval request emails
+
+    res.json({
+      message: 'NDA routed for approval',
+      nda,
+    });
+  } catch (error) {
+    console.error('[NDAs] Error routing for approval:', error);
+    res.status(500).json({
+      error: 'Failed to route NDA for approval',
+      code: 'INTERNAL_ERROR',
+    });
+  }
+});
+
+/**
+ * POST /api/ndas/:id/approve
+ * Approve a pending NDA
+ * Story 10.6: Two-Step Approval Workflow
+ */
+router.post('/:id/approve', requirePermission(PERMISSIONS.NDA_APPROVE), async (req, res) => {
+  try {
+    // Set approval metadata
+    await prisma.nda.update({
+      where: { id: req.params.id },
+      data: {
+        approvedById: req.userContext!.contactId,
+        approvedAt: new Date(),
+      },
+    });
+
+    // Change status to SENT_PENDING_SIGNATURE (ready to send)
+    const nda = await changeNdaStatus(req.params.id, 'SENT_PENDING_SIGNATURE', req.userContext!, {
+      ipAddress: req.ip,
+      userAgent: req.get('User-Agent'),
+    });
+
+    res.json({
+      message: 'NDA approved',
+      nda,
+    });
+  } catch (error) {
+    console.error('[NDAs] Error approving NDA:', error);
+    res.status(500).json({
+      error: 'Failed to approve NDA',
+      code: 'INTERNAL_ERROR',
+    });
+  }
+});
+
+/**
+ * POST /api/ndas/:id/reject
+ * Reject a pending NDA
+ * Story 10.6: Two-Step Approval Workflow
+ */
+router.post('/:id/reject', requirePermission(PERMISSIONS.NDA_APPROVE), async (req, res) => {
+  try {
+    const { reason } = req.body;
+
+    // Store rejection reason
+    await prisma.nda.update({
+      where: { id: req.params.id },
+      data: {
+        rejectionReason: reason || 'No reason provided',
+      },
+    });
+
+    // Change status back to CREATED
+    const nda = await changeNdaStatus(req.params.id, 'CREATED', req.userContext!, {
+      ipAddress: req.ip,
+      userAgent: req.get('User-Agent'),
+    });
+
+    // TODO: Notify creator of rejection
+
+    res.json({
+      message: 'NDA rejected',
+      nda,
+    });
+  } catch (error) {
+    console.error('[NDAs] Error rejecting NDA:', error);
+    res.status(500).json({
+      error: 'Failed to reject NDA',
+      code: 'INTERNAL_ERROR',
+    });
+  }
+});
 
 export default router;

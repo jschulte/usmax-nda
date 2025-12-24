@@ -212,7 +212,7 @@ async function getMetrics(
     prisma.nda.count({
       where: {
         ...securityFilter,
-        status: { notIn: [NdaStatus.INACTIVE, NdaStatus.CANCELLED] },
+        status: { notIn: [NdaStatus.INACTIVE_CANCELED, NdaStatus.INACTIVE_CANCELED] },
       },
     }),
 
@@ -332,7 +332,7 @@ async function getStaleNdas(
   const staleEmailed = await prisma.nda.findMany({
     where: {
       ...securityFilter,
-      status: NdaStatus.EMAILED,
+      status: NdaStatus.SENT_PENDING_SIGNATURE,
       updatedAt: { lte: emailedThreshold },
     },
     select: {
@@ -469,7 +469,7 @@ async function getWaitingNdas(
   const waitingNdas = await prisma.nda.findMany({
     where: {
       ...securityFilter,
-      status: { in: [NdaStatus.EMAILED, NdaStatus.IN_REVISION] },
+      status: { in: [NdaStatus.SENT_PENDING_SIGNATURE, NdaStatus.IN_REVISION] },
     },
     select: {
       id: true,

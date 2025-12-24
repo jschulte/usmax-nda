@@ -58,6 +58,7 @@ model Contact {
   ndasAsContractsPoc    Nda[]              @relation("NdaContractsPoc")
   ndasAsRelationshipPoc Nda[]              @relation("NdaRelationshipPoc")
   ndasAsContactsPoc     Nda[]              @relation("NdaContactsPoc")
+  ndasApproved          Nda[]              @relation("NdaApprovedBy") // Story 10.6
   ndaStatusChanges      NdaStatusHistory[]
   documentsUploaded     Document[]
 
@@ -224,29 +225,25 @@ model SubagencyGrant {
 /// NDA Status enum for lifecycle tracking
 enum NdaStatus {
   CREATED
-  EMAILED
+  PENDING_APPROVAL
+  SENT_PENDING_SIGNATURE
   IN_REVISION
   FULLY_EXECUTED
-  INACTIVE
-  CANCELLED
+  INACTIVE_CANCELED
+  EXPIRED
 }
 
 /// USMax Position on the contract
 enum UsMaxPosition {
   PRIME
-  SUB
-  TEAMING
+  SUB_CONTRACTOR
   OTHER
 }
 
 /// NDA Type enum for classification and suggestions
 enum NdaType {
   MUTUAL
-  ONE_WAY_GOVERNMENT
-  ONE_WAY_COUNTERPARTY
-  VISITOR
-  RESEARCH
-  VENDOR_ACCESS
+  CONSULTANT
 }
 
 /// NDA represents a Non-Disclosure Agreement record
@@ -278,6 +275,12 @@ model Nda {
   // Status
   status            NdaStatus @default(CREATED)
   fullyExecutedDate DateTime? @map("fully_executed_date")
+  expirationDate    DateTime? @map("expiration_date") // Story 10.4: Auto-calculated as fullyExecutedDate + 365 days
+
+  // Approval workflow (Story 10.6)
+  approvedById      String?   @map("approved_by_id")
+  approvedAt        DateTime? @map("approved_at")
+  rejectionReason   String?   @map("rejection_reason") @db.Text
 
   // POCs (Points of Contact)
   opportunityPocId  String   @map("opportunity_poc_id")
@@ -301,6 +304,7 @@ model Nda {
   // Metadata
   createdById String   @map("created_by_id")
   createdBy   Contact  @relation("NdaCreatedBy", fields: [createdById], references: [id])
+  approvedBy  Contact? @relation("NdaApprovedBy", fields: [approvedById], references: [id]) // Story 10.6
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
@@ -317,6 +321,7 @@ model Nda {
   @@index([companyName])
   @@index([createdById])
   @@index([effectiveDate])
+  @@index([expirationDate])
   @@index([rtfTemplateId])
   @@map("ndas")
 }

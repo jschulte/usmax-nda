@@ -460,7 +460,7 @@ describe('Notification Service', () => {
             id: 'nda-2',
             displayId: 1591,
             companyName: 'AnotherCorp',
-            status: 'EMAILED',
+            status: 'SENT_PENDING_SIGNATURE',
           },
         },
       ] as any);

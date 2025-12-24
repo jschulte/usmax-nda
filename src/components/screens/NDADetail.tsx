@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../client/hooks/useAuth';
 import { Card } from '../ui/AppCard';
 import { Badge } from '../ui/AppBadge';
 import { Button } from '../ui/AppButton';
@@ -53,6 +54,9 @@ import {
   getEmailPreview,
   sendNdaEmail,
   getStatusInfo,
+  routeForApproval,
+  approveNda,
+  rejectNda,
   type EmailPreview,
   type NdaDetail,
   type NdaStatus,
@@ -80,10 +84,25 @@ import {
 } from '../../client/services/emailTemplateService';
 import * as notesService from '../../client/services/notesService'; // Story 9.1
 import { formatAuditDetails } from '../../client/utils/formatAuditChanges'; // Story 9.6
+import { getStatusDisplayName } from '../../client/utils/statusFormatter'; // Story 10.3
+
+// Story 10.1: USmax Position display labels
+const usMaxPositionLabels: Record<string, string> = {
+  PRIME: 'Prime',
+  SUB_CONTRACTOR: 'Sub-contractor',
+  OTHER: 'Other'
+};
+
+// Story 10.2: NDA Type display labels
+const ndaTypeLabels: Record<string, string> = {
+  MUTUAL: 'Mutual NDA',
+  CONSULTANT: 'Consultant'
+};
 
 export function NDADetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth(); // Story 10.8
 
   // Data state
   const [nda, setNda] = useState<NdaDetail | null>(null);
@@ -366,12 +385,124 @@ export function NDADetail() {
     }
   };
 
-  const handleSendForSignature = () => {
+  const handleSendForSignature = async () => {
     if (!canSendEmail) {
       toast.error("You don't have permission to send emails.");
       return;
     }
-    openEmailComposer();
+
+    // Story 10.7: Preview before send
+    try {
+      setPreviewing(true);
+      const result = await generatePreview(id!, selectedTemplateId || undefined);
+      window.open(result.preview.previewUrl, '_blank', 'noopener,noreferrer');
+
+      // Wait briefly for preview to open, then confirm
+      setTimeout(() => {
+        let confirmMessage = 'Preview opened in new tab.\n\nProceed to send this NDA?';
+
+        // Story 10.14: Extra confirmation for Non-USmax NDAs
+        if (nda?.isNonUsMax) {
+          confirmMessage = '⚠️ Warning: This is a Non-USmax NDA.\n\nUSmax signed a partner\'s NDA. Are you sure you want to send an email?\n\nClick OK to confirm this email send is intentional.';
+        }
+
+        const confirmed = window.confirm(confirmMessage);
+        if (confirmed) {
+          openEmailComposer();
+        }
+      }, 500);
+    } catch (err) {
+      console.error('Failed to generate preview:', err);
+      toast.error('Preview failed', {
+        description: 'Cannot send without previewing document first'
+      });
+    } finally {
+      setPreviewing(false);
+    }
+  };
+
+  // Story 10.6 + 10.7: Route for approval with preview
+  const handleRouteForApproval = async () => {
+    if (!id) return;
+
+    // Story 10.7: Preview before routing
+    try {
+      setPreviewing(true);
+      const result = await generatePreview(id, selectedTemplateId || undefined);
+      window.open(result.preview.previewUrl, '_blank', 'noopener,noreferrer');
+
+      setTimeout(async () => {
+        const confirmed = window.confirm('Preview opened in new tab.\n\nRoute this NDA for approval?');
+        if (confirmed) {
+          try {
+            await routeForApproval(id);
+            toast.success('NDA routed for approval');
+            // Reload NDA to show new status
+            const updated = await getNdaDetail(id);
+            setNda(updated);
+          } catch (err) {
+            toast.error('Failed to route for approval', {
+              description: err instanceof Error ? err.message : 'Unknown error'
+            });
+          }
+        }
+      }, 500);
+    } catch (err) {
+      console.error('Failed to generate preview:', err);
+      toast.error('Preview failed', {
+        description: 'Cannot route without previewing document first'
+      });
+    } finally {
+      setPreviewing(false);
+    }
+  };
+
+  // Story 10.6 + 10.8: Approve NDA handler (supports self-approval)
+  const handleApproveNda = async () => {
+    if (!id) return;
+
+    // Story 10.8: Check if user is approving their own NDA
+    const isApprovingOwnNda = nda?.createdBy?.id === user?.id;
+
+    if (isApprovingOwnNda) {
+      const confirmed = window.confirm(
+        'You are approving your own NDA.\n\nThis is allowed, but will be noted in the audit log. Continue?'
+      );
+      if (!confirmed) return;
+    }
+
+    try {
+      await approveNda(id);
+      toast.success('NDA approved - ready to send');
+      // Reload and open email composer
+      const updated = await getNdaDetail(id);
+      setNda(updated);
+      openEmailComposer();
+    } catch (err) {
+      toast.error('Failed to approve NDA', {
+        description: err instanceof Error ? err.message : 'Unknown error'
+      });
+    }
+  };
+
+  // Story 10.6: Reject NDA handler
+  const handleRejectNda = async () => {
+    if (!id) return;
+
+    const reason = window.prompt('Enter rejection reason (optional):');
+    if (reason === null) return; // User cancelled
+
+    try {
+      await rejectNda(id, reason || undefined);
+      toast.success('NDA rejected - returned to creator');
+      // Reload to show new status
+      const updated = await getNdaDetail(id);
+      setNda(updated);
+    } catch (err) {
+      toast.error('Failed to reject NDA', {
+        description: err instanceof Error ? err.message : 'Unknown error'
+      });
+    }
   };
 
   const parseRecipientInput = (value: string) =>
@@ -666,6 +797,14 @@ export function NDADetail() {
       return;
     }
 
+    // Story 10.14: Confirm for Non-USmax NDAs
+    if (nda?.isNonUsMax) {
+      const confirmed = window.confirm(
+        'This is a Non-USmax NDA. Document generation is typically not needed since USmax signed a partner\'s NDA.\n\nProceed anyway?'
+      );
+      if (!confirmed) return;
+    }
+
     try {
       setGenerating(true);
       const result = await generateDocument(id, selectedTemplateId || undefined);
@@ -782,16 +921,9 @@ export function NDADetail() {
   };
   
   // Map backend status to UI display status
+  // Story 10.3: Use legacy display names
   const getDisplayStatus = (status: NdaStatus): string => {
-    const statusMap: Record<NdaStatus, string> = {
-      CREATED: 'Draft',
-      EMAILED: 'Waiting for signature',
-      IN_REVISION: 'In legal review',
-      FULLY_EXECUTED: 'Executed',
-      INACTIVE: 'Inactive',
-      CANCELLED: 'Cancelled'
-    };
-    return statusMap[status] || status;
+    return getStatusDisplayName(status);
   };
 
   // Map backend status to risk/badge variant
@@ -799,11 +931,11 @@ export function NDADetail() {
     switch (status) {
       case 'FULLY_EXECUTED':
         return 'success';
-      case 'EMAILED':
+      case 'SENT_PENDING_SIGNATURE':
       case 'IN_REVISION':
         return 'warning';
-      case 'CANCELLED':
-      case 'INACTIVE':
+      case 'INACTIVE_CANCELED':
+      case 'EXPIRED':
         return 'error';
       default:
         return 'info';
@@ -908,14 +1040,44 @@ export function NDADetail() {
         >
           Back to NDAs
         </Button>
-        
+
+        {/* Story 10.14: Non-USmax NDA Warning Banner */}
+        {nda.isNonUsMax && (
+          <div className="mb-4 p-4 bg-orange-50 border border-orange-200 rounded-lg flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-orange-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <h3 className="text-sm font-semibold text-orange-900 mb-1">
+                ⚠️ Non-USmax NDA: USmax signed partner's NDA
+              </h3>
+              <p className="text-sm text-orange-800">
+                Exercise caution with email sends. This NDA was created by the partner, not USmax.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Story 10.8: Self-approval notice */}
+        {nda.status === 'PENDING_APPROVAL' && nda.createdBy?.id === user?.id && nda.availableActions?.canApprove && (
+          <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <h3 className="text-sm font-semibold text-blue-900 mb-1">
+                You are approving your own NDA
+              </h3>
+              <p className="text-sm text-blue-800">
+                This approval will be noted in the audit log as a self-approval.
+              </p>
+            </div>
+          </div>
+        )}
+
         <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
           <div className="flex-1">
             <h1 className="mb-3">{nda.companyName} - {nda.agencyGroup.name}</h1>
             <div className="flex flex-wrap items-center gap-2 mb-3">
               <Badge variant={getStatusVariant(nda.status)}>{getDisplayStatus(nda.status)}</Badge>
               <Badge variant="info">{nda.displayId}</Badge>
-              <Badge variant="default">{nda.usMaxPosition}</Badge>
+              <Badge variant="default">{usMaxPositionLabels[nda.usMaxPosition] || nda.usMaxPosition}</Badge>
               {nda.effectiveDate && (
                 <Badge variant="info">Effective {new Date(nda.effectiveDate).toLocaleDateString()}</Badge>
               )}
@@ -935,6 +1097,41 @@ export function NDADetail() {
             <Button variant="secondary" icon={<Download className="w-4 h-4" />} onClick={handleDownloadPDF}>
               Download PDF
             </Button>
+
+            {/* Story 10.6: Route for Approval button (when CREATED) */}
+            {nda.status === 'CREATED' && nda.availableActions?.canRouteForApproval && (
+              <Button
+                variant="warning"
+                icon={<Send className="w-4 h-4" />}
+                onClick={handleRouteForApproval}
+                disabled={previewing}
+              >
+                Route for Approval
+              </Button>
+            )}
+
+            {/* Story 10.6: Approve & Send button (when PENDING_APPROVAL) */}
+            {nda.status === 'PENDING_APPROVAL' && nda.availableActions?.canApprove && (
+              <Button
+                variant="primary"
+                icon={<CheckCircle className="w-4 h-4" />}
+                onClick={handleApproveNda}
+              >
+                Approve & Send
+              </Button>
+            )}
+
+            {/* Story 10.6: Reject button (when PENDING_APPROVAL) */}
+            {nda.status === 'PENDING_APPROVAL' && nda.availableActions?.canApprove && (
+              <Button
+                variant="secondary"
+                icon={<X className="w-4 h-4" />}
+                onClick={handleRejectNda}
+              >
+                Reject
+              </Button>
+            )}
+
             {nda.status === 'IN_REVISION' && renderPermissionedButton(
               <Button
                 variant="primary"
@@ -1087,12 +1284,12 @@ export function NDADetail() {
                         <p>{nda.abbreviatedName}</p>
                       </div>
                       <div>
-                        <p className="text-sm text-[var(--color-text-secondary)] mb-2">US/MAX Position</p>
-                        <p>{nda.usMaxPosition}</p>
+                        <p className="text-sm text-[var(--color-text-secondary)] mb-2">USmax Position</p>
+                        <p>{usMaxPositionLabels[nda.usMaxPosition] || nda.usMaxPosition}</p>
                       </div>
                       <div>
                         <p className="text-sm text-[var(--color-text-secondary)] mb-2">NDA Type</p>
-                        <p>{nda.ndaType}</p>
+                        <p>{ndaTypeLabels[nda.ndaType] || nda.ndaType}</p>
                       </div>
                       {nda.isNonUsMax && (
                         <div>

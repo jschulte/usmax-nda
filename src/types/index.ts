@@ -4,11 +4,7 @@ export type NDAStatus = 'Draft' | 'In legal review' | 'Pending approval' | 'Wait
 
 export type NDAType =
   | 'MUTUAL'
-  | 'ONE_WAY_GOVERNMENT'
-  | 'ONE_WAY_COUNTERPARTY'
-  | 'VISITOR'
-  | 'RESEARCH'
-  | 'VENDOR_ACCESS';
+  | 'CONSULTANT';
 
 export type RiskLevel = 'Low' | 'Medium' | 'High';
 

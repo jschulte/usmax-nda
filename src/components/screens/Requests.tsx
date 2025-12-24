@@ -42,6 +42,7 @@ import {
   SelectValue,
 } from '../ui/select';
 import { DateRangeShortcuts } from '../ui/DateRangeShortcuts';
+import { getStatusOptions, getStatusDisplayName } from '../../client/utils/statusFormatter'; // Story 10.3
 import {
   listNDAs,
   updateNDAStatus,
@@ -87,12 +88,8 @@ const SORT_KEY_TO_PARAM: Record<SortKey, string> = {
 };
 
 const NDA_TYPE_OPTIONS: Array<{ value: NdaType; label: string }> = [
-  { value: 'MUTUAL', label: 'Mutual' },
-  { value: 'ONE_WAY_GOVERNMENT', label: 'One-Way (Government)' },
-  { value: 'ONE_WAY_COUNTERPARTY', label: 'One-Way (Counterparty)' },
-  { value: 'VISITOR', label: 'Visitor' },
-  { value: 'RESEARCH', label: 'Research' },
-  { value: 'VENDOR_ACCESS', label: 'Vendor Access' },
+  { value: 'MUTUAL', label: 'Mutual NDA' },
+  { value: 'CONSULTANT', label: 'Consultant' },
 ];
 
 interface RequestsProps {
@@ -246,6 +243,7 @@ export function Requests({
   const [agencyOfficeName, setAgencyOfficeName] = useState('');
   const [ndaType, setNdaType] = useState<NdaType | 'all'>('all');
   const [isNonUsMax, setIsNonUsMax] = useState<'all' | 'true' | 'false'>('all');
+  const [usMaxPosition, setUsMaxPosition] = useState<'all' | 'PRIME' | 'SUB_CONTRACTOR' | 'OTHER'>('all');
   const [effectiveDateFrom, setEffectiveDateFrom] = useState('');
   const [effectiveDateTo, setEffectiveDateTo] = useState('');
   const [requestedDateFrom, setRequestedDateFrom] = useState('');
@@ -537,6 +535,7 @@ export function Requests({
           agencyOfficeName: agencyOfficeName.trim() || undefined,
           ndaType: ndaType === 'all' ? undefined : ndaType,
           isNonUsMax: isNonUsMax === 'all' ? undefined : isNonUsMax === 'true',
+          usMaxPosition: usMaxPosition === 'all' ? undefined : usMaxPosition,
           effectiveDateFrom: effectiveDateFrom || undefined,
           effectiveDateTo: effectiveDateTo || undefined,
           createdDateFrom: requestedDateFrom || undefined,
@@ -726,12 +725,11 @@ export function Requests({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Statuses</SelectItem>
-              <SelectItem value="CREATED">Created</SelectItem>
-              <SelectItem value="EMAILED">Emailed</SelectItem>
-              <SelectItem value="IN_REVISION">In Revision</SelectItem>
-              <SelectItem value="FULLY_EXECUTED">Fully Executed</SelectItem>
-              <SelectItem value="INACTIVE">Inactive</SelectItem>
-              <SelectItem value="CANCELLED">Cancelled</SelectItem>
+              {getStatusOptions().map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
 
@@ -874,6 +872,20 @@ export function Requests({
                   <SelectItem value="all">All</SelectItem>
                   <SelectItem value="true">Yes</SelectItem>
                   <SelectItem value="false">No</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-xs text-[var(--color-text-secondary)]">USmax Position</label>
+              <Select value={usMaxPosition} onValueChange={(value) => setUsMaxPosition(value as typeof usMaxPosition)}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="All Positions" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Positions</SelectItem>
+                  <SelectItem value="PRIME">Prime</SelectItem>
+                  <SelectItem value="SUB_CONTRACTOR">Sub-contractor</SelectItem>
+                  <SelectItem value="OTHER">Other</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -1117,9 +1129,12 @@ export function Requests({
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex flex-wrap gap-1">
-                        <Badge variant="status" status={nda.status}>{nda.status}</Badge>
+                        <Badge variant="status" status={nda.status}>{getStatusDisplayName(nda.status)}</Badge>
                         {nda.isDraft && (
                           <Badge variant="warning">Draft</Badge>
+                        )}
+                        {nda.isNonUsMax && (
+                          <Badge variant="warning">Non-USmax</Badge>
                         )}
                       </div>
                       {nda.isDraft && nda.incompleteFields?.length ? (
@@ -1267,8 +1282,9 @@ export function Requests({
               </div>
 
               <div className="flex flex-wrap gap-2">
-                <Badge variant="status" status={nda.status}>{nda.status}</Badge>
+                <Badge variant="status" status={nda.status}>{getStatusDisplayName(nda.status)}</Badge>
                 {nda.isDraft && <Badge variant="warning">Draft</Badge>}
+                {nda.isNonUsMax && <Badge variant="warning">Non-USmax</Badge>}
                 {nda.effectiveDate && (
                   <span className="text-xs text-[var(--color-text-secondary)]">
                     Effective: {new Date(nda.effectiveDate).toLocaleDateString()}

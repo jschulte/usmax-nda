@@ -48,15 +48,12 @@ const DEFAULT_CONFIG: Record<string, string> = {
   [ConfigKey.EMAIL_DEFAULT_BCC]: '',
   [ConfigKey.EMAIL_ADMIN_ALERTS]: '',
   [ConfigKey.DROPDOWN_NDA_TYPES]: JSON.stringify([
-    { value: 'UNILATERAL', label: 'Unilateral (One-way)', isActive: true },
-    { value: 'MUTUAL', label: 'Mutual (Two-way)', isActive: true },
-    { value: 'USMAX_TEMPLATE', label: 'USMax Template', isActive: true },
-    { value: 'NON_USMAX', label: 'Non-USMax (Company Template)', isActive: true },
+    { value: 'MUTUAL', label: 'Mutual NDA', isActive: true },
+    { value: 'CONSULTANT', label: 'Consultant', isActive: true },
   ]),
   [ConfigKey.DROPDOWN_USMAX_POSITIONS]: JSON.stringify([
-    { value: 'PRIME', label: 'Prime Contractor', isActive: true },
-    { value: 'SUB', label: 'Subcontractor', isActive: true },
-    { value: 'TEAMING', label: 'Teaming Partner', isActive: true },
+    { value: 'PRIME', label: 'Prime', isActive: true },
+    { value: 'SUB_CONTRACTOR', label: 'Sub-contractor', isActive: true },
     { value: 'OTHER', label: 'Other', isActive: true },
   ]),
 };

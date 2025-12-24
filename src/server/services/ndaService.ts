@@ -150,6 +150,7 @@ export interface ListNdaParams {
   agencyOfficeName?: string;
   ndaType?: NdaType;
   isNonUsMax?: boolean;
+  usMaxPosition?: UsMaxPosition;
   createdDateFrom?: string | Date;
   createdDateTo?: string | Date;
   opportunityPocName?: string;
@@ -441,6 +442,8 @@ export interface AvailableActions {
   canUploadDocument: boolean;
   canChangeStatus: boolean;
   canDelete: boolean;
+  canApprove: boolean; // Story 10.6
+  canRouteForApproval: boolean; // Story 10.6
 }
 
 /**
@@ -473,21 +476,22 @@ export interface StatusProgression {
  */
 const STATUS_ORDER: NdaStatus[] = [
   NdaStatus.CREATED,
-  NdaStatus.EMAILED,
+  NdaStatus.SENT_PENDING_SIGNATURE,
   NdaStatus.IN_REVISION,
   NdaStatus.FULLY_EXECUTED,
 ];
 
 const STATUS_LABELS: Record<NdaStatus, string> = {
   [NdaStatus.CREATED]: 'Created',
-  [NdaStatus.EMAILED]: 'Emailed',
+  [NdaStatus.PENDING_APPROVAL]: 'Pending Approval',
+  [NdaStatus.SENT_PENDING_SIGNATURE]: 'Sent/Pending Signature',
   [NdaStatus.IN_REVISION]: 'In Revision',
   [NdaStatus.FULLY_EXECUTED]: 'Fully Executed',
-  [NdaStatus.INACTIVE]: 'Inactive',
-  [NdaStatus.CANCELLED]: 'Cancelled',
+  [NdaStatus.INACTIVE_CANCELED]: 'Inactive/Canceled',
+  [NdaStatus.EXPIRED]: 'Expired',
 };
 
-const TERMINAL_STATUSES: NdaStatus[] = [NdaStatus.INACTIVE, NdaStatus.CANCELLED];
+const TERMINAL_STATUSES: NdaStatus[] = [NdaStatus.INACTIVE_CANCELED, NdaStatus.EXPIRED];
 
 /**
  * Calculate status progression for visual display (Story 3.9)
@@ -595,6 +599,8 @@ export async function getNdaDetail(
     canUploadDocument: userContext.permissions.has('nda:upload_document'),
     canChangeStatus: userContext.permissions.has('nda:mark_status'),
     canDelete: userContext.permissions.has('nda:delete'),
+    canApprove: userContext.permissions.has('nda:approve'), // Story 10.6
+    canRouteForApproval: userContext.permissions.has('nda:create'), // Story 10.6
   };
 
   const emails = await prisma.ndaEmail.findMany({
@@ -717,10 +723,10 @@ export async function listNdas(
     const excludeStatuses: NdaStatus[] = [];
 
     if (!params.showInactive) {
-      excludeStatuses.push(NdaStatus.INACTIVE);
+      excludeStatuses.push(NdaStatus.INACTIVE_CANCELED);
     }
     if (!params.showCancelled) {
-      excludeStatuses.push(NdaStatus.CANCELLED);
+      excludeStatuses.push(NdaStatus.INACTIVE_CANCELED);
     }
 
     if (excludeStatuses.length > 0) {
@@ -778,6 +784,10 @@ export async function listNdas(
 
   if (params.isNonUsMax !== undefined) {
     where.isNonUsMax = params.isNonUsMax;
+  }
+
+  if (params.usMaxPosition) {
+    where.usMaxPosition = params.usMaxPosition;
   }
 
   // Created date filters
@@ -853,7 +863,7 @@ export async function listNdas(
         where.status = 'CREATED';
         break;
       case 'inactive':
-        where.status = 'INACTIVE';
+        where.status = 'INACTIVE_CANCELED';
         break;
     }
   }
@@ -1656,7 +1666,7 @@ export async function exportNdas(
     { header: 'State of Incorporation', key: 'stateOfIncorporation' },
     { header: 'Authorized Purpose', key: 'authorizedPurpose' },
     { header: 'Effective Date', key: 'effectiveDate' },
-    { header: 'USMax Position', key: 'usMaxPosition' },
+    { header: 'USmax Position', key: 'usMaxPosition' },
     { header: 'Non-USMax', key: 'isNonUsMax' },
     { header: 'Opportunity POC', key: 'opportunityPocName' },
     { header: 'Contracts POC', key: 'contractsPocName' },

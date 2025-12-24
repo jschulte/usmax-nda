@@ -331,11 +331,25 @@ export async function getEmailPreview(
     documentId: doc.id,
   }));
 
+  // Story 10.9: Get subscribed contacts for BCC (Notify on NDA Changes)
+  const subscriptions = await prisma.ndaSubscription.findMany({
+    where: { ndaId },
+    include: {
+      contact: {
+        select: { email: true },
+      },
+    },
+  });
+
+  const subscribedEmails = subscriptions
+    .map((sub) => sub.contact.email)
+    .filter((email): email is string => !!email);
+
   return {
     subject,
     toRecipients,
     ccRecipients,
-    bccRecipients: [...defaultBcc],
+    bccRecipients: [...defaultBcc, ...subscribedEmails], // Story 10.9: Include subscribers
     body,
     templateId: template?.id ?? null,
     templateName: template?.name ?? null,

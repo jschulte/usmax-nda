@@ -132,33 +132,33 @@ describe('agencySuggestionsService', () => {
         { usMaxPosition: 'PRIME' },
         { usMaxPosition: 'PRIME' },
         { usMaxPosition: 'PRIME' },
-        { usMaxPosition: 'SUB' },
-        { usMaxPosition: 'TEAMING' },
+        { usMaxPosition: 'SUB_CONTRACTOR' },
+        { usMaxPosition: 'OTHER' },
       ]);
 
       const result = await getTypicalPosition('agency-dod', mockUserContext);
 
       expect(result.typicalPosition).toBe('PRIME');
       expect(result.positionCounts).toContainEqual({ position: 'PRIME', count: 3 });
-      expect(result.positionCounts).toContainEqual({ position: 'SUB', count: 1 });
-      expect(result.positionCounts).toContainEqual({ position: 'TEAMING', count: 1 });
+      expect(result.positionCounts).toContainEqual({ position: 'SUB_CONTRACTOR', count: 1 });
+      expect(result.positionCounts).toContainEqual({ position: 'OTHER', count: 1 });
     });
 
     it('returns position counts sorted by frequency', async () => {
       mockPrisma.nda.findMany.mockResolvedValue([
-        { usMaxPosition: 'SUB' },
-        { usMaxPosition: 'SUB' },
+        { usMaxPosition: 'SUB_CONTRACTOR' },
+        { usMaxPosition: 'SUB_CONTRACTOR' },
         { usMaxPosition: 'PRIME' },
-        { usMaxPosition: 'TEAMING' },
-        { usMaxPosition: 'TEAMING' },
-        { usMaxPosition: 'TEAMING' },
+        { usMaxPosition: 'OTHER' },
+        { usMaxPosition: 'OTHER' },
+        { usMaxPosition: 'OTHER' },
       ]);
 
       const result = await getTypicalPosition('agency-dod', mockUserContext);
 
-      expect(result.typicalPosition).toBe('TEAMING');
-      expect(result.positionCounts[0]).toEqual({ position: 'TEAMING', count: 3 });
-      expect(result.positionCounts[1]).toEqual({ position: 'SUB', count: 2 });
+      expect(result.typicalPosition).toBe('OTHER');
+      expect(result.positionCounts[0]).toEqual({ position: 'OTHER', count: 3 });
+      expect(result.positionCounts[1]).toEqual({ position: 'SUB_CONTRACTOR', count: 2 });
       expect(result.positionCounts[2]).toEqual({ position: 'PRIME', count: 1 });
     });
 
@@ -178,7 +178,7 @@ describe('agencySuggestionsService', () => {
       mockPrisma.nda.findMany.mockResolvedValue([
         { companyName: 'Lockheed Martin', usMaxPosition: 'PRIME' },
         { companyName: 'Boeing', usMaxPosition: 'PRIME' },
-        { companyName: 'Lockheed Martin', usMaxPosition: 'SUB' },
+        { companyName: 'Lockheed Martin', usMaxPosition: 'SUB_CONTRACTOR' },
         { ndaType: 'MUTUAL' },
       ]);
 

@@ -1,13 +1,15 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   Inbox,
   FolderOpen,
   BarChart3,
   Settings,
-  X
+  X,
+  Plus
 } from 'lucide-react';
+import { Button } from '../ui/AppButton';
 
 interface SidebarProps {
   isOpen?: boolean;
@@ -15,6 +17,8 @@ interface SidebarProps {
 }
 
 export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
+  const navigate = useNavigate();
+
   const navItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
     { icon: Inbox, label: 'My NDAs', path: '/my-ndas' },
@@ -64,8 +68,22 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
             <X className="w-5 h-5" />
           </button>
         </div>
-        
+
         <nav className="flex-1 p-4 overflow-y-auto">
+          {/* Story 10.13: Request NDA Button */}
+          <div className="mb-6">
+            <Button
+              onClick={() => {
+                navigate('/ndas/new');
+                onClose?.(); // Close mobile menu
+              }}
+              className="w-full flex items-center justify-center gap-2"
+            >
+              <Plus className="w-4 h-4" />
+              Request NDA
+            </Button>
+          </div>
+
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = window.location.pathname === item.path;

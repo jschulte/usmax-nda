@@ -30,6 +30,7 @@ import contactsRouter from './routes/contacts.js';
 import dashboardRouter from './routes/dashboard.js';
 import auditLogsRouter from './routes/auditLogs.js';
 import { startEmailQueue } from './jobs/emailQueue.js';
+import { startExpirationJob } from './jobs/expirationJob.js'; // Story 10.4
 import { sendEmail, handlePermanentEmailFailure } from './services/emailService.js';
 // adminConfig removed - out of scope per PRD
 import { authenticateJWT } from './middleware/authenticateJWT.js';
@@ -287,6 +288,11 @@ startEmailQueue(
   }
 ).catch((error) => {
   console.error('[EmailQueue] Failed to start queue worker', error);
+});
+
+// Story 10.4: Start daily expiration job
+startExpirationJob().catch((error) => {
+  console.error('[ExpirationJob] Failed to start expiration job', error);
 });
 
 export default app;

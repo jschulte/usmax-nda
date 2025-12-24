@@ -61,7 +61,7 @@ vi.mock('../statusTransitionService.js', () => ({
   isValidTransition: vi.fn().mockReturnValue(true),
   transitionStatus: vi.fn().mockResolvedValue({
     previousStatus: 'CREATED',
-    newStatus: 'EMAILED',
+    newStatus: 'SENT_PENDING_SIGNATURE',
     trigger: 'manual_change',
     timestamp: new Date(),
     ndaId: 'nda-1',
@@ -78,7 +78,7 @@ vi.mock('../statusTransitionService.js', () => ({
       this.name = 'StatusTransitionError';
     }
   },
-  getValidTransitionsFrom: vi.fn().mockReturnValue(['EMAILED', 'INACTIVE', 'CANCELLED']),
+  getValidTransitionsFrom: vi.fn().mockReturnValue(['SENT_PENDING_SIGNATURE', 'INACTIVE_CANCELED', 'INACTIVE_CANCELED']),
 }));
 
 vi.mock('../agencyScopeService.js', () => ({
@@ -409,7 +409,7 @@ describe('NDA Service', () => {
       expect(mockPrisma.nda.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
-            status: { notIn: ['INACTIVE', 'CANCELLED'] },
+            status: { notIn: ['INACTIVE_CANCELED', 'INACTIVE_CANCELED'] },
           }),
         })
       );
@@ -425,7 +425,7 @@ describe('NDA Service', () => {
       expect(mockPrisma.nda.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
-            status: { notIn: ['CANCELLED'] },
+            status: { notIn: ['INACTIVE_CANCELED'] },
           }),
         })
       );
@@ -441,7 +441,7 @@ describe('NDA Service', () => {
       expect(mockPrisma.nda.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
-            status: { notIn: ['INACTIVE'] },
+            status: { notIn: ['INACTIVE_CANCELED'] },
           }),
         })
       );
@@ -588,19 +588,19 @@ describe('NDA Service', () => {
       const updatedNda = {
         id: 'nda-1',
         displayId: 1001,
-        status: 'EMAILED',
+        status: 'SENT_PENDING_SIGNATURE',
         agencyGroup: { id: 'group-1', name: 'DoD', code: 'DOD' },
         subagency: null,
         statusHistory: [
           { status: 'CREATED', changedAt: new Date(), changedBy: { id: 'contact-1', firstName: 'Test', lastName: 'User' } },
-          { status: 'EMAILED', changedAt: new Date(), changedBy: { id: 'contact-1', firstName: 'Test', lastName: 'User' } },
+          { status: 'SENT_PENDING_SIGNATURE', changedAt: new Date(), changedBy: { id: 'contact-1', firstName: 'Test', lastName: 'User' } },
         ],
       };
       mockPrisma.nda.findUnique.mockResolvedValue(updatedNda);
 
-      const result = await changeNdaStatus('nda-1', 'EMAILED', createMockUserContext());
+      const result = await changeNdaStatus('nda-1', 'SENT_PENDING_SIGNATURE', createMockUserContext());
 
-      expect(result.status).toBe('EMAILED');
+      expect(result.status).toBe('SENT_PENDING_SIGNATURE');
       expect(result.statusHistory).toHaveLength(2);
       // transitionStatus is mocked, so we just verify it was called
       expect(mockPrisma.nda.findUnique).toHaveBeenCalledWith(
@@ -640,7 +640,7 @@ describe('NDA Service', () => {
       vi.mocked(findNdaWithScope).mockResolvedValue(null);
 
       await expect(
-        changeNdaStatus('nonexistent', 'EMAILED', createMockUserContext())
+        changeNdaStatus('nonexistent', 'SENT_PENDING_SIGNATURE', createMockUserContext())
       ).rejects.toThrow('NDA not found or access denied');
     });
   });
@@ -914,7 +914,7 @@ describe('NDA Service', () => {
     it('rejects updating non-draft NDAs', async () => {
       vi.mocked(findNdaWithScope).mockResolvedValue({
         ...mockDraftNda,
-        status: 'EMAILED', // Not a draft
+        status: 'SENT_PENDING_SIGNATURE', // Not a draft
       } as any);
 
       await expect(
@@ -1242,7 +1242,7 @@ describe('NDA Service', () => {
       expect(mockPrisma.nda.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
-            status: 'INACTIVE',
+            status: 'INACTIVE_CANCELED',
           }),
         })
       );
@@ -1409,7 +1409,7 @@ describe('NDA Service', () => {
         isCurrent: true,
       }));
       expect(result.steps[1]).toEqual(expect.objectContaining({
-        status: 'EMAILED',
+        status: 'SENT_PENDING_SIGNATURE',
         completed: false,
         isCurrent: false,
       }));
@@ -1427,9 +1427,9 @@ describe('NDA Service', () => {
     });
 
     it('returns correct progression for EMAILED status', () => {
-      const result = calculateStatusProgression('EMAILED', [
+      const result = calculateStatusProgression('SENT_PENDING_SIGNATURE', [
         { status: 'CREATED', changedAt: new Date('2024-01-01') },
-        { status: 'EMAILED', changedAt: new Date('2024-01-02') },
+        { status: 'SENT_PENDING_SIGNATURE', changedAt: new Date('2024-01-02') },
       ]);
 
       expect(result.steps[0].completed).toBe(true);
@@ -1442,7 +1442,7 @@ describe('NDA Service', () => {
     it('returns correct progression for FULLY_EXECUTED status', () => {
       const result = calculateStatusProgression('FULLY_EXECUTED', [
         { status: 'CREATED', changedAt: new Date('2024-01-01') },
-        { status: 'EMAILED', changedAt: new Date('2024-01-02') },
+        { status: 'SENT_PENDING_SIGNATURE', changedAt: new Date('2024-01-02') },
         { status: 'FULLY_EXECUTED', changedAt: new Date('2024-01-05') },
       ]);
 
@@ -1452,35 +1452,35 @@ describe('NDA Service', () => {
     });
 
     it('marks INACTIVE as terminal status', () => {
-      const result = calculateStatusProgression('INACTIVE', [
+      const result = calculateStatusProgression('INACTIVE_CANCELED', [
         { status: 'CREATED', changedAt: new Date('2024-01-01') },
-        { status: 'EMAILED', changedAt: new Date('2024-01-02') },
-        { status: 'INACTIVE', changedAt: new Date('2024-01-03') },
+        { status: 'SENT_PENDING_SIGNATURE', changedAt: new Date('2024-01-02') },
+        { status: 'INACTIVE_CANCELED', changedAt: new Date('2024-01-03') },
       ]);
 
       expect(result.isTerminal).toBe(true);
-      expect(result.terminalStatus).toBe('INACTIVE');
+      expect(result.terminalStatus).toBe('INACTIVE_CANCELED');
       // No step should be marked as current when terminal
       expect(result.steps.every((s) => !s.isCurrent)).toBe(true);
     });
 
     it('marks CANCELLED as terminal status', () => {
-      const result = calculateStatusProgression('CANCELLED', [
+      const result = calculateStatusProgression('INACTIVE_CANCELED', [
         { status: 'CREATED', changedAt: new Date('2024-01-01') },
-        { status: 'CANCELLED', changedAt: new Date('2024-01-02') },
+        { status: 'INACTIVE_CANCELED', changedAt: new Date('2024-01-02') },
       ]);
 
       expect(result.isTerminal).toBe(true);
-      expect(result.terminalStatus).toBe('CANCELLED');
+      expect(result.terminalStatus).toBe('INACTIVE_CANCELED');
     });
 
     it('preserves timestamps from status history', () => {
       const createdDate = new Date('2024-01-01T10:00:00Z');
       const emailedDate = new Date('2024-01-02T14:30:00Z');
 
-      const result = calculateStatusProgression('EMAILED', [
+      const result = calculateStatusProgression('SENT_PENDING_SIGNATURE', [
         { status: 'CREATED', changedAt: createdDate },
-        { status: 'EMAILED', changedAt: emailedDate },
+        { status: 'SENT_PENDING_SIGNATURE', changedAt: emailedDate },
       ]);
 
       expect(result.steps[0].timestamp).toEqual(createdDate);

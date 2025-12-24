@@ -49,13 +49,15 @@ import {
 } from '../../client/services/templateService';
 
 const ndaTypes: { value: NdaType; label: string; description: string }[] = [
-  { value: 'MUTUAL', label: 'Mutual', description: 'Both parties will exchange confidential information' },
-  { value: 'ONE_WAY_GOVERNMENT', label: 'One-way (Government Disclosing)', description: 'Government shares information with counterparty' },
-  { value: 'ONE_WAY_COUNTERPARTY', label: 'One-way (Counterparty Disclosing)', description: 'Counterparty shares information with government' },
-  { value: 'VISITOR', label: 'Visitor', description: 'For facility visitors and short-term access' },
-  { value: 'RESEARCH', label: 'Research', description: 'Academic or research collaborations' },
-  { value: 'VENDOR_ACCESS', label: 'Vendor Access', description: 'For vendors accessing systems or data' }
+  { value: 'MUTUAL', label: 'Mutual NDA', description: 'Both parties will exchange confidential information' },
+  { value: 'CONSULTANT', label: 'Consultant', description: 'Consultant or contractor engagement agreement' }
 ];
+
+const usMaxPositionLabels: Record<UsMaxPosition, string> = {
+  PRIME: 'Prime',
+  SUB_CONTRACTOR: 'Sub-contractor',
+  OTHER: 'Other'
+};
 
 export function RequestWizard() {
   const navigate = useNavigate();
@@ -576,7 +578,7 @@ export function RequestWizard() {
       errors.authorizedPurpose = 'Authorized purpose must be 255 characters or less';
     }
     if ((touchedFields.usMaxPosition || showErrors) && !formData.usMaxPosition) {
-      errors.usMaxPosition = 'USMax position is required';
+      errors.usMaxPosition = 'USmax position is required';
     }
     if ((touchedFields.companyName || showErrors) && !formData.companyName.trim()) {
       errors.companyName = 'Company name is required';
@@ -1088,10 +1090,10 @@ export function RequestWizard() {
 
                 <div>
                   <label className="block text-sm mb-3 text-[var(--color-text-primary)]">
-                    USMAX position *
+                    USmax position *
                   </label>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    {(['PRIME', 'SUB', 'TEAMING', 'OTHER'] as UsMaxPosition[]).map((position) => (
+                    {(['PRIME', 'SUB_CONTRACTOR', 'OTHER'] as UsMaxPosition[]).map((position) => (
                       <button
                         key={position}
                         onClick={() => {
@@ -1105,7 +1107,7 @@ export function RequestWizard() {
                             : 'border-[var(--color-border)] hover:border-[var(--color-border-hover)]'
                         }`}
                       >
-                        <p className="text-sm font-medium">{position}</p>
+                        <p className="text-sm font-medium">{usMaxPositionLabels[position]}</p>
                       </button>
                     ))}
                   </div>
@@ -1114,7 +1116,7 @@ export function RequestWizard() {
                   )}
                   {agencySuggestions?.typicalPosition && (
                     <p className="mt-2 text-xs text-[var(--color-text-secondary)]">
-                      Suggested position based on this agency: {agencySuggestions.typicalPosition}
+                      Suggested position based on this agency: {usMaxPositionLabels[agencySuggestions.typicalPosition] || agencySuggestions.typicalPosition}
                     </p>
                   )}
                 </div>
@@ -1594,9 +1596,9 @@ export function RequestWizard() {
                         <dd>{formData.abbreviatedName || '-'}</dd>
                       </div>
                       <div>
-                        <dt className="text-[var(--color-text-secondary)] mb-1">USMAX position</dt>
+                        <dt className="text-[var(--color-text-secondary)] mb-1">USmax position</dt>
                         <dd>
-                          <Badge variant="info">{formData.usMaxPosition}</Badge>
+                          <Badge variant="info">{formData.usMaxPosition ? usMaxPositionLabels[formData.usMaxPosition] : '-'}</Badge>
                           {formData.isNonUsMax && (
                             <Badge variant="warning" className="ml-2">
                               Non-USMAX
@@ -1762,7 +1764,7 @@ export function RequestWizard() {
                         <strong>Authorized purpose:</strong> Clearly describe the business purpose
                       </li>
                       <li>
-                        <strong>USMAX position:</strong> Your organization's role in the relationship
+                        <strong>USmax position:</strong> Your organization's role in the relationship
                       </li>
                       <li>
                         <strong>Effective date:</strong> When the NDA becomes active (defaults to today)

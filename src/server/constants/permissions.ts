@@ -10,7 +10,7 @@
  * All permission codes in the system
  */
 export const PERMISSIONS = {
-  // NDA Permissions (7)
+  // NDA Permissions (8)
   NDA_CREATE: 'nda:create',
   NDA_UPDATE: 'nda:update',
   NDA_UPLOAD_DOCUMENT: 'nda:upload_document',
@@ -18,6 +18,7 @@ export const PERMISSIONS = {
   NDA_MARK_STATUS: 'nda:mark_status',
   NDA_VIEW: 'nda:view',
   NDA_DELETE: 'nda:delete',
+  NDA_APPROVE: 'nda:approve', // Story 10.6: Approve NDAs pending review
 
   // Admin Permissions (4)
   ADMIN_MANAGE_USERS: 'admin:manage_users',
@@ -50,6 +51,7 @@ export const PERMISSION_DESCRIPTIONS: Record<Permission, string> = {
   [PERMISSIONS.NDA_MARK_STATUS]: 'Change NDA status (e.g., mark as executed)',
   [PERMISSIONS.NDA_VIEW]: 'View NDA details and documents',
   [PERMISSIONS.NDA_DELETE]: 'Delete NDAs permanently',
+  [PERMISSIONS.NDA_APPROVE]: 'Approve NDAs pending review', // Story 10.6
   [PERMISSIONS.ADMIN_MANAGE_USERS]: 'Create, edit, and deactivate users',
   [PERMISSIONS.ADMIN_MANAGE_AGENCIES]: 'Manage agency groups and subagencies',
   [PERMISSIONS.ADMIN_MANAGE_TEMPLATES]: 'Create and edit RTF and email templates',
@@ -66,6 +68,7 @@ export const PERMISSION_DENIED_MESSAGES: Partial<Record<Permission, string>> = {
   [PERMISSIONS.NDA_SEND_EMAIL]: "You don't have permission to send emails - contact admin",
   [PERMISSIONS.NDA_MARK_STATUS]: "You don't have permission to change NDA status - contact admin",
   [PERMISSIONS.NDA_DELETE]: "You don't have permission to delete NDAs - contact admin",
+  [PERMISSIONS.NDA_APPROVE]: "You don't have permission to approve NDAs - contact admin", // Story 10.6
   [PERMISSIONS.ADMIN_MANAGE_USERS]: 'Admin access required for user management',
   [PERMISSIONS.ADMIN_MANAGE_AGENCIES]: 'Admin access required for agency management',
   [PERMISSIONS.ADMIN_MANAGE_TEMPLATES]: 'Admin access required for template management',
