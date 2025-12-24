@@ -2174,9 +2174,21 @@ router.post('/:id/route-for-approval', requirePermission(PERMISSIONS.NDA_CREATE)
       userAgent: req.get('User-Agent'),
     });
 
-    // TODO: Send notifications to approvers
-    // Find users with nda:approve permission for this agency
-    // Send approval request emails
+    // Story 10.18: Notify all users with approve permission for this agency
+    await notifyStakeholders(
+      {
+        ndaId: nda.id,
+        displayId: nda.displayId,
+        companyName: nda.companyName,
+        event: NotificationEvent.APPROVAL_REQUESTED,
+        changedBy: {
+          id: req.userContext!.contactId,
+          name: req.userContext!.name ?? req.userContext!.email,
+        },
+        timestamp: new Date(),
+      },
+      req.userContext!
+    );
 
     res.json({
       message: 'NDA routed for approval',
@@ -2249,7 +2261,22 @@ router.post('/:id/reject', requirePermission(PERMISSIONS.NDA_APPROVE), async (re
       userAgent: req.get('User-Agent'),
     });
 
-    // TODO: Notify creator of rejection
+    // Story 10.18: Notify creator of rejection
+    await notifyStakeholders(
+      {
+        ndaId: nda.id,
+        displayId: nda.displayId,
+        companyName: nda.companyName,
+        event: NotificationEvent.NDA_REJECTED,
+        changedBy: {
+          id: req.userContext!.contactId,
+          name: req.userContext!.name ?? req.userContext!.email,
+        },
+        timestamp: new Date(),
+        newValue: reason || 'No reason provided', // Rejection reason
+      },
+      req.userContext!
+    );
 
     res.json({
       message: 'NDA rejected',

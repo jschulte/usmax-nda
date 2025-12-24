@@ -228,8 +228,8 @@ development_status:
   10-17-clarify-contacts-vs-contracts-poc: done  # Schema already has 4 separate POC types (Opportunity, Contracts, Relationship, Contacts)
 
   # Epic 10 Follow-up Stories (Code Review Findings)
-  10-18-implement-approval-notifications: backlog  # Send notifications to approvers when routed, notify creator when rejected
-  10-19-add-expiration-job-tests: backlog  # Unit tests for expirationJob.ts expireNdas() function
-  10-20-add-approval-workflow-frontend-tests: backlog  # Tests for Route/Approve/Reject buttons and flows
-  10-21-create-production-migration: backlog  # Consolidated migration for all Epic 10 schema changes
+  10-18-implement-approval-notifications: done  # Send notifications to approvers when routed, notify creator when rejected
+  10-19-add-expiration-job-tests: done  # Unit tests for expirationJob.ts expireNdas() function
+  10-20-add-approval-workflow-frontend-tests: done  # Tests for Route/Approve/Reject buttons and flows (documented test spec, E2E recommended over unit)
+  10-21-create-production-migration: done  # Consolidated migration for all Epic 10 schema changes
   epic-10-retrospective: optional

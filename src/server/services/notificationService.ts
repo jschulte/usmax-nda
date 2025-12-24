@@ -24,6 +24,9 @@ export enum NotificationEvent {
   FULLY_EXECUTED = 'fully_executed',
   // Story H-1 Task 13: Notify when assigned as POC
   ASSIGNED_TO_ME = 'assigned_to_me',
+  // Story 10.18: Approval workflow notifications
+  APPROVAL_REQUESTED = 'approval_requested',
+  NDA_REJECTED = 'nda_rejected',
 }
 
 /**
@@ -348,6 +351,8 @@ function generateNotificationSubject(details: NotificationDetails): string {
     [NotificationEvent.STATUS_CHANGED]: `Now ${details.newValue || 'Updated'}`,
     [NotificationEvent.FULLY_EXECUTED]: 'Fully Executed',
     [NotificationEvent.ASSIGNED_TO_ME]: 'You Were Assigned',
+    [NotificationEvent.APPROVAL_REQUESTED]: 'Approval Requested', // Story 10.18
+    [NotificationEvent.NDA_REJECTED]: 'Rejected', // Story 10.18
   };
 
   const label = eventLabels[details.event];
@@ -368,6 +373,8 @@ function generateNotificationBody(details: NotificationDetails): string {
     [NotificationEvent.STATUS_CHANGED]: `The NDA status has changed from "${details.previousValue}" to "${details.newValue}".`,
     [NotificationEvent.FULLY_EXECUTED]: 'The NDA has been marked as fully executed.',
     [NotificationEvent.ASSIGNED_TO_ME]: `You have been assigned as a Point of Contact for this NDA${details.newValue ? ` (${details.newValue})` : ''}.`,
+    [NotificationEvent.APPROVAL_REQUESTED]: 'An NDA has been submitted for your approval. Please review and approve or reject.', // Story 10.18
+    [NotificationEvent.NDA_REJECTED]: `Your NDA has been rejected${details.newValue ? `. Reason: ${details.newValue}` : ''}. Please review and resubmit.`, // Story 10.18
   };
 
   return `Hello,
