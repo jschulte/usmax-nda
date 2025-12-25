@@ -16,7 +16,8 @@ import {
   AlertCircle,
   Loader2,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Inbox
 } from 'lucide-react';
 import { toast } from 'sonner@2.0.3';
 import {
@@ -1040,19 +1041,71 @@ export function Requests({
         </Card>
       )}
 
-      {/* Empty State */}
-      {!loading && !error && ndas.length === 0 && (
-        <Card className="flex items-center justify-center py-12">
-          <div className="text-center">
-            <p className="text-[var(--color-text-secondary)] mb-4">No NDAs found</p>
-            {showCreateButton && (
-              <Button variant="primary" icon={<Plus className="w-5 h-5" />} onClick={() => navigate('/request-wizard')}>
-                Create your first NDA
-              </Button>
-            )}
-          </div>
-        </Card>
-      )}
+      {/* Empty State - Story 9.12: Enhanced with context-aware messaging */}
+      {!loading && !error && ndas.length === 0 && (() => {
+        // Detect if any filters are active
+        const hasActiveFilters = statusFilter !== 'all' || agencyGroupId || subagencyId ||
+          companyName || companyCity || companyState || stateOfIncorporation ||
+          agencyOfficeName || ndaType !== 'all' || isNonUsMax !== 'all' || usMaxPosition !== 'all' ||
+          effectiveDateFrom || effectiveDateTo || requestedDateFrom || requestedDateTo ||
+          opportunityPocName || contractsPocName || relationshipPocName || presetFilter !== 'all';
+
+        const clearAllFilters = () => {
+          setStatusFilter('all');
+          setAgencyGroupId(undefined);
+          setSubagencyId(undefined);
+          setCompanyName('');
+          setCompanyCity('');
+          setCompanyState('');
+          setStateOfIncorporation('');
+          setAgencyOfficeName('');
+          setNdaType('all');
+          setIsNonUsMax('all');
+          setUsMaxPosition('all');
+          setEffectiveDateFrom('');
+          setEffectiveDateTo('');
+          setRequestedDateFrom('');
+          setRequestedDateTo('');
+          setOpportunityPocName('');
+          setContractsPocName('');
+          setRelationshipPocName('');
+          setPresetFilter('all');
+        };
+
+        return (
+          <Card className="flex items-center justify-center py-16">
+            <div className="text-center max-w-md">
+              <div className="mb-4 flex justify-center">
+                <Inbox className="w-16 h-16 text-gray-300" />
+              </div>
+
+              <h3 className="text-lg font-medium mb-2">
+                {hasActiveFilters ? 'No NDAs match your filters' : 'No NDAs yet'}
+              </h3>
+
+              <p className="text-sm text-[var(--color-text-secondary)] mb-6">
+                {hasActiveFilters
+                  ? 'Try adjusting your search criteria or clear all filters to see all NDAs'
+                  : 'Create your first NDA to get started tracking agreements'
+                }
+              </p>
+
+              <div className="flex gap-3 justify-center flex-wrap">
+                {hasActiveFilters && (
+                  <Button variant="secondary" onClick={clearAllFilters}>
+                    Clear All Filters
+                  </Button>
+                )}
+                {showCreateButton && (
+                  <Button variant="primary" icon={<Plus className="w-4 h-4" />} onClick={() => navigate('/ndas/new')}>
+                    {hasActiveFilters ? 'Create NDA' : 'Create Your First NDA'}
+                  </Button>
+                )}
+              </div>
+            </div>
+          </Card>
+        );
+      })()}
       
       {/* Desktop Table */}
       {!loading && !error && ndas.length > 0 && (

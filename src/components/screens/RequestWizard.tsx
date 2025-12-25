@@ -1310,11 +1310,14 @@ export function RequestWizard() {
                             <button
                               key={contact.id}
                               onClick={() => {
+                                // Story 9.14: Auto-fill phone from contact
+                                const phone = contact.workPhone || contact.cellPhone || '';
                                 setFormData({
                                   ...formData,
                                   relationshipPocId: contact.id,
                                   relationshipPocName: `${contact.firstName} ${contact.lastName}`,
                                   relationshipPocEmail: contact.email || '',
+                                  relationshipPocPhone: phone,
                                 });
                                 markTouched('relationshipPoc');
                                 setPocErrors((prev) => ({ ...prev, relationshipEmail: '' }));
@@ -1403,11 +1406,14 @@ export function RequestWizard() {
                             <button
                               key={contact.id}
                               onClick={() => {
+                                // Story 9.14: Auto-fill phone from contact
+                                const phone = contact.workPhone || contact.cellPhone || '';
                                 setFormData({
                                   ...formData,
                                   contractsPocId: contact.id,
                                   contractsPocName: `${contact.firstName} ${contact.lastName}`,
                                   contractsPocEmail: contact.email || '',
+                                  contractsPocPhone: phone,
                                 });
                                 setPocErrors((prev) => ({ ...prev, contractsEmail: '' }));
                                 setContactSuggestions([]);
@@ -1559,19 +1565,36 @@ export function RequestWizard() {
                             <button
                               key={contact.id}
                               onClick={() => {
+                                // Story 9.14: Auto-fill phone from contact
+                                const phone = contact.workPhone || contact.cellPhone || '';
                                 setFormData({
                                   ...formData,
                                   opportunityPocId: contact.id,
                                   opportunityPocName: `${contact.firstName} ${contact.lastName}`,
+                                  opportunityPocPhone: phone,
                                 });
                                 setContactSuggestions([]);
                               }}
-                              className="w-full px-4 py-2 text-left hover:bg-gray-50 transition-colors"
+                              className="w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-b-0"
                             >
-                              <div className="font-medium">
-                                {contact.firstName} {contact.lastName}
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex-1 min-w-0">
+                                  <div className="font-medium text-sm">
+                                    {contact.firstName} {contact.lastName}
+                                  </div>
+                                  <div className="text-xs text-[var(--color-text-secondary)] truncate">
+                                    {contact.email}
+                                  </div>
+                                  {contact.jobTitle && (
+                                    <div className="text-xs text-[var(--color-text-muted)] mt-0.5">
+                                      {contact.jobTitle}
+                                    </div>
+                                  )}
+                                </div>
+                                {contact.isInternal && (
+                                  <Badge variant="info" className="text-xs flex-shrink-0">Internal</Badge>
+                                )}
                               </div>
-                              <div className="text-xs text-[var(--color-text-secondary)]">{contact.email}</div>
                             </button>
                           ))}
                         </div>

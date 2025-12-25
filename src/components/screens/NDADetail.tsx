@@ -145,6 +145,8 @@ export function NDADetail() {
   const [selectedEmailTemplateId, setSelectedEmailTemplateId] = useState<string>('');
   const [showAddNoteDialog, setShowAddNoteDialog] = useState(false);
   const [showMarkExecutedDialog, setShowMarkExecutedDialog] = useState(false);
+  const [showStatusChangeModal, setShowStatusChangeModal] = useState(false); // Story 9.8
+  const [selectedNewStatus, setSelectedNewStatus] = useState<NdaStatus | null>(null); // Story 9.8
   const [reviewNotes, setReviewNotes] = useState('');
   const [internalNotes, setInternalNotes] = useState('');
   const [savedNotes, setSavedNotes] = useState<notesService.InternalNote[]>([]); // Story 9.1
@@ -620,6 +622,27 @@ export function NDADetail() {
     }
   };
 
+  // Story 9.8: Status change modal confirmation handler
+  const handleConfirmStatusChange = async () => {
+    if (!selectedNewStatus || !id) return;
+
+    try {
+      setStatusUpdating(true);
+      await updateNDAStatus(id, selectedNewStatus, 'Manual status change');
+      toast.success('Status updated', {
+        description: `NDA status changed to ${getDisplayStatus(selectedNewStatus)}`
+      });
+      setShowStatusChangeModal(false);
+      setSelectedNewStatus(null);
+      await refreshNdaDetail();
+    } catch (err) {
+      console.error('Failed to update status:', err);
+      toast.error('Failed to update status');
+    } finally {
+      setStatusUpdating(false);
+    }
+  };
+
   const handleToggleSubscription = async () => {
     if (!id) return;
 
@@ -1084,7 +1107,7 @@ export function NDADetail() {
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button
               variant="secondary"
               size="sm"
@@ -1094,7 +1117,7 @@ export function NDADetail() {
             >
               {isSubscribed ? 'Unsubscribe' : 'Subscribe'}
             </Button>
-            <Button variant="secondary" icon={<Download className="w-4 h-4" />} onClick={handleDownloadPDF}>
+            <Button variant="secondary" size="sm" icon={<Download className="w-4 h-4" />} onClick={handleDownloadPDF}>
               Download PDF
             </Button>
 
@@ -1777,27 +1800,15 @@ export function NDADetail() {
                 </div>
                 <div>
                   <label className="block text-xs text-[var(--color-text-muted)] mb-2">Change status</label>
-                  <select
-                    className="w-full px-3 py-2 border rounded-md bg-white text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="w-full"
+                    onClick={() => setShowStatusChangeModal(true)}
                     disabled={statusUpdating || validStatusTransitions.length === 0}
-                    defaultValue=""
-                    onChange={(e) => {
-                      const next = e.target.value as NdaStatus;
-                      if (next) {
-                        handleStatusSelect(next);
-                        e.currentTarget.value = '';
-                      }
-                    }}
                   >
-                    <option value="" disabled>
-                      {validStatusTransitions.length === 0 ? 'No valid transitions' : 'Select new status'}
-                    </option>
-                    {validStatusTransitions.map((status) => (
-                      <option key={status} value={status}>
-                        {getDisplayStatus(status)}
-                      </option>
-                    ))}
-                  </select>
+                    {validStatusTransitions.length === 0 ? 'No valid transitions' : 'Change Status...'}
+                  </Button>
                 </div>
               </div>
             </Card>
@@ -2086,6 +2097,63 @@ export function NDADetail() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Story 9.8: Status Change Modal */}
+      <Dialog open={showStatusChangeModal} onOpenChange={setShowStatusChangeModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Change NDA Status</DialogTitle>
+            <DialogDescription>
+              Current status: {nda && getDisplayStatus(nda.status)}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-4">
+            <p className="text-sm text-[var(--color-text-secondary)] mb-3">
+              Select new status:
+            </p>
+            {validStatusTransitions.map((status) => (
+              <label
+                key={status}
+                className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${
+                  selectedNewStatus === status
+                    ? 'border-[var(--color-primary)] bg-[var(--color-primary-light)]'
+                    : 'border-[var(--color-border)] hover:border-[var(--color-border-hover)]'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="status"
+                  value={status}
+                  checked={selectedNewStatus === status}
+                  onChange={() => setSelectedNewStatus(status)}
+                  className="w-4 h-4"
+                />
+                <span className="text-sm font-medium">{getDisplayStatus(status)}</span>
+              </label>
+            ))}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setShowStatusChangeModal(false);
+                setSelectedNewStatus(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              onClick={handleConfirmStatusChange}
+              disabled={!selectedNewStatus || statusUpdating}
+            >
+              {statusUpdating ? 'Updating...' : 'Change Status'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

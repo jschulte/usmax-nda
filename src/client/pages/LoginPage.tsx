@@ -9,7 +9,7 @@
 
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Mail, Lock, AlertCircle, Loader2, Shield } from 'lucide-react';
+import { Mail, Lock, AlertCircle, Loader2 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -56,12 +56,25 @@ export function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-[var(--color-background)] p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-4 w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-            <Shield className="w-6 h-6 text-primary" />
+          <div className="mx-auto mb-4 flex justify-center">
+            <img
+              src="https://www.usmax.com/wp-content/themes/usmax/static/images/usmax-site-logo.jpg"
+              alt="USmax"
+              className="h-16 w-auto object-contain"
+              onError={(e) => {
+                // Fallback to Shield icon if logo fails to load
+                const target = e.currentTarget;
+                target.style.display = 'none';
+                const fallback = document.createElement('div');
+                fallback.className = 'w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center';
+                fallback.innerHTML = '<svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>';
+                target.parentElement?.appendChild(fallback);
+              }}
+            />
           </div>
-          <CardTitle className="text-2xl font-bold">USMax NDA System</CardTitle>
+          <CardTitle className="text-2xl font-bold">USmax NDA Management System</CardTitle>
           <CardDescription>
-            Sign in with your USMax credentials
+            Sign in with your USmax credentials
           </CardDescription>
         </CardHeader>
 

@@ -86,13 +86,12 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
 
           {navItems.map((item) => {
             const Icon = item.icon;
-            const isActive = window.location.pathname === item.path;
-            
+
             return (
               <NavLink
                 key={item.path}
                 to={item.path}
-                className={`w-full flex items-center gap-3 px-4 py-3 mb-1 rounded-lg transition-colors text-left ${
+                className={({ isActive }) => `w-full flex items-center gap-3 px-4 py-3 mb-1 rounded-lg transition-colors text-left ${
                   isActive
                     ? 'bg-[var(--color-primary-light)] text-[var(--color-primary)]'
                     : 'text-[var(--color-text-secondary)] hover:bg-gray-50'

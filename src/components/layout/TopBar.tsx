@@ -10,7 +10,12 @@ export function TopBar({ onMenuClick }: TopBarProps) {
   const navigate = useNavigate();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
-  
+  const [showNotifications, setShowNotifications] = useState(false); // Story 9.9
+
+  // Story 9.9: Mock notifications (replace with API call later)
+  const notifications: any[] = []; // Empty for now
+  const unreadCount = 0;
+
   return (
     <header className="h-16 bg-white border-b border-[var(--color-border)] sticky top-0 z-10">
       <div className="h-full px-4 lg:px-6 flex items-center justify-between gap-4">
@@ -48,11 +53,65 @@ export function TopBar({ onMenuClick }: TopBarProps) {
         
         {/* Right: Notifications + Profile */}
         <div className="flex items-center gap-2 lg:gap-4">
-          <button className="relative p-2 hover:bg-gray-100 rounded-lg transition-colors">
-            <Bell className="w-5 h-5 text-[var(--color-text-secondary)]" />
-            <span className="absolute top-1 right-1 w-2 h-2 bg-[var(--color-danger)] rounded-full" />
-          </button>
-          
+          {/* Story 9.9: Notifications dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => setShowNotifications(!showNotifications)}
+              className="relative p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <Bell className="w-5 h-5 text-[var(--color-text-secondary)]" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-[var(--color-danger)] text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-medium">
+                  {unreadCount}
+                </span>
+              )}
+            </button>
+
+            {showNotifications && (
+              <div className="absolute right-0 mt-2 w-80 bg-white border border-[var(--color-border)] rounded-lg shadow-lg max-h-96 overflow-y-auto z-50">
+                {notifications.length === 0 ? (
+                  <div className="p-6 text-center">
+                    <Bell className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                    <p className="text-sm text-[var(--color-text-secondary)]">No notifications yet</p>
+                    <p className="text-xs text-[var(--color-text-muted)] mt-1">
+                      You'll be notified when NDAs change status
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="px-4 py-3 border-b border-[var(--color-border)]">
+                      <h3 className="text-sm font-medium">Notifications</h3>
+                    </div>
+                    {notifications.map((notif: any) => (
+                      <button
+                        key={notif.id}
+                        onClick={() => {
+                          navigate(`/ndas/${notif.ndaId}`);
+                          setShowNotifications(false);
+                        }}
+                        className="w-full px-4 py-3 text-left hover:bg-gray-50 border-b border-[var(--color-border)] last:border-b-0"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1">
+                            <p className={`text-sm ${!notif.read ? 'font-semibold' : ''}`}>
+                              {notif.companyName} - {notif.event}
+                            </p>
+                            <p className="text-xs text-[var(--color-text-muted)] mt-1">
+                              NDA #{notif.displayId}
+                            </p>
+                          </div>
+                          <span className="text-xs text-[var(--color-text-muted)] flex-shrink-0">
+                            {new Date(notif.timestamp).toLocaleDateString()}
+                          </span>
+                        </div>
+                      </button>
+                    ))}
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+
           <div className="relative">
             <button
               onClick={() => setShowProfileMenu(!showProfileMenu)}

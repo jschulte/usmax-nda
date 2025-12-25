@@ -226,7 +226,11 @@ export function generateEmailBody(nda: {
   abbreviatedName: string;
   agencyOfficeName?: string | null;
   relationshipPoc?: { firstName?: string | null; lastName?: string | null };
-  opportunityPoc?: { firstName?: string | null; lastName?: string | null; emailSignature?: string | null };
+  opportunityPoc?: { firstName?: string | null; lastName?: string | null; emailSignature?: string | null; email?: string | null };
+  effectiveDate?: Date | string | null;
+  usMaxPosition?: string | null;
+  ndaType?: string | null;
+  agencyGroup?: { name?: string } | null;
 }): string {
   const pocName = nda.relationshipPoc
     ? `${nda.relationshipPoc.firstName || ''} ${nda.relationshipPoc.lastName || ''}`.trim() || 'Partner'
@@ -234,18 +238,52 @@ export function generateEmailBody(nda: {
 
   const signature = buildEmailSignature(nda);
 
+  // Story 9.15: Enhanced email body with more details
+  const effectiveDateStr = nda.effectiveDate
+    ? new Date(nda.effectiveDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+    : 'Upon execution';
+
+  const positionLabels: Record<string, string> = {
+    PRIME: 'Prime Contractor',
+    SUB_CONTRACTOR: 'Sub-contractor',
+    OTHER: 'Other'
+  };
+  const usMaxPos = nda.usMaxPosition ? (positionLabels[nda.usMaxPosition] || nda.usMaxPosition) : 'Prime Contractor';
+
+  const typeLabels: Record<string, string> = {
+    MUTUAL: 'Mutual NDA',
+    CONSULTANT: 'Consultant Agreement'
+  };
+  const ndaTypeLabel = nda.ndaType ? (typeLabels[nda.ndaType] || nda.ndaType) : 'Mutual NDA';
+
+  const agencyName = nda.agencyGroup?.name || (nda.agencyOfficeName || 'Government Agency');
+
   return `Dear ${pocName},
 
-Please find attached the Non-Disclosure Agreement (NDA) for ${nda.companyName} regarding ${nda.abbreviatedName}.
+Please find attached the Non-Disclosure Agreement for your review and signature.
 
-Please review the attached document, sign, and return at your earliest convenience.
+NDA DETAILS:
+• Company: ${nda.companyName}
+• Project: ${nda.abbreviatedName}
+• USmax Position: ${usMaxPos}
+• Agency: ${agencyName}
+• Effective Date: ${effectiveDateStr}
+• Agreement Type: ${ndaTypeLabel}
 
-If you have any questions or concerns, please don't hesitate to reach out.
+NEXT STEPS:
+1. Review the attached NDA document carefully
+2. Sign where indicated
+3. Return the executed copy to us
+
+Please complete this review at your earliest convenience. If you have any questions or need clarification, please contact:
+
+${nda.opportunityPoc ? `${nda.opportunityPoc.firstName || ''} ${nda.opportunityPoc.lastName || ''}`.trim() : 'Our team'}
+${nda.opportunityPoc?.email ? `Email: ${nda.opportunityPoc.email}` : ''}
 
 Best regards,
 ${signature}
 
-NDA Reference: #${nda.displayId}`;
+Reference: NDA #${nda.displayId}`;
 }
 
 /**
