@@ -16,6 +16,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../ui/tabs';
 import { Textarea } from '../../ui/textarea';
 import { Input } from '../../ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../../ui/dialog';
+import { SendTestNotification } from './SendTestNotification';
 
 interface NotificationTemplate {
   id: string;
@@ -176,6 +177,7 @@ export function NotificationSettings() {
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="events">Event Notifications</TabsTrigger>
           <TabsTrigger value="templates">Email Templates</TabsTrigger>
+          <TabsTrigger value="test">Send Test</TabsTrigger>
           <TabsTrigger value="escalation">Escalation</TabsTrigger>
         </TabsList>
 
@@ -480,6 +482,11 @@ export function NotificationSettings() {
               ))}
             </div>
           </Card>
+        </TabsContent>
+
+        {/* Test Notifications Tab (Story 9.17 AC1) */}
+        <TabsContent value="test" className="mt-6">
+          <SendTestNotification />
         </TabsContent>
 
         {/* Escalation Tab */}

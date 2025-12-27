@@ -1,6 +1,6 @@
 # Story 9.16: Create Email Template Editor UI
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -49,43 +49,43 @@ So that I can customize email content without directly editing database records.
 
 ## Tasks / Subtasks
 
-- [ ] Create Email Templates admin page (Task AC: AC1)
-  - [ ] Add route: /administration/email-templates
-  - [ ] Create EmailTemplates.tsx component
-  - [ ] Fetch and display templates list
-  - [ ] Show template details (name, description, isDefault)
-  - [ ] Add "Create" and "Edit" buttons
-- [ ] Build template editor form (Task AC: AC2, AC3)
-  - [ ] Create EmailTemplateEditor.tsx component or modal
-  - [ ] Form fields: name, description, subject, body
-  - [ ] Body field: large textarea
-  - [ ] Default checkbox
-  - [ ] Save/Cancel buttons
-- [ ] Implement create functionality (Task AC: AC2)
-  - [ ] POST /api/admin/email-templates endpoint
-  - [ ] Form validation
-  - [ ] Success/error handling
-  - [ ] Navigate back to list after save
-- [ ] Implement edit functionality (Task AC: AC3)
-  - [ ] Load template data into form
-  - [ ] PUT /api/admin/email-templates/:id endpoint
-  - [ ] Save changes to database
-  - [ ] Optimistic UI update
-- [ ] Add preview mode (Task AC: AC4)
-  - [ ] Add preview button/toggle
-  - [ ] Replace placeholders with sample data
-  - [ ] Show preview in modal or split view
-  - [ ] Toggle between edit and preview
-- [ ] Create placeholder helper (Task AC: AC5)
-  - [ ] List all available placeholders
-  - [ ] Show descriptions for each
-  - [ ] Click to insert at cursor position
-  - [ ] Visual indication in editor (syntax highlighting?)
-- [ ] Wire to backend API (Task AC: All)
-  - [ ] Create admin email template routes if don't exist
-  - [ ] Add CRUD operations
-  - [ ] Add permission checks (admin:manage_templates)
-  - [ ] Test all operations
+- [x] Create Email Templates admin page (Task AC: AC1)
+  - [x] Add route: /administration/email-templates
+  - [x] Create EmailTemplates.tsx component
+  - [x] Fetch and display templates list
+  - [x] Show template details (name, description, isDefault)
+  - [x] Add "Create" and "Edit" buttons
+- [x] Build template editor form (Task AC: AC2, AC3)
+  - [x] Create EmailTemplateEditor.tsx component or modal
+  - [x] Form fields: name, description, subject, body
+  - [x] Body field: large textarea
+  - [x] Default checkbox
+  - [x] Save/Cancel buttons
+- [x] Implement create functionality (Task AC: AC2)
+  - [x] POST /api/admin/email-templates endpoint
+  - [x] Form validation
+  - [x] Success/error handling
+  - [x] Navigate back to list after save
+- [x] Implement edit functionality (Task AC: AC3)
+  - [x] Load template data into form
+  - [x] PUT /api/admin/email-templates/:id endpoint
+  - [x] Save changes to database
+  - [x] Optimistic UI update
+- [x] Add preview mode (Task AC: AC4)
+  - [x] Add preview button/toggle
+  - [x] Replace placeholders with sample data
+  - [x] Show preview in modal or split view
+  - [x] Toggle between edit and preview
+- [x] Create placeholder helper (Task AC: AC5)
+  - [x] List all available placeholders
+  - [x] Show descriptions for each
+  - [x] Click to insert at cursor position
+  - [x] Visual indication in editor (syntax highlighting?)
+- [x] Wire to backend API (Task AC: All)
+  - [x] Create admin email template routes if don't exist
+  - [x] Add CRUD operations
+  - [x] Add permission checks (admin:manage_templates)
+  - [x] Test all operations
 
 ## Dev Notes
 
@@ -179,12 +179,85 @@ const AVAILABLE_PLACEHOLDERS = [
 
 ### Agent Model Used
 
-Claude Sonnet 4.5
+Claude Sonnet 4.5 (20251101)
 
-### Debug Log References
+### Implementation Date
+
+2025-12-25
 
 ### Completion Notes List
 
+- ✅ Backend CRUD routes created for email templates under `/api/admin/email-templates`
+- ✅ Service layer extended with create, update, delete operations
+- ✅ Audit actions added for template management (created, updated, deleted)
+- ✅ Frontend components created: EmailTemplates list page and EmailTemplateEditor modal
+- ✅ Placeholder helper with tooltips and click-to-insert functionality implemented
+- ✅ Real-time preview mode with sample data replacement
+- ✅ Form validation for required fields (name, subject, body)
+- ✅ Default template handling (prevents deletion, ensures only one default)
+- ✅ Route added to Administration dashboard
+- ✅ Comprehensive test suite for admin routes
+
 ### File List
 
+**Backend:**
+- `src/server/services/emailTemplateService.ts` - Extended with CRUD operations
+- `src/server/routes/admin/emailTemplates.ts` - New admin email template routes
+- `src/server/routes/admin.ts` - Mount email template sub-router
+- `src/server/services/auditService.ts` - Added email template audit actions
+- `src/server/routes/admin/__tests__/emailTemplates.test.ts` - Comprehensive test suite
+
+**Frontend:**
+- `src/components/screens/admin/EmailTemplates.tsx` - List page with create/edit/delete
+- `src/components/screens/admin/EmailTemplateEditor.tsx` - Modal editor with preview
+- `src/components/screens/Administration.tsx` - Added Email Templates card
+- `src/App.tsx` - Added route `/administration/email-templates`
+
 ### Change Log
+
+**Backend Changes:**
+1. Extended `emailTemplateService.ts` with:
+   - `createEmailTemplate()` - Create new template, auto-unset other defaults
+   - `updateEmailTemplate()` - Update existing template
+   - `deleteEmailTemplate()` - Soft delete (prevents deleting default template)
+
+2. Created `admin/emailTemplates.ts` routes:
+   - `GET /api/admin/email-templates` - List templates (AC1)
+   - `GET /api/admin/email-templates/:id` - Get specific template (AC3)
+   - `POST /api/admin/email-templates` - Create template (AC2)
+   - `PUT /api/admin/email-templates/:id` - Update template (AC3)
+   - `DELETE /api/admin/email-templates/:id` - Delete template
+
+3. Added audit actions:
+   - `EMAIL_TEMPLATE_CREATED`
+   - `EMAIL_TEMPLATE_UPDATED`
+   - `EMAIL_TEMPLATE_DELETED`
+
+**Frontend Changes:**
+1. `EmailTemplates.tsx`:
+   - Lists all templates with name, description, default badge, inactive badge
+   - Create/Edit/Delete buttons
+   - Loads templates from API
+   - Opens EmailTemplateEditor modal
+
+2. `EmailTemplateEditor.tsx`:
+   - Modal form for create/edit
+   - Fields: name, description, subject, body, isDefault checkbox
+   - Placeholder helper with 10 available placeholders (AC5)
+   - Preview mode with sample data replacement (AC4)
+   - Click-to-insert placeholders at cursor position
+   - Form validation for required fields
+
+3. Route integration:
+   - Added to Administration dashboard with Mail icon
+   - Route `/administration/email-templates`
+
+**Tests:**
+- Created comprehensive test suite covering:
+  - List templates (with/without inactive)
+  - Get template by ID
+  - Create new template
+  - Update existing template
+  - Delete template
+  - Validation errors (missing fields)
+  - Default template protection

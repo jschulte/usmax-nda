@@ -21,12 +21,20 @@ import { PERMISSIONS, PERMISSION_DESCRIPTIONS, type Permission } from '../consta
 import { auditService, AuditAction } from '../services/auditService.js';
 import { invalidateUserContext } from '../services/userContextService.js';
 import { exportAllUsersAccess, convertToCSV } from '../services/accessSummaryService.js';
+import adminEmailTemplatesRouter from './admin/emailTemplates.js';
+import adminTestNotificationsRouter from './admin/testNotifications.js';
 
 const router: RouterType = Router();
 
 // Apply authentication and permission check to all admin routes
 router.use(authenticateJWT);
 router.use(attachUserContext);
+
+// Story 9.16: Email template management
+router.use('/email-templates', adminEmailTemplatesRouter);
+
+// Story 9.17: Test notifications
+router.use('/test-notifications', adminTestNotificationsRouter);
 
 /**
  * GET /api/admin/access-export

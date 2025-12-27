@@ -24,6 +24,7 @@ import { UserManagement } from './components/screens/admin/UserManagement';
 import { SecuritySettings } from './components/screens/admin/SecuritySettings';
 import { NotificationSettings } from './components/screens/admin/NotificationSettings';
 import { AuditLogs } from './components/screens/admin/AuditLogs';
+import { EmailTemplates } from './components/screens/admin/EmailTemplates';
 import { Profile } from './components/screens/Profile';
 import { Settings } from './components/screens/Settings';
 import { Toaster } from './components/ui/sonner';
@@ -136,6 +137,7 @@ export default function App() {
           <Route path="/administration/security" element={<MainLayout><SecuritySettings /></MainLayout>} />
           <Route path="/administration/notifications" element={<MainLayout><NotificationSettings /></MainLayout>} />
           <Route path="/administration/audit-logs" element={<MainLayout><AuditLogs /></MainLayout>} />
+          <Route path="/administration/email-templates" element={<MainLayout><EmailTemplates /></MainLayout>} />
           <Route path="/profile" element={<MainLayout><Profile /></MainLayout>} />
           <Route path="/settings" element={<MainLayout><Settings /></MainLayout>} />
 

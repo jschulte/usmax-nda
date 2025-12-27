@@ -606,3 +606,106 @@ export async function notifyPocAssignment(
     console.error('[Notification] Failed to send POC assignment notification:', error);
   }
 }
+
+/**
+ * Send test notification to specified users
+ * Story 9.17: Send Test Notification with Recipient Selection
+ *
+ * @param notificationType - Type of notification to send
+ * @param recipientIds - Array of contact IDs to send to
+ * @param userContext - Admin user sending the test
+ * @returns Number of notifications sent
+ */
+export async function sendTestNotification(
+  notificationType: NotificationEvent,
+  recipientIds: string[],
+  userContext: UserContext
+): Promise<number> {
+  // Create mock NDA details for test notification
+  const mockDetails: NotificationDetails = {
+    ndaId: 'test-nda-' + Date.now(),
+    displayId: 99999,
+    companyName: 'Test Company Inc.',
+    event: notificationType,
+    changedBy: {
+      id: userContext.contactId,
+      name: userContext.name || 'Test User',
+    },
+    timestamp: new Date(),
+    previousValue: notificationType === NotificationEvent.STATUS_CHANGED ? 'Draft' : undefined,
+    newValue: notificationType === NotificationEvent.STATUS_CHANGED ? 'Sent' :
+              notificationType === NotificationEvent.ASSIGNED_TO_ME ? 'Opportunity POC' :
+              notificationType === NotificationEvent.NDA_REJECTED ? 'Missing required fields' : undefined,
+  };
+
+  let sent = 0;
+
+  for (const recipientId of recipientIds) {
+    try {
+      // Get recipient details
+      const recipient = await prisma.contact.findUnique({
+        where: { id: recipientId },
+        select: { email: true, firstName: true, lastName: true },
+      });
+
+      if (!recipient) {
+        console.warn(`[TestNotification] Recipient not found: ${recipientId}`);
+        continue;
+      }
+
+      // Generate test notification
+      let subject = generateNotificationSubject(mockDetails);
+      let body = generateNotificationBody(mockDetails);
+
+      // Add TEST prefix to subject (AC5)
+      subject = `[TEST] ${subject}`;
+
+      // Add test disclaimer to body (AC5)
+      body = `⚠️  THIS IS A TEST NOTIFICATION  ⚠️
+This notification was sent by ${userContext.name || userContext.email} to test the notification system.
+The NDA details below are simulated and do not represent an actual NDA.
+
+---
+
+${body}
+
+---
+
+⚠️  THIS IS A TEST NOTIFICATION  ⚠️`;
+
+      // Send test email
+      await queueEmail(
+        {
+          ndaId: mockDetails.ndaId,
+          subject,
+          toRecipients: [recipient.email],
+          ccRecipients: [],
+          bccRecipients: [],
+          body,
+        },
+        userContext
+      );
+
+      sent++;
+    } catch (error) {
+      console.error(`[TestNotification] Failed to send to recipient ${recipientId}:`, error);
+    }
+  }
+
+  // Log test notification event (AC4)
+  await auditService.log({
+    action: AuditAction.TEST_NOTIFICATION_SENT,
+    entityType: 'notification',
+    entityId: null,
+    userId: userContext.contactId,
+    details: {
+      notificationType,
+      recipientCount: sent,
+      recipientIds,
+    },
+    ipAddress: null,
+    userAgent: null,
+  });
+
+  return sent;
+}

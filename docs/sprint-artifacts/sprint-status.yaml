@@ -194,8 +194,8 @@ development_status:
   9-13-improve-login-page-branding: done  # Frontend CSS/layout adjustment
   9-14-carry-contact-phone-to-nda-form: done
   9-15-enhanced-email-template-bodies: done
-  9-16-improved-email-template-editor: ready-for-dev  # Phase 2: Admin UI - Requires new component, CRUD routes (spec complete)
-  9-17-send-test-notification-with-recipient-selection: ready-for-dev  # Phase 2: Admin tool - New endpoint + UI (spec complete)
+  9-16-improved-email-template-editor: done  # Admin email template CRUD UI with preview and placeholder helper
+  9-17-send-test-notification-with-recipient-selection: done  # Admin test notification tool with recipient selection
   9-18-rtf-template-rich-text-editor: ready-for-dev  # Phase 2: WYSIWYG or upload workflow - Complex feature (spec complete)
   9-19-clarify-or-remove-clauses-section: done  # Verified: Not implemented - remove from UI
   9-20-manager-escalation-add-field-or-remove: done  # Verified: No DB field - remove option
