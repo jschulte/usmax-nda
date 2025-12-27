@@ -54,4 +54,4 @@ aws ssm get-command-invocation \
 echo ""
 echo "🎉 Done!"
 echo "🌐 Demo URL: http://18.235.47.142"
-echo "🌐 CloudFront: https://d3s83cg96xp6l3.cloudfront.net"
+echo "🌐 CloudFront: https://d2j310eus7y1g6.cloudfront.net"

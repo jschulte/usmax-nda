@@ -154,7 +154,7 @@ jobs:
           if [ "${{ needs.deploy.result }}" == "success" ]; then
             echo "✅ Demo deployment successful!"
             echo "URL: http://${{ env.DEMO_HOST }}"
-            echo "CloudFront: https://d3s83cg96xp6l3.cloudfront.net"
+            echo "CloudFront: https://d2j310eus7y1g6.cloudfront.net"
           else
             echo "❌ Demo deployment failed!"
             exit 1
