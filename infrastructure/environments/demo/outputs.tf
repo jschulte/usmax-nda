@@ -67,3 +67,8 @@ output "iam_instance_profile" {
   description = "IAM instance profile name"
   value       = aws_iam_instance_profile.demo.name
 }
+
+output "github_actions_role_arn" {
+  description = "ARN of the IAM role for GitHub Actions (add as AWS_ROLE_ARN secret)"
+  value       = aws_iam_role.github_actions.arn
+}

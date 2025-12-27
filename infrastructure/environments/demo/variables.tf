@@ -50,3 +50,9 @@ variable "app_repo" {
   type        = string
   default     = "https://github.com/your-org/usmax-nda.git"
 }
+
+variable "create_github_oidc_provider" {
+  description = "Whether to create the GitHub OIDC provider (only needed once per AWS account)"
+  type        = bool
+  default     = true
+}
