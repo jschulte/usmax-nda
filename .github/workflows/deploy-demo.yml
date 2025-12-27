@@ -91,11 +91,15 @@ jobs:
           fi
           DEPLOY_SCRIPT
 
-          # Send deployment script as single command
+          # Send deployment script as single command (use jq to properly escape for JSON)
+          PARAMS=$(jq -n \
+            --arg script "$(cat /tmp/deploy-commands.sh)" \
+            '{commands: [$script]}')
+
           COMMAND_ID=$(aws ssm send-command \
             --instance-ids "${{ steps.instance.outputs.instance_id }}" \
             --document-name "AWS-RunShellScript" \
-            --parameters commands="$(cat /tmp/deploy-commands.sh)" \
+            --parameters "$PARAMS" \
             --output text \
             --query "Command.CommandId")
 
