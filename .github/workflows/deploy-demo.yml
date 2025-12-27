@@ -55,43 +55,47 @@ jobs:
         run: |
           echo "🚀 Deploying to ${{ steps.instance.outputs.instance_id }}..."
 
+          # Create deployment script
+          cat > /tmp/deploy-commands.sh << 'DEPLOY_SCRIPT'
+          set -e
+          cd ${{ env.APP_DIR }}
+          echo "📦 Backing up current app..."
+          sudo -u ${{ env.APP_USER }} cp -r ${{ env.APP_DIR }} ${{ env.APP_DIR }}.backup.$(date +%Y%m%d_%H%M%S) || true
+          echo "🔧 Setting up git repository..."
+          if [ ! -d .git ]; then
+            sudo -u ${{ env.APP_USER }} git init
+            sudo -u ${{ env.APP_USER }} git remote add origin ${{ env.GITHUB_REPO }}
+          fi
+          sudo -u ${{ env.APP_USER }} git remote set-url origin ${{ env.GITHUB_REPO }} || true
+          echo "📥 Pulling latest code from GitHub..."
+          sudo -u ${{ env.APP_USER }} git fetch origin
+          sudo -u ${{ env.APP_USER }} git reset --hard origin/main
+          echo "Current commit: $(git log -1 --oneline)"
+          echo "📚 Installing dependencies..."
+          sudo -u ${{ env.APP_USER }} pnpm install --no-frozen-lockfile
+          echo "🔧 Generating Prisma client..."
+          sudo -u ${{ env.APP_USER }} pnpm db:generate
+          echo "🏗️  Building application..."
+          sudo -u ${{ env.APP_USER }} pnpm build
+          echo "♻️  Restarting service..."
+          sudo systemctl restart usmax-nda
+          echo "⏳ Waiting for service to start..."
+          sleep 5
+          echo "🏥 Running health check..."
+          if curl -sf http://localhost:3001/api/health > /dev/null; then
+            echo "✅ Deployment successful! Service is healthy."
+          else
+            echo "⚠️ Service may not be responding. Check logs."
+            sudo journalctl -u usmax-nda -n 50 --no-pager
+            exit 1
+          fi
+          DEPLOY_SCRIPT
+
+          # Send deployment script as single command
           COMMAND_ID=$(aws ssm send-command \
             --instance-ids "${{ steps.instance.outputs.instance_id }}" \
             --document-name "AWS-RunShellScript" \
-            --parameters 'commands=[
-              "set -e",
-              "cd ${{ env.APP_DIR }}",
-              "echo \"📦 Backing up current app...\"",
-              "sudo -u ${{ env.APP_USER }} cp -r ${{ env.APP_DIR }} ${{ env.APP_DIR }}.backup.$(date +%Y%m%d_%H%M%S) || true",
-              "echo \"🔧 Setting up git repository...\"",
-              "if [ ! -d .git ]; then",
-              "  sudo -u ${{ env.APP_USER }} git init",
-              "  sudo -u ${{ env.APP_USER }} git remote add origin ${{ env.GITHUB_REPO }}",
-              "fi",
-              "sudo -u ${{ env.APP_USER }} git remote set-url origin ${{ env.GITHUB_REPO }} || true",
-              "echo \"📥 Pulling latest code from GitHub...\"",
-              "sudo -u ${{ env.APP_USER }} git fetch origin",
-              "sudo -u ${{ env.APP_USER }} git reset --hard origin/main",
-              "echo \"Current commit: $(git log -1 --oneline)\"",
-              "echo \"📚 Installing dependencies...\"",
-              "sudo -u ${{ env.APP_USER }} pnpm install --no-frozen-lockfile",
-              "echo \"🔧 Generating Prisma client...\"",
-              "sudo -u ${{ env.APP_USER }} pnpm db:generate",
-              "echo \"🏗️  Building application...\"",
-              "sudo -u ${{ env.APP_USER }} pnpm build",
-              "echo \"♻️  Restarting service...\"",
-              "sudo systemctl restart usmax-nda",
-              "echo \"⏳ Waiting for service to start...\"",
-              "sleep 5",
-              "echo \"🏥 Running health check...\"",
-              "if curl -sf http://localhost:3001/api/health > /dev/null; then",
-              "  echo \"✅ Deployment successful! Service is healthy.\"",
-              "else",
-              "  echo \"⚠️ Service may not be responding. Check logs.\"",
-              "  sudo journalctl -u usmax-nda -n 50 --no-pager",
-              "  exit 1",
-              "fi"
-            ]' \
+            --parameters commands="$(cat /tmp/deploy-commands.sh)" \
             --output text \
             --query "Command.CommandId")
 
