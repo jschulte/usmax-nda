@@ -210,7 +210,7 @@ router.put('/:id', async (req: Request, res: Response) => {
       userId: req.userContext!.contactId,
       details: {
         templateName: template.name,
-        changes: updates,
+        updatedFields: updates,
       },
       ipAddress: req.ip,
       userAgent: req.headers['user-agent'],

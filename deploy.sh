@@ -29,6 +29,7 @@ COMMAND_ID=$(aws ssm send-command \
     "sudo -u usmax git reset --hard origin/main",
     "sudo -u usmax pnpm install --no-frozen-lockfile",
     "sudo -u usmax pnpm db:generate",
+    "sudo -u usmax pnpm prisma migrate deploy",
     "sudo -u usmax pnpm build",
     "sudo systemctl restart usmax-nda",
     "sleep 5",

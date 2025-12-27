@@ -75,6 +75,8 @@ jobs:
           sudo -u ${{ env.APP_USER }} pnpm install --no-frozen-lockfile
           echo "🔧 Generating Prisma client..."
           sudo -u ${{ env.APP_USER }} pnpm db:generate
+          echo "🗄️  Running database migrations..."
+          sudo -u ${{ env.APP_USER }} pnpm prisma migrate deploy
           echo "🏗️  Building application..."
           sudo -u ${{ env.APP_USER }} pnpm build
           echo "♻️  Restarting service..."

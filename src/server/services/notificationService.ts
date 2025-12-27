@@ -703,8 +703,8 @@ ${body}
       recipientCount: sent,
       recipientIds,
     },
-    ipAddress: null,
-    userAgent: null,
+    ipAddress: undefined,
+    userAgent: undefined,
   });
 
   return sent;
