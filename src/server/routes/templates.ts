@@ -28,6 +28,14 @@ import {
   deleteTemplate,
   TemplateServiceError,
 } from '../services/templateService.js';
+import {
+  generateTemplatePreview,
+  validatePlaceholders,
+} from '../services/templatePreviewService.js';
+import {
+  validateTemplate,
+  sanitizeHtml,
+} from '../services/rtfTemplateValidation.js';
 
 const router: Router = Router();
 
@@ -117,6 +125,68 @@ router.get(
 );
 
 /**
+ * POST /api/rtf-templates/preview
+ * Generate preview of template content with sample data
+ *
+ * Body:
+ * - htmlContent: string (HTML from Quill editor with {{placeholders}})
+ *
+ * Returns:
+ * - previewHtml: HTML with placeholders replaced by sample values
+ */
+router.post(
+  '/preview',
+  requirePermission(PERMISSIONS.ADMIN_MANAGE_TEMPLATES),
+  async (req, res) => {
+    try {
+      const { htmlContent } = req.body;
+
+      if (!htmlContent) {
+        return res.status(400).json({
+          error: 'htmlContent is required',
+          code: 'VALIDATION_ERROR',
+        });
+      }
+
+      // Validate content length to prevent DoS (max 1MB)
+      const MAX_HTML_LENGTH = 1024 * 1024; // 1MB
+      if (htmlContent.length > MAX_HTML_LENGTH) {
+        return res.status(413).json({
+          error: `Content too large. Maximum size is ${MAX_HTML_LENGTH} bytes`,
+          code: 'PAYLOAD_TOO_LARGE',
+        });
+      }
+
+      // Sanitize HTML to prevent XSS
+      const sanitized = sanitizeHtml(htmlContent);
+
+      // Validate placeholders before generating preview
+      const unknownPlaceholders = validatePlaceholders(sanitized);
+      if (unknownPlaceholders.length > 0) {
+        return res.status(400).json({
+          error: `Unknown placeholders: ${unknownPlaceholders.join(', ')}`,
+          code: 'VALIDATION_ERROR',
+          unknownPlaceholders,
+        });
+      }
+
+      // Generate preview with sample data
+      const previewHtml = generateTemplatePreview(sanitized);
+
+      res.json({
+        previewHtml,
+      });
+    } catch (error) {
+      console.error('[Templates] Error generating preview:', error);
+      res.status(500).json({
+        error: 'Failed to generate preview',
+        code: 'INTERNAL_ERROR',
+      });
+    }
+  }
+);
+
+/**
  * POST /api/rtf-templates
  * Create a new template (admin only)
  *
@@ -124,6 +194,7 @@ router.get(
  * - name: string (required)
  * - description: string (optional)
  * - content: base64 encoded RTF content (required)
+ * - htmlSource: base64 encoded HTML source (optional, for WYSIWYG editing)
  * - agencyGroupId: string (optional)
  * - isDefault: boolean (optional)
  */
@@ -132,7 +203,7 @@ router.post(
   requirePermission(PERMISSIONS.ADMIN_MANAGE_TEMPLATES),
   async (req, res) => {
     try {
-      const { name, description, content, agencyGroupId, isDefault } = req.body;
+      const { name, description, content, htmlSource, agencyGroupId, isDefault } = req.body;
 
       if (!name || !content) {
         return res.status(400).json({
@@ -142,6 +213,21 @@ router.post(
       }
 
       const contentBuffer = Buffer.from(content, 'base64');
+
+      // If htmlSource is provided (from WYSIWYG editor), validate both HTML and RTF
+      if (htmlSource) {
+        const htmlContent = Buffer.from(htmlSource, 'base64').toString('utf-8');
+        const rtfContent = contentBuffer.toString('utf-8');
+
+        const validation = validateTemplate(htmlContent, rtfContent);
+        if (!validation.valid) {
+          return res.status(400).json({
+            error: 'Template validation failed',
+            code: 'VALIDATION_ERROR',
+            validationErrors: validation.errors,
+          });
+        }
+      }
 
       const template = await createTemplate(
         {
@@ -176,6 +262,7 @@ router.post(
  * - name: string
  * - description: string
  * - content: base64 encoded RTF content
+ * - htmlSource: base64 encoded HTML source (optional, for WYSIWYG editing)
  * - agencyGroupId: string | null
  * - isDefault: boolean
  * - isActive: boolean
@@ -185,9 +272,24 @@ router.put(
   requirePermission(PERMISSIONS.ADMIN_MANAGE_TEMPLATES),
   async (req, res) => {
     try {
-      const { name, description, content, agencyGroupId, isDefault, isActive } = req.body;
+      const { name, description, content, htmlSource, agencyGroupId, isDefault, isActive } = req.body;
 
       const contentBuffer = content ? Buffer.from(content, 'base64') : undefined;
+
+      // If htmlSource is provided (from WYSIWYG editor), validate both HTML and RTF
+      if (htmlSource && contentBuffer) {
+        const htmlContent = Buffer.from(htmlSource, 'base64').toString('utf-8');
+        const rtfContent = contentBuffer.toString('utf-8');
+
+        const validation = validateTemplate(htmlContent, rtfContent);
+        if (!validation.valid) {
+          return res.status(400).json({
+            error: 'Template validation failed',
+            code: 'VALIDATION_ERROR',
+            validationErrors: validation.errors,
+          });
+        }
+      }
 
       const template = await updateTemplate(req.params.id, {
         name,

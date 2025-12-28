@@ -196,7 +196,7 @@ development_status:
   9-15-enhanced-email-template-bodies: done
   9-16-improved-email-template-editor: done  # Admin email template CRUD UI with preview and placeholder helper
   9-17-send-test-notification-with-recipient-selection: done  # Admin test notification tool with recipient selection
-  9-18-rtf-template-rich-text-editor: ready-for-dev  # Phase 2: WYSIWYG or upload workflow - Complex feature (spec complete)
+  9-18-rtf-template-rich-text-editor: done  # WYSIWYG editor with Quill + html-to-rtf, 31 tests passing, 16 issues fixed
   9-19-clarify-or-remove-clauses-section: done  # Verified: Not implemented - remove from UI
   9-20-manager-escalation-add-field-or-remove: done  # Verified: No DB field - remove option
   9-21-verify-or-remove-ip-access-control: done  # Verified: Not implemented - remove from UI

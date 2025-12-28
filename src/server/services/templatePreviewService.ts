@@ -1,0 +1,102 @@
+/**
+ * Template Preview Service
+ * Story 9.18: RTF Template Rich Text Editor (WYSIWYG)
+ *
+ * Generates preview of RTF templates using sample data to populate merge fields.
+ * Used for WYSIWYG editor preview functionality before actual NDA creation.
+ */
+
+/**
+ * Sample merge field data for template preview
+ * Matches the structure from templateService.ts extractMergedFields()
+ */
+export const SAMPLE_MERGE_FIELDS: Record<string, string> = {
+  companyName: 'Acme Corporation',
+  companyCity: 'Washington',
+  companyState: 'DC',
+  stateOfIncorporation: 'Delaware',
+  agencyGroupName: 'Department of Defense',
+  subagencyName: 'U.S. Air Force',
+  agencyOfficeName: 'Office of the Secretary',
+  abbreviatedName: 'ACME',
+  authorizedPurpose: 'Proposal Development for Contract XYZ-2024',
+  effectiveDate: 'January 15, 2024',
+  usMaxPosition: 'Prime Contractor',
+  opportunityPocName: 'John Smith',
+  contractsPocName: 'Jane Doe',
+  relationshipPocName: 'Robert Johnson',
+  generatedDate: new Date().toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  }),
+};
+
+/**
+ * Replace placeholder tokens in HTML with sample merge field values
+ *
+ * @param htmlContent - HTML string containing {{placeholder}} tokens
+ * @returns HTML string with placeholders replaced by sample values
+ *
+ * @example
+ * const html = '<p>Company: {{companyName}}</p>';
+ * const preview = generateTemplatePreview(html);
+ * // Returns: '<p>Company: Acme Corporation</p>'
+ */
+export function generateTemplatePreview(htmlContent: string): string {
+  let preview = htmlContent;
+
+  // Replace each placeholder with its sample value
+  for (const [fieldName, sampleValue] of Object.entries(SAMPLE_MERGE_FIELDS)) {
+    const placeholder = `{{${fieldName}}}`;
+    const regex = new RegExp(placeholder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
+    preview = preview.replace(regex, sampleValue);
+  }
+
+  return preview;
+}
+
+/**
+ * Validate that HTML content uses only allowed placeholders
+ *
+ * @param htmlContent - HTML string to validate
+ * @returns Array of unknown placeholder names (empty if all valid)
+ */
+export function validatePlaceholders(htmlContent: string): string[] {
+  const placeholderRegex = /\{\{(\w+)\}\}/g;
+  const allowedPlaceholders = Object.keys(SAMPLE_MERGE_FIELDS);
+  const unknownPlaceholders: string[] = [];
+  let match: RegExpExecArray | null;
+
+  while ((match = placeholderRegex.exec(htmlContent)) !== null) {
+    const placeholderName = match[1];
+    if (!allowedPlaceholders.includes(placeholderName)) {
+      if (!unknownPlaceholders.includes(placeholderName)) {
+        unknownPlaceholders.push(placeholderName);
+      }
+    }
+  }
+
+  return unknownPlaceholders;
+}
+
+/**
+ * Extract all placeholder tokens from HTML content
+ *
+ * @param htmlContent - HTML string to analyze
+ * @returns Array of placeholder field names found in the content
+ */
+export function extractPlaceholders(htmlContent: string): string[] {
+  const placeholderRegex = /\{\{(\w+)\}\}/g;
+  const placeholders: string[] = [];
+  let match: RegExpExecArray | null;
+
+  while ((match = placeholderRegex.exec(htmlContent)) !== null) {
+    const placeholderName = match[1];
+    if (!placeholders.includes(placeholderName)) {
+      placeholders.push(placeholderName);
+    }
+  }
+
+  return placeholders;
+}

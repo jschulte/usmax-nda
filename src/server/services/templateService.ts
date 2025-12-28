@@ -13,6 +13,8 @@ import { uploadDocument, getDownloadUrl } from './s3Service.js';
 import { auditService, AuditAction } from './auditService.js';
 import type { UserContext } from '../types/auth.js';
 import { findNdaWithScope } from '../utils/scopedQuery.js';
+import { validateRtfStructure, validateHtmlPlaceholders } from './rtfTemplateValidation.js';
+import { extractPlaceholders } from './templatePreviewService.js';
 
 /**
  * Custom error for template service operations
@@ -369,6 +371,27 @@ export async function createTemplate(
   },
   userContext: UserContext
 ): Promise<{ id: string; name: string }> {
+  // Validate RTF content structure
+  const rtfContent = data.content.toString('utf-8');
+  const rtfValidation = validateRtfStructure(rtfContent);
+
+  if (!rtfValidation.valid) {
+    throw new TemplateServiceError(
+      `Invalid RTF structure: ${rtfValidation.errors.join(', ')}`,
+      'VALIDATION_ERROR'
+    );
+  }
+
+  // Validate placeholders in RTF content
+  const htmlValidation = validateHtmlPlaceholders(rtfContent);
+
+  if (!htmlValidation.valid) {
+    throw new TemplateServiceError(
+      `Invalid placeholders: ${htmlValidation.errors.join(', ')}`,
+      'VALIDATION_ERROR'
+    );
+  }
+
   // If setting as default, unset other defaults
   if (data.isDefault) {
     await prisma.rtfTemplate.updateMany({
@@ -416,6 +439,29 @@ export async function updateTemplate(
     throw new TemplateServiceError('Template not found', 'NOT_FOUND');
   }
 
+  // Validate RTF content if provided
+  if (data.content) {
+    const rtfContent = data.content.toString('utf-8');
+    const rtfValidation = validateRtfStructure(rtfContent);
+
+    if (!rtfValidation.valid) {
+      throw new TemplateServiceError(
+        `Invalid RTF structure: ${rtfValidation.errors.join(', ')}`,
+        'VALIDATION_ERROR'
+      );
+    }
+
+    // Validate placeholders in RTF content
+    const htmlValidation = validateHtmlPlaceholders(rtfContent);
+
+    if (!htmlValidation.valid) {
+      throw new TemplateServiceError(
+        `Invalid placeholders: ${htmlValidation.errors.join(', ')}`,
+        'VALIDATION_ERROR'
+      );
+    }
+  }
+
   // If setting as default, unset other defaults
   if (data.isDefault) {
     await prisma.rtfTemplate.updateMany({
@@ -459,6 +505,45 @@ export async function deleteTemplate(templateId: string): Promise<void> {
     where: { id: templateId },
     data: { isActive: false },
   });
+}
+
+/**
+ * Generate template preview with sample merge data
+ * Story 9.18: RTF Template Rich Text Editor
+ *
+ * @param options - Preview options
+ * @param options.content - RTF template content as Buffer
+ * @param options.sampleData - Sample merge field values
+ * @returns Preview content with placeholders merged
+ */
+export async function generateTemplatePreview(options: {
+  content: Buffer;
+  sampleData: Record<string, string>;
+}): Promise<{ previewContent: Buffer; mergedFields: Record<string, string> }> {
+  const { content, sampleData } = options;
+
+  // Convert Buffer to string
+  let rtfContent = content.toString('utf-8');
+
+  // Track which fields were merged
+  const mergedFields: Record<string, string> = {};
+
+  // Replace each placeholder with its sample value
+  for (const [fieldName, value] of Object.entries(sampleData)) {
+    const placeholder = `{{${fieldName}}}`;
+    const escapedValue = escapeRtfValue(value);
+
+    if (rtfContent.includes(placeholder)) {
+      const regex = new RegExp(placeholder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
+      rtfContent = rtfContent.replace(regex, escapedValue);
+      mergedFields[fieldName] = value;
+    }
+  }
+
+  return {
+    previewContent: Buffer.from(rtfContent, 'utf-8'),
+    mergedFields,
+  };
 }
 
 /**
