@@ -1412,6 +1412,37 @@ export function NDADetail() {
               {/* Document Tab */}
               {activeTab === 'document' && (
                 <div>
+                  {/* Issue #25: Document workflow guidance */}
+                  {documents.length === 0 && (
+                    <>
+                      {templates.length > 0 ? (
+                        <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                          <div className="flex items-start gap-3">
+                            <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                            <div>
+                              <p className="font-medium text-blue-900 mb-2">Generate your NDA document</p>
+                              <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
+                                <li>Choose a template from the dropdown below</li>
+                                <li>Click "Generate document" to create the RTF file</li>
+                                <li>Click "Preview Document" in Quick Actions to review</li>
+                                <li>Route for approval when ready</li>
+                              </ol>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                          <div className="flex items-start gap-3">
+                            <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                            <div>
+                              <p className="font-medium text-amber-900 mb-1">No templates available</p>
+                              <p className="text-sm text-amber-800">Contact an administrator to create RTF templates before generating documents.</p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
                   <div className="mb-4">
                     <div className="flex items-center justify-between mb-2">
                       <h3>Documents ({documents.length})</h3>
@@ -1706,25 +1737,95 @@ export function NDADetail() {
                 !canUploadDocument,
                 "You don't have permission to upload documents"
               )}
+              {/* Issue #17: Preview Document button in Quick Actions */}
+              {renderPermissionedButton(
+                <Button
+                  variant="primary"
+                  size="sm"
+                  className="w-full"
+                  icon={previewing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Eye className="w-4 h-4" />}
+                  onClick={handlePreviewDocument}
+                  disabled={previewing || !canEdit}
+                >
+                  {previewing ? 'Previewing...' : 'Preview Document'}
+                </Button>,
+                !canEdit,
+                "You don't have permission to generate previews"
+              )}
               {renderPermissionedButton(
                 <Button
                   variant="secondary"
                   size="sm"
                   className="w-full"
                   icon={<Check className="w-4 h-4" />}
-                  onClick={() => {
-                    setActiveTab('overview');
-                    document.getElementById('nda-status-card')?.scrollIntoView({ behavior: 'smooth' });
-                  }}
-                  disabled={!canChangeStatus}
+                  onClick={() => setShowStatusChangeModal(true)}
+                  disabled={!canChangeStatus || statusUpdating || validStatusTransitions.length === 0}
                 >
-                  Change Status
+                  {validStatusTransitions.length === 0 ? 'No valid transitions' : 'Change Status'}
                 </Button>,
                 !canChangeStatus,
                 "You don't have permission to change status"
               )}
             </div>
           </Card>
+
+          {/* Issue #20: Moved Actions card to top for better visibility */}
+          {/* Tasks */}
+          {nda.status !== 'FULLY_EXECUTED' && nda.status !== 'INACTIVE_CANCELED' && nda.status !== 'EXPIRED' && (
+            <Card>
+              <h3 className="mb-4">Actions</h3>
+              <div className="space-y-3">
+                {nda.status === 'IN_REVISION' && (
+                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p className="text-sm mb-2">Complete Review</p>
+                    <p className="text-xs text-[var(--color-text-muted)] mb-3">
+                      Review the NDA and send for signature
+                    </p>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      className="w-full"
+                      onClick={handleStartReview}
+                      disabled={statusUpdating}
+                    >
+                      {statusUpdating ? 'Updating...' : 'Complete review'}
+                    </Button>
+                  </div>
+                )}
+                {nda.status === 'CREATED' && (
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                    <p className="text-sm mb-2">Send NDA</p>
+                    <p className="text-xs text-[var(--color-text-muted)] mb-3">
+                      Send this NDA for signature
+                    </p>
+                    {renderPermissionedButton(
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        className="w-full"
+                        onClick={handleSendForSignature}
+                        disabled={isSendingEmail || !canSendEmail}
+                      >
+                        {isSendingEmail ? 'Sending...' : 'Send for signature'}
+                      </Button>,
+                      !canSendEmail,
+                      "You don't have permission to send emails"
+                    )}
+                  </div>
+                )}
+                {availableActionBadges.length > 0 && (
+                  <div className="pt-3 border-t border-[var(--color-border)]">
+                    <p className="text-xs text-[var(--color-text-muted)] mb-2">Available actions:</p>
+                    {availableActionBadges.map((action) => (
+                      <Badge key={action} variant="info" className="mr-1 mb-1">
+                        {action}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </Card>
+          )}
 
           {/* People */}
           <Card>
@@ -1815,64 +1916,7 @@ export function NDADetail() {
               </div>
             </Card>
           )}
-          
-          {/* Tasks */}
-          {nda.status !== 'FULLY_EXECUTED' && nda.status !== 'INACTIVE_CANCELED' && nda.status !== 'EXPIRED' && (
-            <Card>
-              <h3 className="mb-4">Actions</h3>
-              <div className="space-y-3">
-                {nda.status === 'IN_REVISION' && (
-                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                    <p className="text-sm mb-2">Complete Review</p>
-                    <p className="text-xs text-[var(--color-text-muted)] mb-3">
-                      Review the NDA and send for signature
-                    </p>
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      className="w-full"
-                      onClick={handleStartReview}
-                      disabled={statusUpdating}
-                    >
-                      {statusUpdating ? 'Updating...' : 'Complete review'}
-                    </Button>
-                  </div>
-                )}
-                {nda.status === 'CREATED' && (
-                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                    <p className="text-sm mb-2">Send NDA</p>
-                    <p className="text-xs text-[var(--color-text-muted)] mb-3">
-                      Send this NDA for signature
-                    </p>
-                    {renderPermissionedButton(
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        className="w-full"
-                        onClick={handleSendForSignature}
-                        disabled={isSendingEmail || !canSendEmail}
-                      >
-                        {isSendingEmail ? 'Sending...' : 'Send for signature'}
-                      </Button>,
-                      !canSendEmail,
-                      "You don't have permission to send emails"
-                    )}
-                  </div>
-                )}
-                {availableActionBadges.length > 0 && (
-                  <div className="pt-3 border-t border-[var(--color-border)]">
-                    <p className="text-xs text-[var(--color-text-muted)] mb-2">Available actions:</p>
-                    {availableActionBadges.map((action) => (
-                      <Badge key={action} variant="info" className="mr-1 mb-1">
-                        {action}
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </Card>
-          )}
-          
+
           {/* Notes */}
           <Card>
             <h3 className="mb-4">Internal notes</h3>

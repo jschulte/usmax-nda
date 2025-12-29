@@ -28,11 +28,22 @@ router.use(attachUserContext);
 /**
  * System events that should be filtered from user-facing audit trail views
  * Story 9.2: These events are logged for security monitoring but hidden from UI by default
+ * Issue #19: Expanded to include all system/security events
+ * Code Review: Added successful auth events to reduce timeline noise
  */
 const SYSTEM_EVENTS = [
+  // Authorization/Permission events
   AuditAction.PERMISSION_DENIED,
   AuditAction.UNAUTHORIZED_ACCESS_ATTEMPT,
-  // Add other system events here as needed
+  AuditAction.ADMIN_BYPASS,
+  // Authentication events (routine, not NDA-specific)
+  AuditAction.LOGIN_SUCCESS,
+  AuditAction.LOGIN_FAILED,
+  AuditAction.MFA_SUCCESS,
+  AuditAction.MFA_FAILED,
+  AuditAction.LOGOUT,
+  // Auto-provisioning (system event)
+  AuditAction.USER_AUTO_PROVISIONED,
 ];
 
 /**

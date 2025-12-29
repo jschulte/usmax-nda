@@ -63,7 +63,8 @@ export const TOOLBAR_CONFIG = [
   [{ 'size': ['small', false, 'large', 'huge'] }],
   [{ 'list': 'ordered' }, { 'list': 'bullet' }],
   ['placeholder-insert'], // Custom button for inserting placeholders
-  ['better-table'], // AC2 requirement: Insert tables
+  // TEMPORARILY DISABLED: better-table incompatible with Quill 2.x
+  // ['better-table'], // AC2 requirement: Insert tables - TODO: find compatible module
   ['clean'], // Remove formatting
 ];
 
@@ -102,15 +103,16 @@ export function createEditorModules(
         'placeholder-insert': onInsertPlaceholder,
       },
     },
-    'better-table': {
-      operationMenu: {
-        items: {
-          unmergeCells: {
-            text: 'Unmerge cells',
-          },
-        },
-      },
-    },
+    // TEMPORARILY DISABLED: better-table causing moduleClass constructor error
+    // 'better-table': {
+    //   operationMenu: {
+    //     items: {
+    //       unmergeCells: {
+    //         text: 'Unmerge cells',
+    //       },
+    //     },
+    //   },
+    // },
   };
 }
 

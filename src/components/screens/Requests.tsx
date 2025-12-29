@@ -1162,13 +1162,19 @@ export function Requests({
               </div>
 
               <h3 className="text-lg font-medium mb-2">
-                {hasActiveFilters ? 'No NDAs match your filters' : 'No NDAs yet'}
+                {myDraftsOnly && !hasActiveFilters
+                  ? 'You have no draft NDAs'
+                  : hasActiveFilters
+                    ? 'No NDAs match your filters'
+                    : 'No NDAs yet'}
               </h3>
 
               <p className="text-sm text-[var(--color-text-secondary)] mb-6">
-                {hasActiveFilters
-                  ? 'Try adjusting your search criteria or clear all filters to see all NDAs'
-                  : 'Create your first NDA to get started tracking agreements'
+                {myDraftsOnly && !hasActiveFilters
+                  ? 'Ready to create one?'
+                  : hasActiveFilters
+                    ? 'Try adjusting your search criteria or clear all filters to see all NDAs'
+                    : 'Create your first NDA to get started tracking agreements'
                 }
               </p>
 
@@ -1178,9 +1184,13 @@ export function Requests({
                     Clear All Filters
                   </Button>
                 )}
-                {showCreateButton && (
-                  <Button variant="primary" icon={<Plus className="w-4 h-4" />} onClick={() => navigate('/ndas/new')}>
-                    {hasActiveFilters ? 'Create NDA' : 'Create Your First NDA'}
+                {(showCreateButton || myDraftsOnly) && (
+                  <Button variant="primary" icon={<Plus className="w-4 h-4" />} onClick={() => navigate('/request-wizard')}>
+                    {myDraftsOnly
+                      ? 'Request New NDA'
+                      : hasActiveFilters
+                        ? 'Create NDA'
+                        : 'Create Your First NDA'}
                   </Button>
                 )}
               </div>

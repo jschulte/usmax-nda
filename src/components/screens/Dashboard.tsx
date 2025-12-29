@@ -15,6 +15,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner@2.0.3';
 import { getDashboard, Dashboard as DashboardData, StaleNda, ExpiringNda, WaitingNda, RecentActivity } from '../../client/services/dashboardService';
+import { getStatusDisplayName } from '../../client/utils/statusFormatter';
 
 // Union type for all items needing attention
 type AttentionItem = (StaleNda & { reason: string; priority: 'high' | 'medium' | 'low'; itemType: 'stale' }) |
@@ -311,7 +312,7 @@ export function Dashboard() {
                     <p className="mb-2 font-medium">{item.companyName}</p>
                     <p className="text-sm text-[var(--color-text-secondary)] mb-2">NDA-{item.displayId} • {item.agencyGroupName}</p>
                     <div className="flex items-center gap-2 flex-wrap mb-2">
-                      <Badge variant="status" status={item.status as any}>{item.status}</Badge>
+                      <Badge variant="status" status={item.status as any}>{getStatusDisplayName(item.status)}</Badge>
                       {getPriorityBadge(item.priority)}
                       {getStaleBadge(item)}
                     </div>

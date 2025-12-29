@@ -1002,7 +1002,34 @@ export function RequestWizard() {
       }
     };
   }, [formData, isLoading, attemptAutoSave]);
-  
+
+  // Issue #24: Warn user about unsaved changes when navigating away
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      // Check if form has meaningful data
+      const hasData = formData.companyName.trim() !== '' ||
+                     formData.projectName.trim() !== '' ||
+                     formData.relationshipPocName.trim() !== '';
+
+      // Check if there are unsaved changes (null-safe)
+      const lastChange = lastChangeAtRef.current ?? 0;
+      const lastSaved = lastSavedAtRef.current ?? 0;
+      const hasUnsavedChanges = lastChange > lastSaved && lastChange > 0;
+
+      // Warn if there's data and unsaved changes
+      if (hasData && hasUnsavedChanges && !isAutoSaving) {
+        e.preventDefault();
+        e.returnValue = ''; // Required for Chrome
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [formData, isAutoSaving]);
+
   if (isLoading) {
     return (
       <div className="p-4 md:p-8 max-w-6xl mx-auto">

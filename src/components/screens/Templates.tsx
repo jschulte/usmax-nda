@@ -23,13 +23,18 @@ import {
 import { toast } from 'sonner@2.0.3';
 import * as templateService from '../../client/services/templateService';
 import type { RtfTemplate } from '../../client/services/templateService';
+import { RTFTemplateEditor } from './admin/RTFTemplateEditor';
 
 export function Templates() {
+  // Story 9.19: Keep activeView for backward compatibility, but clauses disabled (empty array)
   const [activeView, setActiveView] = useState<'templates' | 'clauses'>('templates');
   const [searchTerm, setSearchTerm] = useState('');
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showClauseDialog, setShowClauseDialog] = useState(false);
+  // Issue #23: WYSIWYG Editor integration
+  const [showWysiwygEditor, setShowWysiwygEditor] = useState(false);
+  const [wysiwygTemplateId, setWysiwygTemplateId] = useState<number | undefined>(undefined);
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [templateName, setTemplateName] = useState('');
   const [templateDescription, setTemplateDescription] = useState('');
@@ -38,6 +43,7 @@ export function Templates() {
   const [templateIsDefault, setTemplateIsDefault] = useState(false);
   const [clauseName, setClauseName] = useState('');
   const [clauseTopic, setClauseTopic] = useState('');
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
 
   // Backend data state
   const [templates, setTemplates] = useState<RtfTemplate[]>([]);
@@ -104,7 +110,41 @@ export function Templates() {
     setTemplateContent('');
     setTemplateAgencyGroupId('');
     setTemplateIsDefault(false);
+    setUploadedFile(null);
     setShowCreateDialog(true);
+  };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.name.endsWith('.rtf')) {
+      toast.error('Invalid file type', {
+        description: 'Please upload an RTF file (.rtf extension)'
+      });
+      return;
+    }
+
+    const MAX_SIZE = 5 * 1024 * 1024;
+    if (file.size > MAX_SIZE) {
+      toast.error('File too large', {
+        description: 'RTF file must be less than 5MB'
+      });
+      return;
+    }
+
+    setUploadedFile(file);
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const base64 = e.target?.result as string;
+      const base64Content = base64.split(',')[1];
+      setTemplateContent(base64Content);
+      toast.success('File uploaded', {
+        description: `${file.name} ready to save`
+      });
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleCreateClause = () => {
@@ -119,8 +159,10 @@ export function Templates() {
         toast.error('Template name is required');
         return;
       }
-      if (!templateContent.trim()) {
-        toast.error('Template content is required');
+      if (!uploadedFile && !templateContent.trim()) {
+        toast.error('Template file is required', {
+          description: 'Please upload an RTF file'
+        });
         return;
       }
 
@@ -163,6 +205,7 @@ export function Templates() {
     setTemplateAgencyGroupId(template.agencyGroupId || '');
     setTemplateIsDefault(template.isDefault);
     setTemplateContent(''); // Content is only loaded on demand
+    setUploadedFile(null);
     setShowEditDialog(true);
   };
 
@@ -294,54 +337,124 @@ export function Templates() {
     });
     setShowDeleteClauseConfirm(false);
   };
-  
+
+  // Issue #23: WYSIWYG Editor handlers
+  const handleOpenWysiwyg = (template?: RtfTemplate) => {
+    if (template) {
+      setWysiwygTemplateId(template.id);
+      setTemplateName(template.name);
+      setTemplateDescription(template.description || '');
+      setTemplateAgencyGroupId(template.agencyGroupId || '');
+      setTemplateIsDefault(template.isDefault);
+    } else {
+      setWysiwygTemplateId(undefined);
+      setTemplateName('');
+      setTemplateDescription('');
+      setTemplateAgencyGroupId('');
+      setTemplateIsDefault(false);
+    }
+    setShowCreateDialog(false);
+    setShowEditDialog(false);
+    setShowWysiwygEditor(true);
+  };
+
+  const handleWysiwygSave = async (rtfContent: string, htmlContent: string) => {
+    // Validate template name
+    const trimmedName = templateName.trim();
+    if (!trimmedName) {
+      toast.error('Template name is required', {
+        description: 'Please enter a template name before saving'
+      });
+      return;
+    }
+
+    try {
+      if (wysiwygTemplateId) {
+        // Editing existing template
+        await templateService.updateTemplate(wysiwygTemplateId, {
+          name: trimmedName,
+          description: templateDescription.trim() || undefined,
+          content: rtfContent,
+          agencyGroupId: templateAgencyGroupId || null,
+          isDefault: templateIsDefault,
+        });
+        toast.success('Template updated', {
+          description: `${trimmedName} has been updated successfully.`
+        });
+      } else {
+        // Creating new template
+        await templateService.createTemplate({
+          name: trimmedName,
+          description: templateDescription.trim() || undefined,
+          content: rtfContent,
+          agencyGroupId: templateAgencyGroupId || undefined,
+          isDefault: templateIsDefault,
+        });
+        toast.success('Template created', {
+          description: `${trimmedName} has been created successfully.`
+        });
+      }
+      setShowWysiwygEditor(false);
+      await loadTemplates();
+    } catch (err: any) {
+      toast.error('Failed to save template', {
+        description: err.message || 'An error occurred'
+      });
+      throw err;
+    }
+  };
+
+  const handleWysiwygCancel = () => {
+    // Confirm before closing to prevent accidental data loss
+    const confirmed = window.confirm(
+      'Are you sure you want to cancel? Any unsaved changes will be lost.'
+    );
+    if (confirmed) {
+      setShowWysiwygEditor(false);
+    }
+  };
+
+  // Show WYSIWYG editor if active
+  if (showWysiwygEditor) {
+    return (
+      <div className="p-8">
+        <div className="mb-4">
+          <h1 className="mb-2">{wysiwygTemplateId ? 'Edit' : 'Create'} Template</h1>
+          <p className="text-[var(--color-text-secondary)]">Use the WYSIWYG editor to create your RTF template</p>
+        </div>
+        <RTFTemplateEditor
+          templateId={wysiwygTemplateId}
+          onSave={handleWysiwygSave}
+          onCancel={handleWysiwygCancel}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="mb-2">Templates and Clauses</h1>
-          <p className="text-[var(--color-text-secondary)]">Manage NDA templates and reusable clause library</p>
+          <h1 className="mb-2">RTF Templates</h1>
+          <p className="text-[var(--color-text-secondary)]">Manage NDA document templates</p>
         </div>
-        <Button 
-          variant="primary" 
+        <Button
+          variant="primary"
           icon={<Plus className="w-5 h-5" />}
-          onClick={activeView === 'templates' ? handleCreateTemplate : handleCreateClause}
+          onClick={handleCreateTemplate}
         >
-          {activeView === 'templates' ? 'Create template' : 'Add clause'}
+          Create Template
         </Button>
       </div>
       
-      {/* View Toggle */}
+      {/* Story 9.19: Removed clauses tab - feature not implemented */}
       <div className="flex items-center gap-4 mb-6">
-        <div className="inline-flex bg-gray-100 rounded-lg p-1">
-          <button
-            onClick={() => setActiveView('templates')}
-            className={`px-6 py-2 rounded-md transition-colors ${
-              activeView === 'templates'
-                ? 'bg-white text-[var(--color-text-primary)] shadow-sm'
-                : 'text-[var(--color-text-secondary)]'
-            }`}
-          >
-            Templates
-          </button>
-          <button
-            onClick={() => setActiveView('clauses')}
-            className={`px-6 py-2 rounded-md transition-colors ${
-              activeView === 'clauses'
-                ? 'bg-white text-[var(--color-text-primary)] shadow-sm'
-                : 'text-[var(--color-text-secondary)]'
-            }`}
-          >
-            Clauses
-          </button>
-        </div>
-
         <div className="flex-1 max-w-md">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--color-text-muted)]" />
             <input
               type="text"
-              placeholder={`Search ${activeView}...`}
+              placeholder="Search templates..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-[var(--color-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
@@ -488,9 +601,9 @@ export function Templates() {
                         <button
                           onClick={() => handleToggleTemplate(template)}
                           className="p-1.5 hover:bg-gray-200 rounded transition-colors"
-                          title={template.active ? 'Deactivate' : 'Activate'}
+                          title={template.isActive ? 'Deactivate' : 'Activate'}
                         >
-                          <Power className={`w-4 h-4 ${template.active ? 'text-[var(--color-success)]' : 'text-[var(--color-text-muted)]'}`} />
+                          <Power className={`w-4 h-4 ${template.isActive ? 'text-[var(--color-success)]' : 'text-[var(--color-text-muted)]'}`} />
                         </button>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -691,15 +804,40 @@ export function Templates() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Template Content (Base64 RTF) *</label>
-                  <textarea
-                    placeholder="Base64 encoded RTF content..."
-                    className="w-full px-3 py-2 border border-[var(--color-border)] rounded-md text-sm min-h-[120px] font-mono text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
-                    value={templateContent}
-                    onChange={(e) => setTemplateContent(e.target.value)}
-                  />
-                  <p className="text-xs text-[var(--color-text-muted)] mt-1">
-                    Upload an RTF file and convert it to base64 format
+                  <label className="block text-sm font-medium mb-1">Template File (RTF) *</label>
+                  <div className="border-2 border-dashed border-[var(--color-border)] rounded-lg p-6 text-center hover:border-[var(--color-primary)] transition-colors">
+                    <input
+                      type="file"
+                      accept=".rtf"
+                      onChange={handleFileUpload}
+                      className="hidden"
+                      id="rtf-file-upload"
+                    />
+                    <label htmlFor="rtf-file-upload" className="cursor-pointer">
+                      <FileText className="w-12 h-12 mx-auto mb-2 text-[var(--color-text-muted)]" />
+                      {uploadedFile ? (
+                        <>
+                          <p className="text-sm font-medium text-[var(--color-text-primary)] mb-1">
+                            {uploadedFile.name}
+                          </p>
+                          <p className="text-xs text-[var(--color-text-secondary)]">
+                            {(uploadedFile.size / 1024).toFixed(1)} KB - Click to change
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <p className="text-sm font-medium text-[var(--color-text-primary)] mb-1">
+                            Click to upload RTF file
+                          </p>
+                          <p className="text-xs text-[var(--color-text-secondary)]">
+                            Or drag and drop .rtf file here (max 5MB)
+                          </p>
+                        </>
+                      )}
+                    </label>
+                  </div>
+                  <p className="text-xs text-[var(--color-text-muted)] mt-2">
+                    Create template in Word/LibreOffice, save as .rtf, and upload
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -740,6 +878,11 @@ export function Templates() {
             <Button variant="secondary" size="sm" onClick={() => setShowCreateDialog(false)} disabled={isSubmitting}>
               Cancel
             </Button>
+            {activeView === 'templates' && (
+              <Button variant="secondary" size="sm" onClick={() => handleOpenWysiwyg()} disabled={isSubmitting}>
+                Use WYSIWYG Editor
+              </Button>
+            )}
             <Button variant="primary" size="sm" onClick={confirmCreate} disabled={isSubmitting}>
               {isSubmitting ? (
                 <>
@@ -794,15 +937,40 @@ export function Templates() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Template Content (Base64 RTF)</label>
-              <textarea
-                placeholder="Leave blank to keep existing content..."
-                className="w-full px-3 py-2 border border-[var(--color-border)] rounded-md text-sm min-h-[120px] font-mono text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
-                value={templateContent}
-                onChange={(e) => setTemplateContent(e.target.value)}
-              />
-              <p className="text-xs text-[var(--color-text-muted)] mt-1">
-                Leave blank to keep existing content
+              <label className="block text-sm font-medium mb-1">Update Template File (Optional)</label>
+              <div className="border-2 border-dashed border-[var(--color-border)] rounded-lg p-6 text-center hover:border-[var(--color-primary)] transition-colors">
+                <input
+                  type="file"
+                  accept=".rtf"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                  id="rtf-file-upload-edit"
+                />
+                <label htmlFor="rtf-file-upload-edit" className="cursor-pointer">
+                  <FileText className="w-12 h-12 mx-auto mb-2 text-[var(--color-text-muted)]" />
+                  {uploadedFile ? (
+                    <>
+                      <p className="text-sm font-medium text-[var(--color-text-primary)] mb-1">
+                        {uploadedFile.name}
+                      </p>
+                      <p className="text-xs text-[var(--color-text-secondary)]">
+                        {(uploadedFile.size / 1024).toFixed(1)} KB - Click to change
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-sm font-medium text-[var(--color-text-primary)] mb-1">
+                        Upload new RTF file (optional)
+                      </p>
+                      <p className="text-xs text-[var(--color-text-secondary)]">
+                        Leave blank to keep existing content
+                      </p>
+                    </>
+                  )}
+                </label>
+              </div>
+              <p className="text-xs text-[var(--color-text-muted)] mt-2">
+                Only upload if replacing template content
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -819,6 +987,9 @@ export function Templates() {
           <DialogFooter>
             <Button variant="secondary" size="sm" onClick={() => setShowEditDialog(false)} disabled={isSubmitting}>
               Cancel
+            </Button>
+            <Button variant="secondary" size="sm" onClick={() => handleOpenWysiwyg(selectedItem)} disabled={isSubmitting}>
+              Use WYSIWYG Editor
             </Button>
             <Button variant="primary" size="sm" onClick={confirmEdit} disabled={isSubmitting}>
               {isSubmitting ? (

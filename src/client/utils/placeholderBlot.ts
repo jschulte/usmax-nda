@@ -6,13 +6,15 @@
  * conversion for template merge operations.
  */
 import Quill from 'quill';
-import QuillBetterTable from 'quill-better-table';
-import 'quill-better-table/dist/quill-better-table.css';
+// TEMPORARILY DISABLED: quill-better-table incompatible with Quill 2.x
+// import QuillBetterTable from 'quill-better-table';
+// import 'quill-better-table/dist/quill-better-table.css';
 
 const Embed = Quill.import('blots/embed') as any;
 
-// Register Better Table module for table support (AC2 requirement)
-Quill.register('modules/better-table', QuillBetterTable);
+// TEMPORARILY DISABLED: Better Table causing "moduleClass is not a constructor" error
+// TODO: Find Quill 2.x compatible table module or wait for better-table update
+// Quill.register('modules/better-table', QuillBetterTable);
 
 export class PlaceholderBlot extends Embed {
   static blotName = 'placeholder';
