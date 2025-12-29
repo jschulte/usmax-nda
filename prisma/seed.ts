@@ -579,7 +579,202 @@ async function seedRtfTemplates() {
     });
   }
 
-  console.log('  Created RTF templates');
+  // Standard Mutual NDA Template (comprehensive example)
+  if (adminUser) {
+    const mutualNdaRtf = `{\\rtf1\\ansi\\deff0
+{\\fonttbl{\\f0 Times New Roman;}{\\f1 Arial;}}
+{\\colortbl;\\red0\\green0\\blue0;\\red0\\green0\\blue255;}
+\\f0\\fs24
+
+{\\b\\fs28 MUTUAL NON-DISCLOSURE AGREEMENT}\\par
+\\par
+This Mutual Non-Disclosure Agreement (the "Agreement") is entered into as of {{effectiveDate}} ("Effective Date") by and between:\\par
+\\par
+{\\b {{companyName}}}\\par
+{{companyCity}}, {{companyState}}\\par
+State of Incorporation: {{stateOfIncorporation}}\\par
+\\par
+and\\par
+\\par
+{\\b United States Maximum, Inc. (USMax)}\\par
+\\par
+{\\b RECITALS}\\par
+\\par
+WHEREAS, the parties wish to explore a business opportunity (the "Purpose") relating to {{authorizedPurpose}};\\par
+\\par
+WHEREAS, in connection with the Purpose, each party may disclose to the other certain confidential and proprietary information;\\par
+\\par
+NOW, THEREFORE, in consideration of the mutual covenants and agreements contained herein, the parties agree as follows:\\par
+\\par
+{\\b 1. CONFIDENTIAL INFORMATION}\\par
+\\par
+"Confidential Information" means all information disclosed by either party ("Disclosing Party") to the other party ("Receiving Party"), whether orally or in writing, that is designated as confidential or that reasonably should be understood to be confidential given the nature of the information and the circumstances of disclosure.\\par
+\\par
+{\\b 2. OBLIGATIONS}\\par
+\\par
+The Receiving Party agrees to:\\par
+(a) Hold and maintain the Confidential Information in strict confidence;\\par
+(b) Not disclose the Confidential Information to any third parties without prior written consent;\\par
+(c) Use the Confidential Information solely for the Purpose.\\par
+\\par
+{\\b 3. TERM}\\par
+\\par
+This Agreement shall remain in effect for a period of three (3) years from the Effective Date.\\par
+\\par
+{\\b 4. AUTHORIZED REPRESENTATIVES}\\par
+\\par
+Primary Contact: {{relationshipPocName}}\\par
+Contracts Administrator: {{contractsPocName}}\\par
+Business Opportunity Lead: {{opportunityPocName}}\\par
+\\par
+{\\b IN WITNESS WHEREOF}, the parties have executed this Agreement as of {{generatedDate}}.\\par
+\\par
+{\\b {{companyName}}}\\line
+By: \\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\line
+Name: \\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\line
+Title: \\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\par
+\\par
+{\\b UNITED STATES MAXIMUM, INC.}\\line
+By: \\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\line
+Name: \\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\line
+Title: \\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\par
+}`;
+
+    await prisma.rtfTemplate.upsert({
+      where: { id: '00000000-0000-0000-0000-000000000003' },
+      update: {},
+      create: {
+        id: '00000000-0000-0000-0000-000000000003',
+        name: 'Standard Mutual NDA',
+        description: 'Comprehensive mutual NDA with all standard clauses and placeholders',
+        content: Buffer.from(mutualNdaRtf),
+        isDefault: false,
+        isActive: true,
+        createdById: adminUser.id,
+      },
+    });
+  }
+
+  // Consultant Agreement Template
+  if (adminUser) {
+    const consultantNdaRtf = `{\\rtf1\\ansi\\deff0
+{\\fonttbl{\\f0 Times New Roman;}}
+\\f0\\fs24
+
+{\\b\\fs28 CONSULTANT NON-DISCLOSURE AGREEMENT}\\par
+\\par
+This Consultant Non-Disclosure Agreement is made effective as of {{effectiveDate}} between:\\par
+\\par
+{\\b Consultant:} {{companyName}}\\par
+Located at: {{companyCity}}, {{companyState}}\\par
+\\par
+{\\b Client:} United States Maximum, Inc.\\par
+Project: {{authorizedPurpose}}\\par
+\\par
+{\\b AGREEMENT}\\par
+\\par
+1. {\\b CONFIDENTIALITY}: Consultant agrees to maintain strict confidentiality of all proprietary information disclosed during the engagement.\\par
+\\par
+2. {\\b SCOPE OF WORK}: Services to be provided under {{agencyGroupName}} - {{subagencyName}}.\\par
+\\par
+3. {\\b TERM}: This agreement is effective from {{effectiveDate}} and remains in force for the duration of the consulting engagement plus two (2) years.\\par
+\\par
+4. {\\b AUTHORIZED CONTACTS}:\\par
+   Primary: {{relationshipPocName}}\\par
+   Project Manager: {{opportunityPocName}}\\par
+\\par
+{\\b SIGNATURES}\\par
+\\par
+Consultant: {{companyName}}\\par
+\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\par
+\\par
+USMax Representative\\par
+\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\par
+Date: {{generatedDate}}\\par
+}`;
+
+    await prisma.rtfTemplate.upsert({
+      where: { id: '00000000-0000-0000-0000-000000000004' },
+      update: {},
+      create: {
+        id: '00000000-0000-0000-0000-000000000004',
+        name: 'Consultant Agreement',
+        description: 'NDA template for consultant and contractor engagements',
+        content: Buffer.from(consultantNdaRtf),
+        isDefault: false,
+        isActive: true,
+        createdById: adminUser.id,
+      },
+    });
+  }
+
+  // Federal Agency Template
+  const federalAgencyGroup = await prisma.agencyGroup.findUnique({ where: { code: 'Federal' } });
+  if (federalAgencyGroup && adminUser) {
+    const federalNdaRtf = `{\\rtf1\\ansi\\deff0
+{\\fonttbl{\\f0 Times New Roman;}}
+\\f0\\fs24
+
+{\\b\\fs28 FEDERAL AGENCY NON-DISCLOSURE AGREEMENT}\\par
+{\\i For Use with Federal Government Partners}\\par
+\\par
+{\\b Agreement Date:} {{effectiveDate}}\\par
+{\\b Agency:} {{agencyGroupName}}\\par
+{\\b Office:} {{agencyOfficeName}}\\par
+{\\b Partner Organization:} {{companyName}}\\par
+\\par
+{\\b PURPOSE}\\par
+\\par
+This Agreement governs the exchange of information between USMax and {{companyName}} for the purpose of {{authorizedPurpose}}.\\par
+\\par
+{\\b CONFIDENTIALITY OBLIGATIONS}\\par
+\\par
+Both parties agree to:\\par
+{\\pard\\li720 1. Protect disclosed information with the same degree of care used for own confidential information\\par}
+{\\pard\\li720 2. Limit access to authorized personnel only\\par}
+{\\pard\\li720 3. Not use information for purposes other than those specified\\par}
+{\\pard\\li720 4. Return or destroy information upon request\\par}
+\\par
+{\\b CONTACTS}\\par
+\\par
+USMax Position: {{usMaxPosition}}\\par
+Relationship Manager: {{relationshipPocName}}\\par
+Contract Administrator: {{contractsPocName}}\\par
+\\par
+{\\b COMPLIANCE}\\par
+\\par
+This agreement complies with Federal Acquisition Regulation (FAR) requirements and includes provisions for handling Controlled Unclassified Information (CUI).\\par
+\\par
+{\\b SIGNATURES}\\par
+\\par
+{{companyName}}\\par
+\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\par
+Authorized Representative\\par
+\\par
+United States Maximum, Inc.\\par
+\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\par
+Authorized Representative\\par
+\\par
+Date: {{generatedDate}}\\par
+}`;
+
+    await prisma.rtfTemplate.upsert({
+      where: { id: '00000000-0000-0000-0000-000000000005' },
+      update: {},
+      create: {
+        id: '00000000-0000-0000-0000-000000000005',
+        name: 'Federal Agency NDA',
+        description: 'NDA template for federal government agencies with FAR compliance',
+        content: Buffer.from(federalNdaRtf),
+        agencyGroupId: federalAgencyGroup.id,
+        isDefault: false,
+        isActive: true,
+        createdById: adminUser.id,
+      },
+    });
+  }
+
+  console.log('  Created 5 RTF templates (Generic, DoD, Standard Mutual, Consultant, Federal)');
 }
 
 async function seedSystemConfig() {
@@ -668,7 +863,7 @@ async function seedNdas() {
   await prisma.ndaStatusHistory.createMany({
     data: [
       { ndaId: nda1.id, status: 'CREATED', changedAt: ninetyDaysAgo, changedById: adminUser.id },
-      { ndaId: nda1.id, status: 'EMAILED', changedAt: new Date(ninetyDaysAgo.getTime() + 24 * 60 * 60 * 1000), changedById: adminUser.id },
+      { ndaId: nda1.id, status: 'SENT_PENDING_SIGNATURE', changedAt: new Date(ninetyDaysAgo.getTime() + 24 * 60 * 60 * 1000), changedById: adminUser.id },
       { ndaId: nda1.id, status: 'IN_REVISION', changedAt: new Date(ninetyDaysAgo.getTime() + 7 * 24 * 60 * 60 * 1000), changedById: adminUser.id },
       { ndaId: nda1.id, status: 'FULLY_EXECUTED', changedAt: sixtyDaysAgo, changedById: adminUser.id },
     ],
@@ -718,8 +913,8 @@ async function seedNdas() {
       abbreviatedName: 'NGC-ACC',
       authorizedPurpose: 'Joint communications platform evaluation',
       effectiveDate: thirtyDaysAgo,
-      usMaxPosition: 'SUB',
-      status: 'EMAILED',
+      usMaxPosition: 'SUB_CONTRACTOR',
+      status: 'SENT_PENDING_SIGNATURE',
       opportunityPocId: testUser.id,
       relationshipPocId: sarah?.id || testUser.id,
       createdById: testUser.id,
@@ -730,7 +925,7 @@ async function seedNdas() {
   await prisma.ndaStatusHistory.createMany({
     data: [
       { ndaId: nda2.id, status: 'CREATED', changedAt: thirtyDaysAgo, changedById: testUser.id },
-      { ndaId: nda2.id, status: 'EMAILED', changedAt: new Date(thirtyDaysAgo.getTime() + 2 * 24 * 60 * 60 * 1000), changedById: testUser.id },
+      { ndaId: nda2.id, status: 'SENT_PENDING_SIGNATURE', changedAt: new Date(thirtyDaysAgo.getTime() + 2 * 24 * 60 * 60 * 1000), changedById: testUser.id },
     ],
   });
 
@@ -776,7 +971,7 @@ async function seedNdas() {
       abbreviatedName: 'RTX-CISA',
       authorizedPurpose: 'Critical infrastructure protection technology assessment',
       effectiveDate: new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000),
-      usMaxPosition: 'TEAMING',
+      usMaxPosition: 'OTHER',
       status: 'IN_REVISION',
       opportunityPocId: sarah?.id || adminUser.id,
       relationshipPocId: adminUser.id,
@@ -788,7 +983,7 @@ async function seedNdas() {
   await prisma.ndaStatusHistory.createMany({
     data: [
       { ndaId: nda3.id, status: 'CREATED', changedAt: new Date(now.getTime() - 15 * 24 * 60 * 60 * 1000), changedById: sarah?.id || adminUser.id },
-      { ndaId: nda3.id, status: 'EMAILED', changedAt: new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000), changedById: sarah?.id || adminUser.id },
+      { ndaId: nda3.id, status: 'SENT_PENDING_SIGNATURE', changedAt: new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000), changedById: sarah?.id || adminUser.id },
       { ndaId: nda3.id, status: 'IN_REVISION', changedAt: new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000), changedById: sarah?.id || adminUser.id },
     ],
   });
@@ -863,7 +1058,7 @@ async function seedNdas() {
       effectiveDate: sixtyDaysAgo,
       usMaxPosition: 'OTHER',
       isNonUsMax: true,
-      status: 'INACTIVE',
+      status: 'INACTIVE_CANCELED',
       opportunityPocId: adminUser.id,
       relationshipPocId: adminUser.id,
       createdById: adminUser.id,
@@ -874,7 +1069,7 @@ async function seedNdas() {
   await prisma.ndaStatusHistory.createMany({
     data: [
       { ndaId: nda5.id, status: 'CREATED', changedAt: sixtyDaysAgo, changedById: adminUser.id },
-      { ndaId: nda5.id, status: 'INACTIVE', changedAt: thirtyDaysAgo, changedById: adminUser.id },
+      { ndaId: nda5.id, status: 'INACTIVE_CANCELED', changedAt: thirtyDaysAgo, changedById: adminUser.id },
     ],
   });
 
