@@ -218,6 +218,24 @@ export function RTFTemplateEditor({
       role="region"
       aria-label="RTF Template Editor"
     >
+      {/* Help text for placeholders */}
+      <div style={{
+        backgroundColor: '#e3f2fd',
+        border: '1px solid #2196f3',
+        borderRadius: '4px',
+        padding: '12px 16px',
+        marginBottom: '12px',
+        fontSize: '14px'
+      }}>
+        <p style={{ margin: 0, fontWeight: 500, color: '#1976d2' }}>
+          💡 Insert Dynamic Fields
+        </p>
+        <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#555' }}>
+          Click the <strong>🔖 Insert Field</strong> button in the toolbar to add placeholders like {`{{companyName}}`}.
+          These will be replaced with actual data when generating documents.
+        </p>
+      </div>
+
       {/* Toolbar - Quill renders this automatically, but we add data-testid */}
       <div data-testid="rtf-toolbar" aria-label="Formatting toolbar" />
 
@@ -274,6 +292,17 @@ export function RTFTemplateEditor({
           ))}
         </div>
       )}
+
+      {/* Custom toolbar button CSS */}
+      <style>{`
+        .ql-toolbar .ql-placeholder-insert {
+          width: auto !important;
+        }
+        .ql-toolbar .ql-placeholder-insert::before {
+          content: '🔖 Insert Field';
+          font-size: 13px;
+        }
+      `}</style>
 
       {/* Editor or Preview Pane */}
       {!isPreviewMode ? (

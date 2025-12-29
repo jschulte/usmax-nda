@@ -98,7 +98,15 @@ export function createEditorModules(
 ): EditorModules {
   return {
     toolbar: {
-      container: TOOLBAR_CONFIG,
+      container: [
+        [{ 'header': [1, 2, 3, false] }],
+        ['bold', 'italic', 'underline'],
+        [{ 'font': [] }],
+        [{ 'size': ['small', false, 'large', 'huge'] }],
+        [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+        [{ 'placeholder-insert': '🔖 Insert Field' }], // Custom button with label
+        ['clean'],
+      ],
       handlers: {
         'placeholder-insert': onInsertPlaceholder,
       },
