@@ -175,7 +175,23 @@ export function RTFTemplateEditor({
       // Convert HTML to RTF
       let rtfContent: string;
       try {
-        rtfContent = convertHtmlToRtf(content);
+        console.log('[RTFTemplateEditor] Converting HTML to RTF, content length:', content.length);
+        console.log('[RTFTemplateEditor] HTML preview:', content.substring(0, 200));
+
+        // html-to-rtf exports as { convertHtmlToRtf }
+        // If it's an object with convertHtmlToRtf property, use that
+        const converter = typeof convertHtmlToRtf === 'function'
+          ? convertHtmlToRtf
+          : (convertHtmlToRtf as any).convertHtmlToRtf;
+
+        if (!converter || typeof converter !== 'function') {
+          throw new Error('html-to-rtf converter not available');
+        }
+
+        rtfContent = converter(content);
+
+        console.log('[RTFTemplateEditor] RTF generated successfully, length:', rtfContent.length);
+        console.log('[RTFTemplateEditor] RTF preview:', rtfContent.substring(0, 200));
       } catch (error) {
         console.error('[RTFTemplateEditor] RTF conversion failed:', error);
         setValidationError('Failed to convert template to RTF format. Please simplify your formatting and try again.');
