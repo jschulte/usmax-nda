@@ -52,19 +52,31 @@ export function RTFTemplateEditor({
    * Insert a specific placeholder at cursor position
    */
   const insertPlaceholder = useCallback((field: PlaceholderField) => {
-    const editor = quillRef.current?.getEditor();
-    if (!editor) return;
+    console.log('[RTFTemplateEditor] Inserting placeholder:', field);
 
+    const editor = quillRef.current?.getEditor();
+    if (!editor) {
+      console.error('[RTFTemplateEditor] No editor reference available');
+      return;
+    }
+
+    console.log('[RTFTemplateEditor] Editor found, getting selection...');
     const range = editor.getSelection();
     const index = range?.index || 0;
+    console.log('[RTFTemplateEditor] Cursor position:', index);
 
-    // Insert the custom placeholder blot
-    editor.insertEmbed(index, 'placeholder', field);
+    try {
+      // Insert the custom placeholder blot
+      editor.insertEmbed(index, 'placeholder', field);
+      console.log('[RTFTemplateEditor] Placeholder inserted successfully');
 
-    // Move cursor after the placeholder
-    editor.setSelection(index + 1, 0);
+      // Move cursor after the placeholder
+      editor.setSelection(index + 1, 0);
 
-    setShowPlaceholderMenu(false);
+      setShowPlaceholderMenu(false);
+    } catch (error) {
+      console.error('[RTFTemplateEditor] Failed to insert placeholder:', error);
+    }
   }, []);
 
   /**
