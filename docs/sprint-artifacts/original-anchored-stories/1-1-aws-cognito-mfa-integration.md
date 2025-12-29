@@ -4,14 +4,14 @@ Status: review
 
 ## Story
 
-As a **USMax staff member**,
+As a **USmax staff member**,
 I want **to log in with my email and MFA code**,
 so that **I can securely access the NDA system with government-grade authentication**.
 
 ## Acceptance Criteria
 
 ### AC1: Successful MFA Authentication Flow
-**Given** I have a valid USMax email account in Cognito User Pool
+**Given** I have a valid USmax email account in Cognito User Pool
 **When** I enter my email and password on the login page
 **Then** I receive an MFA challenge (TOTP authenticator app preferred, SMS fallback)
 **And** After entering the correct MFA code, I receive a JWT access token (stored in HttpOnly cookie)

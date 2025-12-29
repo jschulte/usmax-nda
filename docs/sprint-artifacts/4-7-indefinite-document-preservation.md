@@ -360,7 +360,7 @@ const metrics = [
   }
 ];
 
-await cloudWatch.putMetricData({ Namespace: 'USMax/Documents', MetricData: metrics });
+await cloudWatch.putMetricData({ Namespace: 'USmax/Documents', MetricData: metrics });
 ```
 
 **Alerts:**

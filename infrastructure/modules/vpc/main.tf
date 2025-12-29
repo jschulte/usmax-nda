@@ -1,4 +1,4 @@
-# VPC Module for USMax NDA
+# VPC Module for USmax NDA
 # Creates VPC with public and private subnets across 2 AZs
 
 locals {

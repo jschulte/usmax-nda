@@ -1,4 +1,4 @@
-# Data Models - USMax NDA Management System
+# Data Models - USmax NDA Management System
 
 **Project:** Government NDA Lifecycle Application (Prototype)
 **Generated:** 2025-12-12

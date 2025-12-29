@@ -64,7 +64,7 @@ data "aws_subnets" "default" {
 # Security Group
 resource "aws_security_group" "demo" {
   name_prefix = "usmax-nda-demo-"
-  description = "Security group for USMax NDA demo instance"
+  description = "Security group for USmax NDA demo instance"
   vpc_id      = data.aws_vpc.default.id
 
   # SSH (restrict to your IP in production)
@@ -173,7 +173,7 @@ resource "aws_route53_record" "demo" {
 resource "aws_cloudfront_distribution" "demo" {
   enabled             = true
   is_ipv6_enabled     = true
-  comment             = "USMax NDA Demo - HTTPS frontend"
+  comment             = "USmax NDA Demo - HTTPS frontend"
   price_class         = "PriceClass_100"  # US, Canada, Europe only (cheapest)
   wait_for_deployment = false
 

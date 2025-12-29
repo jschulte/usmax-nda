@@ -32,9 +32,9 @@ special_context: 'Building NEW system to replace failed legacy. Have: (1) Legacy
 
 **Core Promise:** Never lose an NDA again.
 
-USMax NDA Management System is a cloud-based platform that manages Non-Disclosure Agreements for government contractor USMax - from creation through execution to indefinite retention. Built to replace a legacy system that failed and lost all data, this system prioritizes absolute reliability and data durability above all else.
+USmax NDA Management System is a cloud-based platform that manages Non-Disclosure Agreements for government contractor USmax - from creation through execution to indefinite retention. Built to replace a legacy system that failed and lost all data, this system prioritizes absolute reliability and data durability above all else.
 
-**The Reality:** USMax manages NDAs for government contracts. They need a system to keep them organized, track their lifecycle, and store them forever. Their previous system died and took everything with it. This system won't.
+**The Reality:** USmax manages NDAs for government contracts. They need a system to keep them organized, track their lifecycle, and store them forever. Their previous system died and took everything with it. This system won't.
 
 **The Standard:** Solid, hardened, ready for action. Built with battle-tested technology (React 19, PostgreSQL on AWS Lightsail, Node.js/Express), comprehensive error monitoring (Sentry), automated backups, and multi-region document storage. Not innovative - RELIABLE.
 
@@ -173,7 +173,7 @@ Users always feel informed and in control.
 
 **Primary Business Success: System is Operational and Reliable**
 
-USMax can manage NDAs without operational interruption or data loss.
+USmax can manage NDAs without operational interruption or data loss.
 
 **Measurable Indicators:**
 - ✅ All 2-3 active users fully operational within 2 weeks of launch
@@ -414,7 +414,7 @@ Future developers can understand and modify the system confidently.
 - Integration with broader contract management ecosystem
 - Predictive analytics (dispute likelihood, risk scoring)
 - AI-powered contract review (if mature and proven)
-- Multi-organization support (if USMax expands usage)
+- Multi-organization support (if USmax expands usage)
 
 **Guiding Principle:** Ship Phase 1 fast. Validate with real usage. Invest in features users actually adopt.
 
@@ -432,11 +432,11 @@ Future developers can understand and modify the system confidently.
 
 **Role:** NDA Operations Manager (Primary User)
 
-Kelly Davidson has been managing NDAs for USMax for 6 years. Every morning starts the same - she checks her email for signed NDAs from partners, updates her tracking spreadsheet, and hopes nothing gets lost. Then the unthinkable happened: the Windows server crashed, and EVERYTHING disappeared. Years of NDA records, fully executed agreements, email threads - gone before they could export the data.
+Kelly Davidson has been managing NDAs for USmax for 6 years. Every morning starts the same - she checks her email for signed NDAs from partners, updates her tracking spreadsheet, and hopes nothing gets lost. Then the unthinkable happened: the Windows server crashed, and EVERYTHING disappeared. Years of NDA records, fully executed agreements, email threads - gone before they could export the data.
 
 Three months later, Kelly is staring at her empty inbox, trying to rebuild records from scattered email threads. Her stress level is through the roof - she's responsible for legal agreements but has no system to track them.
 
-When she logs into the new USMax NDA System for the first time, everything feels different. The modern dashboard shows "0 NDAs" but instead of despair, she feels... hope. She clicks "Create NDA" for a DoD Air Force research opportunity. The system suggests her recent agency choices at the top. She selects "DoD Air Force," and immediately the form pre-fills common values - USMax position (Prime), typical contact information, even suggests her go-to email template.
+When she logs into the new USmax NDA System for the first time, everything feels different. The modern dashboard shows "0 NDAs" but instead of despair, she feels... hope. She clicks "Create NDA" for a DoD Air Force research opportunity. The system suggests her recent agency choices at the top. She selects "DoD Air Force," and immediately the form pre-fills common values - USmax position (Prime), typical contact information, even suggests her go-to email template.
 
 She completes what used to take 15 minutes in under 3. Clicks "Generate & Review" - the RTF appears instantly with all fields merged. She reviews, makes a small edit to the purpose text, clicks "Send Email." The system pre-fills recipients (Relationship POC, CC: Kelly + Chris + David, BCC: leadership). She hits send.
 
@@ -464,7 +464,7 @@ Six months in, Kelly manages 60 NDAs without a single moment of panic. She check
 
 **Role:** Admin / Agency Access Manager
 
-Chris Martinez is responsible for managing who can see what at USMax. With 12 agency groups and 40-50 subagencies across DoD, Commercial, and Healthcare sectors, access control is serious business. A user seeing an unauthorized NDA isn't just embarrassing - it's a compliance violation.
+Chris Martinez is responsible for managing who can see what at USmax. With 12 agency groups and 40-50 subagencies across DoD, Commercial, and Healthcare sectors, access control is serious business. A user seeing an unauthorized NDA isn't just embarrassing - it's a compliance violation.
 
 When a new employee joins the IT Services team and needs access to "Fed Civ" agency group, Chris used to dread the process. The old system required editing text configuration files on the Windows server, hoping he didn't break anything, then rebooting to see if it worked.
 
@@ -494,7 +494,7 @@ Chris sleeps better knowing access control isn't a nightmare anymore - it's just
 
 **Role:** Limited User (Secretary/Support Staff)
 
-Sarah Park supports the contracts team at USMax. She doesn't create NDAs or send them, but she does handle the administrative work - filing documents, uploading signed copies, organizing records. In the old system, she had the same access as everyone else, which was risky. What if she accidentally sent an incomplete NDA?
+Sarah Park supports the contracts team at USmax. She doesn't create NDAs or send them, but she does handle the administrative work - filing documents, uploading signed copies, organizing records. In the old system, she had the same access as everyone else, which was risky. What if she accidentally sent an incomplete NDA?
 
 In the new system, Sarah has a custom role: she can upload documents and view NDAs, but she can't send emails or create new ones. This is perfect for her responsibilities.
 
@@ -519,7 +519,7 @@ Sarah handles 20-30 document uploads per month without ever worrying she'll brea
 
 **Role:** Read-Only User (Leadership/Auditor)
 
-Brett Steiner is VP of Operations at USMax. He doesn't create or manage NDAs day-to-day - that's Kelly and the team's job. But he needs visibility for oversight, compliance reviews, and strategic planning. He needs to see what's happening without being able to accidentally change anything.
+Brett Steiner is VP of Operations at USmax. He doesn't create or manage NDAs day-to-day - that's Kelly and the team's job. But he needs visibility for oversight, compliance reviews, and strategic planning. He needs to see what's happening without being able to accidentally change anything.
 
 Brett logs in and lands on a read-only dashboard. He sees: "12 active NDAs", "3 approaching expiration in 30 days", "2 waiting on partner signature >14 days". He clicks into one of the stale NDAs, sees the full history (Created 10/15, Emailed 10/16, no activity since). He makes a mental note to ask Kelly about follow-up.
 
@@ -555,7 +555,7 @@ During monthly maintenance, Jonah tests disaster recovery. He triggers a simulat
 
 When the customer asks "how reliable is this really?" Jonah pulls up the monitoring dashboard: 99.97% uptime over 6 months, zero data loss incidents, average API response time 247ms, error rate 0.03%. He shows the S3 versioning - 847 document versions preserved across 94 NDAs. Every upload, every change - recoverable.
 
-Jonah's job is to make sure USMax never loses an NDA again. Six months in, mission accomplished. The system hasn't just survived - it's thrived. And users trust it completely.
+Jonah's job is to make sure USmax never loses an NDA again. Six months in, mission accomplished. The system hasn't just survived - it's thrived. And users trust it completely.
 
 **Journey Requirements:**
 - Sentry integration with instant alerts (email, SMS, Slack)
@@ -792,7 +792,7 @@ The legacy system failed catastrophically. The customer needs a system that WORK
 **Resource Requirements:**
 - **Development:** 1-2 developers (primary: Jonah)
 - **Customer Liaison:** Todd (requirements validation, feedback)
-- **End Users:** 2-3 USMax staff (UAT, feedback)
+- **End Users:** 2-3 USmax staff (UAT, feedback)
 - **Timeline:** Focus on quality over speed
 
 ### Phase 1: MVP - Comprehensive Foundation (Primary Focus)
@@ -946,7 +946,7 @@ Ship Phase 1, use it for 6-12 months, collect real data, THEN decide if Phase 2 
 
 **FR9:** Users can view all their NDAs in a sortable, paginated list
 
-**FR10:** Users can filter NDA list by 15 criteria (agency, company, city, state, type, incorporation state, agency/office name, non-USMax flag, effective date range, requested date range, 3 POC name filters)
+**FR10:** Users can filter NDA list by 15 criteria (agency, company, city, state, type, incorporation state, agency/office name, non-USmax flag, effective date range, requested date range, 3 POC name filters)
 
 **FR11:** Users can apply filter presets with one click ("My NDAs", "Expiring Soon", "Waiting on 3rd Party", "Stale - No Activity")
 
@@ -1196,7 +1196,7 @@ Ship Phase 1, use it for 6-12 months, collect real data, THEN decide if Phase 2 
 
 ### POC (Point of Contact) Management
 
-**FR114:** Users can designate an Opportunity POC (required - internal USMax user selected from directory)
+**FR114:** Users can designate an Opportunity POC (required - internal USmax user selected from directory)
 
 **FR115:** Users can enter Contracts POC details (optional: name, email, phone, fax)
 
@@ -1208,11 +1208,11 @@ Ship Phase 1, use it for 6-12 months, collect real data, THEN decide if Phase 2 
 
 **FR119:** System validates POC email addresses and phone number formats
 
-### Non-USMax NDA Handling
+### Non-USmax NDA Handling
 
-**FR120:** Users can mark NDA as "Non-USMax NDA" via checkbox
+**FR120:** Users can mark NDA as "Non-USmax NDA" via checkbox
 
-**FR121:** System handles Non-USMax NDAs according to configured behavior (TBD customer preference):
+**FR121:** System handles Non-USmax NDAs according to configured behavior (TBD customer preference):
 - Option A: Skip automatic template generation (require manual document upload)
 - Option B: Generate from alternate/partner template
 - System supports either approach via admin configuration
@@ -1231,7 +1231,7 @@ Ship Phase 1, use it for 6-12 months, collect real data, THEN decide if Phase 2 
 
 **FR127:** Admins can configure default email CC/BCC recipients (system-wide defaults or per-template)
 
-**FR128:** Admins can configure allowed values for dropdown fields (Type, USMax Position - once customer provides values)
+**FR128:** Admins can configure allowed values for dropdown fields (Type, USmax Position - once customer provides values)
 
 ### Data Security & Encryption
 
@@ -1325,7 +1325,7 @@ Ship Phase 1, use it for 6-12 months, collect real data, THEN decide if Phase 2 
 11. Smart Suggestions & Intelligence (5 FRs)
 12. System Administration & Monitoring (7 FRs)
 13. POC Management (6 FRs)
-14. Non-USMax NDA Handling (2 FRs)
+14. Non-USmax NDA Handling (2 FRs)
 15. Admin Configuration (7 FRs)
 16. Data Security & Encryption (6 FRs)
 17. Disaster Recovery (5 FRs)
@@ -1339,7 +1339,7 @@ Ship Phase 1, use it for 6-12 months, collect real data, THEN decide if Phase 2 
 - ✅ All MVP scope items covered
 - ✅ All customer validation answers incorporated
 - ✅ All gaps identified by team addressed
-- ✅ TBD items flagged for customer clarification (Non-USMax, POC types, dropdown values)
+- ✅ TBD items flagged for customer clarification (Non-USmax, POC types, dropdown values)
 
 ## Non-Functional Requirements
 

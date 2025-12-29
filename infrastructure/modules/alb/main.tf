@@ -1,4 +1,4 @@
-# Application Load Balancer Module for USMax NDA
+# Application Load Balancer Module for USmax NDA
 
 # Application Load Balancer
 resource "aws_lb" "main" {

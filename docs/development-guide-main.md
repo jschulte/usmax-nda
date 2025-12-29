@@ -1,4 +1,4 @@
-# Development Guide - USMax NDA Management System
+# Development Guide - USmax NDA Management System
 
 **Project:** Government NDA Lifecycle Application (Prototype)
 **Generated:** 2025-12-12

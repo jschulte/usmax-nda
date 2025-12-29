@@ -5,7 +5,7 @@ workflowType: 'research'
 lastStep: 1
 research_type: 'technical'
 research_topic: 'RTF WYSIWYG Editor Library Evaluation'
-research_goals: 'Select optimal WYSIWYG editor library for RTF template editing in USMax NDA Management System'
+research_goals: 'Select optimal WYSIWYG editor library for RTF template editing in USmax NDA Management System'
 user_name: 'Jonah'
 date: '2025-12-28'
 web_research_enabled: true
@@ -15,13 +15,13 @@ source_verification: true
 # Technical Research: RTF WYSIWYG Editor Library Evaluation
 
 **Research Date:** December 28, 2025
-**Project:** USMax NDA Management System
+**Project:** USmax NDA Management System
 **Epic:** 9 - RTF Template Rich Text Editor
 **Story:** 9.18 - RTF Template Rich Text Editor (WYSIWYG)
 
 ## Executive Summary
 
-This technical research evaluates WYSIWYG editor libraries for implementing RTF template editing functionality in the USMax NDA Management System. The research analyzed **TinyMCE**, **Quill**, **Draft.js**, **Slate**, and **Lexical** editors, along with HTML-to-RTF conversion strategies and placeholder token preservation approaches.
+This technical research evaluates WYSIWYG editor libraries for implementing RTF template editing functionality in the USmax NDA Management System. The research analyzed **TinyMCE**, **Quill**, **Draft.js**, **Slate**, and **Lexical** editors, along with HTML-to-RTF conversion strategies and placeholder token preservation approaches.
 
 ### Key Findings
 

@@ -26,12 +26,12 @@ Legend:
 | Legacy capability (screenshots) | Status in prototype | Where in prototype | Notes / delta |
 |---|---:|---|---|
 | Left-nav: Contacts / Agency Groups / Subagencies / NDA Admin / NDA Request | **Missing** | `src/components/layout/Sidebar.tsx` | Prototype nav is Dashboard, My NDAs, Requests, Templates & Clauses, Workflows & Approvals, Reports, Administration. No agency-group tree. |
-| NDA Admin list: filter panel with Agency, Company, City/State, Type, Incorporation State, Agency/Office Name, date ranges, POC filters, Non‑USMax checkbox | **Partial** | `src/components/screens/Requests.tsx` | Prototype has search + status/type/risk filters only; no agency-based access filters; no POC-based filters; no “Non‑USMax NDA”. |
-| NDA Admin list: columns incl. Id, Agency, NDA Owner, Abbrev, Latest Change, F/E NDA date, Latest Document metadata, USMax POC, Mutual Purpose, Effective/Requested dates, USMax Position | **Missing** | `src/components/screens/Requests.tsx` | Prototype list is “requests/NDAs” with different fields (title/counterparty/type/risk/status). No doc version metadata or “latest change” semantics. |
+| NDA Admin list: filter panel with Agency, Company, City/State, Type, Incorporation State, Agency/Office Name, date ranges, POC filters, Non‑USmax checkbox | **Partial** | `src/components/screens/Requests.tsx` | Prototype has search + status/type/risk filters only; no agency-based access filters; no POC-based filters; no “Non‑USmax NDA”. |
+| NDA Admin list: columns incl. Id, Agency, NDA Owner, Abbrev, Latest Change, F/E NDA date, Latest Document metadata, USmax POC, Mutual Purpose, Effective/Requested dates, USmax Position | **Missing** | `src/components/screens/Requests.tsx` | Prototype list is “requests/NDAs” with different fields (title/counterparty/type/risk/status). No doc version metadata or “latest change” semantics. |
 | Row actions: edit (pencil), email (envelope), More>> details modal | **Partial** | `src/components/screens/Requests.tsx`, `src/components/screens/NDADetail.tsx` | Prototype has view/edit/duplicate/delete actions and detail page, but no email-compose flow and no “More>> modal” with upload/status-inactive. |
 | “More>>” modal: company info + opportunity history + upload new document + mark fully executed + change status to inactive | **Partial** | `src/components/screens/NDADetail.tsx` | Prototype has activity tab and “send for signature” dialog; no document upload/versioning; no inactive/archival; history is activity feed, not “opportunity history” table. |
 | NDA Request form fields: NDA Owner, Agency, Created By | **Missing** | `src/components/screens/RequestWizard.tsx` | Prototype request wizard does not include agency/nda owner; uses internal/government style data model. |
-| NDA Request: company info fields (Name, Authorized Purpose <=255, Agency/Office Name, Abbrev Opportunity Name, Effective Date, USMax Position, Non‑USMax checkbox) | **Partial** | `src/components/screens/RequestWizard.tsx` | Prototype has title/purpose/counterparty; no abbrev opportunity name; no USMax position; no non-USMax flag; no explicit agency/office name. |
+| NDA Request: company info fields (Name, Authorized Purpose <=255, Agency/Office Name, Abbrev Opportunity Name, Effective Date, USmax Position, Non‑USmax checkbox) | **Partial** | `src/components/screens/RequestWizard.tsx` | Prototype has title/purpose/counterparty; no abbrev opportunity name; no USmax position; no non-USmax flag; no explicit agency/office name. |
 | NDA Request: Opportunity POC (required) selecting an internal user | **Missing** | `src/components/screens/RequestWizard.tsx` | Prototype lacks “Opportunity POC” selection; instead has owner fields in mock NDA (internal/legal/business owners) but not part of request UI. |
 | NDA Request: Contracts POC (optional) + Relationship POC (required) with phone/fax/email | **Missing** | `src/components/screens/RequestWizard.tsx` | No structured POC capture for contracts/relationship. |
 | NDA Request: Internal stakeholders table with “Notify on NDA Changes” checkboxes | **Missing** | `src/components/screens/RequestWizard.tsx` | Prototype has global notification settings, but not per-record stakeholder subscriptions. |
@@ -103,7 +103,7 @@ These exist in the prototype but are **not evidenced** in the legacy screenshots
 
 **Epic MVP-6: NDA Admin list + advanced filtering**
 - As a user, I can view NDA records in a sortable/paged table with the columns shown in the screenshots.
-- As a user, I can filter by the full “Filter By” set (agency, company, city/state, type, incorporation state, agency/office name, non-USMax flag, date ranges, POC filters).
+- As a user, I can filter by the full “Filter By” set (agency, company, city/state, type, incorporation state, agency/office name, non-USmax flag, date ranges, POC filters).
 - As a user, I can quickly open edit, email, and details actions from each row.
 
 **Epic MVP-7: Record details (More>>)**

@@ -164,7 +164,7 @@ This session will critically evaluate the prototype through multiple lenses:
 **Critical Questions for Customer Validation:**
 
 **Tier 1 - Can't Build Without Answers (6 questions):**
-1. What are allowed values for Type, USMax Position, NDA Owner?
+1. What are allowed values for Type, USmax Position, NDA Owner?
 2. PDF or RTF for document generation?
 3. Who receives "Review NDA Email" - partners or internal?
 4. What status transitions exist?

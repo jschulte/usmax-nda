@@ -1,4 +1,4 @@
-# RDS PostgreSQL Module for USMax NDA
+# RDS PostgreSQL Module for USmax NDA
 
 # DB Subnet Group
 resource "aws_db_subnet_group" "main" {

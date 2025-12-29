@@ -28,8 +28,8 @@ so that **I have a formatted NDA ready to send to the partner**.
 **And** Error reported to Sentry with context
 **And** User can retry or upload manual RTF
 
-### AC3: Non-USMax NDA Handling
-**Given** Non-USMax NDA checkbox is checked
+### AC3: Non-USmax NDA Handling
+**Given** Non-USmax NDA checkbox is checked
 **When** Generating document
 **Then** Behavior depends on system_config.non_usmax_skip_template setting
 **And** If skip=true: No document generated, user must upload manually
@@ -90,10 +90,10 @@ so that **I have a formatted NDA ready to send to the partner**.
   - [ ] 7.4: On success, show document in documents list
   - [ ] 7.5: Offer download or preview
 
-- [ ] **Task 8: Non-USMax NDA Handling** (AC: 3)
+- [ ] **Task 8: Non-USmax NDA Handling** (AC: 3)
   - [ ] 8.1: Check nonUsmax flag before generation
   - [ ] 8.2: Load system_config.non_usmax_skip_template setting
-  - [ ] 8.3: If skip=true, show message: "Non-USMax NDAs require manual upload"
+  - [ ] 8.3: If skip=true, show message: "Non-USmax NDAs require manual upload"
   - [ ] 8.4: If skip=false, use alternate template or proceed normally
 
 - [ ] **Task 9: Testing** (AC: All)
@@ -223,7 +223,7 @@ const TEMPLATE_FIELDS = {
   agencyOfficeName: 'Agency/Office name',
   agencyName: 'Agency group name',
   subagencyName: 'Subagency name',
-  usmaxPosition: 'USMax position (Prime/Sub/Teaming)',
+  usmaxPosition: 'USmax position (Prime/Sub/Teaming)',
   opportunityPocName: 'Opportunity POC full name',
   opportunityPocEmail: 'Opportunity POC email',
   relationshipPocName: 'Relationship POC full name',

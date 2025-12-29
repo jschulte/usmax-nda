@@ -12,7 +12,7 @@
 **Three POC Types Identified:**
 
 1. **Opportunity POC** (Required)
-   - Internal USMax user
+   - Internal USmax user
    - Selected from user dropdown
    - Primary responsible party
 
@@ -192,32 +192,32 @@ enum HistoryEventType {
 
 ---
 
-## Non-USMax NDA Workflow
+## Non-USmax NDA Workflow
 
 ### Business Rule Decision Needed
 
-**When "Non-USMax NDA" checkbox is checked:**
+**When "Non-USmax NDA" checkbox is checked:**
 
 ### Option A: Skip Template Generation (Recommended)
 
 **Logic:**
-1. User checks "Non-USMax NDA" on request form
+1. User checks "Non-USmax NDA" on request form
 2. System creates NDA record WITHOUT generating template
-3. Record shows "No document generated - Non-USMax"
+3. Record shows "No document generated - Non-USmax"
 4. User must upload initial NDA document manually
 5. After upload, workflow proceeds normally (can email, upload executed, etc.)
 
 **Rationale:**
 - Clear functional meaning for checkbox
-- Enforces distinction between USMax-generated vs. external NDAs
+- Enforces distinction between USmax-generated vs. external NDAs
 - Prevents template misuse for non-standard situations
 
 ### Option B: Generate Template Anyway
 
 **Logic:**
-1. User checks "Non-USMax NDA"
+1. User checks "Non-USmax NDA"
 2. System still generates from template
-3. Document labeled as "Generated from template (Non-USMax)"
+3. Document labeled as "Generated from template (Non-USmax)"
 4. Flag tracked for reporting/filtering
 
 **Rationale:**
@@ -225,7 +225,7 @@ enum HistoryEventType {
 - User can edit before sending
 - Less workflow friction
 
-**Concern:** What does "Non-USMax" mean if it still uses USMax templates?
+**Concern:** What does "Non-USmax" mean if it still uses USmax templates?
 
 **VALIDATION NEEDED:** Added to Tier 1 (Q10) - customer should choose
 
@@ -516,7 +516,7 @@ Send email for these events:
 - [ ] Can select agency and POCs from dropdowns
 - [ ] Can mark internal stakeholders for notifications
 - [ ] Submit creates opportunity record
-- [ ] System generates template document (unless Non-USMax checked per chosen rule)
+- [ ] System generates template document (unless Non-USmax checked per chosen rule)
 - [ ] History event recorded (OPPORTUNITY_CREATED, DOCUMENT_GENERATED)
 
 **NDA List and Filtering:**
@@ -619,14 +619,14 @@ Send email for these events:
 5. Type (dropdown)
 6. State of Incorporation (dropdown)
 7. Agency/Office Name (dropdown)
-8. Non-USMax NDA (checkbox)
+8. Non-USmax NDA (checkbox)
 9. Effective Date >= (date)
 10. Effective Date <= (date)
 11. Requested Date >= (date)
 12. Requested Date <= (date)
 13. Contract POC Name (dropdown)
 14. Relationship POC Name (dropdown)
-15. USMax POC Name (dropdown)
+15. USmax POC Name (dropdown)
 
 **Performance Considerations:**
 - Database indexes on all filterable fields
@@ -641,7 +641,7 @@ Send email for these events:
 NDA from {ndaOwner} - for {companyName} for {abbreviatedOpportunityName} at {agencyOfficeName}
 
 Example:
-NDA from USMax - for TechCorp Solutions for OREM TMA 2025 at DHS CBP
+NDA from USmax - for TechCorp Solutions for OREM TMA 2025 at DHS CBP
 ```
 
 **Recipients Pattern:**
@@ -653,8 +653,8 @@ NDA from USMax - for TechCorp Solutions for OREM TMA 2025 at DHS CBP
 Include:
 - Reference to attached NDA and company/opportunity context
 - Return instructions (via contracts@usmax.com or fax)
-- USMax POC contact details (Opportunity POC, Contracts POC)
-- USMax Contracts signature block (address/phone/fax)
+- USmax POC contact details (Opportunity POC, Contracts POC)
+- USmax Contracts signature block (address/phone/fax)
 
 **VALIDATION NEEDED:** Already in Tier 1 (Q3) - who receives email?
 
@@ -704,7 +704,7 @@ Include:
 ## Summary of New/Clarified Requirements
 
 **Added to Validation Questions:**
-- Q10: Non-USMax NDA behavior (Option A vs. B)
+- Q10: Non-USmax NDA behavior (Option A vs. B)
 - Q11: POC clarification (2 vs. 3 types, is Contacts = Contracts?)
 - Q12: RBAC granularity (simple roles vs. granular permissions)
 - Q13: Database choice (DynamoDB vs. Aurora Serverless)

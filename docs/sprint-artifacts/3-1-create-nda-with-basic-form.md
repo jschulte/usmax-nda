@@ -20,8 +20,8 @@ so that **I can initiate the NDA process for a new partner opportunity**.
 - Abbreviated Opportunity Name
 - Authorized Purpose (≤255 chars)
 - Effective Date
-- USMax Position dropdown
-- Non-USMax NDA checkbox
+- USmax Position dropdown
+- Non-USmax NDA checkbox
 - Opportunity POC (me pre-selected)
 - Contracts POC (optional)
 - Relationship POC (required)
@@ -57,7 +57,7 @@ so that **I can initiate the NDA process for a new partner opportunity**.
   - [ ] 1.4: Add subagencyId FK (determines access scope)
   - [ ] 1.5: Add displayId (integer, auto-increment sequence)
   - [ ] 1.6: Add status enum (Created, Emailed, InRevision, FullyExecuted, Inactive, Cancelled)
-  - [ ] 1.7: Add USMaxPosition enum
+  - [ ] 1.7: Add USmaxPosition enum
   - [ ] 1.8: Run migration
 
 - [ ] **Task 2: Display ID Sequence** (AC: 2)

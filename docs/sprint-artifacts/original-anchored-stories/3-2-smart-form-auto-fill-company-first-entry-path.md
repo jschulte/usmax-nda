@@ -52,7 +52,7 @@ so that **I can create NDAs faster (15 fields → 3-4 manual entries)**.
 ### Review Follow-ups (AI)
 - [x] [AI-Review][High] Company search suggestions broken: API returns companyName but client expects name, so dropdown is empty. [src/server/services/companySuggestionsService.ts:180]
 - [x] [AI-Review][Medium] AC3 not implemented: recently used companies are never shown (no call to /company-suggestions on focus). [src/components/screens/RequestWizard.tsx:164]
-- [x] [AI-Review][Medium] AC2 mismatch: form still blocks progress without USMax position and Relationship POC even after auto-fill; update defaults or AC. [src/components/screens/RequestWizard.tsx:229]
+- [x] [AI-Review][Medium] AC2 mismatch: form still blocks progress without USmax position and Relationship POC even after auto-fill; update defaults or AC. [src/components/screens/RequestWizard.tsx:229]
 
 ## Dev Agent Record
 

@@ -263,8 +263,8 @@ function NDADetailsTab({ nda }: { nda: Nda }) {
         <CardContent>
           <DetailField label="Authorized Purpose" value={nda.authorizedPurpose} />
           <DetailField label="Effective Date" value={formatDate(nda.effectiveDate)} />
-          <DetailField label="USMax Position" value={nda.usmaxPosition} />
-          <DetailField label="Non-USMax NDA" value={nda.nonUsmax ? 'Yes' : 'No'} />
+          <DetailField label="USmax Position" value={nda.usmaxPosition} />
+          <DetailField label="Non-USmax NDA" value={nda.nonUsmax ? 'Yes' : 'No'} />
         </CardContent>
       </Card>
 

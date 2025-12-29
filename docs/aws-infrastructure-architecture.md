@@ -1,4 +1,4 @@
-# USMax NDA Management System - AWS Infrastructure Architecture
+# USmax NDA Management System - AWS Infrastructure Architecture
 
 **Version:** 1.0
 **Date:** December 2024
@@ -28,7 +28,7 @@
 
 ## Executive Summary
 
-This document defines the AWS infrastructure architecture for the USMax NDA Management System, a government-grade application requiring CMMC Level 1 compliance. The architecture prioritizes:
+This document defines the AWS infrastructure architecture for the USmax NDA Management System, a government-grade application requiring CMMC Level 1 compliance. The architecture prioritizes:
 
 - **Security First:** Defense-in-depth with encryption, MFA, and least-privilege access
 - **Cost Optimization:** Right-sized resources with significant savings for non-production
@@ -59,7 +59,7 @@ flowchart LR
         NONPROD[NonProd Environment<br/>Development & UAT Testing]
     end
 
-    subgraph "AWS - USMax Account"
+    subgraph "AWS - USmax Account"
         PROD[Production Environment<br/>Live System]
     end
 
@@ -76,7 +76,7 @@ flowchart LR
 
 | Aspect | NonProd | Production |
 |--------|---------|------------|
-| **AWS Account** | Your personal account | USMax account |
+| **AWS Account** | Your personal account | USmax account |
 | **Purpose** | Development, testing, UAT demos | Live customer-facing system |
 | **Availability** | Single-AZ (cost savings) | Multi-AZ (high availability) |
 | **Database** | db.t3.micro, single instance | db.t3.small+, Multi-AZ |

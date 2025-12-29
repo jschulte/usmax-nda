@@ -1,4 +1,4 @@
-# USMax NDA Management System
+# USmax NDA Management System
 
 **Project Status:** Discovery Phase Complete - Ready for Customer Validation
 **Current Phase:** Requirements Validation & Planning
@@ -8,7 +8,7 @@
 
 ## Project Overview
 
-This is a complete rebuild of USMax's NDA (Non-Disclosure Agreement) management system, replacing a legacy Windows-based application that catastrophically failed. The project is currently in the **discovery phase**, with comprehensive analysis complete and ready for customer validation.
+This is a complete rebuild of USmax's NDA (Non-Disclosure Agreement) management system, replacing a legacy Windows-based application that catastrophically failed. The project is currently in the **discovery phase**, with comprehensive analysis complete and ready for customer validation.
 
 **Current Situation:**
 - ✅ Legacy system analyzed (8 screenshots reverse-engineered)
@@ -31,7 +31,7 @@ This is a complete rebuild of USMax's NDA (Non-Disclosure Agreement) management 
 **Suggested Email Template:**
 
 ```
-Subject: USMax NDA System Rebuild - Questions to Guide Development
+Subject: USmax NDA System Rebuild - Questions to Guide Development
 
 Hi [Customer Name],
 

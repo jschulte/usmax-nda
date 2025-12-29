@@ -162,7 +162,7 @@ Changed At: {{changedAt}}
 View NDA: {{ndaLink}}
 
 Best regards,
-USMax NDA System
+USmax NDA System
 `;
 ```
 

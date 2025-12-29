@@ -120,7 +120,7 @@ enum NdaType {
 - Update display labels in both form and detail views
 - Apply formatting to suggestions and preview
 - Add unit test for label mapping
-- Check spelling consistency ("USmax" not "USMax")
+- Check spelling consistency ("USmax" not "USmax")
 
 ### Technical Implementation Guidance
 

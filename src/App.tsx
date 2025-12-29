@@ -1,5 +1,5 @@
 /**
- * USMax NDA Management System - Main Application
+ * USmax NDA Management System - Main Application
  * Story 1.1: AWS Cognito MFA Integration
  *
  * Updated to include:

@@ -137,12 +137,12 @@ export async function generateDocument(
     );
   }
 
-  // Check if non-USMax NDA should skip generation
+  // Check if non-USmax NDA should skip generation
   if (nda.isNonUsMax) {
     const skipGeneration = await checkNonUsMaxSkipSetting();
     if (skipGeneration) {
       throw new DocumentGenerationError(
-        'Non-USMax NDAs do not require generated documents',
+        'Non-USmax NDAs do not require generated documents',
         'NON_USMAX_SKIP'
       );
     }
@@ -232,7 +232,7 @@ async function getNdaWithRelations(
 }
 
 /**
- * Check system config for non-USMax skip setting
+ * Check system config for non-USmax skip setting
  */
 async function checkNonUsMaxSkipSetting(): Promise<boolean> {
   const config = await prisma.systemConfig.findUnique({

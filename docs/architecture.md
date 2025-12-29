@@ -15,7 +15,7 @@ date: '2025-12-15'
 hasProjectContext: false
 ---
 
-# Architecture Decision Document - USMax NDA Management System
+# Architecture Decision Document - USmax NDA Management System
 
 **Project:** usmax-nda
 **Author:** Jonah
@@ -332,7 +332,7 @@ usmax-nda/
 
 **Core Entities (17 tables):**
 
-1. **contacts** - All people (internal USMax staff + external partners)
+1. **contacts** - All people (internal USmax staff + external partners)
    - Replaces User/Contact split - unified table with `is_internal` flag
    - Includes email signatures (FR79)
    - Referenced by NDAs for all POC roles (proper FKs, not JSONB!)

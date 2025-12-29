@@ -22,7 +22,7 @@ so that **I can narrow down to exactly the NDAs I need to review**.
 - NDA Type
 - Incorporation State
 - Agency/Office Name
-- Non-USMax flag
+- Non-USmax flag
 - Effective Date range
 - Requested Date range
 - Opportunity POC
@@ -68,7 +68,7 @@ so that **I can narrow down to exactly the NDAs I need to review**.
   - [ ] 4.2: Add filter inputs for all 15 criteria:
     - Dropdowns: Agency Group, Subagency, Status, NDA Type, Opportunity/Contracts/Relationship POC
     - Text inputs: Company Name, City, State, Inc. State, Agency/Office Name
-    - Checkbox: Non-USMax
+    - Checkbox: Non-USmax
     - Date ranges: Effective Date, Requested Date
   - [ ] 4.3: Use Radix UI Select components for dropdowns
   - [ ] 4.4: Use date picker component for date ranges
@@ -348,13 +348,13 @@ function NDAFilterPanel({ filters, onChange, onClear }: FilterPanelProps) {
             />
           </div>
 
-          {/* Non-USMax Checkbox */}
+          {/* Non-USmax Checkbox */}
           <div className="flex items-center gap-2">
             <Checkbox
               checked={filters.nonUsmax}
               onCheckedChange={(checked) => onChange('nonUsmax', checked)}
             />
-            <Label>Non-USMax NDAs Only</Label>
+            <Label>Non-USmax NDAs Only</Label>
           </div>
 
           {/* ... Additional filters for city, state, POCs, etc. */}

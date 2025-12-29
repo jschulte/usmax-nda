@@ -19,7 +19,7 @@ date: '2025-12-15'
 
 # Implementation Readiness Assessment - usmax-nda
 
-**Project:** USMax NDA Management System
+**Project:** USmax NDA Management System
 **Assessed By:** Jonah
 **Date:** 2025-12-15
 
@@ -58,7 +58,7 @@ date: '2025-12-15'
 12. System Administration (FR97-FR103) - 7 requirements
 13. Session & Authentication (FR111-FR113) - 3 requirements
 14. POC Management (FR114-FR119) - 6 requirements
-15. Non-USMax NDA Handling (FR120-FR121) - 2 requirements
+15. Non-USmax NDA Handling (FR120-FR121) - 2 requirements
 16. Admin Configuration (FR122-FR128) - 7 requirements
 17. Data Security & Encryption (FR129-FR134) - 6 requirements
 18. Disaster Recovery (FR135-FR139) - 5 requirements
@@ -104,7 +104,7 @@ date: '2025-12-15'
 - ✅ Explicit scope boundaries (what's NOT being built)
 
 **Potential Gaps:**
-- ⚠️ 4 questions still awaiting customer validation (dropdown values, POC types, Non-USMax workflow, email CC/BCC rules)
+- ⚠️ 4 questions still awaiting customer validation (dropdown values, POC types, Non-USmax workflow, email CC/BCC rules)
 - ⚠️ Using placeholders/configurability for unknowns (acceptable approach)
 
 **Overall Assessment:** PRD is comprehensive and ready for implementation. Minor gaps addressed via configurability.
@@ -303,9 +303,9 @@ date: '2025-12-15'
 ### Minor Considerations
 
 **1. Customer Validation Pending (4 questions):**
-- Dropdown enum values (Type, USMax Position)
+- Dropdown enum values (Type, USmax Position)
 - Email CC/BCC generation rules
-- Non-USMax NDA workflow details
+- Non-USmax NDA workflow details
 - POC type clarification (2 vs 3 types)
 
 **Mitigation:** Architecture uses placeholders and configurability. Can adjust when customer responds without rework.

@@ -1,4 +1,4 @@
-# Phase 1 Build Plan - USMax NDA Management System MVP
+# Phase 1 Build Plan - USmax NDA Management System MVP
 
 **Target:** 6-8 weeks to operational system
 **Goal:** Legacy parity + smart improvements for user delight
@@ -45,7 +45,7 @@
 - Status state machine definition (Tier 1 Q4)
 - Template system scope (Tier 1 Q5)
 - Email recipient logic (Tier 1 Q3)
-- Non-USMax NDA behavior (Tier 1 Q10)
+- Non-USmax NDA behavior (Tier 1 Q10)
 - POC structure - 2 vs. 3 POC types (Tier 1 Q11)
 - RBAC granularity - simple roles vs. permissions (Tier 1 Q12)
 - Database choice - DynamoDB vs. Aurora Serverless (Tier 1 Q13)

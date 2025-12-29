@@ -2,7 +2,7 @@
 set -e
 
 # =============================================================================
-# USMax NDA Demo Instance Bootstrap Script
+# USmax NDA Demo Instance Bootstrap Script
 # Installs: PostgreSQL 15, Node.js 20, pnpm, Caddy, and the application
 # =============================================================================
 
@@ -153,7 +153,7 @@ fi
 echo "Creating systemd service..."
 cat > /etc/systemd/system/usmax-nda.service << EOF
 [Unit]
-Description=USMax NDA Application
+Description=USmax NDA Application
 After=network.target postgresql.service
 
 [Service]
@@ -246,7 +246,7 @@ chown usmax:usmax /home/usmax/deploy.sh
 # Status script
 cat > /home/usmax/status.sh << 'EOF'
 #!/bin/bash
-echo "=== USMax NDA Demo Status ==="
+echo "=== USmax NDA Demo Status ==="
 echo ""
 echo "App Service:"
 systemctl status usmax-nda --no-pager | head -5

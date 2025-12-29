@@ -52,7 +52,7 @@ export interface ExternalContactInput {
 
 /**
  * Search internal users for Opportunity POC
- * AC1: Dropdown shows internal USMax users only (where isInternal=true)
+ * AC1: Dropdown shows internal USmax users only (where isInternal=true)
  * Auto-complete works (type 3 letters → matches)
  *
  * @param search - Search query (min 3 characters)

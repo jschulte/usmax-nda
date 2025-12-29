@@ -1,6 +1,6 @@
-# USMax NDA Infrastructure
+# USmax NDA Infrastructure
 
-This directory contains Terraform configurations for deploying the USMax NDA application to AWS.
+This directory contains Terraform configurations for deploying the USmax NDA application to AWS.
 
 ## Architecture Overview
 

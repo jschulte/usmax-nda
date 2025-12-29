@@ -1,10 +1,10 @@
-# Legacy Screenshot Reverse‑Engineered Requirements (USMax NDA Management System)
+# Legacy Screenshot Reverse‑Engineered Requirements (USmax NDA Management System)
 
 This document reverse‑engineers functional and technical requirements from the screenshots in `drive-download-20251213T213735Z-3-001/` (files `01-` through `08-`).
 
 ## 1) Product scope (as implied)
 
-**Goal:** A web application for USMax staff to **create, distribute, track, and archive NDAs** for specific opportunities/partner firms across government/commercial agencies.
+**Goal:** A web application for USmax staff to **create, distribute, track, and archive NDAs** for specific opportunities/partner firms across government/commercial agencies.
 
 **High-level lifecycle (observed):**
 1. Create an “opportunity” NDA record via **NDA Request**.
@@ -55,14 +55,14 @@ Inputs present (types inferred from controls):
 - `Type` (dropdown)
 - `State of Incorporation` (dropdown)
 - `Agency/Office Name` (dropdown)
-- `Non‑USMax NDA` (checkbox)
+- `Non‑USmax NDA` (checkbox)
 - `Effective Date >=` (date input)
 - `Effective Date <=` (date input)
 - `Requested Date >=` (date input)
 - `Requested Date <=` (date input)
 - `Contract POC Name` (dropdown)
 - `Relationship POC Name` (dropdown)
-- `USMax POC Name` (dropdown)
+- `USmax POC Name` (dropdown)
 
 Actions:
 - `Filter` (applies filter criteria to results)
@@ -77,18 +77,18 @@ Row-level actions (icons):
 Columns observed:
 - `Id` (numeric)
 - `Agency` (e.g., “Commercial - Commercial”, “Fed DOD - Air Force”)
-- `NDA Owner` (e.g., “USMax”)
+- `NDA Owner` (e.g., “USmax”)
 - `Company Name` (partner firm name)
 - `Abbrev.` (abbreviated opportunity name)
 - `Latest Change` (status + actor + timestamp)
 - `F/E NDA` (Fully Executed NDA date/time; blank when not executed)
 - `Latest Document` (filename link + generated/uploaded metadata + More>>)
 - (Email icon column; unlabeled)
-- `USMax POC`
+- `USmax POC`
 - `Mutual Purpose`
 - `Effective Date`
 - `Requested Date`
-- `USMax Position` (value shown at far right, e.g., “Prime”)
+- `USmax Position` (value shown at far right, e.g., “Prime”)
 
 Table behaviors implied:
 - Column headers appear link-styled/underlined → **sortable columns**.
@@ -98,9 +98,9 @@ Table behaviors implied:
   - timestamp line (“on {MM/DD/YYYY h:mm AM/PM}”)
 
 #### 4.1.3 Example records (data observed)
-- `1590`: Company `abc`, Abbrev `OREM TMA 2025`, Latest Change `Created/Pending Release`, Latest Doc `NDA_OREMTMA2025_USMAX_abc.rtf` (Generated from Template), USMax POC `Brett Steiner`, Mutual Purpose `test`, Effective `04/04/2025`, Requested `10/02/2025`, Position `Prime`.
-- `1589`: Company `Actalent, Inc.`, Abbrev `SSC CG Acq SS`, Latest Change `Fully Executed NDA Uploaded`, Latest Doc `…Actalentinc - FE.pdf` (Uploaded), USMax POC `Brett Steiner`, Mutual Purpose `CG Acquisition Support Services`, Effective `09/09/2025`, Requested `09/09/2025`, Position `Prime`.
-- `1588`: Company `SSC CG Acquisition Support`, Abbrev `SSC CG Acq SS`, Latest Change `Fully Executed NDA Uploaded`, Latest Doc `…Actalentinc - FE.pdf` (Uploaded), USMax POC `Brett Steiner`, Mutual Purpose `SSC CG Acquisition Support Services`, Effective `08/29/2025`, Requested `08/29/2025`, Position `Prime`.
+- `1590`: Company `abc`, Abbrev `OREM TMA 2025`, Latest Change `Created/Pending Release`, Latest Doc `NDA_OREMTMA2025_USMAX_abc.rtf` (Generated from Template), USmax POC `Brett Steiner`, Mutual Purpose `test`, Effective `04/04/2025`, Requested `10/02/2025`, Position `Prime`.
+- `1589`: Company `Actalent, Inc.`, Abbrev `SSC CG Acq SS`, Latest Change `Fully Executed NDA Uploaded`, Latest Doc `…Actalentinc - FE.pdf` (Uploaded), USmax POC `Brett Steiner`, Mutual Purpose `CG Acquisition Support Services`, Effective `09/09/2025`, Requested `09/09/2025`, Position `Prime`.
+- `1588`: Company `SSC CG Acquisition Support`, Abbrev `SSC CG Acq SS`, Latest Change `Fully Executed NDA Uploaded`, Latest Doc `…Actalentinc - FE.pdf` (Uploaded), USmax POC `Brett Steiner`, Mutual Purpose `SSC CG Acquisition Support Services`, Effective `08/29/2025`, Requested `08/29/2025`, Position `Prime`.
 
 ### 4.2 Record detail modal (“More>>”) — `02-more-info-from-main.png`
 
@@ -135,7 +135,7 @@ Behavioral requirements implied:
 ### 4.3 NDA Request (create) — `03-nda-request-screen-1.png` and `04-nda-request-screen-2.png`
 
 Header controls:
-- `NDA Owner` (dropdown; example value `USMax`)
+- `NDA Owner` (dropdown; example value `USmax`)
 - `Agency` (dropdown)
 - `Created By` (current user display)
 
@@ -145,8 +145,8 @@ Header controls:
 - `Agency/Office Name` (free text; example “DHS CBP”)
 - `Abbreviated Opportunity Name` (free text)
 - `Effective Date` (date input; format hint `mm/dd/yyyy`)
-- `USMax Position` (dropdown; example `Prime`)
-- `Non‑USMax NDA` (checkbox)
+- `USmax Position` (dropdown; example `Prime`)
+- `Non‑USmax NDA` (checkbox)
 
 **Opportunity POC (required):**
 - `User` (dropdown; selects internal user)
@@ -163,7 +163,7 @@ Header controls:
 - `Phone`
 - `Fax`
 
-**Internal USMax Stakeholders**
+**Internal USmax Stakeholders**
 Table columns:
 - `Notify on NDA Changes` (checkbox per stakeholder)
 - `Name`
@@ -192,10 +192,10 @@ Actions:
 Email template content (observed):
 - References the attached NDA and the company/opportunity context (“for {company} for {abbrev} at {agency/office}”).
 - Instructs return via `contracts@usmax.com` or fax.
-- Includes “USMax POCs for this opportunity record” with:
+- Includes “USmax POCs for this opportunity record” with:
   - Contracts POC name/title + email + phone
   - Opportunity POC name/title + email + phone
-- Includes USMax Contracts address/phone/fax signature block.
+- Includes USmax Contracts address/phone/fax signature block.
 
 ### 4.5 Subagencies — `06-subagency-tab.png`
 
@@ -269,7 +269,7 @@ Behavior required:
 
 **NDARecord (Opportunity)**
 - `id` (numeric/sequence; shown as integer)
-- `ndaOwner` (enum; shown as `USMax`)
+- `ndaOwner` (enum; shown as `USmax`)
 - `agencyGroup` + `subagency` (or a combined `agency` field as displayed)
 - `agencyOfficeName` (text; “Agency/Office Name”)
 - `companyName` (+ optional company address fields)
@@ -374,11 +374,11 @@ Notable gaps (prototype → legacy needs):
 - Add **Agency Groups/Subagencies/Contacts** modules and wire them into permissions and dropdowns.
 - Add **document generation from RTF templates** (merge fields) and document version history.
 - Add **email compose/review + send** tied to a record with templated subject/body + recipients.
-- Align the “Request” fields to match: agency/office name, abbrev opportunity name, USMax position, Non‑USMax flag, POCs, stakeholder notifications.
+- Align the “Request” fields to match: agency/office name, abbrev opportunity name, USmax position, Non‑USmax flag, POCs, stakeholder notifications.
 
 ## 9) Open questions / items not shown in screenshots (confirm with customer)
 
-- What are the full allowed values for: `Type`, `USMax Position`, `NDA Owner`, and the exact “Agency” field structure?
+- What are the full allowed values for: `Type`, `USmax Position`, `NDA Owner`, and the exact “Agency” field structure?
 - Who are the intended external recipients for “Review NDA Email” (partner firm POC vs internal routing), and how are they sourced?
 - What status transitions exist beyond the two shown, and should “Inactive” be reversible?
 - Are there multiple templates per agency/type, and who can manage them?

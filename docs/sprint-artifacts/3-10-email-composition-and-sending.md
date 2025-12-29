@@ -14,7 +14,7 @@ so that **I can distribute the NDA to the partner for signature**.
 **Given** NDA #1590 has generated RTF document
 **When** I click "Send Email"
 **Then** Email composer opens pre-filled:
-- Subject: "NDA from USMax - for TechCorp for OREM TMA 2025 at DHS CBP"
+- Subject: "NDA from USmax - for TechCorp for OREM TMA 2025 at DHS CBP"
 - TO: relationship_contact.email
 - CC: Kelly Davidson (me), Chris Martinez, David Wu (from config)
 - BCC: Leadership list (from config)
@@ -175,7 +175,7 @@ await boss.work('send-email', { batchSize: 5 }, async (jobs) => {
 await boss.send('send-email', {
   to: ['partner@company.com'],
   cc: ['user@usmax.com'],
-  subject: 'NDA from USMax',
+  subject: 'NDA from USmax',
   body: emailBody,
   attachments: [{ filename: 'nda.rtf', path: s3Key }]
 }, {
@@ -191,7 +191,7 @@ await boss.send('send-email', {
 const emailTemplate = `
 Dear {{recipientName}},
 
-Attached is the Non-Disclosure Agreement between USMax and {{companyName}} for {{authorizedPurpose}}.
+Attached is the Non-Disclosure Agreement between USmax and {{companyName}} for {{authorizedPurpose}}.
 
 Please review, sign, and return the executed NDA.
 
@@ -201,7 +201,7 @@ Effective Date: {{effectiveDate}}
 Best regards,
 {{senderName}}
 {{senderTitle}}
-USMax
+USmax
 `;
 
 // Merge with Handlebars

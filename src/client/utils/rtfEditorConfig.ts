@@ -43,7 +43,7 @@ export const PLACEHOLDER_LABELS: Record<PlaceholderField, string> = {
   abbreviatedName: 'Abbreviated Name',
   authorizedPurpose: 'Authorized Purpose',
   effectiveDate: 'Effective Date',
-  usMaxPosition: 'USMax Position',
+  usMaxPosition: 'USmax Position',
   opportunityPocName: 'Opportunity POC Name',
   contractsPocName: 'Contracts POC Name',
   relationshipPocName: 'Relationship POC Name',

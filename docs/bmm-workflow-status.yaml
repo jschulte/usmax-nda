@@ -16,7 +16,7 @@
 #   - skipped: Optional/conditional workflow that was skipped
 
 generated: "2025-12-12"
-project: "USMax NDA Management System"
+project: "USmax NDA Management System"
 project_type: "Government NDA Lifecycle Application"
 selected_track: "method"
 field_type: "brownfield"

@@ -16,7 +16,7 @@ so that **system helps me with common patterns for that agency**.
 **Then** System suggests:
 - Common companies for Air Force (e.g., "Lockheed Martin", "Boeing", "Northrop Grumman")
 - Typical NDA Type for DoD (e.g., "Mutual")
-- USMax Position for Air Force contracts (e.g., "Prime")
+- USmax Position for Air Force contracts (e.g., "Prime")
 - Most-used RTF template for DoD
 
 ### AC2: Non-Restrictive Suggestions
@@ -28,7 +28,7 @@ so that **system helps me with common patterns for that agency**.
 - [ ] **Task 1: Agency Suggestions Service** (AC: 1)
   - [ ] 1.1: Create `src/server/services/agencySuggestionsService.ts`
   - [ ] 1.2: Implement `getCommonCompanies(agencyGroupId)` - Most used companies
-  - [ ] 1.3: Implement `getTypicalPosition(agencyGroupId)` - Most common USMax position
+  - [ ] 1.3: Implement `getTypicalPosition(agencyGroupId)` - Most common USmax position
   - [ ] 1.4: Implement `getDefaultTemplate(agencyGroupId)` - Most used RTF template
 
 - [ ] **Task 2: Suggestions API** (AC: 1, 2)

@@ -28,8 +28,8 @@ so that **I have a formatted NDA ready to send to the partner**.
 **And** Error reported to Sentry with context
 **And** User can retry or upload manual RTF
 
-### AC3: Non-USMax NDA Handling
-**Given** Non-USMax NDA checkbox is checked
+### AC3: Non-USmax NDA Handling
+**Given** Non-USmax NDA checkbox is checked
 **When** Generating document
 **Then** Behavior depends on system_config.non_usmax_skip_template setting
 **And** If skip=true: No document generated, user must upload manually
@@ -58,7 +58,7 @@ so that **I have a formatted NDA ready to send to the partner**.
   - [ ] 3.3: Create document record in database
   - [ ] 3.4: Add audit logging for document_generated
 
-- [ ] **Task 4: Non-USMax Logic** (AC: 3)
+- [ ] **Task 4: Non-USmax Logic** (AC: 3)
   - [ ] 4.1: Add system_config table for settings
   - [ ] 4.2: Implement non_usmax_skip_template check
   - [ ] 4.3: Support alternate template selection
@@ -72,7 +72,7 @@ so that **I have a formatted NDA ready to send to the partner**.
 ### Review Follow-ups (AI)
 - [x] [AI-Review][High] Document generation produces DOCX (.docx) only; AC requires RTF output and .rtf S3 key. [src/server/services/documentGenerationService.ts:161]
 - [x] [AI-Review][High] Template selection/Handlebars merge is not used; generator builds a static DOCX instead of merging a chosen template. [src/server/services/documentGenerationService.ts:297]
-- [x] [AI-Review][High] Non-USMax behavior is hardcoded (checkNonUsMaxSkipSetting always false); no system_config support. [src/server/services/documentGenerationService.ts:235]
+- [x] [AI-Review][High] Non-USmax behavior is hardcoded (checkNonUsMaxSkipSetting always false); no system_config support. [src/server/services/documentGenerationService.ts:235]
 - [x] [AI-Review][Medium] Generation failures are only console-logged; no Sentry reporting or retry UX. [src/server/routes/ndas.ts:1068]
 
 ## Dev Agent Record
@@ -88,7 +88,7 @@ so that **I have a formatted NDA ready to send to the partner**.
 - package-lock.json
 
 ### Change Log
-- 2025-12-20: Switched generation to RTF template merging, added template selection logic, non-USMax config check, and Sentry error reporting.
+- 2025-12-20: Switched generation to RTF template merging, added template selection logic, non-USmax config check, and Sentry error reporting.
 
 ## Dev Notes
 

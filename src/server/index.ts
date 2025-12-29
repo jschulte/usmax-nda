@@ -1,5 +1,5 @@
 /**
- * USMax NDA Management System - Express Server
+ * USmax NDA Management System - Express Server
  * Story 1.1: AWS Cognito MFA Integration
  *
  * This is the main entry point for the backend server.
@@ -197,7 +197,7 @@ app.use((err: Error, req: express.Request, res: express.Response, next: express.
 app.listen(PORT, () => {
   console.log(`
 ╔═══════════════════════════════════════════════════════════╗
-║          USMax NDA Management System - API Server         ║
+║          USmax NDA Management System - API Server         ║
 ╠═══════════════════════════════════════════════════════════╣
 ║  Server running on: http://localhost:${PORT}                 ║
 ║  Mock Auth Mode:    ${process.env.USE_MOCK_AUTH === 'true' ? 'ENABLED' : 'DISABLED'}                          ║

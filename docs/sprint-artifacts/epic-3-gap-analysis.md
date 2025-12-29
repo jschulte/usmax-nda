@@ -142,7 +142,7 @@ Epic 3 implementation is **substantially complete and very well-aligned** with s
 | **AC2: Agency Suggestions** | | | |
 | GET /api/agencies/:id/suggestions | ✓ | `agencySuggestionsService.ts` | ✅ Match |
 | Common companies | ✓ | `getCommonCompanies()` | ✅ Match |
-| Typical USMax position | ✓ | `getTypicalPosition()` | ✅ Match |
+| Typical USmax position | ✓ | `getTypicalPosition()` | ✅ Match |
 | Default template | ✓ | `getDefaultTemplate()` | ✅ Match |
 | **AC3: Combined Suggestions** | | | |
 | All suggestions in one call | ✓ | `getAgencySuggestions()` | ✅ Match |
@@ -189,7 +189,7 @@ Epic 3 implementation is **substantially complete and very well-aligned** with s
 - `src/server/services/s3Service.ts` ✅
 
 **Beyond Spec:**
-- ✅ Non-USMax NDA skip generation option
+- ✅ Non-USmax NDA skip generation option
 - ✅ Template fallback chain (agency → global → default)
 - ✅ Handlebars helpers (formatDate, uppercase, ifEquals)
 - ✅ Sanitized filename generation

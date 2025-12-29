@@ -1,4 +1,4 @@
-# USMax NDA Management System - AWS Cognito User Pool Configuration
+# USmax NDA Management System - AWS Cognito User Pool Configuration
 # Story 1.1: AWS Cognito MFA Integration
 #
 # TODO: Deploy this Terraform configuration when ready for AWS infrastructure

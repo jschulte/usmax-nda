@@ -117,7 +117,7 @@ Epic 5 implementation is **substantially complete and well-aligned** with specif
 | State of Incorporation | ✓ | `params.stateOfIncorporation` | ✅ Match |
 | Agency Office Name | ✓ | `params.agencyOfficeName` | ✅ Match |
 | NDA Type | ✓ | `params.ndaType` | ✅ Match |
-| Non-USMax | ✓ | `params.isNonUsMax` | ✅ Match |
+| Non-USmax | ✓ | `params.isNonUsMax` | ✅ Match |
 | Created Date Range | ✓ | `createdDateFrom/To` | ✅ Match |
 | POC Names (3 types) | ✓ | `opportunityPocName`, etc. | ✅ Match |
 | **AC2: Filter Panel** | | | |

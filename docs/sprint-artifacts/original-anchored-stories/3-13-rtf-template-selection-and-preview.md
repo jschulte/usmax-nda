@@ -13,7 +13,7 @@ so that **I can ensure the document looks correct for this specific agency/type*
 ### AC1: Template Dropdown with Recommendations
 **Given** Multiple RTF templates exist in database
 **When** Creating NDA for "DoD Air Force"
-**Then** Template dropdown shows: "DoD Standard NDA (recommended)", "Generic USMax NDA", "Research Partnership NDA"
+**Then** Template dropdown shows: "DoD Standard NDA (recommended)", "Generic USmax NDA", "Research Partnership NDA"
 **And** Recommended template pre-selected based on agency/type
 
 ### AC2: Preview Generated RTF

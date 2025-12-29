@@ -125,7 +125,7 @@ describe('formatFieldName', () => {
   });
 
   it('handles multiple capitals', () => {
-    expect(formatFieldName('isNonUSMax')).toBe('Is Non U S Max');
+    expect(formatFieldName('isNonUSmax')).toBe('Is Non U S Max');
   });
 });
 

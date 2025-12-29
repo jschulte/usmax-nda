@@ -1,4 +1,4 @@
-// USMax NDA Management System - Prisma Schema
+// USmax NDA Management System - Prisma Schema
 // Story 1.2: JWT Middleware & User Context
 //
 // Database schema for authorization:
@@ -22,7 +22,7 @@ datasource db {
 // USERS/CONTACTS
 // ============================================================================
 
-/// Contact represents a user in the system (USMax staff member)
+/// Contact represents a user in the system (USmax staff member)
 model Contact {
   id             String    @id @default(uuid())
   cognitoId      String?   @unique @map("cognito_id") // AWS Cognito sub claim (null if not yet linked)
@@ -34,7 +34,7 @@ model Contact {
   fax            String?   // Fax number for external contacts
   jobTitle       String?   @map("job_title")
   active         Boolean   @default(true) // Soft delete flag
-  isInternal     Boolean   @default(false) @map("is_internal") // Story 3.14: True for USMax employees
+  isInternal     Boolean   @default(false) @map("is_internal") // Story 3.14: True for USmax employees
   emailSignature String?   @map("email_signature") @db.Text // Story 3.14: Email signature for internal users
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @updatedAt @map("updated_at")
@@ -233,7 +233,7 @@ enum NdaStatus {
   EXPIRED
 }
 
-/// USMax Position on the contract
+/// USmax Position on the contract
 enum UsMaxPosition {
   PRIME
   SUB_CONTRACTOR

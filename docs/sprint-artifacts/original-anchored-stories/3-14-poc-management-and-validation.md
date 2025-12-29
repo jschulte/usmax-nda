@@ -13,7 +13,7 @@ so that **emails reach the right people and data is accurate**.
 ### AC1: Opportunity POC (Internal User)
 **Given** Creating NDA form
 **When** I enter Opportunity POC
-**Then** Dropdown shows internal USMax users only (where is_internal=true)
+**Then** Dropdown shows internal USmax users only (where is_internal=true)
 **And** Auto-complete works (type 3 letters → matches)
 **And** Selected user's email signature included in email template
 

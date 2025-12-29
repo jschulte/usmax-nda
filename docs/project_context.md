@@ -8,7 +8,7 @@ status: 'complete'
 completedAt: '2025-12-15'
 ---
 
-# Project Context - USMax NDA Management System
+# Project Context - USmax NDA Management System
 
 **Last Updated:** 2025-12-15
 **For:** AI Agents and Developers

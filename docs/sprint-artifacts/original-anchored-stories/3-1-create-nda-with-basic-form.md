@@ -20,8 +20,8 @@ so that **I can initiate the NDA process for a new partner opportunity**.
 - Abbreviated Opportunity Name
 - Authorized Purpose (≤255 chars)
 - Effective Date
-- USMax Position dropdown
-- Non-USMax NDA checkbox
+- USmax Position dropdown
+- Non-USmax NDA checkbox
 - Opportunity POC (me pre-selected)
 - Contracts POC (optional)
 - Relationship POC (required)

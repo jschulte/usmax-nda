@@ -1,4 +1,4 @@
-# Multi-stage Dockerfile for USMax NDA
+# Multi-stage Dockerfile for USmax NDA
 # Builds both frontend (Vite) and backend (Express) into a single container
 
 # =============================================================================

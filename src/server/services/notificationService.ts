@@ -390,7 +390,7 @@ NDA Details:
 View NDA: ${ndaUrl}
 
 Best regards,
-USMax Notifications
+USmax Notifications
 
 ---
 You are receiving this email because you are subscribed to this NDA.

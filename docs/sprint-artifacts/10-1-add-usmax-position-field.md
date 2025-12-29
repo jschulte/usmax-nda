@@ -1,4 +1,4 @@
-# Story 10.1: Update USMax Position Enum Values
+# Story 10.1: Update USmax Position Enum Values
 
 Status: done
 
@@ -243,7 +243,7 @@ N/A - straightforward enum update
 ### Review Details
 
 **H1: Spelling Consistency Fixed**
-- Updated 10+ instances to use "USmax" (not USMAX/US/MAX/USMax)
+- Updated 10+ instances to use "USmax" (not USMAX/US/MAX/USmax)
 - Files: RequestWizard.tsx, NDADetail.tsx, ndaService.ts, agencySuggestionsService.ts, routes/ndas.ts
 
 **M1: Unit Test Added**

@@ -1,4 +1,4 @@
-# IAM Module for USMax NDA
+# IAM Module for USmax NDA
 
 # ECS Task Execution Role
 resource "aws_iam_role" "ecs_execution" {

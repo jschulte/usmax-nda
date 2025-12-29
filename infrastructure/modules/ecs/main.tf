@@ -1,4 +1,4 @@
-# ECS Fargate Module for USMax NDA
+# ECS Fargate Module for USmax NDA
 
 # ECS Cluster
 resource "aws_ecs_cluster" "main" {

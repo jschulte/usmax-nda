@@ -1,6 +1,6 @@
 # Project Documentation Index
 
-**USMax NDA Management System**
+**USmax NDA Management System**
 Government NDA Lifecycle Application (Prototype)
 
 **Generated:** 2025-12-12
@@ -57,7 +57,7 @@ Government NDA Lifecycle Application (Prototype)
   Executive summary, tech stack, project classification, and next steps
 
 - **[Legacy Screenshot Requirements](./legacy-screens-requirements.md)**
-  Reverse-engineered requirements from the customer’s legacy USMax NDA Management System screenshots
+  Reverse-engineered requirements from the customer’s legacy USmax NDA Management System screenshots
 
 - **[Legacy vs Prototype Gap + Backlog](./legacy-prototype-gap-backlog.md)**
   Coverage matrix, prototype-only features, prioritized epics/user stories, and proposed API surface

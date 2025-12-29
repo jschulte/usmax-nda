@@ -20,7 +20,7 @@ So that I know I'm logging into the official USmax NDA system.
 **AC2: Branding uses correct spelling**
 **Given** I see the login page text
 **When** I read the page title and descriptions
-**Then** all references to the company use "USmax" (not "USMax" or "USMAX")
+**Then** all references to the company use "USmax" (not "USmax" or "USMAX")
 **And** this applies to: page title, form labels, helper text, footer
 
 **AC3: Visual design matches USmax branding**
@@ -46,8 +46,8 @@ So that I know I'm logging into the official USmax NDA system.
   - [ ] Adjust logo sizing (h-12 or h-16)
   - [ ] Ensure logo loads properly (error handling)
 - [ ] Fix spelling throughout page (Task AC: AC2)
-  - [ ] Line 62: "USMax NDA System" → "USmax NDA Management System"
-  - [ ] Line 64: "USMax credentials" → "USmax credentials"
+  - [ ] Line 62: "USmax NDA System" → "USmax NDA Management System"
+  - [ ] Line 64: "USmax credentials" → "USmax credentials"
   - [ ] Line 95: "you@usmax.com" already correct
   - [ ] Check any other text references
 - [ ] Enhance visual design (Task AC: AC3)
@@ -73,8 +73,8 @@ So that I know I'm logging into the official USmax NDA system.
 
 **Current Issues:**
 - Line 59-60: Generic Shield icon instead of company logo
-- Line 62: "USMax NDA System" (wrong spelling)
-- Line 64: "USMax credentials" (wrong spelling)
+- Line 62: "USmax NDA System" (wrong spelling)
+- Line 64: "USmax credentials" (wrong spelling)
 - No actual USmax branding elements
 
 **Logo Available:**

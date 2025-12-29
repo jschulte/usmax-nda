@@ -90,7 +90,7 @@ describe('Template Service', () => {
         },
         {
           id: 'template-2',
-          name: 'Generic USMax NDA',
+          name: 'Generic USmax NDA',
           description: 'Generic template',
           content: Buffer.from('template content'),
           agencyGroupId: null,

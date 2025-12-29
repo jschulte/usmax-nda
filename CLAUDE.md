@@ -50,7 +50,7 @@ This project uses the BMAD method for development workflow. See the "BMad Method
 
 ## Project Overview
 
-USMax NDA Management System - a government-grade NDA (Non-Disclosure Agreement) lifecycle management application replacing a legacy Windows system. Built for CMMC Level 1 compliance with MFA, row-level security, and comprehensive audit logging.
+USmax NDA Management System - a government-grade NDA (Non-Disclosure Agreement) lifecycle management application replacing a legacy Windows system. Built for CMMC Level 1 compliance with MFA, row-level security, and comprehensive audit logging.
 
 **Tech Stack:** React 18 + Vite + Express + PostgreSQL + Prisma + AWS (Cognito, S3, SES)
 
@@ -124,7 +124,7 @@ stores/              # Zustand stores (appStore)
 ### Database Schema (`prisma/schema.prisma`)
 
 **Core Entities:**
-- `Contact` - Users (USMax staff), unified with external contacts
+- `Contact` - Users (USmax staff), unified with external contacts
 - `Role`, `Permission`, `RolePermission`, `ContactRole` - RBAC
 - `AgencyGroup`, `Subagency` - Organizational hierarchy
 - `AgencyGroupGrant`, `SubagencyGrant` - Data access control
@@ -156,7 +156,7 @@ const ndas = await prisma.nda.findMany({
 
 ## Project Overview
 
-USMax NDA Management System - a government-grade NDA (Non-Disclosure Agreement) lifecycle management application replacing a legacy Windows system. Built for CMMC Level 1 compliance with MFA, row-level security, and comprehensive audit logging.
+USmax NDA Management System - a government-grade NDA (Non-Disclosure Agreement) lifecycle management application replacing a legacy Windows system. Built for CMMC Level 1 compliance with MFA, row-level security, and comprehensive audit logging.
 
 **Tech Stack:** React 18 + Vite + Express + PostgreSQL + Prisma + AWS (Cognito, S3, SES)
 
@@ -230,7 +230,7 @@ stores/              # Zustand stores (appStore)
 ### Database Schema (`prisma/schema.prisma`)
 
 **Core Entities:**
-- `Contact` - Users (USMax staff), unified with external contacts
+- `Contact` - Users (USmax staff), unified with external contacts
 - `Role`, `Permission`, `RolePermission`, `ContactRole` - RBAC
 - `AgencyGroup`, `Subagency` - Organizational hierarchy
 - `AgencyGroupGrant`, `SubagencyGrant` - Data access control

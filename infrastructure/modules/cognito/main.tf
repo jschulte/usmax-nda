@@ -1,4 +1,4 @@
-# Cognito Module for USMax NDA
+# Cognito Module for USmax NDA
 # Based on existing infrastructure/cognito.tf
 
 resource "aws_cognito_user_pool" "main" {
@@ -60,7 +60,7 @@ resource "aws_cognito_user_pool" "main" {
   # User verification
   verification_message_template {
     default_email_option = "CONFIRM_WITH_CODE"
-    email_subject        = "Your USMax NDA verification code"
+    email_subject        = "Your USmax NDA verification code"
     email_message        = "Your verification code is {####}"
   }
 
@@ -69,7 +69,7 @@ resource "aws_cognito_user_pool" "main" {
     allow_admin_create_user_only = true
 
     invite_message_template {
-      email_subject = "Your USMax NDA account has been created"
+      email_subject = "Your USmax NDA account has been created"
       email_message = "Your username is {username} and temporary password is {####}. Please log in and change your password."
       sms_message   = "Your username is {username} and temporary password is {####}"
     }

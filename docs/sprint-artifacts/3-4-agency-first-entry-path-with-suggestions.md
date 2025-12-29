@@ -16,7 +16,7 @@ so that **system helps me with common patterns for that agency**.
 **Then** System suggests:
 - Common companies for Air Force (e.g., "Lockheed Martin", "Boeing", "Northrop Grumman")
 - Typical NDA Type for DoD (e.g., "Mutual")
-- USMax Position for Air Force contracts (e.g., "Prime")
+- USmax Position for Air Force contracts (e.g., "Prime")
 - Most-used RTF template for DoD
 
 ### AC2: Suggestions as Top Options
@@ -31,7 +31,7 @@ so that **system helps me with common patterns for that agency**.
   - [ ] 1.3: Query historical NDAs for this subagency
   - [ ] 1.4: Extract common companies (top 5 by frequency)
   - [ ] 1.5: Calculate typical NDA type (mode)
-  - [ ] 1.6: Calculate typical USMax position (mode)
+  - [ ] 1.6: Calculate typical USmax position (mode)
   - [ ] 1.7: Find most-used RTF template for this agency
 
 - [ ] **Task 2: Historical Pattern Analysis** (AC: 1)
@@ -52,7 +52,7 @@ so that **system helps me with common patterns for that agency**.
   - [ ] 4.1: When agency/subagency selected in form, fetch suggestions
   - [ ] 4.2: Call GET /api/suggestions/agency-data
   - [ ] 4.3: Update company dropdown with suggested companies at top
-  - [ ] 4.4: Pre-select typical USMax position (with ability to change)
+  - [ ] 4.4: Pre-select typical USmax position (with ability to change)
   - [ ] 4.5: Pre-select common template (if template field exists)
 
 - [ ] **Task 5: Frontend - Suggested Companies in Dropdown** (AC: 2)
@@ -119,7 +119,7 @@ async function getAgencySuggestions(subagencyId: string, userId: string) {
     .slice(0, 5)
     .map(([name, count]) => ({ name, count }));
 
-  // Calculate mode for USMax position
+  // Calculate mode for USmax position
   const positionFreq = new Map<string, number>();
   ndas.forEach(nda => {
     if (nda.usmaxPosition) {

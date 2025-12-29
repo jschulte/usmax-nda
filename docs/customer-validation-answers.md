@@ -13,12 +13,12 @@
 ### Q1: Dropdown Field Values
 
 **NDA Owner:**
-- ✅ **ANSWER:** Always "USMax" (single value, not a dropdown)
+- ✅ **ANSWER:** Always "USmax" (single value, not a dropdown)
 
 **Type:**
 - ⚠️ **STILL NEED:** Complete list of Type values from customer
 
-**USMax Position:**
+**USmax Position:**
 - 📝 **KNOWN:** "Prime" exists
 - ⚠️ **STILL NEED:** Other values (Sub? Teaming Partner? Others?)
 
@@ -41,7 +41,7 @@
 
 **CC:**
 - Kelly Davidson (always CC'd - contracts administrator)
-- Opportunity POC (internal USMax person assigned)
+- Opportunity POC (internal USmax person assigned)
 - Possibly others based on stakeholder notifications
 
 **BCC:**
@@ -197,19 +197,19 @@ Sincerely,
 
 ---
 
-### Q10: Non-USMax NDA Behavior
+### Q10: Non-USmax NDA Behavior
 
 **⚠️ STILL NEED FROM CUSTOMER:**
 
 **Question to ask:**
-- "Can you elaborate on what a 'Non-USMax NDA' was and what the behavior was around it?"
-- "Did you still send an NDA document from USMax on behalf of another partner?"
+- "Can you elaborate on what a 'Non-USmax NDA' was and what the behavior was around it?"
+- "Did you still send an NDA document from USmax on behalf of another partner?"
 - "Or not send it at all?"
-- "What was different about the workflow for Non-USMax NDAs?"
+- "What was different about the workflow for Non-USmax NDAs?"
 
 **Hypothesis:**
-- If USMax Position = not "Prime" (e.g., "Sub"), might be non-USMax
-- Possibly sending another company's NDA template instead of USMax's?
+- If USmax Position = not "Prime" (e.g., "Sub"), might be non-USmax
+- Possibly sending another company's NDA template instead of USmax's?
 - Need customer clarification on use case and behavior
 
 ---
@@ -543,9 +543,9 @@ Sincerely,
 ### Critical (Tier 1)
 
 1. **Type dropdown:** Complete list of values
-2. **USMax Position:** All values beyond "Prime"
+2. **USmax Position:** All values beyond "Prime"
 3. **Email CC/BCC logic:** Exact generation rules, who Chris/David are
-4. **Non-USMax NDA:** What it means, what behavior differs
+4. **Non-USmax NDA:** What it means, what behavior differs
 5. **POC types:** 2 or 3 distinct types? (Contracts vs. Contacts)
 6. **Employee-level NDAs:** Confirm not needed (Todd believes NO)
 
@@ -574,9 +574,9 @@ Sincerely,
 **Answered:** 18 of 22 questions (81% complete!)
 
 **Critical blockers remaining:** 6 questions
-- Type/USMax Position dropdown values
+- Type/USmax Position dropdown values
 - Email CC/BCC generation logic
-- Non-USMax NDA behavior clarification
+- Non-USmax NDA behavior clarification
 - POC type clarification
 - Employee NDA confirmation
 - Expiration automation preferences
@@ -601,13 +601,13 @@ Sincerely,
 **Questions Asked (10 focused items):**
 
 1. Type dropdown - what was in that field?
-2. USMax Position - what options beyond "Prime"?
+2. USmax Position - what options beyond "Prime"?
 3. Email CC/BCC generation - how were these fields populated?
 4. Status values - any others beyond the 3 we see? React to proposed 6-status list
 5. Inactive behavior - automated or manual? Notifications on approaching expiration?
 6. Dashboard alerts - interested in stale NDA detection and visual status tracking?
 7. Template variants - need multiple RTF templates (e.g., DoD-specific)?
-8. Non-USMax NDA - what was this and how did it work?
+8. Non-USmax NDA - what was this and how did it work?
 9. POC clarification - are Contacts and Contracts the same, or 3 distinct types?
 10. Email templates - want different templates? User signatures?
 11. Data import - interested in backfilling from old emails?
@@ -638,9 +638,9 @@ Sincerely,
 ### Blocked Until Customer Answers
 
 **Cannot finalize until we have:**
-- ⚠️ Exact dropdown enumerations (Type, USMax Position)
+- ⚠️ Exact dropdown enumerations (Type, USmax Position)
 - ⚠️ Email recipient generation logic (CC/BCC rules)
-- ⚠️ Non-USMax workflow details
+- ⚠️ Non-USmax workflow details
 - ⚠️ POC data structure (2 vs 3 types)
 - ⚠️ Template variants organization
 - ⚠️ Expiration automation preferences

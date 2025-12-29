@@ -121,7 +121,7 @@ describe('Email Service', () => {
 
       const subject = generateEmailSubject(nda);
 
-      expect(subject).toBe('NDA from USMax - for TechCorp for OREM TMA 2025 at DHS CBP');
+      expect(subject).toBe('NDA from USmax - for TechCorp for OREM TMA 2025 at DHS CBP');
     });
 
     it('should fallback to agency group name when office name is missing', () => {
@@ -134,7 +134,7 @@ describe('Email Service', () => {
 
       const subject = generateEmailSubject(nda);
 
-      expect(subject).toBe('NDA from USMax - for TechCorp for OREM TMA 2025 at Department of Defense');
+      expect(subject).toBe('NDA from USmax - for TechCorp for OREM TMA 2025 at Department of Defense');
     });
 
     it('should use "Agency" when both are missing', () => {
@@ -147,7 +147,7 @@ describe('Email Service', () => {
 
       const subject = generateEmailSubject(nda);
 
-      expect(subject).toBe('NDA from USMax - for TechCorp for Project X at Agency');
+      expect(subject).toBe('NDA from USmax - for TechCorp for Project X at Agency');
     });
   });
 
@@ -238,7 +238,7 @@ describe('Email Service', () => {
         opportunityPoc: {
           firstName: 'Kelly',
           lastName: 'Davidson',
-          emailSignature: 'Kelly Davidson\\nUSMax',
+          emailSignature: 'Kelly Davidson\\nUSmax',
         },
         documents: [
           { id: 'doc-1', filename: 'NDA_TechCorp.docx' },

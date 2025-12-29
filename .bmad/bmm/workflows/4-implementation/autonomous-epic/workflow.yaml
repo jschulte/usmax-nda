@@ -1,0 +1,72 @@
+name: autonomous-epic
+description: "Autonomous epic processing using super-dev-pipeline - creates and develops all stories with anti-vibe-coding enforcement. Works for greenfield AND brownfield!"
+author: "BMad"
+version: "2.0.0" # Upgraded to use super-dev-pipeline with step-file architecture
+
+# Critical variables from config
+config_source: "{project-root}/_bmad/bmm/config.yaml"
+user_name: "{config_source}:user_name"
+communication_language: "{config_source}:communication_language"
+implementation_artifacts: "{config_source}:implementation_artifacts"
+story_dir: "{implementation_artifacts}"
+
+# Workflow components
+installed_path: "{project-root}/_bmad/bmm/workflows/4-implementation/autonomous-epic"
+instructions: "{installed_path}/instructions.xml"
+progress_file: "{story_dir}/.autonomous-epic-progress.yaml"
+
+# Variables
+epic_num: "" # User provides or auto-discover next epic
+sprint_status: "{implementation_artifacts}/sprint-status.yaml"
+project_context: "**/project-context.md"
+
+# Autonomous mode settings
+autonomous_settings:
+  # Use super-dev-pipeline: Step-file architecture that works for BOTH greenfield AND brownfield
+  use_super_dev_pipeline: true # Disciplined execution, no vibe coding
+
+  pipeline_mode: "batch" # Run workflows in batch mode (unattended)
+  halt_on_error: false # Continue even if story fails
+  max_retry_per_story: 2 # Retry failed stories
+  create_git_commits: true # Commit after each story (handled by super-dev-pipeline)
+  create_epic_branch: false # When false, stay on current branch (good for parallel epics)
+  git_branch_prefix: "auto-epic-" # Branch name format: auto-epic-{epic_num} (only used if create_epic_branch=true)
+
+# super-dev-pipeline benefits
+super_dev_pipeline_features:
+  token_efficiency: "40-60K per story (vs 100-150K for super-dev-story orchestration)"
+  works_for: "Both greenfield AND brownfield development"
+  anti_vibe_coding: "Step-file architecture prevents deviation at high token counts"
+  includes:
+    - "Pre-gap analysis (validates against existing code)"
+    - "Adaptive implementation (TDD for new, refactor for existing)"
+    - "Post-implementation validation (catches false positives)"
+    - "Code review (adversarial, finds 3-10 issues)"
+    - "Completion (targeted commit + push)"
+  quality_gates: "All super-dev-story gates with disciplined execution"
+  brownfield_support: "Validates existing code before implementation"
+
+# TASK-BASED COMPLETION SETTINGS (NEW)
+# These settings ensure stories are truly complete, not just marked as such
+completion_verification:
+  # Use task-based completion instead of status-based
+  # A story is ONLY complete when it has ZERO unchecked tasks (- [ ])
+  task_based_completion: true
+
+  # Include stories in "review" status if they have unchecked tasks
+  # This catches code review findings that were added but not implemented
+  process_review_with_unchecked: true
+
+  # Include stories in "done" status if they have unchecked tasks
+  # This catches stories incorrectly marked done
+  process_done_with_unchecked: true
+
+  # Verify completion after each story by re-scanning for unchecked tasks
+  verify_after_development: true
+
+  # Only mark epic as "done" if ALL stories have ZERO unchecked tasks
+  strict_epic_completion: true
+
+standalone: true
+
+web_bundle: false

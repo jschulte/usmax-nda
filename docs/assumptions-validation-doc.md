@@ -1,4 +1,4 @@
-# Assumptions Validation Document - USMax NDA Management System
+# Assumptions Validation Document - USmax NDA Management System
 
 **For:** Customer validation and requirements confirmation
 **Date:** 2025-12-12
@@ -41,9 +41,9 @@ We are rebuilding your NDA management system following the catastrophic failure 
 
 **Question:** What are the complete allowed values for these dropdown fields?
 
-- **NDA Owner:** (Is it just "USMax" or are there other options?)
+- **NDA Owner:** (Is it just "USmax" or are there other options?)
 - **Type:** (We see examples but need full list)
-- **USMax Position:** (We see "Prime" - what others exist? Sub? Teaming Partner?)
+- **USmax Position:** (We see "Prime" - what others exist? Sub? Teaming Partner?)
 
 **Why critical:** These define database enumerations and validation rules.
 
@@ -174,21 +174,21 @@ We are rebuilding your NDA management system following the catastrophic failure 
 
 ---
 
-### 10. Non-USMax NDA Behavior
+### 10. Non-USmax NDA Behavior
 
-**Question:** When "Non-USMax NDA" checkbox is checked, should the system:
+**Question:** When "Non-USmax NDA" checkbox is checked, should the system:
 
 **Option A (Recommended):**
 - Skip template generation entirely
 - Require user to upload initial NDA document manually
-- Clear distinction between USMax-generated vs. external NDAs
+- Clear distinction between USmax-generated vs. external NDAs
 
 **Option B:**
 - Generate from template anyway
 - Label as "non-standard" for tracking
-- Allows template use even for non-USMax situations
+- Allows template use even for non-USmax situations
 
-**Why critical:** Determines document generation workflow and what "Non-USMax NDA" actually means functionally.
+**Why critical:** Determines document generation workflow and what "Non-USmax NDA" actually means functionally.
 
 ---
 

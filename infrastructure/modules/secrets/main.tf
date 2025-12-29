@@ -1,4 +1,4 @@
-# Secrets Module for USMax NDA
+# Secrets Module for USmax NDA
 # Stores application secrets in AWS Secrets Manager
 
 resource "aws_secretsmanager_secret" "app" {

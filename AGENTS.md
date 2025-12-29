@@ -1,6 +1,6 @@
-# AGENTS.md - AI Agent Guidelines for USMax NDA System
+# AGENTS.md - AI Agent Guidelines for USmax NDA System
 
-This document provides comprehensive guidelines for AI agents working on the USMax NDA Management System. It establishes communication patterns, coding standards, and project-specific requirements for consistent, high-quality contributions.
+This document provides comprehensive guidelines for AI agents working on the USmax NDA Management System. It establishes communication patterns, coding standards, and project-specific requirements for consistent, high-quality contributions.
 
 ## Part 1: Communication Style
 
@@ -313,7 +313,7 @@ const results = await prisma.nda.findMany({
 
 ### Project Overview
 
-**USMax NDA Management System** - Government-grade NDA lifecycle management replacing a legacy Windows application. Built for **CMMC Level 1 compliance** with mandatory MFA, row-level security, and comprehensive audit logging.
+**USmax NDA Management System** - Government-grade NDA lifecycle management replacing a legacy Windows application. Built for **CMMC Level 1 compliance** with mandatory MFA, row-level security, and comprehensive audit logging.
 
 ### Tech Stack
 

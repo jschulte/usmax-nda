@@ -1,7 +1,7 @@
-# Project Overview - USMax NDA Management System
+# Project Overview - USmax NDA Management System
 
 **Project Name:** Government NDA Lifecycle Application
-**Code Name:** USMax NDA Management System
+**Code Name:** USmax NDA Management System
 **Project Type:** Web Application (React SPA)
 **Status:** Figma Make Prototype - UI Skeleton
 **Generated:** 2025-12-12

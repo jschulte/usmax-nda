@@ -4,14 +4,14 @@ Status: ready-for-dev
 
 ## Story
 
-As a **USMax staff member**,
+As a **USmax staff member**,
 I want **to log in with my email and MFA code**,
 so that **I can securely access the NDA system**.
 
 ## Acceptance Criteria
 
 ### AC1: Successful MFA Authentication Flow
-**Given** I have a valid USMax email account
+**Given** I have a valid USmax email account
 **When** I enter my email and password on the login page
 **Then** I receive an MFA challenge (SMS or authenticator app)
 **And** After entering the correct MFA code, I receive a JWT access token

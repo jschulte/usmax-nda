@@ -6,7 +6,7 @@
  * Handles system-wide configuration:
  * - Dashboard alert thresholds
  * - Default email recipients (CC/BCC)
- * - Dropdown field values (NDA Type, USMax Position)
+ * - Dropdown field values (NDA Type, USmax Position)
  * - Notification rules
  */
 

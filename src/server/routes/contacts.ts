@@ -45,7 +45,7 @@ router.use(attachUserContext);
 /**
  * GET /api/contacts/internal-users
  * List all active internal users for dropdown
- * AC1: Dropdown shows internal USMax users only
+ * AC1: Dropdown shows internal USmax users only
  */
 router.get(
   '/internal-users',

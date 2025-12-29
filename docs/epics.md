@@ -39,7 +39,7 @@ This document provides the complete epic and story breakdown for usmax-nda, deco
 
 **FR9:** Users can view all their NDAs in a sortable, paginated list
 
-**FR10:** Users can filter NDA list by 15 criteria (agency, company, city, state, type, incorporation state, agency/office name, non-USMax flag, effective date range, requested date range, 3 POC name filters)
+**FR10:** Users can filter NDA list by 15 criteria (agency, company, city, state, type, incorporation state, agency/office name, non-USmax flag, effective date range, requested date range, 3 POC name filters)
 
 **FR11:** Users can apply filter presets with one click ("My NDAs", "Expiring Soon", "Waiting on 3rd Party", "Stale - No Activity")
 
@@ -247,7 +247,7 @@ This document provides the complete epic and story breakdown for usmax-nda, deco
 
 **FR113:** System logs all authentication events (logins, logouts, MFA challenges, failures)
 
-**FR114:** Users can designate an Opportunity POC (required - internal USMax user selected from directory)
+**FR114:** Users can designate an Opportunity POC (required - internal USmax user selected from directory)
 
 **FR115:** Users can enter Contracts POC details (optional: name, email, phone, fax)
 
@@ -259,9 +259,9 @@ This document provides the complete epic and story breakdown for usmax-nda, deco
 
 **FR119:** System validates POC email addresses and phone number formats
 
-**FR120:** Users can mark NDA as "Non-USMax NDA" via checkbox
+**FR120:** Users can mark NDA as "Non-USmax NDA" via checkbox
 
-**FR121:** System handles Non-USMax NDAs according to configured behavior
+**FR121:** System handles Non-USmax NDAs according to configured behavior
 
 **FR122:** Admins can add, edit, reorder, and archive NDA status values
 
@@ -275,7 +275,7 @@ This document provides the complete epic and story breakdown for usmax-nda, deco
 
 **FR127:** Admins can configure default email CC/BCC recipients
 
-**FR128:** Admins can configure allowed values for dropdown fields (Type, USMax Position)
+**FR128:** Admins can configure allowed values for dropdown fields (Type, USmax Position)
 
 **FR129:** System encrypts all data at rest in database
 
@@ -529,11 +529,11 @@ This document provides the complete epic and story breakdown for usmax-nda, deco
 **Data Model Changes:**
 
 1. **Type field clarification:** "Type" dropdown can equal "Status" (needs customer clarification on what this means)
-2. **USMax Position values:** Must support "Prime", "Sub-contractor", "Other"
+2. **USmax Position values:** Must support "Prime", "Sub-contractor", "Other"
 3. **NDA Type field:** Must support "Mutual NDA" and "Consultant" types
 4. **Status values alignment:** Use legacy system statuses - "Created/Pending Release", "Sent/Pending Signature", "Fully Executed NDA Uploaded", "Inactive/Canceled", "Expired"
 5. **Auto-expiration logic:** NDAs expire 1 year after execution date (when fully executed NDA uploaded, capture execution date and auto-expire after 365 days)
-6. **Non-USMax NDA tracking:** Add flag to mark NDAs where USMax signs partner's NDA (stored for tracking, prevent accidental email sends)
+6. **Non-USmax NDA tracking:** Add flag to mark NDAs where USmax signs partner's NDA (stored for tracking, prevent accidental email sends)
 7. **POC clarification needed:** Determine if "Contacts POC" and "Contracts POC" are same or different (currently open question)
 
 **Workflow Changes:**
@@ -550,9 +550,9 @@ This document provides the complete epic and story breakdown for usmax-nda, deco
 
 **UI/UX Changes:**
 
-14. **Spelling correction:** Use "USmax" (not "USMax") throughout application
+14. **Spelling correction:** Use "USmax" (not "USmax") throughout application
 15. **"Request NDA" button:** Add button to header for creating new NDA
-16. **Non-USMax NDA flow:** Prevent accidental email sends for partner NDAs (clear UI indication, confirmation prompts)
+16. **Non-USmax NDA flow:** Prevent accidental email sends for partner NDAs (clear UI indication, confirmation prompts)
 
 **Data Cleanup:**
 
@@ -563,7 +563,7 @@ This document provides the complete epic and story breakdown for usmax-nda, deco
 - No need for historical data import/backfilling
 - Multiple NDA templates confirmed as desired
 - Email template editing workflow: edit core template once, applies going forward
-- Non-USMax NDAs: simple tracking, avoid accidental sends
+- Non-USmax NDAs: simple tracking, avoid accidental sends
 
 ### FR Coverage Map
 
@@ -575,16 +575,16 @@ This document provides the complete epic and story breakdown for usmax-nda, deco
 
 ### Epic 10: Customer Feedback Implementation
 
-**User Outcome:** System incorporates customer clarifications including approval workflow, updated field values, email automation, and Non-USMax NDA safeguards.
+**User Outcome:** System incorporates customer clarifications including approval workflow, updated field values, email automation, and Non-USmax NDA safeguards.
 
 **Customer Feedback Items (17 total):**
 
 **Story Group 1 - Data Model Updates (5 stories):**
-- 10-1: Add USMax Position field (Prime/Sub-contractor/Other)
+- 10-1: Add USmax Position field (Prime/Sub-contractor/Other)
 - 10-2: Add NDA Type field (Mutual NDA/Consultant)
 - 10-3: Update status values to match legacy system
 - 10-4: Implement auto-expiration (1 year from execution date)
-- 10-5: Add Non-USMax NDA flag and tracking
+- 10-5: Add Non-USmax NDA flag and tracking
 
 **Story Group 2 - Approval Workflow (3 stories):**
 - 10-6: Implement two-step approval workflow
@@ -597,9 +597,9 @@ This document provides the complete epic and story breakdown for usmax-nda, deco
 - 10-11: Enable base email template editing
 
 **Story Group 4 - UI/UX Refinements (3 stories):**
-- 10-12: Global spelling correction (USmax not USMax)
+- 10-12: Global spelling correction (USmax not USmax)
 - 10-13: Add "Request NDA" button to header
-- 10-14: Add Non-USMax NDA flow safeguards
+- 10-14: Add Non-USmax NDA flow safeguards
 
 **Story Group 5 - Data Cleanup (1 story):**
 - 10-15: Remove specified users (Chris, Sae, Angela, John)
@@ -612,29 +612,29 @@ This document provides the complete epic and story breakdown for usmax-nda, deco
 
 ## Epic 10: Customer Feedback Implementation
 
-**Goal:** Incorporate customer clarifications including approval workflow, updated field values, email automation, and Non-USMax NDA safeguards based on feedback received 2025-12-23.
+**Goal:** Incorporate customer clarifications including approval workflow, updated field values, email automation, and Non-USmax NDA safeguards based on feedback received 2025-12-23.
 
 ---
 
-### Story 10.1: Add USMax Position Field
+### Story 10.1: Add USmax Position Field
 
 As an NDA creator,
-I want to select USMax's position on the NDA (Prime, Sub-contractor, or Other),
-So that the NDA accurately reflects USMax's contractual role.
+I want to select USmax's position on the NDA (Prime, Sub-contractor, or Other),
+So that the NDA accurately reflects USmax's contractual role.
 
 **Acceptance Criteria:**
 
 **Given** I am creating or editing an NDA
 **When** I access the NDA form
-**Then** I see a "USMax Position" dropdown field with options: "Prime", "Sub-contractor", "Other"
+**Then** I see a "USmax Position" dropdown field with options: "Prime", "Sub-contractor", "Other"
 **And** the field is required (cannot be left blank)
 
-**Given** an existing NDA without a USMax Position value
+**Given** an existing NDA without a USmax Position value
 **When** I view the NDA detail page
-**Then** the USMax Position field shows as "(Not Set)" or equivalent placeholder
+**Then** the USmax Position field shows as "(Not Set)" or equivalent placeholder
 **And** I can edit the NDA to add this value
 
-**Given** I have selected a USMax Position value
+**Given** I have selected a USmax Position value
 **When** I save the NDA
 **Then** the value is stored in the database
 **And** displayed in the NDA detail view
@@ -728,32 +728,32 @@ So that we maintain accurate records and proactively identify expired agreements
 
 ---
 
-### Story 10.5: Add Non-USMax NDA Flag and Tracking
+### Story 10.5: Add Non-USmax NDA Flag and Tracking
 
 As an NDA creator,
-I want to mark NDAs where USMax signs a partner's NDA (not our template),
+I want to mark NDAs where USmax signs a partner's NDA (not our template),
 So that these are tracked separately and I don't accidentally send emails for partner-created NDAs.
 
 **Acceptance Criteria:**
 
 **Given** I am creating a new NDA
 **When** I access the NDA form
-**Then** I see a checkbox labeled "Non-USMax NDA" (USMax signing partner's NDA)
+**Then** I see a checkbox labeled "Non-USmax NDA" (USmax signing partner's NDA)
 **And** it is unchecked by default
 
-**Given** I check the "Non-USMax NDA" checkbox
+**Given** I check the "Non-USmax NDA" checkbox
 **When** I save the NDA
 **Then** the flag is stored in the database
-**And** the NDA detail page shows a prominent badge/indicator: "Non-USMax NDA"
+**And** the NDA detail page shows a prominent badge/indicator: "Non-USmax NDA"
 
-**Given** I am on the NDA detail page for a Non-USMax NDA
+**Given** I am on the NDA detail page for a Non-USmax NDA
 **When** I attempt to generate an RTF document
-**Then** the system shows a warning: "This is a Non-USMax NDA. Document generation is typically not needed."
+**Then** the system shows a warning: "This is a Non-USmax NDA. Document generation is typically not needed."
 **And** I can still proceed if I choose (not blocked, just warned)
 
-**Given** I am on the NDA detail page for a Non-USMax NDA
+**Given** I am on the NDA detail page for a Non-USmax NDA
 **When** I attempt to send an email
-**Then** the system shows a confirmation prompt: "This is a Non-USMax NDA. Are you sure you want to send an email?"
+**Then** the system shows a confirmation prompt: "This is a Non-USmax NDA. Are you sure you want to send an email?"
 **And** I must explicitly confirm to proceed
 **And** if I cancel, no email is sent
 
@@ -955,10 +955,10 @@ So that I can update standard language without editing individual NDAs.
 
 ---
 
-### Story 10.12: Global Spelling Correction (USmax vs USMax)
+### Story 10.12: Global Spelling Correction (USmax vs USmax)
 
 As a user,
-I want the application to consistently use "USmax" (not "USMax"),
+I want the application to consistently use "USmax" (not "USmax"),
 So that branding aligns with the customer's preferred spelling.
 
 **Acceptance Criteria:**
@@ -978,7 +978,7 @@ So that branding aligns with the customer's preferred spelling.
 **Then** it is spelled "USmax" (if company name appears in templates)
 
 **Given** I am a developer reviewing the codebase
-**When** I search for "USMax" (capitalized)
+**When** I search for "USmax" (capitalized)
 **Then** all instances are replaced with "USmax"
 **And** code comments, variable names, and documentation are updated
 **And** only external references (e.g., legal entity names) retain original casing if required
@@ -1014,34 +1014,34 @@ So that I can quickly create a new NDA from any page.
 
 ---
 
-### Story 10.14: Add Non-USMax NDA Flow Safeguards
+### Story 10.14: Add Non-USmax NDA Flow Safeguards
 
 As an NDA creator,
-I want clear visual indicators and confirmation prompts for Non-USMax NDAs,
+I want clear visual indicators and confirmation prompts for Non-USmax NDAs,
 So that I don't accidentally send emails or generate documents for partner-created NDAs.
 
 **Acceptance Criteria:**
 
-**Given** I am viewing a Non-USMax NDA detail page
+**Given** I am viewing a Non-USmax NDA detail page
 **When** the page loads
-**Then** I see a prominent colored banner at the top: "⚠️ Non-USMax NDA: USmax signed partner's NDA. Exercise caution with email sends."
+**Then** I see a prominent colored banner at the top: "⚠️ Non-USmax NDA: USmax signed partner's NDA. Exercise caution with email sends."
 **And** the banner is visually distinct (warning color, icon)
 
-**Given** I attempt to generate an RTF document for a Non-USMax NDA
+**Given** I attempt to generate an RTF document for a Non-USmax NDA
 **When** I click "Generate Document"
-**Then** a modal appears: "This is a Non-USMax NDA. Document generation is typically not needed. Proceed anyway?"
+**Then** a modal appears: "This is a Non-USmax NDA. Document generation is typically not needed. Proceed anyway?"
 **And** I have options: "Cancel" or "Proceed"
 **And** if I click "Proceed", document generation continues
 
-**Given** I attempt to send an email for a Non-USMax NDA
+**Given** I attempt to send an email for a Non-USmax NDA
 **When** I click "Send Email"
-**Then** a confirmation modal appears: "⚠️ Warning: This is a Non-USMax NDA. Are you sure you want to send an email?"
+**Then** a confirmation modal appears: "⚠️ Warning: This is a Non-USmax NDA. Are you sure you want to send an email?"
 **And** the modal includes a checkbox: "I confirm this email send is intentional"
 **And** the "Send" button is disabled until I check the confirmation box
 
 **Given** I am filtering NDAs
-**When** I check "Non-USMax NDA" filter
-**Then** the NDA list shows only Non-USMax NDAs
+**When** I check "Non-USmax NDA" filter
+**Then** the NDA list shows only Non-USmax NDAs
 **And** each row has a visual indicator (icon or badge)
 
 ---

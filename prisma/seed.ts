@@ -11,7 +11,7 @@
  * - Agency groups and subagencies (DoD, Federal, Commercial, Healthcare)
  *
  * USERS:
- * - 5 internal USMax users (various roles and agency access)
+ * - 5 internal USmax users (various roles and agency access)
  * - 3 external contacts (partner companies)
  * - Complete user profiles with job titles, signatures, etc.
  *
@@ -303,7 +303,7 @@ async function seedDevUsers() {
       isInternal: true,
       jobTitle: 'System Administrator',
       workPhone: '555-0100',
-      emailSignature: 'Best regards,\nAdmin User\nSystem Administrator\nUSMax Corporation',
+      emailSignature: 'Best regards,\nAdmin User\nSystem Administrator\nUSmax Corporation',
     },
   });
 
@@ -354,7 +354,7 @@ async function seedDevUsers() {
       isInternal: true,
       jobTitle: 'NDA Specialist',
       workPhone: '555-0101',
-      emailSignature: 'Regards,\nTest User\nNDA Specialist\nUSMax Corporation',
+      emailSignature: 'Regards,\nTest User\nNDA Specialist\nUSmax Corporation',
     },
   });
 
@@ -405,7 +405,7 @@ async function seedDevUsers() {
       isInternal: true,
       jobTitle: 'Contracts Manager',
       workPhone: '555-0102',
-      emailSignature: 'Best,\nSarah Johnson\nContracts Manager\nUSMax Corporation',
+      emailSignature: 'Best,\nSarah Johnson\nContracts Manager\nUSmax Corporation',
     },
   });
   await prisma.contactRole.upsert({
@@ -441,7 +441,7 @@ async function seedDevUsers() {
       isInternal: true,
       jobTitle: 'Document Coordinator',
       workPhone: '555-0103',
-      emailSignature: 'Thanks,\nMike Davis\nDocument Coordinator\nUSMax Corporation',
+      emailSignature: 'Thanks,\nMike Davis\nDocument Coordinator\nUSmax Corporation',
     },
   });
   if (limitedUserRole) {
@@ -490,7 +490,7 @@ async function seedDevUsers() {
   }
   users.push(emily);
 
-  // External contacts (not USMax employees)
+  // External contacts (not USmax employees)
   const externalContacts = [
     {
       email: 'john.smith@lockheedmartin.com',
@@ -596,7 +596,7 @@ State of Incorporation: {{stateOfIncorporation}}\\par
 \\par
 and\\par
 \\par
-{\\b United States Maximum, Inc. (USMax)}\\par
+{\\b United States Maximum, Inc. (USmax)}\\par
 \\par
 {\\b RECITALS}\\par
 \\par
@@ -688,7 +688,7 @@ Project: {{authorizedPurpose}}\\par
 Consultant: {{companyName}}\\par
 \\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\par
 \\par
-USMax Representative\\par
+USmax Representative\\par
 \\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\par
 Date: {{generatedDate}}\\par
 }`;
@@ -725,7 +725,7 @@ Date: {{generatedDate}}\\par
 \\par
 {\\b PURPOSE}\\par
 \\par
-This Agreement governs the exchange of information between USMax and {{companyName}} for the purpose of {{authorizedPurpose}}.\\par
+This Agreement governs the exchange of information between USmax and {{companyName}} for the purpose of {{authorizedPurpose}}.\\par
 \\par
 {\\b CONFIDENTIALITY OBLIGATIONS}\\par
 \\par
@@ -737,7 +737,7 @@ Both parties agree to:\\par
 \\par
 {\\b CONTACTS}\\par
 \\par
-USMax Position: {{usMaxPosition}}\\par
+USmax Position: {{usMaxPosition}}\\par
 Relationship Manager: {{relationshipPocName}}\\par
 Contract Administrator: {{contractsPocName}}\\par
 \\par
@@ -789,7 +789,7 @@ async function seedSystemConfig() {
     { key: 'dashboard.stale_days', value: '30' },
     { key: 'dashboard.almost_stale_days', value: '21' },
     { key: 'email.from_address', value: 'noreply@usmax.com' },
-    { key: 'email.from_name', value: 'USMax NDA System' },
+    { key: 'email.from_name', value: 'USmax NDA System' },
     { key: 's3.bucket_name', value: 'usmax-nda-documents-dev' },
     { key: 's3.region', value: 'us-east-1' },
   ];

@@ -1,6 +1,6 @@
 # API Service Layer
 
-Comprehensive API service layer for the USMax NDA frontend. All services use TypeScript with proper typing and handle authentication automatically via cookies.
+Comprehensive API service layer for the USmax NDA frontend. All services use TypeScript with proper typing and handle authentication automatically via cookies.
 
 ## Architecture
 

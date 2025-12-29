@@ -166,7 +166,7 @@ export function MFAChallengePage() {
                 required
               />
               <p id="mfa-help" className="text-xs text-muted-foreground">
-                Open your authenticator app (Google Authenticator, Authy, etc.) and enter the code shown for USMax.
+                Open your authenticator app (Google Authenticator, Authy, etc.) and enter the code shown for USmax.
               </p>
             </div>
           </CardContent>

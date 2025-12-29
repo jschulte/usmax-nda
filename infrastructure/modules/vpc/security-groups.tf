@@ -1,4 +1,4 @@
-# Security Groups for USMax NDA
+# Security Groups for USmax NDA
 
 # ALB Security Group
 resource "aws_security_group" "alb" {

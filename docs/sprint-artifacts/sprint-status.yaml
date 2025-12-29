@@ -1,4 +1,4 @@
-# Sprint Status Tracking - USMax NDA Management System
+# Sprint Status Tracking - USmax NDA Management System
 
 # generated: 2025-12-17
 # project: usmax-nda
@@ -220,7 +220,7 @@ development_status:
   10-9-automate-bcc-from-notify-checkbox: done  # Auto-populate BCC from "Notify on NDA Changes" (NdaSubscription → BCC)
   10-10-enhance-cc-bcc-management: done  # Default CC/BCC + ad-hoc additions (systemConfig already implemented)
   10-11-enable-base-email-template-editing: done  # Edit template once, applies to all future (read-only implemented, full CRUD in Epic 7)
-  10-12-global-spelling-correction-usmax: done  # USmax not USMax everywhere (completed in Story 10.1 code review)
+  10-12-global-spelling-correction-usmax: done  # USmax not USmax everywhere (completed in Story 10.1 code review)
   10-13-add-request-nda-header-button: done  # Prominent header button
   10-14-add-non-usmax-nda-safeguards: done  # Warning banners, confirmation prompts
   10-15-remove-specified-users: done  # Deactivate Chris, Sae, Angela, John (Only John found in demo DB - others don't exist)

@@ -288,7 +288,7 @@ router.get(
  * - stateOfIncorporation: Filter by state of incorporation (partial match)
  * - agencyOfficeName: Filter by agency office name (partial match)
  * - ndaType: Filter by NDA type
- * - isNonUsMax: Filter by non-USMax flag
+ * - isNonUsMax: Filter by non-USmax flag
  * - createdDateFrom: Filter by creation date >=
  * - createdDateTo: Filter by creation date <=
  * - opportunityPocName: Filter by opportunity POC name (partial match)

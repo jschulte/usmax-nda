@@ -1,4 +1,4 @@
-# Feature Priority Matrix - USMax NDA Management System
+# Feature Priority Matrix - USmax NDA Management System
 
 **Generated:** 2025-12-12
 **Purpose:** Prioritize features by impact vs. effort for phased delivery

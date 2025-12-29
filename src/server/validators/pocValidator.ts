@@ -132,7 +132,7 @@ export function validateRequired(
 
 /**
  * Validate Opportunity POC (internal user)
- * AC1: Must be an internal USMax user
+ * AC1: Must be an internal USmax user
  */
 export function validateOpportunityPoc(pocId: string | undefined | null): ValidationResult {
   const errors: ValidationError[] = [];

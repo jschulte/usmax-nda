@@ -14,7 +14,7 @@ so that **I can distribute the NDA to the partner for signature**.
 **Given** NDA #1590 has generated RTF document
 **When** I click "Send Email"
 **Then** Email composer opens pre-filled:
-- Subject: "NDA from USMax - for TechCorp for OREM TMA 2025 at DHS CBP"
+- Subject: "NDA from USmax - for TechCorp for OREM TMA 2025 at DHS CBP"
 - TO: relationship_contact.email
 - CC: Kelly Davidson (me), Chris Martinez, David Wu (from config)
 - BCC: Leadership list (from config)
@@ -119,9 +119,9 @@ enum EmailStatus {
 ### Subject Line Generation
 
 ```typescript
-// "NDA from USMax - for {companyName} for {abbreviatedName} at {agencyOfficeName}"
+// "NDA from USmax - for {companyName} for {abbreviatedName} at {agencyOfficeName}"
 function generateSubject(nda: Nda): string {
-  return `NDA from USMax - for ${nda.companyName} for ${nda.abbreviatedName} at ${nda.agencyOfficeName || nda.agencyGroup.name}`;
+  return `NDA from USmax - for ${nda.companyName} for ${nda.abbreviatedName} at ${nda.agencyOfficeName || nda.agencyGroup.name}`;
 }
 ```
 

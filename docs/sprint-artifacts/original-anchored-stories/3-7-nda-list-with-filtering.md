@@ -21,7 +21,7 @@ so that **I can quickly find specific NDAs among many records**.
 ### AC2: Filter Panel
 **Given** I open filter panel
 **When** 15 filter fields displayed
-**Then** Can filter by: Agency, Company Name, City, State, Type, State of Incorporation, Agency/Office Name, Non-USMax checkbox, Effective Date range (≥, ≤), Requested Date range, 3 POC name filters
+**Then** Can filter by: Agency, Company Name, City, State, Type, State of Incorporation, Agency/Office Name, Non-USmax checkbox, Effective Date range (≥, ≤), Requested Date range, 3 POC name filters
 **And** Filters use type-ahead search (not long dropdown scrolling)
 **And** Recently used values at top of dropdowns
 

@@ -163,7 +163,7 @@ export function generateEmailSubject(nda: {
   agencyGroup?: { name: string };
 }): string {
   const agency = nda.agencyOfficeName || nda.agencyGroup?.name || 'Agency';
-  return `NDA from USMax - for ${nda.companyName} for ${nda.abbreviatedName} at ${agency}`;
+  return `NDA from USmax - for ${nda.companyName} for ${nda.abbreviatedName} at ${agency}`;
 }
 
 function buildEmailSignature(nda: {
@@ -176,7 +176,7 @@ function buildEmailSignature(nda: {
     .filter(Boolean)
     .join(' ');
 
-  return `USMax${name ? `\n${name}` : ''}`;
+  return `USmax${name ? `\n${name}` : ''}`;
 }
 
 function buildEmailMergeFields(nda: {

@@ -22,7 +22,7 @@
 - **Fixed fake backup timestamp** (was "2 hours ago", now honest AWS RDS info)
 - **Removed fake activity times** from Dashboard
 - **Removed mock templates** from NotificationSettings
-- **Page title updated** to "USMax NDA Lifecycle Management"
+- **Page title updated** to "USmax NDA Lifecycle Management"
 - **Email modal made scrollable** with larger body field
 
 ### Test Coverage Added

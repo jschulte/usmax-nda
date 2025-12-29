@@ -108,7 +108,7 @@ so that **I can assign roles, access, and use contacts for NDA POCs**.
 
 From architecture.md:
 - **contacts** table serves dual purpose:
-  1. Internal users (USMax staff) - isInternal=true, has cognitoUserId
+  1. Internal users (USmax staff) - isInternal=true, has cognitoUserId
   2. External contacts (partner POCs) - isInternal=false, no cognitoUserId
 
 **Why unified:**

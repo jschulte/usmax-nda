@@ -1,4 +1,4 @@
-# Component Inventory - USMax NDA Management System
+# Component Inventory - USmax NDA Management System
 
 **Project:** Government NDA Lifecycle Application (Prototype)
 **Generated:** 2025-12-12

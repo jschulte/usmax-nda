@@ -1,4 +1,4 @@
-# S3 Module for USMax NDA Documents
+# S3 Module for USmax NDA Documents
 
 # Documents Bucket
 resource "aws_s3_bucket" "documents" {
