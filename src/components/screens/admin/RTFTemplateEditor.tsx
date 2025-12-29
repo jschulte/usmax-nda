@@ -10,7 +10,7 @@ import {
   PlaceholderField,
   validatePlaceholders,
 } from '../../../client/utils/rtfEditorConfig';
-import { convertHtmlToRtf } from 'html-to-rtf';
+import { convertHtmlToRtf } from '../../../client/utils/rtfConverter';
 
 interface RTFTemplateEditorProps {
   initialContent?: string; // Initial HTML content
@@ -172,23 +172,13 @@ export function RTFTemplateEditor({
         return;
       }
 
-      // Convert HTML to RTF
+      // Convert HTML to RTF using custom converter
       let rtfContent: string;
       try {
         console.log('[RTFTemplateEditor] Converting HTML to RTF, content length:', content.length);
         console.log('[RTFTemplateEditor] HTML preview:', content.substring(0, 200));
 
-        // html-to-rtf exports as { convertHtmlToRtf }
-        // If it's an object with convertHtmlToRtf property, use that
-        const converter = typeof convertHtmlToRtf === 'function'
-          ? convertHtmlToRtf
-          : (convertHtmlToRtf as any).convertHtmlToRtf;
-
-        if (!converter || typeof converter !== 'function') {
-          throw new Error('html-to-rtf converter not available');
-        }
-
-        rtfContent = converter(content);
+        rtfContent = convertHtmlToRtf(content);
 
         console.log('[RTFTemplateEditor] RTF generated successfully, length:', rtfContent.length);
         console.log('[RTFTemplateEditor] RTF preview:', rtfContent.substring(0, 200));
