@@ -35,6 +35,11 @@ export function RTFTemplateEditor({
   const [isSaving, setIsSaving] = useState(false);
   const [showPlaceholderMenu, setShowPlaceholderMenu] = useState(false);
 
+  // Update content when initialContent prop changes (for editing existing templates)
+  useEffect(() => {
+    setContent(initialContent);
+  }, [initialContent]);
+
   /**
    * Handle placeholder insertion from toolbar
    */

@@ -24,6 +24,7 @@ import { toast } from 'sonner@2.0.3';
 import * as templateService from '../../client/services/templateService';
 import type { RtfTemplate } from '../../client/services/templateService';
 import { RTFTemplateEditor } from './admin/RTFTemplateEditor';
+import { simpleRtfToHtml } from '../../client/utils/rtfConverter';
 
 export function Templates() {
   // Story 9.19: Keep activeView for backward compatibility, but clauses disabled (empty array)
@@ -35,6 +36,7 @@ export function Templates() {
   // Issue #23: WYSIWYG Editor integration
   const [showWysiwygEditor, setShowWysiwygEditor] = useState(false);
   const [wysiwygTemplateId, setWysiwygTemplateId] = useState<number | undefined>(undefined);
+  const [wysiwygInitialContent, setWysiwygInitialContent] = useState<string>('');
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [templateName, setTemplateName] = useState('');
   const [templateDescription, setTemplateDescription] = useState('');
@@ -338,16 +340,56 @@ export function Templates() {
     setShowDeleteClauseConfirm(false);
   };
 
-  // Issue #23: WYSIWYG Editor handlers
-  // Note: WYSIWYG only for creating new templates (RTF-to-HTML conversion not implemented)
-  const handleOpenWysiwyg = () => {
-    // Always start fresh for WYSIWYG (no RTF-to-HTML conversion)
-    setWysiwygTemplateId(undefined);
-    // Carry over metadata if creating from dialog
-    // (name, description, etc. already set in state)
-    setShowCreateDialog(false);
-    setShowEditDialog(false);
-    setShowWysiwygEditor(true);
+  // Issue #23: WYSIWYG Editor handlers (with full RTF roundtrip support)
+  const handleOpenWysiwyg = async (template?: RtfTemplate) => {
+    try {
+      if (template) {
+        // Editing existing template - load and convert RTF to HTML
+        setIsSubmitting(true);
+
+        // Load full template with content
+        const { template: fullTemplate } = await templateService.getTemplate(template.id);
+
+        // Set metadata
+        setWysiwygTemplateId(template.id);
+        setTemplateName(template.name);
+        setTemplateDescription(template.description || '');
+        setTemplateAgencyGroupId(template.agencyGroupId || '');
+        setTemplateIsDefault(template.isDefault);
+
+        // Convert RTF to HTML for editing
+        if (fullTemplate.content) {
+          try {
+            const htmlContent = simpleRtfToHtml(Buffer.from(fullTemplate.content, 'base64'));
+            setWysiwygInitialContent(htmlContent);
+          } catch (conversionError) {
+            console.error('[Templates] RTF conversion error:', conversionError);
+            toast.error('Could not load template for editing', {
+              description: 'RTF format may be corrupted. Try uploading a new file.'
+            });
+            setIsSubmitting(false);
+            return;
+          }
+        } else {
+          setWysiwygInitialContent('');
+        }
+      } else {
+        // Creating new template
+        setWysiwygTemplateId(undefined);
+        setWysiwygInitialContent('');
+        // Metadata already set in state from create dialog
+      }
+
+      setShowCreateDialog(false);
+      setShowEditDialog(false);
+      setShowWysiwygEditor(true);
+    } catch (err: any) {
+      toast.error('Failed to open editor', {
+        description: err.message || 'An error occurred'
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleWysiwygSave = async (rtfContent: string, htmlContent: string) => {
@@ -361,18 +403,33 @@ export function Templates() {
     }
 
     try {
-      // WYSIWYG always creates new templates (no RTF-to-HTML conversion for editing)
-      await templateService.createTemplate({
-        name: trimmedName,
-        description: templateDescription.trim() || undefined,
-        content: rtfContent,
-        agencyGroupId: templateAgencyGroupId || undefined,
-        isDefault: templateIsDefault,
-      });
-      toast.success('Template created', {
-        description: `${trimmedName} has been created successfully.`
-      });
+      if (wysiwygTemplateId) {
+        // Editing existing template
+        await templateService.updateTemplate(wysiwygTemplateId, {
+          name: trimmedName,
+          description: templateDescription.trim() || undefined,
+          content: rtfContent,
+          agencyGroupId: templateAgencyGroupId || null,
+          isDefault: templateIsDefault,
+        });
+        toast.success('Template updated', {
+          description: `${trimmedName} has been updated successfully.`
+        });
+      } else {
+        // Creating new template
+        await templateService.createTemplate({
+          name: trimmedName,
+          description: templateDescription.trim() || undefined,
+          content: rtfContent,
+          agencyGroupId: templateAgencyGroupId || undefined,
+          isDefault: templateIsDefault,
+        });
+        toast.success('Template created', {
+          description: `${trimmedName} has been created successfully.`
+        });
+      }
       setShowWysiwygEditor(false);
+      setWysiwygInitialContent(''); // Clear content for next use
       await loadTemplates();
     } catch (err: any) {
       toast.error('Failed to save template', {
@@ -397,13 +454,18 @@ export function Templates() {
     return (
       <div className="p-8">
         <div className="mb-4">
-          <h1 className="mb-2">Create Template</h1>
-          <p className="text-[var(--color-text-secondary)]">Use the visual editor to create your RTF template with formatting and placeholders</p>
-          <p className="text-xs text-amber-600 mt-1">
-            Note: To edit existing RTF templates, use the "Edit" dialog and upload a new RTF file
+          <h1 className="mb-2">{wysiwygTemplateId ? 'Edit' : 'Create'} Template</h1>
+          <p className="text-[var(--color-text-secondary)]">
+            Use the visual editor to {wysiwygTemplateId ? 'edit your' : 'create a new'} RTF template with formatting and placeholders
           </p>
+          {wysiwygTemplateId && (
+            <p className="text-xs text-blue-600 mt-1">
+              Editing: {templateName}
+            </p>
+          )}
         </div>
         <RTFTemplateEditor
+          initialContent={wysiwygInitialContent}
           templateId={wysiwygTemplateId}
           onSave={handleWysiwygSave}
           onCancel={handleWysiwygCancel}
@@ -974,6 +1036,9 @@ export function Templates() {
           <DialogFooter>
             <Button variant="secondary" size="sm" onClick={() => setShowEditDialog(false)} disabled={isSubmitting}>
               Cancel
+            </Button>
+            <Button variant="secondary" size="sm" onClick={() => handleOpenWysiwyg(selectedItem)} disabled={isSubmitting}>
+              Edit in WYSIWYG
             </Button>
             <Button variant="primary" size="sm" onClick={confirmEdit} disabled={isSubmitting}>
               {isSubmitting ? (

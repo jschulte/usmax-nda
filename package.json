@@ -66,6 +66,7 @@
     "react-resizable-panels": "^2.1.7",
     "react-router-dom": "*",
     "recharts": "^2.15.2",
+    "rtf-stream-parser": "^3.8.1",
     "sonner": "^2.0.3",
     "tailwind-merge": "*",
     "tailwindcss": "*",
