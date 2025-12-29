@@ -317,32 +317,35 @@ export function RTFTemplateEditor({
         }
       `}</style>
 
-      {/* Editor or Preview Pane */}
-      {!isPreviewMode ? (
-        <ReactQuill
-          ref={quillRef}
-          value={content}
-          onChange={handleChange}
-          modules={modules}
-          formats={FORMATS}
-          theme="snow"
-          placeholder="Enter template content here..."
-        />
-      ) : (
-        <div
-          className="preview-pane"
-          data-testid="rtf-template-preview-pane"
-          role="article"
-          aria-label="Template preview"
-          style={{
-            border: '1px solid #ccc',
-            padding: '16px',
-            minHeight: '400px',
-            backgroundColor: '#f9f9f9',
-          }}
-          dangerouslySetInnerHTML={{ __html: previewHtml }}
-        />
-      )}
+      {/* Editor or Preview Pane - always visible, menu overlays */}
+      <div style={{ position: 'relative', zIndex: 1 }}>
+        {!isPreviewMode ? (
+          <ReactQuill
+            ref={quillRef}
+            value={content}
+            onChange={handleChange}
+            modules={modules}
+            formats={FORMATS}
+            theme="snow"
+            placeholder="Enter template content here..."
+            style={{ minHeight: '400px' }}
+          />
+          ) : (
+          <div
+            className="preview-pane"
+            data-testid="rtf-template-preview-pane"
+            role="article"
+            aria-label="Template preview"
+            style={{
+              border: '1px solid #ccc',
+              padding: '16px',
+              minHeight: '400px',
+              backgroundColor: '#f9f9f9',
+            }}
+            dangerouslySetInnerHTML={{ __html: previewHtml }}
+          />
+        )}
+      </div>
 
       {/* Success Message */}
       {successMessage && (
