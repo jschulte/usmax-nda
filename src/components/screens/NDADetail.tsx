@@ -1412,12 +1412,14 @@ export function NDADetail() {
               {/* Document Tab */}
               {activeTab === 'document' && (
                 <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <h3>Documents ({documents.length})</h3>
-                    <div className="flex gap-2">
+                  <div className="mb-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <h3>Documents ({documents.length})</h3>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
                       {templates.length > 0 && (
                         <select
-                          className="px-3 py-2 border rounded-md bg-white text-sm"
+                          className="px-3 py-2 border rounded-md bg-white text-sm max-w-xs"
                           value={selectedTemplateId}
                           onChange={(e) => setSelectedTemplateId(e.target.value)}
                         >
