@@ -42,10 +42,11 @@ export function RTFTemplateEditor({
 
   /**
    * Handle placeholder insertion from toolbar
+   * Stable callback - doesn't recreate when menu state changes
    */
   const handleInsertPlaceholder = useCallback(() => {
-    setShowPlaceholderMenu(!showPlaceholderMenu);
-  }, [showPlaceholderMenu]);
+    setShowPlaceholderMenu(prev => !prev);
+  }, []); // Empty deps - stable callback
 
   /**
    * Insert a specific placeholder at cursor position
