@@ -26,6 +26,7 @@ export interface CreateTemplateData {
   name: string;
   description?: string;
   content: string; // base64 encoded RTF content
+  htmlSource?: string; // base64 encoded HTML source (for WYSIWYG validation)
   agencyGroupId?: string;
   isDefault?: boolean;
 }
@@ -34,6 +35,7 @@ export interface UpdateTemplateData {
   name?: string;
   description?: string;
   content?: string; // base64 encoded RTF content
+  htmlSource?: string; // base64 encoded HTML source (for WYSIWYG validation)
   agencyGroupId?: string | null;
   isDefault?: boolean;
   isActive?: boolean;
