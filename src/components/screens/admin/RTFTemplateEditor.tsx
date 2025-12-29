@@ -239,59 +239,76 @@ export function RTFTemplateEditor({
       {/* Toolbar - Quill renders this automatically, but we add data-testid */}
       <div data-testid="rtf-toolbar" aria-label="Formatting toolbar" />
 
-      {/* Placeholder Menu */}
-      {showPlaceholderMenu && (
-        <div
-          ref={placeholderMenuRef}
-          className="placeholder-menu"
-          role="menu"
-          aria-label="Insert placeholder"
-          style={{
-            position: 'absolute',
-            top: '50px', // Below toolbar
-            right: '16px', // Aligned to right
-            backgroundColor: 'white',
-            border: '1px solid #ccc',
-            borderRadius: '4px',
-            padding: '8px',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-            zIndex: 1000,
-            maxHeight: '300px',
-            minWidth: '200px',
-            overflowY: 'auto',
-          }}
-        >
-          <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>
-            Insert Placeholder
+      {/* Placeholder Menu - positioned relative to container, not absolute to screen */}
+      <div style={{ position: 'relative', marginBottom: '8px' }}>
+        {showPlaceholderMenu && (
+          <div
+            ref={placeholderMenuRef}
+            className="placeholder-menu"
+            role="menu"
+            aria-label="Insert placeholder"
+            style={{
+              position: 'absolute',
+              top: '0px',
+              left: '0px', // Align to left of container, not right of screen
+              backgroundColor: 'white',
+              border: '1px solid #2196f3',
+              borderRadius: '8px',
+              padding: '12px',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+              zIndex: 1000,
+              maxHeight: '400px',
+              width: '280px',
+              overflowY: 'auto',
+            }}
+          >
+            <div style={{
+              fontWeight: 600,
+              marginBottom: '12px',
+              fontSize: '15px',
+              color: '#1976d2',
+              borderBottom: '1px solid #e0e0e0',
+              paddingBottom: '8px'
+            }}>
+              🔖 Insert Placeholder Field
+            </div>
+            <div style={{ fontSize: '12px', color: '#666', marginBottom: '8px' }}>
+              Click a field to insert it at cursor position
+            </div>
+            {ALLOWED_PLACEHOLDERS.map((field) => (
+              <button
+                key={field}
+                type="button"
+                role="menuitem"
+                aria-label={`Insert ${PLACEHOLDER_LABELS[field]} placeholder`}
+                onClick={() => insertPlaceholder(field)}
+                style={{
+                  display: 'block',
+                  width: '100%',
+                  padding: '8px 12px',
+                  border: 'none',
+                  backgroundColor: 'transparent',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  borderRadius: '4px',
+                  fontSize: '14px',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#e3f2fd';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                }}
+              >
+                <span style={{ fontWeight: 500 }}>{PLACEHOLDER_LABELS[field]}</span>
+                <span style={{ fontSize: '12px', color: '#999', marginLeft: '8px' }}>
+                  {`{{${field}}}`}
+                </span>
+              </button>
+            ))}
           </div>
-          {ALLOWED_PLACEHOLDERS.map((field) => (
-            <button
-              key={field}
-              type="button"
-              role="menuitem"
-              aria-label={`Insert ${PLACEHOLDER_LABELS[field]} placeholder`}
-              onClick={() => insertPlaceholder(field)}
-              style={{
-                display: 'block',
-                width: '100%',
-                padding: '6px 12px',
-                border: 'none',
-                backgroundColor: 'transparent',
-                textAlign: 'left',
-                cursor: 'pointer',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#f0f0f0';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'transparent';
-              }}
-            >
-              {PLACEHOLDER_LABELS[field]}
-            </button>
-          ))}
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Custom toolbar button CSS */}
       <style>{`
