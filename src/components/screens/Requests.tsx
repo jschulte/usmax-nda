@@ -1287,7 +1287,7 @@ export function Requests({
                     </td>
                     <td className="px-6 py-4 text-sm">
                       <div className="text-xs text-[var(--color-text-secondary)]">
-                        {nda.statusHistory?.[0]?.status ?? nda.status}
+                        {getStatusDisplayName(nda.statusHistory?.[0]?.status ?? nda.status)}
                       </div>
                       <div className="text-xs text-[var(--color-text-muted)]">
                         {nda.statusHistory?.[0]
