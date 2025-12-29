@@ -301,7 +301,38 @@ export async function createNda(
   await validateTemplateSelection(input.agencyGroupId, input.rtfTemplateId);
 
   // Set defaults
+  // Default opportunityPocId to current user if not provided
   const opportunityPocId = input.opportunityPocId || userContext.contactId;
+
+  // Validate that opportunityPocId contact exists (prevent foreign key errors)
+  if (opportunityPocId) {
+    const pocExists = await prisma.contact.findUnique({
+      where: { id: opportunityPocId },
+      select: { id: true },
+    });
+
+    if (!pocExists) {
+      throw new NdaServiceError(
+        'Invalid Opportunity POC: Contact not found. Please select a valid contact.',
+        'VALIDATION_ERROR'
+      );
+    }
+  }
+
+  // Validate that relationshipPocId contact exists (prevent foreign key errors)
+  if (input.relationshipPocId) {
+    const pocExists = await prisma.contact.findUnique({
+      where: { id: input.relationshipPocId },
+      select: { id: true },
+    });
+
+    if (!pocExists) {
+      throw new NdaServiceError(
+        'Invalid Relationship POC: Contact not found. Please select a valid contact.',
+        'VALIDATION_ERROR'
+      );
+    }
+  }
 
   // Parse effective date if string
   const effectiveDate = input.effectiveDate
@@ -476,17 +507,18 @@ export interface StatusProgression {
  */
 const STATUS_ORDER: NdaStatus[] = [
   NdaStatus.CREATED,
+  NdaStatus.PENDING_APPROVAL,
   NdaStatus.SENT_PENDING_SIGNATURE,
   NdaStatus.IN_REVISION,
   NdaStatus.FULLY_EXECUTED,
 ];
 
 const STATUS_LABELS: Record<NdaStatus, string> = {
-  [NdaStatus.CREATED]: 'Created',
+  [NdaStatus.CREATED]: 'Created/Pending Release',
   [NdaStatus.PENDING_APPROVAL]: 'Pending Approval',
   [NdaStatus.SENT_PENDING_SIGNATURE]: 'Sent/Pending Signature',
   [NdaStatus.IN_REVISION]: 'In Revision',
-  [NdaStatus.FULLY_EXECUTED]: 'Fully Executed',
+  [NdaStatus.FULLY_EXECUTED]: 'Fully Executed NDA Uploaded',
   [NdaStatus.INACTIVE_CANCELED]: 'Inactive/Canceled',
   [NdaStatus.EXPIRED]: 'Expired',
 };
@@ -719,14 +751,14 @@ export async function listNdas(
     where.status = params.status;
   } else {
     // No specific status - apply default inactive/cancelled filtering (Story 3.15)
-    // By default, exclude INACTIVE and CANCELLED unless explicitly requested
+    // By default, exclude INACTIVE_CANCELED and EXPIRED unless explicitly requested
     const excludeStatuses: NdaStatus[] = [];
 
     if (!params.showInactive) {
       excludeStatuses.push(NdaStatus.INACTIVE_CANCELED);
     }
     if (!params.showCancelled) {
-      excludeStatuses.push(NdaStatus.INACTIVE_CANCELED);
+      excludeStatuses.push(NdaStatus.EXPIRED);
     }
 
     if (excludeStatuses.length > 0) {
@@ -1667,7 +1699,7 @@ export async function exportNdas(
     { header: 'Authorized Purpose', key: 'authorizedPurpose' },
     { header: 'Effective Date', key: 'effectiveDate' },
     { header: 'USmax Position', key: 'usMaxPosition' },
-    { header: 'Non-USMax', key: 'isNonUsMax' },
+    { header: 'Non-USmax', key: 'isNonUsMax' },
     { header: 'Opportunity POC', key: 'opportunityPocName' },
     { header: 'Contracts POC', key: 'contractsPocName' },
     { header: 'Relationship POC', key: 'relationshipPocName' },

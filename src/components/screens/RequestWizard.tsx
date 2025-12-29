@@ -640,26 +640,34 @@ export function RequestWizard() {
     );
   };
 
-  const buildPayload = (relationshipPocId: string, contractsPocId?: string, contactsPocId?: string) => ({
-    companyName: formData.companyName.trim(),
-    agencyGroupId: formData.agencyGroupId,
-    subagencyId: formData.subagencyId || undefined,
-    agencyOfficeName: formData.agencyOfficeName || undefined,
-    ndaType: formData.ndaType,
-    abbreviatedName: formData.abbreviatedName.trim(),
-    authorizedPurpose: formData.authorizedPurpose.trim(),
-    effectiveDate: formData.effectiveDate || undefined,
-    usMaxPosition: formData.usMaxPosition as UsMaxPosition,
-    isNonUsMax: formData.isNonUsMax,
-    opportunityPocId: formData.opportunityPocId || undefined,
-    contractsPocId: contractsPocId || undefined,
-    relationshipPocId,
-    contactsPocId: contactsPocId || undefined,
-    rtfTemplateId: formData.rtfTemplateId || undefined,
-    companyCity: formData.companyCity || undefined,
-    companyState: formData.companyState || undefined,
-    stateOfIncorporation: formData.stateOfIncorporation || undefined,
-  });
+  const buildPayload = (relationshipPocId: string, contractsPocId?: string, contactsPocId?: string) => {
+    const payload: any = {
+      companyName: formData.companyName.trim(),
+      agencyGroupId: formData.agencyGroupId,
+      subagencyId: formData.subagencyId || undefined,
+      agencyOfficeName: formData.agencyOfficeName || undefined,
+      ndaType: formData.ndaType,
+      abbreviatedName: formData.abbreviatedName.trim(),
+      authorizedPurpose: formData.authorizedPurpose.trim(),
+      effectiveDate: formData.effectiveDate || undefined,
+      usMaxPosition: formData.usMaxPosition as UsMaxPosition,
+      isNonUsMax: formData.isNonUsMax,
+      contractsPocId: contractsPocId || undefined,
+      relationshipPocId,
+      contactsPocId: contactsPocId || undefined,
+      rtfTemplateId: formData.rtfTemplateId || undefined,
+      companyCity: formData.companyCity || undefined,
+      companyState: formData.companyState || undefined,
+      stateOfIncorporation: formData.stateOfIncorporation || undefined,
+    };
+
+    // Only include opportunityPocId if explicitly set (let server default to current user)
+    if (formData.opportunityPocId) {
+      payload.opportunityPocId = formData.opportunityPocId;
+    }
+
+    return payload;
+  };
 
   const buildDraftPayload = (relationshipPocId?: string | null, contractsPocId?: string | null) => ({
     companyName: formData.companyName,

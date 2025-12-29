@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Card } from '../ui/AppCard';
 import { Badge } from '../ui/AppBadge';
 import { Button } from '../ui/AppButton';
@@ -17,7 +17,8 @@ import {
   Loader2,
   ChevronDown,
   ChevronUp,
-  Inbox
+  Inbox,
+  Filter
 } from 'lucide-react';
 import { toast } from 'sonner@2.0.3';
 import {
@@ -228,10 +229,30 @@ export function Requests({
   myDraftsOnly = false,
 }: RequestsProps) {
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Clean up deprecated status values from URL
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const status = params.get('status');
+    const oldStatuses = ['EMAILED', 'INACTIVE', 'CANCELLED'];
+    if (status && oldStatuses.includes(status)) {
+      params.delete('status');
+      navigate({ pathname: location.pathname, search: params.toString() }, { replace: true });
+    }
+  }, [location.search, location.pathname, navigate]);
 
   // Filter state
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<NdaStatus | 'all'>('all');
+  // Migrate old status values from localStorage
+  const [statusFilter, setStatusFilter] = useState<NdaStatus | 'all'>(() => {
+    const stored = localStorage.getItem('ndaStatusFilter');
+    if (stored && !['CREATED', 'PENDING_APPROVAL', 'SENT_PENDING_SIGNATURE', 'IN_REVISION', 'FULLY_EXECUTED', 'INACTIVE_CANCELED', 'EXPIRED', 'all'].includes(stored)) {
+      localStorage.removeItem('ndaStatusFilter');
+      return 'all';
+    }
+    return 'all';
+  });
   const [presetFilter, setPresetFilter] = useState<PresetKey>(myDraftsOnly ? 'drafts' : preset);
   const [agencyGroupInput, setAgencyGroupInput] = useState('');
   const [agencyGroupId, setAgencyGroupId] = useState<string | undefined>(undefined);
@@ -252,6 +273,7 @@ export function Requests({
   const [opportunityPocName, setOpportunityPocName] = useState('');
   const [contractsPocName, setContractsPocName] = useState('');
   const [relationshipPocName, setRelationshipPocName] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
   // Data state
@@ -646,7 +668,7 @@ export function Requests({
 
     setIsCancelling(true);
     try {
-      await updateNDAStatus(ndaToCancel.id, 'CANCELLED', 'Cancelled by user');
+      await updateNDAStatus(ndaToCancel.id, 'INACTIVE_CANCELED', 'Cancelled by user');
       toast.success('NDA cancelled', {
         description: `${ndaToCancel.companyName} NDA has been cancelled.`
       });
@@ -683,102 +705,126 @@ export function Requests({
           </Button>
         )}
       </div>
-      
-      {/* Filters */}
-      <Card className="mb-6">
-        <div className="flex flex-col md:flex-row md:flex-wrap md:items-end gap-4">
-          <div className="flex-1 md:min-w-[280px]">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--color-text-muted)]" />
+
+      {/* Search Bar - Always Visible */}
+      <div className="mb-4 flex gap-3">
+        <div className="flex-1">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--color-text-muted)]" />
+            <input
+              type="text"
+              placeholder="Search by company, agency, or ID..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 border border-[var(--color-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
+            />
+          </div>
+        </div>
+        <Button
+          variant="subtle"
+          icon={<Filter className="w-4 h-4" />}
+          onClick={() => setShowFilters((prev) => !prev)}
+          className="whitespace-nowrap"
+        >
+          {showFilters ? 'Hide Filters' : 'Filters'}
+        </Button>
+      </div>
+
+      {/* Collapsible Filters */}
+      {showFilters && (
+        <Card className="mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+
+            <div>
+              <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1.5">Preset</label>
+              <Select
+                value={presetFilter}
+                onValueChange={(value) => setPresetFilter(value as PresetKey)}
+                disabled={myDraftsOnly}
+              >
+                <SelectTrigger className="w-full" disabled={myDraftsOnly}>
+                  <SelectValue placeholder="All NDAs" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All NDAs</SelectItem>
+                  <SelectItem value="my-ndas">My NDAs</SelectItem>
+                  <SelectItem value="expiring-soon">Expiring Soon</SelectItem>
+                  <SelectItem value="drafts">Drafts</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1.5">Status</label>
+              <Select
+                value={statusFilter}
+                onValueChange={(value) => setStatusFilter(value as NdaStatus | 'all')}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="All Statuses" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  {getStatusOptions().map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1.5">Agency Group</label>
               <input
-                type="text"
-                placeholder="Search by company, agency, or ID..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-[var(--color-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
+                list="agency-group-options"
+                placeholder="All agencies"
+                value={agencyGroupInput}
+                onChange={(e) => setAgencyGroupInput(e.target.value)}
+                className="w-full px-3 py-2 border border-[var(--color-border)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
               />
+              <datalist id="agency-group-options">
+                {agencyGroups.map((group) => (
+                  <option key={group.id} value={group.name} />
+                ))}
+              </datalist>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1.5">Subagency</label>
+              <input
+                list="subagency-options"
+                placeholder="All subagencies"
+                value={subagencyInput}
+                onChange={(e) => setSubagencyInput(e.target.value)}
+                className="w-full px-3 py-2 border border-[var(--color-border)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+                disabled={!agencyGroupId}
+              />
+              <datalist id="subagency-options">
+                {subagencies.map((subagency) => (
+                  <option key={subagency.id} value={subagency.name} />
+                ))}
+              </datalist>
             </div>
           </div>
 
-          <Select
-            value={presetFilter}
-            onValueChange={(value) => setPresetFilter(value as PresetKey)}
-            disabled={myDraftsOnly}
-          >
-            <SelectTrigger className="w-full md:w-48" disabled={myDraftsOnly}>
-              <SelectValue placeholder="Preset" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All NDAs</SelectItem>
-              <SelectItem value="my-ndas">My NDAs</SelectItem>
-              <SelectItem value="expiring-soon">Expiring Soon</SelectItem>
-              <SelectItem value="drafts">Drafts</SelectItem>
-              <SelectItem value="inactive">Inactive</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Select
-            value={statusFilter}
-            onValueChange={(value) => setStatusFilter(value as NdaStatus | 'all')}
-          >
-            <SelectTrigger className="w-full md:w-48">
-              <SelectValue placeholder="All Statuses" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Statuses</SelectItem>
-              {getStatusOptions().map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <div className="w-full md:w-56">
-            <input
-              list="agency-group-options"
-              placeholder="Agency group"
-              value={agencyGroupInput}
-              onChange={(e) => setAgencyGroupInput(e.target.value)}
-              className="w-full px-3 py-2 border border-[var(--color-border)] rounded-lg text-sm"
-            />
-            <datalist id="agency-group-options">
-              {agencyGroups.map((group) => (
-                <option key={group.id} value={group.name} />
-              ))}
-            </datalist>
+          <div className="mt-4 flex justify-between items-center border-t border-[var(--color-border)] pt-4">
+            <Button
+              variant="subtle"
+              icon={showAdvancedFilters ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              onClick={() => setShowAdvancedFilters((prev) => !prev)}
+            >
+              {showAdvancedFilters ? 'Fewer Filters' : 'More Filters'}
+            </Button>
           </div>
-
-          <div className="w-full md:w-56">
-            <input
-              list="subagency-options"
-              placeholder="Subagency"
-              value={subagencyInput}
-              onChange={(e) => setSubagencyInput(e.target.value)}
-              className="w-full px-3 py-2 border border-[var(--color-border)] rounded-lg text-sm"
-              disabled={!agencyGroupId}
-            />
-            <datalist id="subagency-options">
-              {subagencies.map((subagency) => (
-                <option key={subagency.id} value={subagency.name} />
-              ))}
-            </datalist>
-          </div>
-
-          <Button
-            variant="subtle"
-            icon={showAdvancedFilters ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-            onClick={() => setShowAdvancedFilters((prev) => !prev)}
-            className="w-full md:w-auto"
-          >
-            {showAdvancedFilters ? 'Hide filters' : 'More filters'}
-          </Button>
-        </div>
 
         {showAdvancedFilters && (
-          <div className="mt-6 border-t border-[var(--color-border)] pt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="border-t border-[var(--color-border)] pt-6">
+            <h4 className="text-sm font-medium text-[var(--color-text-secondary)] mb-4">Additional Filters</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             <div>
-              <label className="text-xs text-[var(--color-text-secondary)]">Company Name</label>
+              <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1.5">Company Name</label>
               <input
                 list="company-name-options"
                 value={companyName}
@@ -792,7 +838,7 @@ export function Requests({
               </datalist>
             </div>
             <div>
-              <label className="text-xs text-[var(--color-text-secondary)]">City</label>
+              <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1.5">City</label>
               <input
                 list="company-city-options"
                 value={companyCity}
@@ -806,7 +852,7 @@ export function Requests({
               </datalist>
             </div>
             <div>
-              <label className="text-xs text-[var(--color-text-secondary)]">State</label>
+              <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1.5">State</label>
               <input
                 list="company-state-options"
                 value={companyState}
@@ -820,7 +866,7 @@ export function Requests({
               </datalist>
             </div>
             <div>
-              <label className="text-xs text-[var(--color-text-secondary)]">State of Incorporation</label>
+              <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1.5">State of Incorporation</label>
               <input
                 list="incorporation-options"
                 value={stateOfIncorporation}
@@ -834,7 +880,7 @@ export function Requests({
               </datalist>
             </div>
             <div>
-              <label className="text-xs text-[var(--color-text-secondary)]">Agency/Office Name</label>
+              <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1.5">Agency/Office Name</label>
               <input
                 list="agency-office-options"
                 value={agencyOfficeName}
@@ -848,7 +894,7 @@ export function Requests({
               </datalist>
             </div>
             <div>
-              <label className="text-xs text-[var(--color-text-secondary)]">NDA Type</label>
+              <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1.5">NDA Type</label>
               <Select value={ndaType} onValueChange={(value) => setNdaType(value as NdaType | 'all')}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="All Types" />
@@ -864,7 +910,7 @@ export function Requests({
               </Select>
             </div>
             <div>
-              <label className="text-xs text-[var(--color-text-secondary)]">Non-USMax NDA</label>
+              <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1.5">Non-USmax NDA</label>
               <Select value={isNonUsMax} onValueChange={(value) => setIsNonUsMax(value as 'all' | 'true' | 'false')}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="All" />
@@ -877,7 +923,7 @@ export function Requests({
               </Select>
             </div>
             <div>
-              <label className="text-xs text-[var(--color-text-secondary)]">USmax Position</label>
+              <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1.5">USmax Position</label>
               <Select value={usMaxPosition} onValueChange={(value) => setUsMaxPosition(value as typeof usMaxPosition)}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="All Positions" />
@@ -892,7 +938,7 @@ export function Requests({
             </div>
 
             <div>
-              <label className="text-xs text-[var(--color-text-secondary)]">Effective Date From</label>
+              <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1.5">Effective Date From</label>
               <input
                 type="date"
                 value={effectiveDateFrom}
@@ -901,7 +947,7 @@ export function Requests({
               />
             </div>
             <div>
-              <label className="text-xs text-[var(--color-text-secondary)]">Effective Date To</label>
+              <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1.5">Effective Date To</label>
               <input
                 type="date"
                 value={effectiveDateTo}
@@ -920,7 +966,7 @@ export function Requests({
               />
             </div>
             <div>
-              <label className="text-xs text-[var(--color-text-secondary)]">Requested Date From</label>
+              <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1.5">Requested Date From</label>
               <input
                 type="date"
                 value={requestedDateFrom}
@@ -929,7 +975,7 @@ export function Requests({
               />
             </div>
             <div>
-              <label className="text-xs text-[var(--color-text-secondary)]">Requested Date To</label>
+              <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1.5">Requested Date To</label>
               <input
                 type="date"
                 value={requestedDateTo}
@@ -949,7 +995,7 @@ export function Requests({
             </div>
 
             <div>
-              <label className="text-xs text-[var(--color-text-secondary)]">Opportunity POC</label>
+              <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1.5">Opportunity POC</label>
               <input
                 list="opportunity-poc-options"
                 value={opportunityPocName}
@@ -963,7 +1009,7 @@ export function Requests({
               </datalist>
             </div>
             <div>
-              <label className="text-xs text-[var(--color-text-secondary)]">Contracts POC</label>
+              <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1.5">Contracts POC</label>
               <input
                 list="contracts-poc-options"
                 value={contractsPocName}
@@ -977,7 +1023,7 @@ export function Requests({
               </datalist>
             </div>
             <div>
-              <label className="text-xs text-[var(--color-text-secondary)]">Relationship POC</label>
+              <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1.5">Relationship POC</label>
               <input
                 list="relationship-poc-options"
                 value={relationshipPocName}
@@ -991,11 +1037,13 @@ export function Requests({
               </datalist>
             </div>
           </div>
+          </div>
         )}
-      </Card>
+        </Card>
+      )}
       
       {/* Results Summary */}
-      <div className="mb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+      <div className="mb-4 flex items-center justify-between gap-4">
         <p className="text-sm text-[var(--color-text-secondary)]">
           {loading ? (
             'Loading...'
@@ -1003,8 +1051,8 @@ export function Requests({
             `Showing ${ndas.length} of ${totalCount} NDAs`
           )}
         </p>
-        <div className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)]">
-          <span>Rows per page</span>
+        <div className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)] ml-auto">
+          <span className="whitespace-nowrap">Rows per page</span>
           <Select value={String(pageSize)} onValueChange={(value) => setPageSize(Number(value))}>
             <SelectTrigger className="w-20">
               <SelectValue />

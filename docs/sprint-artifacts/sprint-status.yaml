@@ -107,8 +107,7 @@ development_status:
   # Hardening Story - Bundled fixes from Epic 1-5 gap analyses
   H-1-gap-analysis-hardening: done
 
-  # Epic 6: Audit & Compliance - Starting development
-  epic-6: in-progress
+  # Epic 6: Audit & Compliance - COMPLETED
   6-1-comprehensive-action-logging: done
   6-2-field-change-tracking: done
   6-3-document-download-tracking: done
@@ -178,7 +177,7 @@ development_status:
   epic-8-retrospective: optional
 
   # Epic 9: Post-Launch Refinement & Bug Fixes - Discovered during demo testing
-  epic-9: in-progress
+  epic-9: done
   9-1-fix-internal-notes-display: done
   9-2-filter-system-events-from-audit-trail: done
   9-3-fix-agency-groups-three-dots-menu: done
