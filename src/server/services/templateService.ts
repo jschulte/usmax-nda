@@ -382,15 +382,9 @@ export async function createTemplate(
     );
   }
 
-  // Validate placeholders in RTF content
-  const htmlValidation = validateHtmlPlaceholders(rtfContent);
-
-  if (!htmlValidation.valid) {
-    throw new TemplateServiceError(
-      `Invalid placeholders: ${htmlValidation.errors.join(', ')}`,
-      'VALIDATION_ERROR'
-    );
-  }
+  // Note: Do NOT validate RTF content with HTML placeholder validator
+  // RTF has single braces for formatting codes {\\b text} which are valid RTF
+  // Placeholder validation happens on HTML source if provided (WYSIWYG flow)
 
   // If setting as default, unset other defaults
   if (data.isDefault) {
@@ -451,15 +445,9 @@ export async function updateTemplate(
       );
     }
 
-    // Validate placeholders in RTF content
-    const htmlValidation = validateHtmlPlaceholders(rtfContent);
-
-    if (!htmlValidation.valid) {
-      throw new TemplateServiceError(
-        `Invalid placeholders: ${htmlValidation.errors.join(', ')}`,
-        'VALIDATION_ERROR'
-      );
-    }
+    // Note: Do NOT validate RTF content with HTML placeholder validator
+    // RTF has single braces for formatting codes {\\b text} which are valid RTF
+    // Placeholder validation happens on HTML source if provided (WYSIWYG flow)
   }
 
   // If setting as default, unset other defaults

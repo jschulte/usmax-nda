@@ -410,7 +410,9 @@ export function Templates() {
     try {
       // Convert RTF string to base64 for API (server expects base64)
       const rtfBase64 = btoa(rtfContent);
+      const htmlBase64 = btoa(htmlContent);
       console.log('[Templates] Sending base64 RTF to server, length:', rtfBase64.length);
+      console.log('[Templates] Sending base64 HTML to server, length:', htmlBase64.length);
 
       if (wysiwygTemplateId) {
         // Editing existing template
@@ -418,6 +420,7 @@ export function Templates() {
           name: trimmedName,
           description: templateDescription.trim() || undefined,
           content: rtfBase64,
+          htmlSource: htmlBase64, // Send HTML too for validation
           agencyGroupId: templateAgencyGroupId || null,
           isDefault: templateIsDefault,
         });
@@ -430,6 +433,7 @@ export function Templates() {
           name: trimmedName,
           description: templateDescription.trim() || undefined,
           content: rtfBase64,
+          htmlSource: htmlBase64, // Send HTML too for validation
           agencyGroupId: templateAgencyGroupId || undefined,
           isDefault: templateIsDefault,
         });
