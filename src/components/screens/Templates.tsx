@@ -360,7 +360,12 @@ export function Templates() {
         // Convert RTF to HTML for editing
         if (fullTemplate.content) {
           try {
-            const htmlContent = simpleRtfToHtml(Buffer.from(fullTemplate.content, 'base64'));
+            console.log('[Templates] Template content type:', typeof fullTemplate.content);
+            console.log('[Templates] Template content length:', fullTemplate.content.length);
+
+            // Content is already base64 string from API
+            const htmlContent = simpleRtfToHtml(fullTemplate.content);
+            console.log('[Templates] Converted HTML:', htmlContent.substring(0, 200));
             setWysiwygInitialContent(htmlContent);
           } catch (conversionError) {
             console.error('[Templates] RTF conversion error:', conversionError);
@@ -403,12 +408,16 @@ export function Templates() {
     }
 
     try {
+      // Convert RTF string to base64 for API (server expects base64)
+      const rtfBase64 = btoa(rtfContent);
+      console.log('[Templates] Sending base64 RTF to server, length:', rtfBase64.length);
+
       if (wysiwygTemplateId) {
         // Editing existing template
         await templateService.updateTemplate(wysiwygTemplateId, {
           name: trimmedName,
           description: templateDescription.trim() || undefined,
-          content: rtfContent,
+          content: rtfBase64,
           agencyGroupId: templateAgencyGroupId || null,
           isDefault: templateIsDefault,
         });
@@ -420,7 +429,7 @@ export function Templates() {
         await templateService.createTemplate({
           name: trimmedName,
           description: templateDescription.trim() || undefined,
-          content: rtfContent,
+          content: rtfBase64,
           agencyGroupId: templateAgencyGroupId || undefined,
           isDefault: templateIsDefault,
         });

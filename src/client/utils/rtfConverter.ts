@@ -26,26 +26,26 @@ function preservePlaceholders(html: string): string {
 /**
  * Convert HTML to RTF format
  * Custom implementation - browser-compatible and handles our use case
+ * IMPORTANT: Preserves {{placeholder}} tokens for template merging
  */
 export function convertHtmlToRtf(html: string): string {
   console.log('[RTF Converter] Converting HTML to RTF');
 
-  // Remove wrapper tags if present
   let content = html.trim();
 
-  // Convert HTML tags to RTF control codes
+  // STEP 1: Protect placeholder tokens by converting to temporary markers
+  const placeholderMap: Record<string, string> = {};
+  let placeholderIndex = 0;
+
+  content = content.replace(/\{\{(\w+)\}\}/g, (match) => {
+    const marker = `___PLACEHOLDER_${placeholderIndex}___`;
+    placeholderMap[marker] = match;
+    placeholderIndex++;
+    return marker;
+  });
+
+  // STEP 2: Convert HTML tags to RTF control codes
   content = content
-    // Headers
-    .replace(/<h1[^>]*>(.*?)<\/h1>/gi, '{\\b\\fs32 $1}\\par\\par')
-    .replace(/<h2[^>]*>(.*?)<\/h2>/gi, '{\\b\\fs28 $1}\\par\\par')
-    .replace(/<h3[^>]*>(.*?)<\/h3>/gi, '{\\b\\fs24 $1}\\par\\par')
-
-    // Paragraphs
-    .replace(/<p[^>]*>(.*?)<\/p>/gi, '$1\\par\\par')
-
-    // Line breaks
-    .replace(/<br\s*\/?>/gi, '\\line ')
-
     // Bold
     .replace(/<strong[^>]*>(.*?)<\/strong>/gi, '{\\b $1}')
     .replace(/<b[^>]*>(.*?)<\/b>/gi, '{\\b $1}')
@@ -57,6 +57,11 @@ export function convertHtmlToRtf(html: string): string {
     // Underline
     .replace(/<u[^>]*>(.*?)<\/u>/gi, '{\\ul $1}')
 
+    // Headers
+    .replace(/<h1[^>]*>(.*?)<\/h1>/gi, '{\\b\\fs32 $1}\\par\\par')
+    .replace(/<h2[^>]*>(.*?)<\/h2>/gi, '{\\b\\fs28 $1}\\par\\par')
+    .replace(/<h3[^>]*>(.*?)<\/h3>/gi, '{\\b\\fs24 $1}\\par\\par')
+
     // Lists
     .replace(/<li[^>]*>(.*?)<\/li>/gi, '\\tab $1\\par')
     .replace(/<ul[^>]*>/gi, '')
@@ -64,7 +69,16 @@ export function convertHtmlToRtf(html: string): string {
     .replace(/<ol[^>]*>/gi, '')
     .replace(/<\/ol>/gi, '\\par')
 
-    // Remove other HTML tags
+    // Paragraphs
+    .replace(/<p[^>]*>(.*?)<\/p>/gi, '$1\\par\\par')
+
+    // Line breaks
+    .replace(/<br\s*\/?>/gi, '\\line ')
+
+    // Remove placeholder span wrappers (from Quill)
+    .replace(/<span[^>]*class="ql-placeholder"[^>]*>(.*?)<\/span>/gi, '$1')
+
+    // Remove any remaining HTML tags
     .replace(/<[^>]+>/g, '')
 
     // HTML entities
@@ -75,14 +89,34 @@ export function convertHtmlToRtf(html: string): string {
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'");
 
-  // Build complete RTF document
-  const rtf = `{\\rtf1\\ansi\\deff0
-{\\fonttbl{\\f0 Times New Roman;}}
-\\f0\\fs24
-${content}
-}`;
+  // STEP 3: Restore placeholder tokens (they remain as {{fieldName}} in RTF)
+  Object.entries(placeholderMap).forEach(([marker, placeholder]) => {
+    content = content.replace(marker, placeholder);
+  });
+
+  // STEP 4: Escape remaining special characters that aren't in placeholders
+  // Only escape backslashes that aren't already part of RTF control codes
+  content = content.replace(/\\/g, (match, offset) => {
+    // Check if this backslash is already part of a control code
+    const nextChars = content.substring(offset, offset + 5);
+    if (nextChars.match(/^\\(par|line|tab|b|i|ul|fs\d+)/)) {
+      return match; // Keep RTF control codes
+    }
+    return '\\\\'; // Escape standalone backslashes
+  });
+
+  // Clean up excessive whitespace
+  content = content
+    .replace(/\\par\\par\\par+/g, '\\par\\par')
+    .replace(/\\line\\s*\\line/g, '\\line')
+    .trim();
+
+  // STEP 5: Build complete RTF document
+  const rtf = `{\\rtf1\\ansi\\deff0 {\\fonttbl{\\f0 Times New Roman;}}\\f0\\fs24 ${content}}`;
 
   console.log('[RTF Converter] RTF generated, length:', rtf.length);
+  console.log('[RTF Converter] RTF preview:', rtf.substring(0, 150));
+
   return rtf;
 }
 
