@@ -269,6 +269,15 @@ export function NDADetail() {
     loadDocuments();
   }, [id, activeTab]);
 
+  // Story 9.1: Load internal notes
+  useEffect(() => {
+    if (id) {
+      notesService.getNotes(id)
+        .then(data => setSavedNotes(data.notes))
+        .catch(err => console.error('Failed to load notes:', err));
+    }
+  }, [id]);
+
   if (loading) {
     return (
       <div className="p-8 flex items-center justify-center min-h-screen">
@@ -590,7 +599,7 @@ export function NDADetail() {
 
     try {
       setStatusUpdating(true);
-      await updateNDAStatus(id, 'EMAILED', 'Approved and ready for signature');
+      await updateNDAStatus(id, 'SENT_PENDING_SIGNATURE', 'Approved and ready for signature');
       toast.success('NDA approved', {
         description: 'The NDA has been approved and can now be sent for signature.'
       });
@@ -671,15 +680,6 @@ export function NDADetail() {
       setSubscribing(false);
     }
   };
-
-  // Story 9.1: Load internal notes
-  useEffect(() => {
-    if (id) {
-      notesService.getNotes(id)
-        .then(data => setSavedNotes(data.notes))
-        .catch(err => console.error('Failed to load notes:', err));
-    }
-  }, [id]);
 
   const handleAddNote = async () => {
     if (internalNotes.trim() && id) {
@@ -998,12 +998,12 @@ export function NDADetail() {
           id: '3',
           name: 'Sent to counterparty',
           status:
-            nda.status === 'EMAILED'
+            nda.status === 'SENT_PENDING_SIGNATURE'
               ? 'in-progress'
               : nda.status === 'FULLY_EXECUTED'
                 ? 'completed'
                 : 'pending',
-          timestamp: nda.status === 'EMAILED' ? nda.updatedAt : undefined,
+          timestamp: nda.status === 'SENT_PENDING_SIGNATURE' ? nda.updatedAt : undefined,
         },
         {
           id: '4',
@@ -1815,7 +1815,7 @@ export function NDADetail() {
           )}
           
           {/* Tasks */}
-          {nda.status !== 'FULLY_EXECUTED' && nda.status !== 'INACTIVE' && nda.status !== 'CANCELLED' && (
+          {nda.status !== 'FULLY_EXECUTED' && nda.status !== 'INACTIVE_CANCELED' && nda.status !== 'EXPIRED' && (
             <Card>
               <h3 className="mb-4">Actions</h3>
               <div className="space-y-3">

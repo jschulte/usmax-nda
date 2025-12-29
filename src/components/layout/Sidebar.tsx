@@ -24,7 +24,7 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
     { icon: Inbox, label: 'My NDAs', path: '/my-ndas' },
     { icon: Inbox, label: 'My Drafts', path: '/my-drafts' },
     { icon: Inbox, label: 'All NDAs', path: '/ndas' },
-    { icon: FolderOpen, label: 'Templates and Clauses', path: '/templates' },
+    { icon: FolderOpen, label: 'Templates', path: '/templates' },
     { icon: BarChart3, label: 'Reports', path: '/reports' },
     { icon: Settings, label: 'Administration', path: '/administration' }
   ];
@@ -53,7 +53,7 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
           <div className="flex flex-col items-start gap-3 flex-1">
             <img 
               src="https://www.usmax.com/wp-content/themes/usmax/static/images/usmax-site-logo.jpg" 
-              alt="USMax"
+              alt="USmax"
               className="h-12 w-auto object-contain"
             />
             <div>
@@ -74,7 +74,7 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
           <div className="mb-6">
             <Button
               onClick={() => {
-                navigate('/ndas/new');
+                navigate('/request-wizard');
                 onClose?.(); // Close mobile menu
               }}
               className="w-full flex items-center justify-center gap-2"
@@ -107,7 +107,7 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
         <div className="p-4 border-t border-[var(--color-border)]">
           <div className="text-xs text-[var(--color-text-muted)]">
             <p>Version 2.1.0</p>
-            <p className="mt-1">© 2025 USMax</p>
+            <p className="mt-1">© 2025 USmax</p>
           </div>
         </div>
       </aside>
