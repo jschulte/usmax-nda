@@ -339,20 +339,12 @@ export function Templates() {
   };
 
   // Issue #23: WYSIWYG Editor handlers
-  const handleOpenWysiwyg = (template?: RtfTemplate) => {
-    if (template) {
-      setWysiwygTemplateId(template.id);
-      setTemplateName(template.name);
-      setTemplateDescription(template.description || '');
-      setTemplateAgencyGroupId(template.agencyGroupId || '');
-      setTemplateIsDefault(template.isDefault);
-    } else {
-      setWysiwygTemplateId(undefined);
-      setTemplateName('');
-      setTemplateDescription('');
-      setTemplateAgencyGroupId('');
-      setTemplateIsDefault(false);
-    }
+  // Note: WYSIWYG only for creating new templates (RTF-to-HTML conversion not implemented)
+  const handleOpenWysiwyg = () => {
+    // Always start fresh for WYSIWYG (no RTF-to-HTML conversion)
+    setWysiwygTemplateId(undefined);
+    // Carry over metadata if creating from dialog
+    // (name, description, etc. already set in state)
     setShowCreateDialog(false);
     setShowEditDialog(false);
     setShowWysiwygEditor(true);
@@ -369,31 +361,17 @@ export function Templates() {
     }
 
     try {
-      if (wysiwygTemplateId) {
-        // Editing existing template
-        await templateService.updateTemplate(wysiwygTemplateId, {
-          name: trimmedName,
-          description: templateDescription.trim() || undefined,
-          content: rtfContent,
-          agencyGroupId: templateAgencyGroupId || null,
-          isDefault: templateIsDefault,
-        });
-        toast.success('Template updated', {
-          description: `${trimmedName} has been updated successfully.`
-        });
-      } else {
-        // Creating new template
-        await templateService.createTemplate({
-          name: trimmedName,
-          description: templateDescription.trim() || undefined,
-          content: rtfContent,
-          agencyGroupId: templateAgencyGroupId || undefined,
-          isDefault: templateIsDefault,
-        });
-        toast.success('Template created', {
-          description: `${trimmedName} has been created successfully.`
-        });
-      }
+      // WYSIWYG always creates new templates (no RTF-to-HTML conversion for editing)
+      await templateService.createTemplate({
+        name: trimmedName,
+        description: templateDescription.trim() || undefined,
+        content: rtfContent,
+        agencyGroupId: templateAgencyGroupId || undefined,
+        isDefault: templateIsDefault,
+      });
+      toast.success('Template created', {
+        description: `${trimmedName} has been created successfully.`
+      });
       setShowWysiwygEditor(false);
       await loadTemplates();
     } catch (err: any) {
@@ -419,8 +397,11 @@ export function Templates() {
     return (
       <div className="p-8">
         <div className="mb-4">
-          <h1 className="mb-2">{wysiwygTemplateId ? 'Edit' : 'Create'} Template</h1>
-          <p className="text-[var(--color-text-secondary)]">Use the WYSIWYG editor to create your RTF template</p>
+          <h1 className="mb-2">Create Template</h1>
+          <p className="text-[var(--color-text-secondary)]">Use the visual editor to create your RTF template with formatting and placeholders</p>
+          <p className="text-xs text-amber-600 mt-1">
+            Note: To edit existing RTF templates, use the "Edit" dialog and upload a new RTF file
+          </p>
         </div>
         <RTFTemplateEditor
           templateId={wysiwygTemplateId}
@@ -879,7 +860,13 @@ export function Templates() {
               Cancel
             </Button>
             {activeView === 'templates' && (
-              <Button variant="secondary" size="sm" onClick={() => handleOpenWysiwyg()} disabled={isSubmitting}>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => handleOpenWysiwyg()}
+                disabled={isSubmitting}
+                title="Create template using visual HTML editor (recommended for new templates)"
+              >
                 Use WYSIWYG Editor
               </Button>
             )}
@@ -987,9 +974,6 @@ export function Templates() {
           <DialogFooter>
             <Button variant="secondary" size="sm" onClick={() => setShowEditDialog(false)} disabled={isSubmitting}>
               Cancel
-            </Button>
-            <Button variant="secondary" size="sm" onClick={() => handleOpenWysiwyg(selectedItem)} disabled={isSubmitting}>
-              Use WYSIWYG Editor
             </Button>
             <Button variant="primary" size="sm" onClick={confirmEdit} disabled={isSubmitting}>
               {isSubmitting ? (
