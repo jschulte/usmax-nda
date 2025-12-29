@@ -217,6 +217,7 @@ export function RTFTemplateEditor({
       data-testid="rtf-template-editor"
       role="region"
       aria-label="RTF Template Editor"
+      style={{ position: 'relative' }} // Make container positioned for absolute children
     >
       {/* Help text for placeholders */}
       <div style={{
@@ -236,79 +237,74 @@ export function RTFTemplateEditor({
         </p>
       </div>
 
-      {/* Toolbar - Quill renders this automatically, but we add data-testid */}
-      <div data-testid="rtf-toolbar" aria-label="Formatting toolbar" />
-
-      {/* Placeholder Menu - positioned relative to container, not absolute to screen */}
-      <div style={{ position: 'relative', marginBottom: '8px' }}>
-        {showPlaceholderMenu && (
-          <div
-            ref={placeholderMenuRef}
-            className="placeholder-menu"
-            role="menu"
-            aria-label="Insert placeholder"
-            style={{
-              position: 'absolute',
-              top: '0px',
-              left: '0px', // Align to left of container, not right of screen
-              backgroundColor: 'white',
-              border: '1px solid #2196f3',
-              borderRadius: '8px',
-              padding: '12px',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
-              zIndex: 1000,
-              maxHeight: '400px',
-              width: '280px',
-              overflowY: 'auto',
-            }}
-          >
-            <div style={{
-              fontWeight: 600,
-              marginBottom: '12px',
-              fontSize: '15px',
-              color: '#1976d2',
-              borderBottom: '1px solid #e0e0e0',
-              paddingBottom: '8px'
-            }}>
-              🔖 Insert Placeholder Field
-            </div>
-            <div style={{ fontSize: '12px', color: '#666', marginBottom: '8px' }}>
-              Click a field to insert it at cursor position
-            </div>
-            {ALLOWED_PLACEHOLDERS.map((field) => (
-              <button
-                key={field}
-                type="button"
-                role="menuitem"
-                aria-label={`Insert ${PLACEHOLDER_LABELS[field]} placeholder`}
-                onClick={() => insertPlaceholder(field)}
-                style={{
-                  display: 'block',
-                  width: '100%',
-                  padding: '8px 12px',
-                  border: 'none',
-                  backgroundColor: 'transparent',
-                  textAlign: 'left',
-                  cursor: 'pointer',
-                  borderRadius: '4px',
-                  fontSize: '14px',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#e3f2fd';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'transparent';
-                }}
-              >
-                <span style={{ fontWeight: 500 }}>{PLACEHOLDER_LABELS[field]}</span>
-                <span style={{ fontSize: '12px', color: '#999', marginLeft: '8px' }}>
-                  {`{{${field}}}`}
-                </span>
-              </button>
-            ))}
+      {/* Placeholder Menu - overlay positioned absolutely within editor container */}
+      {showPlaceholderMenu && (
+        <div
+          ref={placeholderMenuRef}
+          className="placeholder-menu"
+          role="menu"
+          aria-label="Insert placeholder"
+          style={{
+            position: 'absolute',
+            top: '120px', // Below help text and toolbar
+            left: '16px',
+            backgroundColor: 'white',
+            border: '1px solid #2196f3',
+            borderRadius: '8px',
+            padding: '12px',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+            zIndex: 1001, // Above editor
+            maxHeight: '400px',
+            width: '280px',
+            overflowY: 'auto',
+          }}
+        >
+          <div style={{
+            fontWeight: 600,
+            marginBottom: '12px',
+            fontSize: '15px',
+            color: '#1976d2',
+            borderBottom: '1px solid #e0e0e0',
+            paddingBottom: '8px'
+          }}>
+            🔖 Insert Placeholder Field
           </div>
-        )}
-      </div>
+          <div style={{ fontSize: '12px', color: '#666', marginBottom: '8px' }}>
+            Click a field to insert it at cursor position
+          </div>
+          {ALLOWED_PLACEHOLDERS.map((field) => (
+            <button
+              key={field}
+              type="button"
+              role="menuitem"
+              aria-label={`Insert ${PLACEHOLDER_LABELS[field]} placeholder`}
+              onClick={() => insertPlaceholder(field)}
+              style={{
+                display: 'block',
+                width: '100%',
+                padding: '8px 12px',
+                border: 'none',
+                backgroundColor: 'transparent',
+                textAlign: 'left',
+                cursor: 'pointer',
+                borderRadius: '4px',
+                fontSize: '14px',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#e3f2fd';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
+            >
+              <span style={{ fontWeight: 500 }}>{PLACEHOLDER_LABELS[field]}</span>
+              <span style={{ fontSize: '12px', color: '#999', marginLeft: '8px' }}>
+                {`{{${field}}}`}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Custom toolbar button CSS */}
       <style>{`
