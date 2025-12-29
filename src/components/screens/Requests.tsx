@@ -1037,6 +1037,40 @@ export function Requests({
               </datalist>
             </div>
           </div>
+
+          {/* Apply Filters Button */}
+          <div className="mt-6 pt-4 border-t border-[var(--color-border)] flex justify-end gap-2">
+            <Button
+              variant="subtle"
+              size="sm"
+              onClick={() => {
+                // Clear all filters
+                setSearchTerm('');
+                setSelectedAgency('');
+                setSelectedSubagency('');
+                setSelectedStatus('');
+                setEffectiveDateFrom('');
+                setEffectiveDateTo('');
+                setRequestedDateFrom('');
+                setRequestedDateTo('');
+                setOpportunityPocName('');
+                setContractsPocName('');
+                setRelationshipPocName('');
+                setNdaType('');
+                setUsMaxPosition('');
+                setIsNonUsMax('');
+              }}
+            >
+              Clear All
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => setShowFilters(false)}
+            >
+              Apply Filters
+            </Button>
+          </div>
           </div>
         )}
         </Card>

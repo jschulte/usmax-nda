@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { HelpCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { Card } from '../ui/AppCard';
 import { Button } from '../ui/AppButton';
 import { Input, TextArea, Select } from '../ui/AppInput';
@@ -15,6 +16,7 @@ import {
 } from '../ui/dialog';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
+import { formatPhoneNumber, isValidPhoneFormat } from '../../client/utils/phoneFormatter';
 import {
   getNDA,
   createNDA,
@@ -140,6 +142,17 @@ export function RequestWizard() {
   // Story H-1 Task 7: Inline contact creation state
   const [showCreateContactModal, setShowCreateContactModal] = useState(false);
   const [createContactPocType, setCreateContactPocType] = useState<'relationship' | 'contracts' | 'opportunity' | 'contacts' | null>(null);
+
+  // Help section visibility - show on first visit, then collapsible
+  const [showHelp, setShowHelp] = useState(() => {
+    const hasVisited = localStorage.getItem('usmax-nda-wizard-visited');
+    return !hasVisited; // Show on first visit
+  });
+
+  // Mark as visited on mount
+  useEffect(() => {
+    localStorage.setItem('usmax-nda-wizard-visited', 'true');
+  }, []);
   const [createContactForm, setCreateContactForm] = useState({
     firstName: '',
     lastName: '',
@@ -519,12 +532,15 @@ export function RequestWizard() {
 
       // Update the appropriate POC field based on type
       const fullName = `${created.firstName} ${created.lastName}`.trim();
+      const phone = created.phone || createContactForm.phone || '';
+
       if (createContactPocType === 'relationship') {
         setFormData((prev) => ({
           ...prev,
           relationshipPocId: created.id,
           relationshipPocName: fullName,
           relationshipPocEmail: created.email || '',
+          relationshipPocPhone: phone,
         }));
         markTouched('relationshipPoc');
         setPocErrors((prev) => ({ ...prev, relationshipEmail: '' }));
@@ -534,18 +550,21 @@ export function RequestWizard() {
           contractsPocId: created.id,
           contractsPocName: fullName,
           contractsPocEmail: created.email || '',
+          contractsPocPhone: phone,
         }));
       } else if (createContactPocType === 'opportunity') {
         setFormData((prev) => ({
           ...prev,
           opportunityPocId: created.id,
           opportunityPocName: fullName,
+          opportunityPocPhone: phone,
         }));
       } else if (createContactPocType === 'contacts') {
         setFormData((prev) => ({
           ...prev,
           contactsPocId: created.id,
           contactsPocName: fullName,
+          contactsPocPhone: phone,
         }));
       }
 
@@ -1025,13 +1044,71 @@ export function RequestWizard() {
         <Stepper steps={steps} currentStep={currentStep} className="min-w-max md:min-w-0" />
       </div>
       
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
-        <div className="lg:col-span-2">
-          <Card>
-            {/* Step 1: Basic Details */}
-            {currentStep === 1 && (
-              <div className="space-y-6">
-                <h2>Basic details</h2>
+      <Card>
+        {/* Inline collapsible help - shown on first visit, then behind toggle */}
+        <div className="mb-6 pb-6 border-b border-[var(--color-border)]">
+          <button
+            type="button"
+            onClick={() => setShowHelp(!showHelp)}
+            className="w-full flex items-center justify-between text-left hover:opacity-80 transition-opacity group"
+          >
+            <div className="flex items-center gap-2">
+              <HelpCircle className="w-5 h-5 text-[var(--color-primary)]" />
+              <h3 className="text-base font-medium">Help & guidance</h3>
+              <span className="text-xs text-[var(--color-text-secondary)] opacity-0 group-hover:opacity-100 transition-opacity">
+                {showHelp ? 'Click to hide' : 'Click for help'}
+              </span>
+            </div>
+            {showHelp ? (
+              <ChevronUp className="w-5 h-5 text-[var(--color-text-secondary)]" />
+            ) : (
+              <ChevronDown className="w-5 h-5 text-[var(--color-text-secondary)]" />
+            )}
+          </button>
+
+          {showHelp && (
+            <div className="mt-4 text-sm text-[var(--color-text-secondary)]">
+              {currentStep === 1 && (
+                <div className="space-y-2">
+                  <p>Enter the basic details for your NDA:</p>
+                  <ul className="list-disc list-inside space-y-1 ml-2">
+                    <li><strong>Abbreviated name:</strong> A short, memorable name for quick reference</li>
+                    <li><strong>Authorized purpose:</strong> Clearly describe the business purpose</li>
+                    <li><strong>USmax position:</strong> Your organization's role in the relationship</li>
+                    <li><strong>Effective date:</strong> When the NDA becomes active (defaults to today)</li>
+                  </ul>
+                </div>
+              )}
+              {currentStep === 2 && (
+                <div className="space-y-2">
+                  <p>Provide company and organizational details:</p>
+                  <ul className="list-disc list-inside space-y-1 ml-2">
+                    <li>Start typing the company name for auto-suggestions</li>
+                    <li>Previous details may be auto-filled if company exists</li>
+                    <li>Select the appropriate agency and subagency</li>
+                    <li>Assign points of contact for relationship management</li>
+                  </ul>
+                </div>
+              )}
+              {currentStep === 3 && (
+                <div className="space-y-2">
+                  <p>Before {ndaId ? 'saving changes' : 'creating the NDA'}:</p>
+                  <ul className="list-disc list-inside space-y-1 ml-2">
+                    <li>Review all information for accuracy</li>
+                    <li>Verify company and agency details are correct</li>
+                    <li>Confirm points of contact are properly assigned</li>
+                    <li>Ensure you have proper authorization</li>
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Step 1: Basic Details */}
+        {currentStep === 1 && (
+          <div className="space-y-6">
+            <h2>Basic details</h2>
 
                 <Input
                   label="Abbreviated name *"
@@ -1301,8 +1378,9 @@ export function RequestWizard() {
                   <div className="space-y-4">
                     <div className="relative">
                       <Input
-                        label="Relationship POC *"
-                        placeholder="Search for contact..."
+                        label="Relationship POC * (Primary Point of Contact)"
+                        placeholder="Search for primary contact..."
+                        helperText="Main relationship manager for this NDA (required)"
                         value={formData.relationshipPocName}
                         onChange={(e) => {
                           setFormData({ ...formData, relationshipPocName: e.target.value, relationshipPocId: '' });
@@ -1400,8 +1478,9 @@ export function RequestWizard() {
 
                     <div className="relative">
                       <Input
-                        label="Contracts POC"
-                        placeholder="Search for contact (optional)..."
+                        label="Contracts POC (Contract Administration)"
+                        placeholder="Search for contract admin (optional)..."
+                        helperText="Handles contract-related matters and legal documentation"
                         value={formData.contractsPocName}
                         onChange={(e) => {
                           setFormData({ ...formData, contractsPocName: e.target.value, contractsPocId: '' });
@@ -1495,8 +1574,9 @@ export function RequestWizard() {
 
                     <div className="relative">
                       <Input
-                        label="Contacts POC"
-                        placeholder="Search for contact (optional)..."
+                        label="Contacts POC (General Contact)"
+                        placeholder="Search for general contact (optional)..."
+                        helperText="Day-to-day administrative contact person"
                         value={formData.contactsPocName}
                         onChange={(e) => {
                           setFormData({ ...formData, contactsPocName: e.target.value, contactsPocId: '' });
@@ -1559,8 +1639,9 @@ export function RequestWizard() {
 
                     <div className="relative">
                       <Input
-                        label="Opportunity POC"
-                        placeholder="Search for contact (optional)..."
+                        label="Opportunity POC (Business Opportunity)"
+                        placeholder="Search for opportunity lead (optional)..."
+                        helperText="Leads the business opportunity or proposal"
                         value={formData.opportunityPocName}
                         onChange={(e) => {
                           setFormData({ ...formData, opportunityPocName: e.target.value, opportunityPocId: '' });
@@ -1775,15 +1856,27 @@ export function RequestWizard() {
               </div>
             </div>
           </Card>
-        </div>
-        
-        {/* Right panel - Context and help */}
-        <div>
-          <Card>
-            <div className="flex items-start gap-3 mb-4">
-              <Info className="w-5 h-5 text-[var(--color-primary)] flex-shrink-0 mt-0.5" />
-              <div>
-                <h3 className="mb-2">Help & guidance</h3>
+
+      {/* Inline collapsible help section */}
+      <Card className="mt-4">
+        <button
+          type="button"
+          onClick={() => setShowHelp(!showHelp)}
+          className="w-full flex items-center justify-between text-left hover:opacity-80 transition-opacity"
+        >
+          <div className="flex items-center gap-2">
+            <HelpCircle className="w-5 h-5 text-[var(--color-primary)]" />
+            <h3 className="text-base font-medium">Help & guidance</h3>
+          </div>
+          {showHelp ? (
+            <ChevronUp className="w-5 h-5 text-[var(--color-text-secondary)]" />
+          ) : (
+            <ChevronDown className="w-5 h-5 text-[var(--color-text-secondary)]" />
+          )}
+        </button>
+
+        {showHelp && (
+          <div className="mt-4 pt-4 border-t border-[var(--color-border)]">
                 {currentStep === 1 && (
                   <div className="text-sm text-[var(--color-text-secondary)] space-y-2">
                     <p>Enter the basic details for your NDA:</p>
@@ -1825,11 +1918,9 @@ export function RequestWizard() {
                     </ul>
                   </div>
                 )}
-              </div>
-            </div>
-          </Card>
-        </div>
-      </div>
+          </div>
+        )}
+      </Card>
 
       {/* Story H-1 Task 7: Create Contact Modal */}
       <Dialog open={showCreateContactModal} onOpenChange={setShowCreateContactModal}>
@@ -1880,7 +1971,10 @@ export function RequestWizard() {
               label="Phone"
               placeholder="(XXX) XXX-XXXX (optional)"
               value={createContactForm.phone}
-              onChange={(e) => setCreateContactForm((prev) => ({ ...prev, phone: e.target.value }))}
+              onChange={(e) => {
+                const formatted = formatPhoneNumber(e.target.value);
+                setCreateContactForm((prev) => ({ ...prev, phone: formatted }));
+              }}
             />
           </div>
           <DialogFooter>

@@ -85,19 +85,13 @@ interface DateShortcut {
   getDates: () => { from: Date; to: Date };
 }
 
+// Reduced to 6 most common shortcuts for cleaner UI
 const shortcuts: DateShortcut[] = [
   {
     label: 'Today',
     getDates: () => ({
       from: startOfDay(new Date()),
       to: endOfDay(new Date()),
-    }),
-  },
-  {
-    label: 'Yesterday',
-    getDates: () => ({
-      from: startOfDay(subDays(new Date(), 1)),
-      to: endOfDay(subDays(new Date(), 1)),
     }),
   },
   {
@@ -111,13 +105,6 @@ const shortcuts: DateShortcut[] = [
     label: 'Last 30 days',
     getDates: () => ({
       from: startOfDay(subDays(new Date(), 29)),
-      to: endOfDay(new Date()),
-    }),
-  },
-  {
-    label: 'Last 90 days',
-    getDates: () => ({
-      from: startOfDay(subDays(new Date(), 89)),
       to: endOfDay(new Date()),
     }),
   },
@@ -153,15 +140,18 @@ export function DateRangeShortcuts({ onSelect, className = '' }: DateRangeShortc
   return (
     <div className={`flex flex-wrap gap-1.5 ${className}`}>
       {shortcuts.map((shortcut) => (
-        <Button
+        <button
           key={shortcut.label}
-          variant="outline"
-          size="sm"
+          type="button"
           onClick={() => handleSelect(shortcut)}
-          className="text-xs px-2 py-1 h-auto"
+          className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium
+                     bg-[var(--color-bg-secondary)] text-[var(--color-text)]
+                     hover:bg-[var(--color-bg-hover)] hover:text-[var(--color-primary)]
+                     transition-colors cursor-pointer border border-transparent
+                     hover:border-[var(--color-border)]"
         >
           {shortcut.label}
-        </Button>
+        </button>
       ))}
     </div>
   );
