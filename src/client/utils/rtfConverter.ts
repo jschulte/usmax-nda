@@ -6,88 +6,12 @@
  * - HTML → RTF: Save edited content back to database
  *
  * Preserves placeholder tokens ({{fieldName}}) through conversions
- */
-
-import { RtfStreamParser } from 'rtf-stream-parser';
-import { convertHtmlToRtf } from 'html-to-rtf';
-
-/**
- * Convert RTF content to HTML for display in WYSIWYG editor
  *
- * @param rtfContent - RTF content as Buffer or base64 string
- * @returns HTML string suitable for Quill editor
+ * Uses simple regex-based parsing - good enough for basic templates
+ * For complex RTF files, recommend uploading and re-editing in Word/LibreOffice
  */
-export async function convertRtfToHtml(rtfContent: Buffer | string): Promise<string> {
-  try {
-    // Convert base64 to Buffer if needed
-    const buffer = typeof rtfContent === 'string'
-      ? Buffer.from(rtfContent, 'base64')
-      : rtfContent;
 
-    // Convert Buffer to string
-    const rtfString = buffer.toString('utf-8');
-
-    // Parse RTF to HTML using rtf-stream-parser
-    return new Promise((resolve, reject) => {
-      const parser = new RtfStreamParser();
-      let htmlOutput = '';
-
-      parser.on('data', (chunk: any) => {
-        if (chunk.type === 'text') {
-          htmlOutput += chunk.value;
-        } else if (chunk.type === 'control') {
-          // Handle RTF control words and convert to HTML
-          switch (chunk.word) {
-            case 'par':
-            case 'line':
-              htmlOutput += '<br>';
-              break;
-            case 'tab':
-              htmlOutput += '&nbsp;&nbsp;&nbsp;&nbsp;';
-              break;
-            case 'b':
-              htmlOutput += chunk.param === 0 ? '</strong>' : '<strong>';
-              break;
-            case 'i':
-              htmlOutput += chunk.param === 0 ? '</em>' : '<em>';
-              break;
-            case 'ul':
-              htmlOutput += chunk.param === 0 ? '</u>' : '<u>';
-              break;
-          }
-        }
-      });
-
-      parser.on('end', () => {
-        // Clean up and format HTML
-        let formattedHtml = htmlOutput
-          // Replace multiple <br> with paragraphs
-          .split('<br><br>')
-          .map(para => para.trim())
-          .filter(para => para.length > 0)
-          .map(para => `<p>${para.replace(/<br>/g, ' ')}</p>`)
-          .join('\n');
-
-        // Preserve placeholder tokens
-        formattedHtml = preservePlaceholders(formattedHtml);
-
-        resolve(formattedHtml);
-      });
-
-      parser.on('error', (err: Error) => {
-        console.error('[RTF Converter] Parse error:', err);
-        reject(new Error(`Failed to parse RTF: ${err.message}`));
-      });
-
-      // Write RTF string to parser
-      parser.write(rtfString);
-      parser.end();
-    });
-  } catch (error) {
-    console.error('[RTF Converter] Conversion error:', error);
-    throw error;
-  }
-}
+import { convertHtmlToRtf } from 'html-to-rtf';
 
 /**
  * Preserve placeholder tokens during HTML conversion
