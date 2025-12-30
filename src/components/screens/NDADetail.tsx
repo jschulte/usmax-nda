@@ -36,6 +36,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../ui/dialog';
+import { NDADocumentPreview } from '../NDADocumentPreview';
+import { NDAWorkflowProgress } from '../NDAWorkflowProgress';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
 import {
   AlertDialog,
@@ -1171,7 +1173,17 @@ export function NDADetail() {
           </div>
         </div>
       </div>
-      
+
+      {/* Workflow Progress */}
+      <NDAWorkflowProgress
+        currentStatus={nda.status}
+        hasDocument={documents.length > 0}
+        canApprove={nda.availableActions?.canApprove || false}
+        canSend={canSendEmail}
+        canRouteForApproval={nda.availableActions?.canRouteForApproval || false}
+        isCreator={nda.createdBy?.id === user?.id}
+      />
+
       {/* Main content area */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left column - Main content with tabs */}
@@ -1204,6 +1216,14 @@ export function NDADetail() {
               {/* Overview Tab */}
               {activeTab === 'overview' && (
                 <div className="space-y-6">
+                  {/* Document Preview - Prominent placement */}
+                  <NDADocumentPreview
+                    ndaId={id!}
+                    documents={documents}
+                    templateId={selectedTemplateId}
+                    canEdit={canEdit}
+                  />
+
                   {/* At-a-glance summary */}
                   <div>
                     <h3 className="mb-4">At-a-glance summary</h3>

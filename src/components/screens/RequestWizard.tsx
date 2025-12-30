@@ -49,6 +49,7 @@ import {
   listTemplates,
   type RtfTemplate,
 } from '../../client/services/templateService';
+import { generateDocument } from '../../client/services/documentService';
 
 const ndaTypes: { value: NdaType; label: string; description: string }[] = [
   { value: 'MUTUAL', label: 'Mutual NDA', description: 'Both parties will exchange confidential information' },
@@ -818,6 +819,16 @@ export function RequestWizard() {
         toast.success('NDA cloned successfully!');
         const newNdaId = (response.nda as any)?.id;
         if (newNdaId) {
+          // Auto-generate document if template is selected
+          if (formData.rtfTemplateId) {
+            try {
+              await generateDocument(newNdaId, formData.rtfTemplateId);
+              toast.success('Document generated automatically');
+            } catch (docError) {
+              console.error('Failed to auto-generate document:', docError);
+              toast.info('NDA cloned, but document generation failed. You can generate it manually.');
+            }
+          }
           navigate(`/nda/${newNdaId}`);
         } else {
           navigate('/requests');
@@ -829,6 +840,17 @@ export function RequestWizard() {
         // Extract NDA ID from response
         const newNdaId = (response.nda as any)?.id;
         if (newNdaId) {
+          // Auto-generate document if template is selected
+          if (formData.rtfTemplateId) {
+            try {
+              await generateDocument(newNdaId, formData.rtfTemplateId);
+              toast.success('Document generated automatically');
+            } catch (docError) {
+              console.error('Failed to auto-generate document:', docError);
+              // Don't block navigation if document generation fails
+              toast.info('NDA created, but document generation failed. You can generate it manually.');
+            }
+          }
           navigate(`/nda/${newNdaId}`);
         } else {
           navigate('/requests');
