@@ -47,6 +47,7 @@ import {
 } from '../../client/services/userService';
 import {
   listTemplates,
+  generatePreview,
   type RtfTemplate,
 } from '../../client/services/templateService';
 import { generateDocument } from '../../client/services/documentService';
@@ -166,6 +167,7 @@ export function RequestWizard() {
     lastName: '',
     email: '',
   });
+  const [isPreviewingDocument, setIsPreviewingDocument] = useState(false);
 
   const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   const PHONE_PATTERN = /^\(\d{3}\) \d{3}-\d{4}$/;
@@ -753,6 +755,71 @@ export function RequestWizard() {
       contractsPocEmail: created.email,
     }));
     return created.id;
+  };
+
+  const handlePreviewDocument = async () => {
+    // Ensure we have a draft NDA to preview
+    if (!draftId) {
+      if (!canCreateDraft()) {
+        toast.error('Please complete required fields before previewing', {
+          description: 'Fill in company, agency, authorized purpose, and relationship POC'
+        });
+        return;
+      }
+
+      // Create draft first
+      try {
+        const relationshipId = await resolveRelationshipPocId(true);
+        if (!relationshipId) {
+          toast.error('Please provide a valid Relationship POC email');
+          return;
+        }
+
+        const contractsId = await resolveContractsPocId(true);
+        const payload = buildPayload(
+          relationshipId,
+          contractsId || undefined,
+          formData.contactsPocId || undefined
+        );
+        const response = await createNDA(payload as CreateNdaData);
+        const newDraftId = (response.nda as any)?.id;
+        if (newDraftId) {
+          setDraftId(newDraftId);
+          setDraftStatus('CREATED');
+        } else {
+          toast.error('Failed to create draft for preview');
+          return;
+        }
+
+        // Generate preview with the new draft
+        setIsPreviewingDocument(true);
+        const result = await generatePreview(newDraftId, formData.rtfTemplateId || undefined);
+        window.open(result.preview.previewUrl, '_blank', 'noopener,noreferrer');
+        toast.success('Preview opened in new tab');
+      } catch (err) {
+        console.error('Failed to create draft and preview:', err);
+        toast.error('Failed to generate preview', {
+          description: err instanceof Error ? err.message : 'Unknown error'
+        });
+      } finally {
+        setIsPreviewingDocument(false);
+      }
+    } else {
+      // Draft already exists, just preview it
+      try {
+        setIsPreviewingDocument(true);
+        const result = await generatePreview(draftId, formData.rtfTemplateId || undefined);
+        window.open(result.preview.previewUrl, '_blank', 'noopener,noreferrer');
+        toast.success('Preview opened in new tab');
+      } catch (err) {
+        console.error('Failed to generate preview:', err);
+        toast.error('Failed to generate preview', {
+          description: err instanceof Error ? err.message : 'Unknown error'
+        });
+      } finally {
+        setIsPreviewingDocument(false);
+      }
+    }
   };
 
   const handleSubmit = async () => {
@@ -1828,12 +1895,46 @@ export function RequestWizard() {
                     </dl>
                   </div>
 
+                  {/* Document Preview */}
+                  {formData.rtfTemplateId && (
+                    <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-lg">
+                      <div className="flex items-start justify-between mb-3">
+                        <div>
+                          <h3 className="font-semibold text-blue-900 mb-1">Preview Your NDA Document</h3>
+                          <p className="text-sm text-blue-800">
+                            Review the generated document before creating this NDA
+                          </p>
+                        </div>
+                        <FileText className="w-8 h-8 text-blue-600" />
+                      </div>
+                      <Button
+                        variant="primary"
+                        icon={isPreviewingDocument ? <Loader2 className="w-4 h-4 animate-spin" /> : <Eye className="w-4 h-4" />}
+                        onClick={handlePreviewDocument}
+                        disabled={isPreviewingDocument || !canCreateDraft()}
+                        className="w-full"
+                      >
+                        {isPreviewingDocument ? 'Generating Preview...' : 'Preview NDA Document'}
+                      </Button>
+                      {!canCreateDraft() && (
+                        <p className="text-xs text-orange-600 mt-2">
+                          Complete required fields to preview document
+                        </p>
+                      )}
+                      <p className="text-xs text-blue-700 mt-2">
+                        Template: {templates.find(t => t.id === formData.rtfTemplateId)?.name || 'Selected template'}
+                      </p>
+                    </div>
+                  )}
+
                   <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
                     <p className="text-sm">
                       <Info className="inline w-4 h-4 mr-1" />
                       {ndaId
                         ? 'This NDA will be updated with the information provided above.'
-                        : 'A new NDA will be created with the information provided above. You can generate and email the document after creation.'}
+                        : draftId
+                          ? 'Your draft NDA will be finalized and moved to the active NDAs list.'
+                          : 'A new NDA will be created with the information provided above. You can generate and email the document after creation.'}
                     </p>
                   </div>
 

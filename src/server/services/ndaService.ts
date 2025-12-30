@@ -361,7 +361,7 @@ export async function createNda(
       contractsPocId: input.contractsPocId || null,
       relationshipPocId: input.relationshipPocId,
       contactsPocId: input.contactsPocId || null,
-      ...(input.rtfTemplateId && { rtfTemplate: { connect: { id: input.rtfTemplateId } } }),
+      rtfTemplateId: input.rtfTemplateId || null,
       createdById: userContext.contactId,
       status: 'CREATED',
       // Create initial status history entry
@@ -1393,7 +1393,7 @@ export async function cloneNda(
       effectiveDate: effectiveDate !== null ? effectiveDate : null,
       usMaxPosition: overrides.usMaxPosition ?? source.usMaxPosition,
       isNonUsMax: overrides.isNonUsMax ?? source.isNonUsMax,
-      rtfTemplate: resolvedTemplateId ? { connect: { id: resolvedTemplateId } } : undefined,
+      rtfTemplateId: resolvedTemplateId || null,
 
       // Reset status to CREATED for cloned NDAs
       status: 'CREATED',
