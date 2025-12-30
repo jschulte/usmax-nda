@@ -5,7 +5,7 @@ import { Button } from '../ui/AppButton';
 import { Input, TextArea, Select } from '../ui/AppInput';
 import { Stepper } from '../ui/Stepper';
 import { Badge } from '../ui/AppBadge';
-import { ArrowLeft, ArrowRight, Info, Plus, Loader2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Info, Plus, Loader2, Eye, FileText } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
