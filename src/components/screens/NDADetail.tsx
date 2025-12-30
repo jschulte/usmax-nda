@@ -25,7 +25,10 @@ import {
   Upload,
   Trash2,
   Archive,
-  Check
+  Check,
+  AlertCircle,
+  X,
+  Info
 } from 'lucide-react';
 import type { WorkflowStep } from '../../types';
 import {
@@ -38,6 +41,8 @@ import {
 } from '../ui/dialog';
 import { NDADocumentPreview } from '../NDADocumentPreview';
 import { NDAWorkflowProgress } from '../NDAWorkflowProgress';
+import { RecipientSelector, type Recipient } from '../RecipientSelector';
+import { EmailPreview } from '../EmailPreview';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
 import {
   AlertDialog,
@@ -145,6 +150,8 @@ export function NDADetail() {
   const [emailAttachments, setEmailAttachments] = useState<EmailPreview['attachments']>([]);
   const [emailTemplates, setEmailTemplates] = useState<EmailTemplateSummary[]>([]);
   const [selectedEmailTemplateId, setSelectedEmailTemplateId] = useState<string>('');
+  const [availableRecipients, setAvailableRecipients] = useState<Recipient[]>([]);
+  const [selectedRecipientIds, setSelectedRecipientIds] = useState<Set<string>>(new Set());
   const [showAddNoteDialog, setShowAddNoteDialog] = useState(false);
   const [showMarkExecutedDialog, setShowMarkExecutedDialog] = useState(false);
   const [showStatusChangeModal, setShowStatusChangeModal] = useState(false); // Story 9.8
@@ -357,6 +364,79 @@ export function NDADetail() {
       }
 
       const preview = await getEmailPreview(id, templateId);
+
+      // Build recipients list from NDA POCs
+      const recipients: Recipient[] = [];
+      const selectedIds = new Set<string>();
+
+      // Add relationship POC (always present)
+      if (nda.relationshipPoc) {
+        const recipientId = `relationship-${nda.relationshipPoc.id}`;
+        recipients.push({
+          id: recipientId,
+          firstName: nda.relationshipPoc.firstName,
+          lastName: nda.relationshipPoc.lastName,
+          email: nda.relationshipPoc.email,
+          role: 'Relationship POC',
+          company: nda.companyName
+        });
+        // Auto-select if in preview.toRecipients
+        if (preview.toRecipients.includes(nda.relationshipPoc.email)) {
+          selectedIds.add(recipientId);
+        }
+      }
+
+      // Add contracts POC
+      if (nda.contractsPoc) {
+        const recipientId = `contracts-${nda.contractsPoc.id}`;
+        recipients.push({
+          id: recipientId,
+          firstName: nda.contractsPoc.firstName,
+          lastName: nda.contractsPoc.lastName,
+          email: nda.contractsPoc.email,
+          role: 'Contracts POC',
+          company: nda.companyName
+        });
+        if (preview.toRecipients.includes(nda.contractsPoc.email)) {
+          selectedIds.add(recipientId);
+        }
+      }
+
+      // Add opportunity POC
+      if (nda.opportunityPoc) {
+        const recipientId = `opportunity-${nda.opportunityPoc.id}`;
+        recipients.push({
+          id: recipientId,
+          firstName: nda.opportunityPoc.firstName,
+          lastName: nda.opportunityPoc.lastName,
+          email: nda.opportunityPoc.email,
+          role: 'Opportunity POC',
+          company: nda.companyName
+        });
+        if (preview.toRecipients.includes(nda.opportunityPoc.email)) {
+          selectedIds.add(recipientId);
+        }
+      }
+
+      // Add contacts POC
+      if (nda.contactsPoc) {
+        const recipientId = `contacts-${nda.contactsPoc.id}`;
+        recipients.push({
+          id: recipientId,
+          firstName: nda.contactsPoc.firstName,
+          lastName: nda.contactsPoc.lastName,
+          email: nda.contactsPoc.email,
+          role: 'Contacts POC',
+          company: nda.companyName
+        });
+        if (preview.toRecipients.includes(nda.contactsPoc.email)) {
+          selectedIds.add(recipientId);
+        }
+      }
+
+      setAvailableRecipients(recipients);
+      setSelectedRecipientIds(selectedIds);
+
       setEmailForm({
         subject: preview.subject,
         toRecipients: preview.toRecipients.join(', '),
@@ -524,6 +604,37 @@ export function NDADetail() {
       .map((entry) => entry.trim())
       .filter((entry) => entry.length > 0);
 
+  const handleToggleRecipient = (recipientId: string) => {
+    setSelectedRecipientIds(prev => {
+      const next = new Set(prev);
+      if (next.has(recipientId)) {
+        next.delete(recipientId);
+      } else {
+        next.add(recipientId);
+      }
+      return next;
+    });
+  };
+
+  const handleAddCustomRecipient = (email: string) => {
+    const customId = `custom-${Date.now()}`;
+    const newRecipient: Recipient = {
+      id: customId,
+      firstName: null,
+      lastName: null,
+      email: email,
+      role: 'Custom Recipient'
+    };
+    setAvailableRecipients(prev => [...prev, newRecipient]);
+    setSelectedRecipientIds(prev => new Set([...prev, customId]));
+  };
+
+  const getSelectedRecipientEmails = (): string[] => {
+    return availableRecipients
+      .filter(r => selectedRecipientIds.has(r.id))
+      .map(r => r.email);
+  };
+
   const handleSendEmail = async () => {
     if (!id) return;
     if (!emailAttachments.length) {
@@ -533,11 +644,19 @@ export function NDADetail() {
       return;
     }
 
+    const selectedEmails = getSelectedRecipientEmails();
+    if (selectedEmails.length === 0) {
+      toast.error('No recipients selected', {
+        description: 'Please select at least one recipient.',
+      });
+      return;
+    }
+
     try {
       setIsSendingEmail(true);
       const result = await sendNdaEmail(id, {
         subject: emailForm.subject,
-        toRecipients: parseRecipientInput(emailForm.toRecipients),
+        toRecipients: selectedEmails,
         ccRecipients: parseRecipientInput(emailForm.ccRecipients),
         bccRecipients: parseRecipientInput(emailForm.bccRecipients),
         body: emailForm.body,
@@ -2025,11 +2144,11 @@ export function NDADetail() {
       </Dialog>
       
       <Dialog open={showEmailComposer} onOpenChange={setShowEmailComposer}>
-        <DialogContent className="sm:max-w-[720px] max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Compose NDA Email</DialogTitle>
+            <DialogTitle>Send NDA Email</DialogTitle>
             <DialogDescription>
-              Review and edit the email fields before sending.
+              Select recipients and review your email before sending.
             </DialogDescription>
           </DialogHeader>
           {emailLoading ? (
@@ -2038,93 +2157,73 @@ export function NDADetail() {
               <p className="text-sm text-[var(--color-text-secondary)]">Loading email preview...</p>
             </div>
           ) : (
-            <div className="space-y-4">
-              <div>
-                <label className="text-xs text-[var(--color-text-secondary)]">Subject</label>
-                <input
-                  value={emailForm.subject}
-                  onChange={(e) => setEmailForm((prev) => ({ ...prev, subject: e.target.value }))}
-                  className="w-full px-3 py-2 border border-[var(--color-border)] rounded-lg text-sm"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-[var(--color-text-secondary)]">To</label>
-                <input
-                  value={emailForm.toRecipients}
-                  onChange={(e) => setEmailForm((prev) => ({ ...prev, toRecipients: e.target.value }))}
-                  className="w-full px-3 py-2 border border-[var(--color-border)] rounded-lg text-sm"
-                />
-                <p className="text-xs text-[var(--color-text-muted)] mt-1">Comma-separated emails</p>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Left Column: Email Editing */}
+              <div className="space-y-4">
                 <div>
-                  <label className="text-xs text-[var(--color-text-secondary)]">CC</label>
+                  <label className="text-sm font-medium text-[var(--color-text-primary)] mb-2 block">Subject</label>
                   <input
-                    value={emailForm.ccRecipients}
-                    onChange={(e) => setEmailForm((prev) => ({ ...prev, ccRecipients: e.target.value }))}
+                    value={emailForm.subject}
+                    onChange={(e) => setEmailForm((prev) => ({ ...prev, subject: e.target.value }))}
                     className="w-full px-3 py-2 border border-[var(--color-border)] rounded-lg text-sm"
+                    placeholder="Enter email subject..."
                   />
                 </div>
-                <div>
-                  <label className="text-xs text-[var(--color-text-secondary)]">BCC</label>
-                  <input
-                    value={emailForm.bccRecipients}
-                    onChange={(e) => setEmailForm((prev) => ({ ...prev, bccRecipients: e.target.value }))}
-                    className="w-full px-3 py-2 border border-[var(--color-border)] rounded-lg text-sm"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="text-xs text-[var(--color-text-secondary)]">Email Template</label>
-                <select
-                  className="w-full px-3 py-2 border border-[var(--color-border)] rounded-lg text-sm bg-white"
-                  value={selectedEmailTemplateId}
-                  onChange={(e) => handleEmailTemplateChange(e.target.value)}
-                  disabled={!emailTemplates.length}
-                >
-                  {emailTemplates.length ? (
-                    emailTemplates.map((template) => (
-                      <option key={template.id} value={template.id}>
-                        {template.name}{template.isDefault ? ' (default)' : ''}
-                      </option>
-                    ))
-                  ) : (
-                    <option value="">Default template</option>
-                  )}
-                </select>
-                <p className="text-xs text-[var(--color-text-muted)] mt-1">
-                  {emailTemplates.length
-                    ? 'Select a template to reapply subject and body content.'
-                    : 'No email templates configured. Using the default message.'}
-                </p>
-              </div>
-              <div>
-                <label className="text-xs text-[var(--color-text-secondary)]">Body</label>
-                <textarea
-                  value={emailForm.body}
-                  onChange={(e) => setEmailForm((prev) => ({ ...prev, body: e.target.value }))}
-                  className="w-full px-3 py-2 border border-[var(--color-border)] rounded-lg text-sm min-h-[160px]"
+
+                <RecipientSelector
+                  recipients={availableRecipients}
+                  selectedRecipientIds={selectedRecipientIds}
+                  onToggle={handleToggleRecipient}
+                  onAddCustom={handleAddCustomRecipient}
+                  allowCustomRecipients={true}
                 />
-              </div>
-              <div>
-                <label className="text-xs text-[var(--color-text-secondary)]">Attachments</label>
-                {emailAttachments.length > 0 ? (
-                  <div className="mt-2 space-y-2">
-                    {emailAttachments.map((attachment) => (
-                      <div
-                        key={attachment.documentId}
-                        className="flex items-center justify-between border border-[var(--color-border)] rounded-md px-3 py-2 text-sm"
-                      >
-                        <span>{attachment.filename}</span>
-                        <Badge variant="info">Latest RTF</Badge>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-xs text-[var(--color-text-muted)] mt-2">
-                    No generated document available. Generate an NDA document to attach.
+
+                <div>
+                  <label className="text-sm font-medium text-[var(--color-text-primary)] mb-2 block">Email Template</label>
+                  <select
+                    className="w-full px-3 py-2 border border-[var(--color-border)] rounded-lg text-sm bg-white"
+                    value={selectedEmailTemplateId}
+                    onChange={(e) => handleEmailTemplateChange(e.target.value)}
+                    disabled={!emailTemplates.length}
+                  >
+                    {emailTemplates.length ? (
+                      emailTemplates.map((template) => (
+                        <option key={template.id} value={template.id}>
+                          {template.name}{template.isDefault ? ' (default)' : ''}
+                        </option>
+                      ))
+                    ) : (
+                      <option value="">Default template</option>
+                    )}
+                  </select>
+                  <p className="text-xs text-[var(--color-text-muted)] mt-1">
+                    {emailTemplates.length
+                      ? 'Select a template to update subject and body content.'
+                      : 'Using default message.'}
                   </p>
-                )}
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-[var(--color-text-primary)] mb-2 block">Message Body</label>
+                  <textarea
+                    value={emailForm.body}
+                    onChange={(e) => setEmailForm((prev) => ({ ...prev, body: e.target.value }))}
+                    className="w-full px-3 py-2 border border-[var(--color-border)] rounded-lg text-sm min-h-[200px]"
+                    placeholder="Enter email message..."
+                  />
+                </div>
+              </div>
+
+              {/* Right Column: Email Preview */}
+              <div>
+                <EmailPreview
+                  subject={emailForm.subject}
+                  toRecipients={getSelectedRecipientEmails()}
+                  ccRecipients={parseRecipientInput(emailForm.ccRecipients)}
+                  bccRecipients={parseRecipientInput(emailForm.bccRecipients)}
+                  body={emailForm.body}
+                  attachments={emailAttachments.map(a => ({ filename: a.filename }))}
+                />
               </div>
             </div>
           )}
@@ -2136,9 +2235,9 @@ export function NDADetail() {
               variant="primary"
               size="sm"
               onClick={handleSendEmail}
-              disabled={isSendingEmail || emailLoading || !emailAttachments.length}
+              disabled={isSendingEmail || emailLoading || !emailAttachments.length || selectedRecipientIds.size === 0}
             >
-              {isSendingEmail ? 'Sending...' : 'Send'}
+              {isSendingEmail ? 'Sending...' : selectedRecipientIds.size === 0 ? 'Select Recipients' : 'Send Email'}
             </Button>
           </DialogFooter>
         </DialogContent>
