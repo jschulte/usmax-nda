@@ -8,6 +8,11 @@
  * Uses @prisma/adapter-pg for Prisma 7+ compatibility.
  */
 
+// CRITICAL: Load environment variables FIRST before checking DATABASE_URL
+import { config } from 'dotenv';
+config({ path: '.env.local' });
+config(); // Also load .env as fallback
+
 import { PrismaClient } from '../../generated/prisma/index.js';
 import { PrismaPg } from '@prisma/adapter-pg';
 import pg from 'pg';
