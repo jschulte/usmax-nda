@@ -111,13 +111,13 @@ export interface UserAccessSummary {
 
 export interface Contact {
   id: string;
-  firstName: string;
-  lastName: string;
+  firstName: string | null;
+  lastName: string | null;
   email: string;
-  workPhone?: string;
-  cellPhone?: string;
-  fax?: string;
-  jobTitle?: string;
+  workPhone?: string | null;
+  cellPhone?: string | null;
+  fax?: string | null;
+  jobTitle?: string | null;
 }
 
 /**

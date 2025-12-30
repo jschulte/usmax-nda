@@ -204,23 +204,23 @@ export function RequestWizard() {
           isNonUsMax: nda.isNonUsMax,
           opportunityPocId: nda.opportunityPoc?.id || '',
           opportunityPocName: nda.opportunityPoc
-            ? `${nda.opportunityPoc.firstName} ${nda.opportunityPoc.lastName}`
+            ? `${nda.opportunityPoc.firstName || ''} ${nda.opportunityPoc.lastName || ''}`.trim() || nda.opportunityPoc.email
             : '',
           contractsPocId: nda.contractsPoc?.id || '',
           contractsPocName: nda.contractsPoc
-            ? `${nda.contractsPoc.firstName} ${nda.contractsPoc.lastName}`
+            ? `${nda.contractsPoc.firstName || ''} ${nda.contractsPoc.lastName || ''}`.trim() || nda.contractsPoc.email
             : '',
           contractsPocEmail: nda.contractsPoc?.email || '',
           contractsPocPhone: '',
           contractsPocFax: '',
           relationshipPocId: nda.relationshipPoc.id,
-          relationshipPocName: `${nda.relationshipPoc.firstName} ${nda.relationshipPoc.lastName}`,
+          relationshipPocName: `${nda.relationshipPoc.firstName || ''} ${nda.relationshipPoc.lastName || ''}`.trim() || nda.relationshipPoc.email,
           relationshipPocEmail: nda.relationshipPoc.email || '',
           relationshipPocPhone: '',
           relationshipPocFax: '',
           contactsPocId: nda.contactsPoc?.id || '',
           contactsPocName: nda.contactsPoc
-            ? `${nda.contactsPoc.firstName} ${nda.contactsPoc.lastName}`
+            ? `${nda.contactsPoc.firstName || ''} ${nda.contactsPoc.lastName || ''}`.trim() || nda.contactsPoc.email
             : '',
           rtfTemplateId: nda.rtfTemplateId || '',
           systemInput: '',
@@ -263,23 +263,23 @@ export function RequestWizard() {
           isNonUsMax: nda.isNonUsMax,
           opportunityPocId: nda.opportunityPoc?.id || '',
           opportunityPocName: nda.opportunityPoc
-            ? `${nda.opportunityPoc.firstName} ${nda.opportunityPoc.lastName}`
+            ? `${nda.opportunityPoc.firstName || ''} ${nda.opportunityPoc.lastName || ''}`.trim() || nda.opportunityPoc.email
             : '',
           contractsPocId: nda.contractsPoc?.id || '',
           contractsPocName: nda.contractsPoc
-            ? `${nda.contractsPoc.firstName} ${nda.contractsPoc.lastName}`
+            ? `${nda.contractsPoc.firstName || ''} ${nda.contractsPoc.lastName || ''}`.trim() || nda.contractsPoc.email
             : '',
           contractsPocEmail: nda.contractsPoc?.email || '',
           contractsPocPhone: '',
           contractsPocFax: '',
           relationshipPocId: nda.relationshipPoc.id,
-          relationshipPocName: `${nda.relationshipPoc.firstName} ${nda.relationshipPoc.lastName}`,
+          relationshipPocName: `${nda.relationshipPoc.firstName || ''} ${nda.relationshipPoc.lastName || ''}`.trim() || nda.relationshipPoc.email,
           relationshipPocEmail: nda.relationshipPoc.email || '',
           relationshipPocPhone: '',
           relationshipPocFax: '',
           contactsPocId: nda.contactsPoc?.id || '',
           contactsPocName: nda.contactsPoc
-            ? `${nda.contactsPoc.firstName} ${nda.contactsPoc.lastName}`
+            ? `${nda.contactsPoc.firstName || ''} ${nda.contactsPoc.lastName || ''}`.trim() || nda.contactsPoc.email
             : '',
           rtfTemplateId: nda.rtfTemplateId || '',
           systemInput: '',
@@ -532,8 +532,8 @@ export function RequestWizard() {
       });
 
       // Update the appropriate POC field based on type
-      const fullName = `${created.firstName} ${created.lastName}`.trim();
-      const phone = created.phone || createContactForm.phone || '';
+      const fullName = `${created.firstName || ''} ${created.lastName || ''}`.trim() || created.email;
+      const phone = created.workPhone || createContactForm.phone || '';
 
       if (createContactPocType === 'relationship') {
         setFormData((prev) => ({
@@ -724,7 +724,7 @@ export function RequestWizard() {
     setFormData((prev) => ({
       ...prev,
       relationshipPocId: created.id,
-      relationshipPocName: `${created.firstName} ${created.lastName}`.trim(),
+      relationshipPocName: `${created.firstName || ''} ${created.lastName || ''}`.trim() || created.email,
       relationshipPocEmail: created.email,
     }));
     return created.id;
@@ -749,7 +749,7 @@ export function RequestWizard() {
     setFormData((prev) => ({
       ...prev,
       contractsPocId: created.id,
-      contractsPocName: `${created.firstName} ${created.lastName}`.trim(),
+      contractsPocName: `${created.firstName || ''} ${created.lastName || ''}`.trim() || created.email,
       contractsPocEmail: created.email,
     }));
     return created.id;
@@ -1450,7 +1450,7 @@ export function RequestWizard() {
                                 setFormData({
                                   ...formData,
                                   relationshipPocId: contact.id,
-                                  relationshipPocName: `${contact.firstName} ${contact.lastName}`,
+                                  relationshipPocName: `${contact.firstName || ''} ${contact.lastName || ''}`.trim() || contact.email,
                                   relationshipPocEmail: contact.email || '',
                                   relationshipPocPhone: phone,
                                 });
@@ -1461,7 +1461,7 @@ export function RequestWizard() {
                               className="w-full px-4 py-2 text-left hover:bg-gray-50 transition-colors"
                             >
                               <div className="font-medium">
-                                {contact.firstName} {contact.lastName}
+                                {`${contact.firstName || ''} ${contact.lastName || ''}`.trim() || contact.email}
                               </div>
                               <div className="text-xs text-[var(--color-text-secondary)]">{contact.email}</div>
                             </button>
@@ -1547,7 +1547,7 @@ export function RequestWizard() {
                                 setFormData({
                                   ...formData,
                                   contractsPocId: contact.id,
-                                  contractsPocName: `${contact.firstName} ${contact.lastName}`,
+                                  contractsPocName: `${contact.firstName || ''} ${contact.lastName || ''}`.trim() || contact.email,
                                   contractsPocEmail: contact.email || '',
                                   contractsPocPhone: phone,
                                 });
@@ -1557,7 +1557,7 @@ export function RequestWizard() {
                               className="w-full px-4 py-2 text-left hover:bg-gray-50 transition-colors"
                             >
                               <div className="font-medium">
-                                {contact.firstName} {contact.lastName}
+                                {`${contact.firstName || ''} ${contact.lastName || ''}`.trim() || contact.email}
                               </div>
                               <div className="text-xs text-[var(--color-text-secondary)]">{contact.email}</div>
                             </button>
