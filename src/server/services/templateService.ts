@@ -259,7 +259,15 @@ export async function generatePreview(
   let htmlContent: string | undefined;
   try {
     const rtfString = Buffer.from(mergedContent).toString('utf-8');
-    htmlContent = await convertRtfToHtml(rtfString);
+    htmlContent = await new Promise<string>((resolve, reject) => {
+      convertRtfToHtml.fromString(rtfString, (err: Error | null, html: string) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(html);
+        }
+      });
+    });
   } catch (conversionError) {
     console.error('[TemplateService] RTF to HTML conversion failed:', conversionError);
     // Continue without HTML - preview URL still works for download
