@@ -171,15 +171,25 @@ export function RequestWizard() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewHtml, setPreviewHtml] = useState<string | null>(null);
   const [showInlinePreview, setShowInlinePreview] = useState(false);
+  const [autoLoadedPreview, setAutoLoadedPreview] = useState(false);
 
   const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   const PHONE_PATTERN = /^\(\d{3}\) \d{3}-\d{4}$/;
-  
+
   const steps = [
     { label: 'Basic details', description: 'Request information' },
     { label: 'Company and agency', description: 'Organization details' },
     { label: 'Review and submit', description: 'Final confirmation' }
   ];
+
+  // Auto-generate preview when reaching Step 3
+  useEffect(() => {
+    if (currentStep === 3 && formData.rtfTemplateId && !autoLoadedPreview && !showInlinePreview) {
+      // Automatically load preview when user reaches final step
+      handlePreviewDocument();
+      setAutoLoadedPreview(true);
+    }
+  }, [currentStep, formData.rtfTemplateId, autoLoadedPreview, showInlinePreview]);
 
   // Load existing NDA if editing
   useEffect(() => {
@@ -1902,37 +1912,25 @@ export function RequestWizard() {
                     </dl>
                   </div>
 
-                  {/* Document Preview */}
+                  {/* Document Preview - Auto-loads */}
                   {formData.rtfTemplateId && (
-                    <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-lg">
-                      <div className="flex items-start justify-between mb-3">
+                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-lg overflow-hidden">
+                      <div className="p-4 flex items-start justify-between border-b border-blue-300">
                         <div>
-                          <h3 className="font-semibold text-blue-900 mb-1">Preview Your NDA Document</h3>
+                          <h3 className="font-semibold text-blue-900 mb-1">Your NDA Document</h3>
                           <p className="text-sm text-blue-800">
-                            Review the generated document before creating this NDA
+                            {showInlinePreview ? 'Review the document below. Edit if needed after creating the NDA.' : 'Loading document with your information...'}
                           </p>
                         </div>
                         <FileText className="w-8 h-8 text-blue-600" />
                       </div>
 
-                      {!showInlinePreview ? (
-                        <>
-                          <Button
-                            variant="primary"
-                            icon={isPreviewingDocument ? <Loader2 className="w-4 h-4 animate-spin" /> : <Eye className="w-4 h-4" />}
-                            onClick={handlePreviewDocument}
-                            disabled={isPreviewingDocument || !canCreateDraft()}
-                            className="w-full"
-                          >
-                            {isPreviewingDocument ? 'Generating Preview...' : 'Generate Preview'}
-                          </Button>
-                          {!canCreateDraft() && (
-                            <p className="text-xs text-orange-600 mt-2">
-                              Complete required fields to preview document
-                            </p>
-                          )}
-                        </>
-                      ) : (
+                      {isPreviewingDocument && !showInlinePreview ? (
+                        <div className="p-8 flex items-center justify-center">
+                          <Loader2 className="w-6 h-6 animate-spin text-[var(--color-primary)]" />
+                          <p className="ml-3 text-[var(--color-text-secondary)]">Generating document...</p>
+                        </div>
+                      ) : showInlinePreview ? (
                         <div className="space-y-3">
                           {/* Inline Preview */}
                           <div className="bg-white border-2 border-blue-300 rounded-lg overflow-hidden">
@@ -2003,16 +2001,26 @@ export function RequestWizard() {
                             icon={<Eye className="w-4 h-4" />}
                             onClick={handlePreviewDocument}
                             disabled={isPreviewingDocument}
-                            className="w-full"
+                            size="sm"
                           >
                             Regenerate Preview
                           </Button>
                         </div>
+                      ) : (
+                        <div className="p-8 text-center">
+                          <p className="text-sm text-blue-800 mb-3">
+                            Complete the required fields above, then the document will load automatically.
+                          </p>
+                          <Button
+                            variant="secondary"
+                            icon={<Eye className="w-4 h-4" />}
+                            onClick={handlePreviewDocument}
+                            disabled={!canCreateDraft() || isPreviewingDocument}
+                          >
+                            {isPreviewingDocument ? 'Loading...' : 'Load Document Now'}
+                          </Button>
+                        </div>
                       )}
-
-                      <p className="text-xs text-blue-700 mt-2">
-                        Template: {templates.find(t => t.id === formData.rtfTemplateId)?.name || 'Selected template'}
-                      </p>
                     </div>
                   )}
 
