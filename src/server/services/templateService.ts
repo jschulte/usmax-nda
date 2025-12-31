@@ -297,6 +297,9 @@ export async function generatePreview(
         .replace(/\\i0 /g, '</em>')
         .replace(/\\line/g, '<br />')
         .replace(/\\tab/g, '&nbsp;&nbsp;&nbsp;&nbsp;')
+        // Handle escaped characters (must be done before removing control words)
+        .replace(/\\'/g, "'")  // Escaped apostrophe
+        .replace(/\\"/g, '"')  // Escaped quote
         // Remove remaining RTF control words
         .replace(/\\[a-z]+\d* ?/g, '')
         .replace(/[{}]/g, '')
