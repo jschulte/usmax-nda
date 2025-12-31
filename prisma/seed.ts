@@ -627,7 +627,7 @@ For purposes of this Agreement, the authorized representatives are:\\par
 \\par
 \\b For {{companyName}}:\\b0\\par
 Relationship Manager: {{relationshipPocName}}\\par
-{\\i Contracts Administrator: {{contractsPocName}}}\\par
+{\\i Contracts Administrator: {{contractsPocName}} }\\par
 \\par
 \\b For USmax:\\b0\\par
 Business Opportunity Lead: {{opportunityPocName}}\\par
@@ -813,7 +813,7 @@ CAGE Code: [To be added]\\par
 \\par
 This Mutual Non-Disclosure Agreement (the "Agreement") is entered into as of {{effectiveDate}} ("Effective Date") by and between:\\par
 \\par
-{\\b {{companyName}}}\\par
+{\\b {{companyName}} }\\par
 {{companyCity}}, {{companyState}}\\par
 State of Incorporation: {{stateOfIncorporation}}\\par
 \\par
@@ -852,7 +852,7 @@ Business Opportunity Lead: {{opportunityPocName}}\\par
 \\par
 {\\b IN WITNESS WHEREOF}, the parties have executed this Agreement as of {{generatedDate}}.\\par
 \\par
-{\\b {{companyName}}}\\line
+{\\b {{companyName}} }\\line
 By: \\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\line
 Name: \\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\line
 Title: \\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\par
