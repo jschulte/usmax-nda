@@ -12,7 +12,7 @@ import { Button } from './ui/AppButton';
 import { Card } from './ui/AppCard';
 import { Edit, Save, X, Loader2, Download, Eye, FileText } from 'lucide-react';
 import { toast } from 'sonner';
-import { convertHtmlToRtf } from 'html-to-rtf';
+import { convertHTMLToRTF } from '@jonahschulte/rtf-toolkit';
 
 interface InlineEditableDocumentProps {
   ndaId: string;
@@ -85,7 +85,7 @@ export function InlineEditableDocument({
       setSaving(true);
 
       // Convert HTML → RTF
-      const rtfContent = convertHtmlToRtf(content);
+      const rtfContent = convertHTMLToRTF(content);
 
       // Save via API
       const response = await fetch(`/api/ndas/${ndaId}/documents/${documentId}/save`, {
@@ -128,7 +128,7 @@ export function InlineEditableDocument({
   const handleDownload = async () => {
     // Generate downloadable RTF
     try {
-      const rtfContent = convertHtmlToRtf(content);
+      const rtfContent = convertHTMLToRTF(content);
       const blob = new Blob([rtfContent], { type: 'application/rtf' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');

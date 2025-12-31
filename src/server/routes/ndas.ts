@@ -2384,11 +2384,11 @@ router.put(
         });
       }
 
-      const { convertHtmlToRtf } = await import('html-to-rtf');
+      const { convertHTMLToRTF } = await import('@jonahschulte/rtf-toolkit');
       const { uploadDocument } = await import('../services/s3Service.js');
 
       // Convert HTML → RTF
-      const rtfContent = convertHtmlToRtf(htmlContent);
+      const rtfContent = convertHTMLToRTF(htmlContent);
 
       // Create new document version
       const filename = `NDA_${req.params.id}_v${Date.now()}.rtf`;

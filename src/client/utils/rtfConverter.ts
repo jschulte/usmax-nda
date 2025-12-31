@@ -11,7 +11,7 @@
  * For complex RTF files, recommend uploading and re-editing in Word/LibreOffice
  */
 
-import { convertHtmlToRtf } from 'html-to-rtf';
+import { convertHTMLToRTF } from '@jonahschulte/rtf-toolkit';
 
 /**
  * Preserve placeholder tokens during HTML conversion
@@ -25,11 +25,11 @@ function preservePlaceholders(html: string): string {
 
 /**
  * Convert HTML to RTF format
- * Custom implementation - browser-compatible and handles our use case
+ * Uses @jonahschulte/rtf-toolkit for conversion
  * IMPORTANT: Preserves {{placeholder}} tokens for template merging
  */
 export function convertHtmlToRtf(html: string): string {
-  console.log('[RTF Converter] Converting HTML to RTF');
+  console.log('[RTF Converter] Converting HTML to RTF using toolkit');
 
   let content = html.trim();
 
@@ -44,78 +44,18 @@ export function convertHtmlToRtf(html: string): string {
     return marker;
   });
 
-  // STEP 2: Convert HTML tags to RTF control codes
-  content = content
-    // Bold
-    .replace(/<strong[^>]*>(.*?)<\/strong>/gi, '{\\b $1}')
-    .replace(/<b[^>]*>(.*?)<\/b>/gi, '{\\b $1}')
+  // STEP 2: Remove placeholder span wrappers (from Quill)
+  content = content.replace(/<span[^>]*class="ql-placeholder"[^>]*>(.*?)<\/span>/gi, '$1');
 
-    // Italic
-    .replace(/<em[^>]*>(.*?)<\/em>/gi, '{\\i $1}')
-    .replace(/<i[^>]*>(.*?)<\/i>/gi, '{\\i $1}')
+  // STEP 3: Use toolkit for conversion
+  let rtf = convertHTMLToRTF(content);
 
-    // Underline
-    .replace(/<u[^>]*>(.*?)<\/u>/gi, '{\\ul $1}')
-
-    // Headers
-    .replace(/<h1[^>]*>(.*?)<\/h1>/gi, '{\\b\\fs32 $1}\\par\\par')
-    .replace(/<h2[^>]*>(.*?)<\/h2>/gi, '{\\b\\fs28 $1}\\par\\par')
-    .replace(/<h3[^>]*>(.*?)<\/h3>/gi, '{\\b\\fs24 $1}\\par\\par')
-
-    // Lists
-    .replace(/<li[^>]*>(.*?)<\/li>/gi, '\\tab $1\\par')
-    .replace(/<ul[^>]*>/gi, '')
-    .replace(/<\/ul>/gi, '\\par')
-    .replace(/<ol[^>]*>/gi, '')
-    .replace(/<\/ol>/gi, '\\par')
-
-    // Paragraphs
-    .replace(/<p[^>]*>(.*?)<\/p>/gi, '$1\\par\\par')
-
-    // Line breaks
-    .replace(/<br\s*\/?>/gi, '\\line ')
-
-    // Remove placeholder span wrappers (from Quill)
-    .replace(/<span[^>]*class="ql-placeholder"[^>]*>(.*?)<\/span>/gi, '$1')
-
-    // Remove any remaining HTML tags
-    .replace(/<[^>]+>/g, '')
-
-    // HTML entities
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'");
-
-  // STEP 3: Restore placeholder tokens (they remain as {{fieldName}} in RTF)
+  // STEP 4: Restore placeholder tokens (they remain as {{fieldName}} in RTF)
   Object.entries(placeholderMap).forEach(([marker, placeholder]) => {
-    content = content.replace(marker, placeholder);
+    rtf = rtf.replace(marker, placeholder);
   });
 
-  // STEP 4: Escape remaining special characters that aren't in placeholders
-  // Only escape backslashes that aren't already part of RTF control codes
-  content = content.replace(/\\/g, (match, offset) => {
-    // Check if this backslash is already part of a control code
-    const nextChars = content.substring(offset, offset + 5);
-    if (nextChars.match(/^\\(par|line|tab|b|i|ul|fs\d+)/)) {
-      return match; // Keep RTF control codes
-    }
-    return '\\\\'; // Escape standalone backslashes
-  });
-
-  // Clean up excessive whitespace
-  content = content
-    .replace(/\\par\\par\\par+/g, '\\par\\par')
-    .replace(/\\line\\s*\\line/g, '\\line')
-    .trim();
-
-  // STEP 5: Build complete RTF document
-  const rtf = `{\\rtf1\\ansi\\deff0 {\\fonttbl{\\f0 Times New Roman;}}\\f0\\fs24 ${content}}`;
-
-  console.log('[RTF Converter] RTF generated, length:', rtf.length);
-  console.log('[RTF Converter] RTF preview:', rtf.substring(0, 150));
+  console.log('[RTF Converter] RTF generated with placeholders preserved, length:', rtf.length);
 
   return rtf;
 }
