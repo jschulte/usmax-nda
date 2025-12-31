@@ -142,7 +142,9 @@ export async function getWorkflowGuidance(
   const isSelfApproval = nda.createdBy.id === userContext.contactId;
 
   // Check if user can skip approval (admin override)
-  const isAdmin = userContext.permissions.some(p => p.code === 'admin:manage_users' || p.code.startsWith('admin:'));
+  const isAdmin = userContext.permissions.has('admin:manage_users') ||
+    userContext.permissions.has('admin:manage_agencies') ||
+    userContext.permissions.has('admin:manage_templates');
   const canSkipApproval = isAdmin && !approvalRequired;
 
   // Determine next action based on current status
