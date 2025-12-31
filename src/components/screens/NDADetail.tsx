@@ -42,6 +42,8 @@ import {
 import { NDADocumentPreview } from '../NDADocumentPreview';
 import { NDAWorkflowProgress } from '../NDAWorkflowProgress';
 import { WorkflowGuidanceCard } from '../WorkflowGuidanceCard';
+import { InlineEditableDocument } from '../InlineEditableDocument';
+import { NDAMetadataSidebar } from '../NDAMetadataSidebar';
 import { RecipientSelector, type Recipient } from '../RecipientSelector';
 import { EmailPreview } from '../EmailPreview';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
@@ -155,6 +157,8 @@ export function NDADetail() {
   const [availableRecipients, setAvailableRecipients] = useState<Recipient[]>([]);
   const [selectedRecipientIds, setSelectedRecipientIds] = useState<Set<string>>(new Set());
   const [workflowGuidance, setWorkflowGuidance] = useState<WorkflowGuidance | null>(null);
+  const [documentHtml, setDocumentHtml] = useState<string | null>(null);
+  const [loadingDocumentHtml, setLoadingDocumentHtml] = useState(false);
   const [showAddNoteDialog, setShowAddNoteDialog] = useState(false);
   const [showMarkExecutedDialog, setShowMarkExecutedDialog] = useState(false);
   const [showStatusChangeModal, setShowStatusChangeModal] = useState(false); // Story 9.8
@@ -190,6 +194,32 @@ export function NDADetail() {
         } catch (guidanceErr) {
           console.error('Failed to load workflow guidance:', guidanceErr);
           // Non-critical - continue without guidance
+        }
+
+        // Auto-load document HTML for inline display
+        if (detail.documents && detail.documents.length > 0) {
+          const latestDoc = detail.documents
+            .filter((d: any) => d.documentType === 'GENERATED')
+            .sort((a: any, b: any) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime())[0];
+
+          if (latestDoc) {
+            try {
+              setLoadingDocumentHtml(true);
+              const response = await fetch(`/api/ndas/${id}/documents/${latestDoc.id}/edit-content`, {
+                credentials: 'include',
+              });
+
+              if (response.ok) {
+                const { htmlContent } = await response.json();
+                setDocumentHtml(htmlContent);
+              }
+            } catch (docErr) {
+              console.error('Failed to load document HTML:', docErr);
+              // Non-critical - user can still generate preview
+            } finally {
+              setLoadingDocumentHtml(false);
+            }
+          }
         }
       } catch (err) {
         console.error('Failed to load NDA:', err);
@@ -1315,10 +1345,68 @@ export function NDADetail() {
         isCreator={nda.createdBy?.id === user?.id}
       />
 
-      {/* Main content area */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left column - Main content with tabs */}
-        <div className="lg:col-span-2">
+      {/* Main content area - Document First Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-6">
+        {/* Left column - Document Content (70%) */}
+        <div>
+          {documentHtml && documents.length > 0 ? (
+            <InlineEditableDocument
+              ndaId={id!}
+              documentId={documents.find(d => d.documentType === 'GENERATED')?.id || documents[0]?.id}
+              initialHtml={documentHtml}
+              canEdit={canEdit}
+              onSave={async (newDoc) => {
+                // Reload documents after save
+                const docs = await listDocuments(id!);
+                setDocuments(docs);
+                // Reload HTML
+                try {
+                  const response = await fetch(`/api/ndas/${id}/documents/${newDoc.id}/edit-content`, {
+                    credentials: 'include',
+                  });
+                  if (response.ok) {
+                    const { htmlContent } = await response.json();
+                    setDocumentHtml(htmlContent);
+                  }
+                } catch (err) {
+                  console.error('Failed to reload document:', err);
+                }
+              }}
+            />
+          ) : loadingDocumentHtml ? (
+            <Card>
+              <div className="flex items-center justify-center py-24">
+                <Loader2 className="w-8 h-8 animate-spin text-[var(--color-primary)]" />
+                <p className="ml-3 text-[var(--color-text-secondary)]">Loading document...</p>
+              </div>
+            </Card>
+          ) : (
+            <Card>
+              <div className="text-center py-24">
+                <FileText className="w-16 h-16 text-[var(--color-text-muted)] mx-auto mb-4" />
+                <h3 className="text-lg font-semibold mb-2">No Document Yet</h3>
+                <p className="text-sm text-[var(--color-text-secondary)] mb-4">
+                  Generate a document from a template to get started
+                </p>
+                {selectedTemplateId && renderPermissionedButton(
+                  <Button
+                    variant="primary"
+                    icon={generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
+                    onClick={handleGenerateDocument}
+                    disabled={generating || !canEdit}
+                  >
+                    {generating ? 'Generating...' : 'Generate Document'}
+                  </Button>,
+                  !canEdit,
+                  "You don't have permission to generate documents"
+                )}
+              </div>
+            </Card>
+          )}
+        </div>
+
+        {/* Right column - Metadata Sidebar (30%) */}
+        <div className="lg:col-span-1">
           <Card padding="none">
             {/* Tabs */}
             <div className="border-b border-[var(--color-border)]">
