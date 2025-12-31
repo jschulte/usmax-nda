@@ -1964,7 +1964,10 @@ export function RequestWizard() {
                                 </Button>
                               </div>
                             </div>
-                            <div className="relative bg-white overflow-auto" style={{ height: '600px' }}>
+                            <div
+                              className="relative bg-white border border-gray-200 rounded overflow-y-auto overflow-x-hidden"
+                              style={{ height: '600px', maxHeight: '600px' }}
+                            >
                               {previewHtml ? (
                                 <div
                                   className="p-8 prose prose-sm max-w-none"
@@ -1972,7 +1975,8 @@ export function RequestWizard() {
                                   style={{
                                     fontFamily: 'Georgia, serif',
                                     lineHeight: '1.6',
-                                    color: '#1a1a1a'
+                                    color: '#1a1a1a',
+                                    minHeight: '100%'
                                   }}
                                 />
                               ) : (
