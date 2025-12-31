@@ -1866,10 +1866,24 @@ export function NDADetail() {
                   onClick={() => navigate(`/nda/${nda.id}/edit`)}
                   disabled={!canEdit}
                 >
-                  Edit
+                  Edit NDA Details
                 </Button>,
                 !canEdit,
                 "You don't have permission to edit NDAs"
+              )}
+              {documents.length > 0 && renderPermissionedButton(
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="w-full"
+                  icon={<FileText className="w-4 h-4" />}
+                  onClick={() => navigate(`/nda/${nda.id}/edit-document`)}
+                  disabled={!canEdit}
+                >
+                  Edit Document
+                </Button>,
+                !canEdit,
+                "You don't have permission to edit documents"
               )}
               {renderPermissionedButton(
                 <Button
