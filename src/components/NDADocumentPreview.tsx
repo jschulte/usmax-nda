@@ -30,6 +30,8 @@ export function NDADocumentPreview({
 }: NDADocumentPreviewProps) {
   const navigate = useNavigate();
   const [previewing, setPreviewing] = useState(false);
+  const [showInlinePreview, setShowInlinePreview] = useState(false);
+  const [previewHtml, setPreviewHtml] = useState<string | null>(null);
 
   // Get the latest generated document
   const latestDocument = documents
@@ -40,8 +42,16 @@ export function NDADocumentPreview({
     try {
       setPreviewing(true);
       const result = await generatePreview(ndaId, templateId);
-      window.open(result.preview.previewUrl, '_blank', 'noopener,noreferrer');
-      toast.success('Preview opened in new tab');
+
+      // Show inline if HTML available, otherwise open in new tab
+      if (result.preview.htmlContent) {
+        setPreviewHtml(result.preview.htmlContent);
+        setShowInlinePreview(true);
+        toast.success('Preview loaded');
+      } else {
+        window.open(result.preview.previewUrl, '_blank', 'noopener,noreferrer');
+        toast.success('Preview opened in new tab');
+      }
     } catch (err) {
       console.error('Failed to generate preview:', err);
       toast.error('Failed to generate preview', {
@@ -68,6 +78,63 @@ export function NDADocumentPreview({
   }
 
   const displayDocument = latestDocument || documents[0];
+
+  // If showing inline preview
+  if (showInlinePreview && previewHtml) {
+    return (
+      <Card>
+        <div className="flex items-start justify-between mb-4">
+          <h3 className="font-semibold">Document Preview</h3>
+          <div className="flex gap-2">
+            <Button
+              variant="subtle"
+              size="sm"
+              onClick={() => {
+                setShowInlinePreview(false);
+                setPreviewHtml(null);
+              }}
+            >
+              Close Preview
+            </Button>
+          </div>
+        </div>
+
+        <div
+          className="border border-gray-200 rounded overflow-y-auto overflow-x-hidden bg-white p-8"
+          style={{ maxHeight: '600px' }}
+        >
+          <div
+            className="prose prose-sm max-w-none"
+            dangerouslySetInnerHTML={{ __html: previewHtml }}
+            style={{
+              fontFamily: 'Georgia, serif',
+              lineHeight: '1.6',
+              color: '#1a1a1a',
+            }}
+          />
+        </div>
+
+        <div className="mt-4 flex gap-2">
+          {canEdit && latestDocument && (
+            <Button
+              variant="primary"
+              icon={<Edit className="w-4 h-4" />}
+              onClick={() => navigate(`/nda/${ndaId}/edit-document`)}
+            >
+              Edit Document
+            </Button>
+          )}
+          <Button
+            variant="secondary"
+            icon={<Download className="w-4 h-4" />}
+            onClick={handlePreview}
+          >
+            Download RTF
+          </Button>
+        </div>
+      </Card>
+    );
+  }
 
   return (
     <Card>
