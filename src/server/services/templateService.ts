@@ -15,7 +15,7 @@ import type { UserContext } from '../types/auth.js';
 import { findNdaWithScope } from '../utils/scopedQuery.js';
 import { validateRtfStructure, validateHtmlPlaceholders } from './rtfTemplateValidation.js';
 import { extractPlaceholders } from './templatePreviewService.js';
-import convertRtfToHtml from '@iarna/rtf-to-html';
+import { parseRTF, toHTML } from '@jonahschulte/rtf-toolkit';
 
 /**
  * Custom error for template service operations
@@ -255,61 +255,19 @@ export async function generatePreview(
   const expiresIn = 15 * 60; // 15 minutes
   const previewUrl = await getDownloadUrl(uploadResult.s3Key, expiresIn);
 
-  // Convert RTF to HTML for inline preview
-  // Simple text extraction as fallback if full conversion fails
+  // Convert RTF to HTML for inline preview using @jonahschulte/rtf-toolkit
   let htmlContent: string | undefined;
   try {
     const rtfString = Buffer.from(mergedContent).toString('utf-8');
-    console.log('[TemplateService] Converting RTF to HTML, length:', rtfString.length);
+    console.log('[TemplateService] Converting RTF to HTML using @jonahschulte/rtf-toolkit, length:', rtfString.length);
 
-    // Try full HTML conversion first
-    try {
-      htmlContent = await new Promise<string>((resolve, reject) => {
-        convertRtfToHtml.fromString(rtfString, (err: Error | null, html: string) => {
-          if (err) {
-            reject(err);
-          } else {
-            resolve(html);
-          }
-        });
-      });
-      console.log('[TemplateService] Full HTML conversion successful');
-    } catch (convErr) {
-      console.log('[TemplateService] Full conversion failed, using simple text extraction:', convErr.message);
+    // Parse RTF and convert to HTML
+    const doc = parseRTF(rtfString);
+    htmlContent = toHTML(doc);
 
-      // Fallback: Simple text extraction with basic formatting
-      htmlContent = rtfString
-        // Remove RTF header and font table
-        .replace(/\{\\rtf1[^}]*\}/, '')
-        .replace(/\{\\fonttbl[^}]*\}/, '')
-        .replace(/\{\\colortbl[^}]*\}/, '')
-        .replace(/\{\\*\\generator[^}]*\}/, '')
-        // Convert RTF formatting to HTML
-        .replace(/\\qc /g, '<div style="text-align: center;">')
-        .replace(/\\qj /g, '<div style="text-align: justify;">')
-        .replace(/\\pard/g, '</div><p>')
-        .replace(/\\par/g, '</p><p>')
-        .replace(/\{\\b\\s*([^}]+)\}/g, '<strong>$1</strong>')
-        .replace(/\{\\i\\s*([^}]+)\}/g, '<em>$1</em>')
-        .replace(/\\b /g, '<strong>')
-        .replace(/\\b0 /g, '</strong>')
-        .replace(/\\i /g, '<em>')
-        .replace(/\\i0 /g, '</em>')
-        .replace(/\\line/g, '<br />')
-        .replace(/\\tab/g, '&nbsp;&nbsp;&nbsp;&nbsp;')
-        // Handle escaped characters (must be done before removing control words)
-        .replace(/\\'/g, "'")  // Escaped apostrophe
-        .replace(/\\"/g, '"')  // Escaped quote
-        // Remove remaining RTF control words
-        .replace(/\\[a-z]+\d* ?/g, '')
-        .replace(/[{}]/g, '')
-        .trim();
-
-      // Wrap in proper HTML structure
-      htmlContent = `<div style="font-family: 'Times New Roman', serif; font-size: 12pt; line-height: 1.6; white-space: pre-wrap;">${htmlContent}</div>`;
-    }
+    console.log('[TemplateService] RTF conversion successful, HTML length:', htmlContent.length);
   } catch (conversionError) {
-    console.error('[TemplateService] RTF to HTML conversion failed completely:', conversionError);
+    console.error('[TemplateService] RTF to HTML conversion failed:', conversionError);
     // Continue without HTML - preview URL still works for download
   }
 
