@@ -547,26 +547,26 @@ async function seedRtfTemplates() {
   const adminUser = await prisma.contact.findUnique({ where: { email: 'admin@usmax.com' } });
 
   // Generic template - Comprehensive professional NDA (replaces basic placeholder)
-  const genericNdaRtf = `{\\rtf1\\ansi\\ansicpg1252\\deff0\\nouicompat\\deflang1033{\\fonttbl{\\f0\\fnil\\fcharset0 Times New Roman;}{\\f1\\fnil\\fcharset0 Arial;}}
-{\\*\\generator Riched20 10.0.19041}\\viewkind4\\uc1
-\\pard\\sa200\\sl276\\slmult1\\qc\\b\\f0\\fs32 NON-DISCLOSURE AGREEMENT\\par
-\\pard\\sa200\\sl276\\slmult1\\qj\\b0\\fs24\\par
+  const genericNdaRtf = `{\\rtf1\\ansi\\deff0{\\fonttbl{\\f0 Times New Roman;}}
+\\f0\\fs24
+\\qc\\b\\fs32 NON-DISCLOSURE AGREEMENT\\par
+\\pard\\qj\\b0\\fs24\\par
 This Non-Disclosure Agreement (the \\"Agreement\\") is entered into as of {{effectiveDate}} (\\"Effective Date\\") by and between:\\par
 \\par
-\\pard\\sa200\\sl276\\slmult1\\b {{companyName}}\\b0\\par
+\\b {{companyName}}\\b0\\par
 {{companyCity}}, {{companyState}}\\par
 State of Incorporation: {{stateOfIncorporation}}\\par
 (hereinafter referred to as the \\"Disclosing Party\\")\\par
 \\par
-\\pard\\sa200\\sl276\\slmult1\\qc\\b and\\b0\\par
+\\qc\\b and\\b0\\par
 \\par
-\\pard\\sa200\\sl276\\slmult1\\b United States Maximum, Inc. (USmax)\\b0\\par
+\\pard\\qj\\b United States Maximum, Inc. (USmax)\\b0\\par
 A United States Corporation\\par
 (hereinafter referred to as the \\"Receiving Party\\")\\par
 \\par
-\\pard\\sa200\\sl276\\slmult1\\qc\\b RECITALS\\b0\\par
+\\qc\\b RECITALS\\b0\\par
 \\par
-\\pard\\sa200\\sl276\\slmult1\\qj WHEREAS, the parties desire to explore a potential business relationship relating to {{authorizedPurpose}} (the \\"Purpose\\"); and\\par
+\\pard\\qj WHEREAS, the parties desire to explore a potential business relationship relating to {{authorizedPurpose}} (the \\"Purpose\\"); and\\par
 \\par
 WHEREAS, in connection with discussions regarding the Purpose, Disclosing Party may disclose certain confidential and proprietary information to Receiving Party;\\par
 \\par
