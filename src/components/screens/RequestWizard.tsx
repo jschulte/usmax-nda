@@ -168,6 +168,8 @@ export function RequestWizard() {
     email: '',
   });
   const [isPreviewingDocument, setIsPreviewingDocument] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [showInlinePreview, setShowInlinePreview] = useState(false);
 
   const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   const PHONE_PATTERN = /^\(\d{3}\) \d{3}-\d{4}$/;
@@ -794,8 +796,9 @@ export function RequestWizard() {
         // Generate preview with the new draft
         setIsPreviewingDocument(true);
         const result = await generatePreview(newDraftId, formData.rtfTemplateId || undefined);
-        window.open(result.preview.previewUrl, '_blank', 'noopener,noreferrer');
-        toast.success('Preview opened in new tab');
+        setPreviewUrl(result.preview.previewUrl);
+        setShowInlinePreview(true);
+        toast.success('Document preview generated');
       } catch (err) {
         console.error('Failed to create draft and preview:', err);
         toast.error('Failed to generate preview', {
@@ -809,8 +812,9 @@ export function RequestWizard() {
       try {
         setIsPreviewingDocument(true);
         const result = await generatePreview(draftId, formData.rtfTemplateId || undefined);
-        window.open(result.preview.previewUrl, '_blank', 'noopener,noreferrer');
-        toast.success('Preview opened in new tab');
+        setPreviewUrl(result.preview.previewUrl);
+        setShowInlinePreview(true);
+        toast.success('Document preview generated');
       } catch (err) {
         console.error('Failed to generate preview:', err);
         toast.error('Failed to generate preview', {
@@ -1907,20 +1911,75 @@ export function RequestWizard() {
                         </div>
                         <FileText className="w-8 h-8 text-blue-600" />
                       </div>
-                      <Button
-                        variant="primary"
-                        icon={isPreviewingDocument ? <Loader2 className="w-4 h-4 animate-spin" /> : <Eye className="w-4 h-4" />}
-                        onClick={handlePreviewDocument}
-                        disabled={isPreviewingDocument || !canCreateDraft()}
-                        className="w-full"
-                      >
-                        {isPreviewingDocument ? 'Generating Preview...' : 'Preview NDA Document'}
-                      </Button>
-                      {!canCreateDraft() && (
-                        <p className="text-xs text-orange-600 mt-2">
-                          Complete required fields to preview document
-                        </p>
+
+                      {!showInlinePreview ? (
+                        <>
+                          <Button
+                            variant="primary"
+                            icon={isPreviewingDocument ? <Loader2 className="w-4 h-4 animate-spin" /> : <Eye className="w-4 h-4" />}
+                            onClick={handlePreviewDocument}
+                            disabled={isPreviewingDocument || !canCreateDraft()}
+                            className="w-full"
+                          >
+                            {isPreviewingDocument ? 'Generating Preview...' : 'Generate Preview'}
+                          </Button>
+                          {!canCreateDraft() && (
+                            <p className="text-xs text-orange-600 mt-2">
+                              Complete required fields to preview document
+                            </p>
+                          )}
+                        </>
+                      ) : (
+                        <div className="space-y-3">
+                          {/* Inline Preview */}
+                          <div className="bg-white border-2 border-blue-300 rounded-lg overflow-hidden">
+                            <div className="bg-blue-100 px-4 py-2 flex items-center justify-between border-b border-blue-300">
+                              <div className="flex items-center gap-2">
+                                <FileText className="w-4 h-4 text-blue-700" />
+                                <span className="text-sm font-medium text-blue-900">
+                                  {templates.find(t => t.id === formData.rtfTemplateId)?.name || 'NDA Document'}
+                                </span>
+                              </div>
+                              <div className="flex gap-2">
+                                <Button
+                                  variant="subtle"
+                                  size="sm"
+                                  onClick={() => previewUrl && window.open(previewUrl, '_blank')}
+                                >
+                                  Open in New Tab
+                                </Button>
+                                <Button
+                                  variant="subtle"
+                                  size="sm"
+                                  onClick={() => {
+                                    setShowInlinePreview(false);
+                                    setPreviewUrl(null);
+                                  }}
+                                >
+                                  Close Preview
+                                </Button>
+                              </div>
+                            </div>
+                            <div className="relative" style={{ height: '600px' }}>
+                              <iframe
+                                src={`https://docs.google.com/viewer?url=${encodeURIComponent(previewUrl || '')}&embedded=true`}
+                                className="w-full h-full"
+                                title="NDA Document Preview"
+                              />
+                            </div>
+                          </div>
+                          <Button
+                            variant="secondary"
+                            icon={<Eye className="w-4 h-4" />}
+                            onClick={handlePreviewDocument}
+                            disabled={isPreviewingDocument}
+                            className="w-full"
+                          >
+                            Regenerate Preview
+                          </Button>
+                        </div>
                       )}
+
                       <p className="text-xs text-blue-700 mt-2">
                         Template: {templates.find(t => t.id === formData.rtfTemplateId)?.name || 'Selected template'}
                       </p>
