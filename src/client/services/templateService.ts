@@ -43,6 +43,7 @@ export interface UpdateTemplateData {
 
 export interface DocumentPreview {
   previewUrl: string;
+  htmlContent?: string; // HTML version for inline display
   mergedFields: Record<string, string>;
   templateUsed: {
     id: string;

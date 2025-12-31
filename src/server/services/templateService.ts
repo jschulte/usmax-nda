@@ -15,6 +15,7 @@ import type { UserContext } from '../types/auth.js';
 import { findNdaWithScope } from '../utils/scopedQuery.js';
 import { validateRtfStructure, validateHtmlPlaceholders } from './rtfTemplateValidation.js';
 import { extractPlaceholders } from './templatePreviewService.js';
+import { convertRtfToHtml } from '@iarna/rtf-to-html';
 
 /**
  * Custom error for template service operations
@@ -50,6 +51,7 @@ export interface RtfTemplateWithRecommendation {
  */
 export interface PreviewResponse {
   previewUrl: string;
+  htmlContent?: string; // HTML version for inline display
   mergedFields: Record<string, string>;
   templateUsed: {
     id: string;
@@ -253,8 +255,19 @@ export async function generatePreview(
   const expiresIn = 15 * 60; // 15 minutes
   const previewUrl = await getDownloadUrl(uploadResult.s3Key, expiresIn);
 
+  // Convert RTF to HTML for inline preview
+  let htmlContent: string | undefined;
+  try {
+    const rtfString = Buffer.from(mergedContent).toString('utf-8');
+    htmlContent = await convertRtfToHtml(rtfString);
+  } catch (conversionError) {
+    console.error('[TemplateService] RTF to HTML conversion failed:', conversionError);
+    // Continue without HTML - preview URL still works for download
+  }
+
   return {
     previewUrl,
+    htmlContent,
     mergedFields,
     templateUsed: {
       id: template.id,

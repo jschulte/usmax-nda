@@ -169,6 +169,7 @@ export function RequestWizard() {
   });
   const [isPreviewingDocument, setIsPreviewingDocument] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewHtml, setPreviewHtml] = useState<string | null>(null);
   const [showInlinePreview, setShowInlinePreview] = useState(false);
 
   const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -797,6 +798,7 @@ export function RequestWizard() {
         setIsPreviewingDocument(true);
         const result = await generatePreview(newDraftId, formData.rtfTemplateId || undefined);
         setPreviewUrl(result.preview.previewUrl);
+        setPreviewHtml(result.preview.htmlContent || null);
         setShowInlinePreview(true);
         toast.success('Document preview generated');
       } catch (err) {
@@ -813,6 +815,7 @@ export function RequestWizard() {
         setIsPreviewingDocument(true);
         const result = await generatePreview(draftId, formData.rtfTemplateId || undefined);
         setPreviewUrl(result.preview.previewUrl);
+        setPreviewHtml(result.preview.htmlContent || null);
         setShowInlinePreview(true);
         toast.success('Document preview generated');
       } catch (err) {
@@ -1954,18 +1957,41 @@ export function RequestWizard() {
                                   onClick={() => {
                                     setShowInlinePreview(false);
                                     setPreviewUrl(null);
+                                    setPreviewHtml(null);
                                   }}
                                 >
                                   Close Preview
                                 </Button>
                               </div>
                             </div>
-                            <div className="relative" style={{ height: '600px' }}>
-                              <iframe
-                                src={`https://docs.google.com/viewer?url=${encodeURIComponent(previewUrl || '')}&embedded=true`}
-                                className="w-full h-full"
-                                title="NDA Document Preview"
-                              />
+                            <div className="relative bg-white overflow-auto" style={{ height: '600px' }}>
+                              {previewHtml ? (
+                                <div
+                                  className="p-8 prose prose-sm max-w-none"
+                                  dangerouslySetInnerHTML={{ __html: previewHtml }}
+                                  style={{
+                                    fontFamily: 'Georgia, serif',
+                                    lineHeight: '1.6',
+                                    color: '#1a1a1a'
+                                  }}
+                                />
+                              ) : (
+                                <div className="flex items-center justify-center h-full">
+                                  <div className="text-center max-w-md p-6">
+                                    <FileText className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                                    <p className="text-sm text-gray-600 mb-3">
+                                      HTML preview not available. Click "Open in New Tab" to view the full RTF document.
+                                    </p>
+                                    <Button
+                                      variant="primary"
+                                      size="sm"
+                                      onClick={() => previewUrl && window.open(previewUrl, '_blank')}
+                                    >
+                                      Open in New Tab
+                                    </Button>
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           </div>
                           <Button
