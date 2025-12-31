@@ -15,7 +15,7 @@ import type { UserContext } from '../types/auth.js';
 import { findNdaWithScope } from '../utils/scopedQuery.js';
 import { validateRtfStructure, validateHtmlPlaceholders } from './rtfTemplateValidation.js';
 import { extractPlaceholders } from './templatePreviewService.js';
-import { convertRtfToHtml } from '@iarna/rtf-to-html';
+import convertRtfToHtml from '@iarna/rtf-to-html';
 
 /**
  * Custom error for template service operations
