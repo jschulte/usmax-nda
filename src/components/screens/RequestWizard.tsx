@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import ReactQuill from 'react-quill';
+import 'quill/dist/quill.snow.css';
 import { HelpCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { Card } from '../ui/AppCard';
 import { Button } from '../ui/AppButton';
 import { Input, TextArea, Select } from '../ui/AppInput';
 import { Stepper } from '../ui/Stepper';
 import { Badge } from '../ui/AppBadge';
-import { ArrowLeft, ArrowRight, Info, Plus, Loader2, Eye, FileText } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Info, Plus, Loader2, Eye, FileText, Edit, Save } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -172,6 +174,8 @@ export function RequestWizard() {
   const [previewHtml, setPreviewHtml] = useState<string | null>(null);
   const [showInlinePreview, setShowInlinePreview] = useState(false);
   const [autoLoadedPreview, setAutoLoadedPreview] = useState(false);
+  const [editingDocument, setEditingDocument] = useState(false);
+  const [editedDocumentHtml, setEditedDocumentHtml] = useState<string | null>(null);
 
   const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   const PHONE_PATTERN = /^\(\d{3}\) \d{3}-\d{4}$/;
@@ -1938,63 +1942,115 @@ export function RequestWizard() {
                               <div className="flex items-center gap-2">
                                 <FileText className="w-4 h-4 text-blue-700" />
                                 <span className="text-sm font-medium text-blue-900">
-                                  {templates.find(t => t.id === formData.rtfTemplateId)?.name || 'NDA Document'}
+                                  {editingDocument ? 'Editing Document' : 'Your NDA Document'}
                                 </span>
                               </div>
                               <div className="flex gap-2">
-                                <Button
-                                  variant="subtle"
-                                  size="sm"
-                                  onClick={() => previewUrl && window.open(previewUrl, '_blank')}
-                                >
-                                  Open in New Tab
-                                </Button>
-                                <Button
-                                  variant="subtle"
-                                  size="sm"
-                                  onClick={() => {
-                                    setShowInlinePreview(false);
-                                    setPreviewUrl(null);
-                                    setPreviewHtml(null);
-                                  }}
-                                >
-                                  Close Preview
-                                </Button>
-                              </div>
-                            </div>
-                            <div
-                              className="relative bg-white border border-gray-200 rounded overflow-y-auto overflow-x-hidden"
-                              style={{ height: '600px', maxHeight: '600px' }}
-                            >
-                              {previewHtml ? (
-                                <div
-                                  className="p-8 prose prose-sm max-w-none"
-                                  dangerouslySetInnerHTML={{ __html: previewHtml }}
-                                  style={{
-                                    fontFamily: 'Georgia, serif',
-                                    lineHeight: '1.6',
-                                    color: '#1a1a1a',
-                                    minHeight: '100%'
-                                  }}
-                                />
-                              ) : (
-                                <div className="flex items-center justify-center h-full">
-                                  <div className="text-center max-w-md p-6">
-                                    <FileText className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                                    <p className="text-sm text-gray-600 mb-3">
-                                      HTML preview not available. Click "Open in New Tab" to view the full RTF document.
-                                    </p>
+                                {!editingDocument ? (
+                                  <>
                                     <Button
                                       variant="primary"
+                                      size="sm"
+                                      icon={<Edit className="w-4 h-4" />}
+                                      onClick={() => {
+                                        setEditingDocument(true);
+                                        setEditedDocumentHtml(previewHtml);
+                                      }}
+                                    >
+                                      Edit Document
+                                    </Button>
+                                    <Button
+                                      variant="subtle"
                                       size="sm"
                                       onClick={() => previewUrl && window.open(previewUrl, '_blank')}
                                     >
                                       Open in New Tab
                                     </Button>
-                                  </div>
-                                </div>
-                              )}
+                                  </>
+                                ) : (
+                                  <>
+                                    <Button
+                                      variant="subtle"
+                                      size="sm"
+                                      onClick={() => {
+                                        setEditingDocument(false);
+                                        setEditedDocumentHtml(null);
+                                      }}
+                                    >
+                                      Cancel
+                                    </Button>
+                                    <Button
+                                      variant="primary"
+                                      size="sm"
+                                      icon={<Save className="w-4 h-4" />}
+                                      onClick={() => {
+                                        setPreviewHtml(editedDocumentHtml);
+                                        setEditingDocument(false);
+                                        toast.success('Document updated', {
+                                          description: 'Your changes will be included when you create the NDA'
+                                        });
+                                      }}
+                                    >
+                                      Save Changes
+                                    </Button>
+                                  </>
+                                )}
+                              </div>
                             </div>
+                            {editingDocument ? (
+                              <div style={{ height: '600px' }}>
+                                <ReactQuill
+                                  theme="snow"
+                                  value={editedDocumentHtml || ''}
+                                  onChange={setEditedDocumentHtml}
+                                  modules={{
+                                    toolbar: [
+                                      [{ header: [1, 2, 3, false] }],
+                                      ['bold', 'italic', 'underline'],
+                                      [{ list: 'ordered' }, { list: 'bullet' }],
+                                      [{ align: [] }],
+                                      ['clean'],
+                                    ],
+                                  }}
+                                  formats={['header', 'bold', 'italic', 'underline', 'list', 'bullet', 'align']}
+                                  style={{ height: '540px' }}
+                                />
+                              </div>
+                            ) : (
+                              <div
+                                className="relative bg-white overflow-y-auto overflow-x-hidden p-8"
+                                style={{ height: '600px', maxHeight: '600px' }}
+                              >
+                                {previewHtml ? (
+                                  <div
+                                    className="prose prose-sm max-w-none"
+                                    dangerouslySetInnerHTML={{ __html: previewHtml }}
+                                    style={{
+                                      fontFamily: 'Georgia, serif',
+                                      lineHeight: '1.6',
+                                      color: '#1a1a1a',
+                                      minHeight: '100%'
+                                    }}
+                                  />
+                                ) : (
+                                  <div className="flex items-center justify-center h-full">
+                                    <div className="text-center max-w-md p-6">
+                                      <FileText className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                                      <p className="text-sm text-gray-600 mb-3">
+                                        HTML preview not available. Click "Open in New Tab" to view the full RTF document.
+                                      </p>
+                                      <Button
+                                        variant="primary"
+                                        size="sm"
+                                        onClick={() => previewUrl && window.open(previewUrl, '_blank')}
+                                      >
+                                        Open in New Tab
+                                      </Button>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            )}
                           </div>
                           <Button
                             variant="secondary"
