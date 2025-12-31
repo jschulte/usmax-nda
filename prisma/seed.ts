@@ -546,31 +546,254 @@ async function seedRtfTemplates() {
   const dodAgencyGroup = await prisma.agencyGroup.findUnique({ where: { code: 'DoD' } });
   const adminUser = await prisma.contact.findUnique({ where: { email: 'admin@usmax.com' } });
 
-  // Generic template (works for all agencies)
+  // Generic template - Comprehensive professional NDA (replaces basic placeholder)
+  const genericNdaRtf = `{\\rtf1\\ansi\\ansicpg1252\\deff0\\nouicompat\\deflang1033{\\fonttbl{\\f0\\fnil\\fcharset0 Times New Roman;}{\\f1\\fnil\\fcharset0 Arial;}}
+{\\*\\generator Riched20 10.0.19041}\\viewkind4\\uc1
+\\pard\\sa200\\sl276\\slmult1\\qc\\b\\f0\\fs32 NON-DISCLOSURE AGREEMENT\\par
+\\pard\\sa200\\sl276\\slmult1\\qj\\b0\\fs24\\par
+This Non-Disclosure Agreement (the \\"Agreement\\") is entered into as of {{effectiveDate}} (\\"Effective Date\\") by and between:\\par
+\\par
+\\pard\\sa200\\sl276\\slmult1\\b {{companyName}}\\b0\\par
+{{companyCity}}, {{companyState}}\\par
+State of Incorporation: {{stateOfIncorporation}}\\par
+(hereinafter referred to as the \\"Disclosing Party\\")\\par
+\\par
+\\pard\\sa200\\sl276\\slmult1\\qc\\b and\\b0\\par
+\\par
+\\pard\\sa200\\sl276\\slmult1\\b United States Maximum, Inc. (USmax)\\b0\\par
+A United States Corporation\\par
+(hereinafter referred to as the \\"Receiving Party\\")\\par
+\\par
+\\pard\\sa200\\sl276\\slmult1\\qc\\b RECITALS\\b0\\par
+\\par
+\\pard\\sa200\\sl276\\slmult1\\qj WHEREAS, the parties desire to explore a potential business relationship relating to {{authorizedPurpose}} (the \\"Purpose\\"); and\\par
+\\par
+WHEREAS, in connection with discussions regarding the Purpose, Disclosing Party may disclose certain confidential and proprietary information to Receiving Party;\\par
+\\par
+NOW, THEREFORE, in consideration of the mutual covenants and agreements contained herein, and for other good and valuable consideration, the receipt and sufficiency of which are hereby acknowledged, the parties agree as follows:\\par
+\\par
+\\b 1. DEFINITION OF CONFIDENTIAL INFORMATION\\b0\\par
+\\par
+\\"Confidential Information\\" means all information, whether written, oral, electronic, visual, or in any other form, disclosed by Disclosing Party to Receiving Party that is designated as confidential or that reasonably should be understood to be confidential given the nature of the information and the circumstances of disclosure. Confidential Information includes, without limitation:\\par
+\\par
+\\pard\\fi-360\\li720\\sa200\\sl276\\slmult1 (a)\\tab Technical data, trade secrets, know-how, research, product plans, products, services, customers, markets, software, developments, inventions, processes, formulas, technology, designs, drawings, engineering, hardware configuration information, and marketing strategies;\\par
+(b)\\tab Business information, including cost information, profits, sales information, accounting and unpublished financial information, business plans, and internal performance data;\\par
+(c)\\tab Proprietary information of third parties that Disclosing Party is obligated to keep confidential;\\par
+(d)\\tab Any other information designated as \\"Confidential\\", \\"Proprietary\\", or bearing a similar legend.\\par
+\\par
+\\pard\\sa200\\sl276\\slmult1\\qj\\b 2. OBLIGATIONS OF RECEIVING PARTY\\b0\\par
+\\par
+Receiving Party agrees to:\\par
+\\par
+\\pard\\fi-360\\li720\\sa200\\sl276\\slmult1 (a)\\tab Hold and maintain the Confidential Information in strict confidence using the same degree of care it uses to protect its own confidential information, but in no event less than reasonable care;\\par
+(b)\\tab Not disclose any Confidential Information to third parties without the prior written consent of Disclosing Party;\\par
+(c)\\tab Not use the Confidential Information for any purpose other than the Purpose;\\par
+(d)\\tab Limit access to Confidential Information to employees, consultants, and advisors who have a legitimate need to know and who have been informed of the confidential nature of such information;\\par
+(e)\\tab Reproduce Confidential Information only to the extent necessary for the Purpose, and ensure all reproductions contain the same proprietary and confidential notices.\\par
+\\par
+\\pard\\sa200\\sl276\\slmult1\\qj\\b 3. EXCLUSIONS FROM CONFIDENTIAL INFORMATION\\b0\\par
+\\par
+Confidential Information shall not include information that:\\par
+\\par
+\\pard\\fi-360\\li720\\sa200\\sl276\\slmult1 (a)\\tab Was publicly known and made generally available prior to disclosure by Disclosing Party;\\par
+(b)\\tab Becomes publicly known and made generally available after disclosure by Disclosing Party through no action or inaction of Receiving Party;\\par
+(c)\\tab Was in the possession of Receiving Party, without confidentiality restrictions, prior to disclosure by Disclosing Party;\\par
+(d)\\tab Was rightfully disclosed to Receiving Party by a third party without confidentiality restrictions;\\par
+(e)\\tab Was independently developed by Receiving Party without use of or reference to the Confidential Information.\\par
+\\par
+\\pard\\sa200\\sl276\\slmult1\\qj\\b 4. TERM AND TERMINATION\\b0\\par
+\\par
+This Agreement shall remain in effect for a period of three (3) years from the Effective Date unless earlier terminated by either party upon thirty (30) days written notice. The obligations of Receiving Party under this Agreement shall survive termination and continue for a period of five (5) years from the date of disclosure.\\par
+\\par
+\\b 5. RETURN OF MATERIALS\\b0\\par
+\\par
+Upon request by Disclosing Party, or upon termination of this Agreement, Receiving Party shall promptly return or destroy all Confidential Information in its possession, including all copies, notes, and derivatives thereof, and shall certify in writing to Disclosing Party that such return or destruction has been completed.\\par
+\\par
+\\b 6. NO LICENSE\\b0\\par
+\\par
+Nothing in this Agreement grants any license, by implication or otherwise, under any patent, copyright, trade secret, or other intellectual property right. All Confidential Information remains the property of Disclosing Party.\\par
+\\par
+\\b 7. GOVERNMENT CONTRACT COMPLIANCE\\b0\\par
+\\par
+Agency: {{agencyGroupName}}\\par
+Subagency/Office: {{subagencyName}}\\par
+Contract Office: {{agencyOfficeName}}\\par
+\\par
+The parties acknowledge that this Agreement may involve work related to United States government contracts. Both parties agree to comply with all applicable federal regulations.\\par
+\\par
+\\b 8. AUTHORIZED REPRESENTATIVES\\b0\\par
+\\par
+For purposes of this Agreement, the authorized representatives are:\\par
+\\par
+\\b For {{companyName}}:\\b0\\par
+Relationship Manager: {{relationshipPocName}}\\par
+{\\i Contracts Administrator: {{contractsPocName}}}\\par
+\\par
+\\b For USmax:\\b0\\par
+Business Opportunity Lead: {{opportunityPocName}}\\par
+\\par
+\\b 9. GENERAL PROVISIONS\\b0\\par
+\\par
+9.1 {\\b Governing Law}: This Agreement shall be governed by and construed in accordance with the laws of the United States and the State of {{stateOfIncorporation}}, without regard to its conflict of law provisions.\\par
+\\par
+9.2 {\\b Entire Agreement}: This Agreement constitutes the entire agreement between the parties with respect to the subject matter hereof and supersedes all prior agreements and understandings, whether written or oral.\\par
+\\par
+9.3 {\\b Amendment}: This Agreement may not be amended except by a written instrument signed by both parties.\\par
+\\par
+9.4 {\\b Severability}: If any provision of this Agreement is held to be invalid or unenforceable, the remaining provisions shall continue in full force and effect.\\par
+\\par
+9.5 {\\b Waiver}: The failure of either party to enforce any provision of this Agreement shall not be construed as a waiver of such provision or the right to enforce it.\\par
+\\par
+\\pard\\sa200\\sl276\\slmult1\\qc\\b IN WITNESS WHEREOF\\b0 , the parties have executed this Agreement as of the date first written above.\\par
+\\par
+\\pard\\sa200\\sl276\\slmult1\\qj\\b {{companyName}}\\b0\\par
+\\par
+\\par
+By: \\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\par
+Name: \\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\par
+Title: \\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\par
+Date: \\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\par
+\\par
+\\par
+\\b UNITED STATES MAXIMUM, INC.\\b0\\par
+\\par
+\\par
+By: \\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\par
+Name: \\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\par
+Title: \\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\par
+Date: \\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\par
+\\par
+\\pard\\sa200\\sl276\\slmult1\\qr\\fs20 Document Reference: {{abbreviatedName}}\\par
+Generated: {{generatedDate}}\\par
+}`;
+
   await prisma.rtfTemplate.upsert({
     where: { id: '00000000-0000-0000-0000-000000000001' },
-    update: {},
+    update: { content: Buffer.from(genericNdaRtf) },
     create: {
       id: '00000000-0000-0000-0000-000000000001',
-      name: 'Generic NDA Template',
-      description: 'Standard NDA template for all agencies',
-      content: Buffer.from('{\\rtf1\\ansi\\deff0 {\\fonttbl{\\f0 Times New Roman;}}\\f0\\fs24 STANDARD NDA TEMPLATE\\par}'),
+      name: 'Standard NDA Template',
+      description: 'Comprehensive professional NDA template for all agencies with full legal clauses',
+      content: Buffer.from(genericNdaRtf),
       isDefault: true,
       isActive: true,
       createdById: adminUser?.id,
     },
   });
 
-  // DoD-specific template
+  // DoD-specific template - Enhanced with government compliance clauses
   if (dodAgencyGroup && adminUser) {
+    const dodNdaRtf = `{\\rtf1\\ansi\\ansicpg1252\\deff0\\nouicompat\\deflang1033{\\fonttbl{\\f0\\fnil\\fcharset0 Times New Roman;}}
+{\\*\\generator Riched20 10.0.19041}\\viewkind4\\uc1
+\\pard\\sa200\\sl276\\slmult1\\qc\\b\\f0\\fs32 DEPARTMENT OF DEFENSE\\par
+NON-DISCLOSURE AGREEMENT\\par
+\\pard\\sa200\\sl276\\slmult1\\qj\\b0\\fs24\\par
+This Non-Disclosure Agreement (the \\"Agreement\\") is entered into as of {{effectiveDate}} between:\\par
+\\par
+\\b {{companyName}}\\b0\\par
+{{companyCity}}, {{companyState}}\\par
+State of Incorporation: {{stateOfIncorporation}}\\par
+(hereinafter \\"Contractor\\")\\par
+\\par
+\\pard\\sa200\\sl276\\slmult1\\qc\\b and\\b0\\par
+\\par
+\\pard\\sa200\\sl276\\slmult1\\b United States Maximum, Inc. (USmax)\\b0\\par
+Prime Contractor for {{agencyGroupName}}\\par
+Contract Office: {{agencyOfficeName}}\\par
+(hereinafter \\"Prime Contractor\\")\\par
+\\par
+\\pard\\sa200\\sl276\\slmult1\\qc\\b RECITALS\\b0\\par
+\\par
+\\pard\\sa200\\sl276\\slmult1\\qj WHEREAS, Prime Contractor is engaged in work for the United States Department of Defense under {{agencyGroupName}} - {{subagencyName}};\\par
+\\par
+WHEREAS, in connection with {{authorizedPurpose}}, Prime Contractor may disclose certain information subject to federal security regulations and Department of Defense guidelines;\\par
+\\par
+WHEREAS, Contractor acknowledges that certain information may be subject to International Traffic in Arms Regulations (ITAR) or Export Administration Regulations (EAR);\\par
+\\par
+NOW, THEREFORE, the parties agree as follows:\\par
+\\par
+\\b 1. DEFINITION OF CONTROLLED INFORMATION\\b0\\par
+\\par
+\\"Controlled Information\\" includes all information disclosed by Prime Contractor that is:\\par
+\\par
+\\pard\\fi-360\\li720\\sa200\\sl276\\slmult1 (a)\\tab Marked as \\"Controlled Unclassified Information\\" (CUI), \\"For Official Use Only\\" (FOUO), or similar designation;\\par
+(b)\\tab Technical data related to defense articles or defense services;\\par
+(c)\\tab Procurement sensitive information;\\par
+(d)\\tab Contractor proprietary information related to government programs;\\par
+(e)\\tab Any other information that reasonable persons would understand requires protection under federal regulations.\\par
+\\par
+\\pard\\sa200\\sl276\\slmult1\\qj\\b 2. OBLIGATIONS AND RESTRICTIONS\\b0\\par
+\\par
+Contractor agrees to:\\par
+\\par
+\\pard\\fi-360\\li720\\sa200\\sl276\\slmult1 (a)\\tab Protect Controlled Information in accordance with NIST SP 800-171 and DFARS 252.204-7012 requirements;\\par
+(b)\\tab Maintain physical and electronic security measures adequate to prevent unauthorized disclosure;\\par
+(c)\\tab Limit access to U.S. persons only, unless export authorization is obtained;\\par
+(d)\\tab Report any suspected or actual unauthorized disclosure within 72 hours;\\par
+(e)\\tab Not use Controlled Information except as authorized for the Purpose.\\par
+\\par
+\\pard\\sa200\\sl276\\slmult1\\qj\\b 3. EXPORT CONTROL COMPLIANCE\\b0\\par
+\\par
+Contractor acknowledges that Controlled Information may be subject to U.S. export control laws including ITAR and EAR. Contractor agrees to comply with all applicable export control regulations and obtain all necessary licenses before any export or re-export.\\par
+\\par
+\\b 4. GOVERNMENT ACCESS RIGHTS\\b0\\par
+\\par
+Contractor acknowledges that the U.S. Government retains certain rights to access and audit information related to this Agreement in accordance with applicable federal acquisition regulations.\\par
+\\par
+\\b 5. CYBER INCIDENT REPORTING\\b0\\par
+\\par
+Contractor shall report cyber incidents affecting Controlled Information to Prime Contractor and the Department of Defense in accordance with DFARS 252.204-7012 within 72 hours of discovery.\\par
+\\par
+\\b 6. TERM\\b0\\par
+\\par
+This Agreement remains in effect for five (5) years from the Effective Date. Obligations regarding Controlled Information survive termination indefinitely or until such information is properly declassified.\\par
+\\par
+\\b 7. AUTHORIZED CONTACTS\\b0\\par
+\\par
+\\b For {{companyName}}:\\b0\\par
+Security Officer: {{relationshipPocName}}\\par
+Contracts: {{contractsPocName}}\\par
+\\par
+\\b For USmax:\\b0\\par
+Program Manager: {{opportunityPocName}}\\par
+\\par
+\\b 8. GENERAL PROVISIONS\\b0\\par
+\\par
+8.1 {\\b Governing Law}: This Agreement shall be governed by federal law and regulations applicable to Department of Defense contractors.\\par
+\\par
+8.2 {\\b Flowdown}: Contractor shall flow down equivalent protections to any subcontractors requiring access to Controlled Information.\\par
+\\par
+8.3 {\\b Precedence}: In the event of conflict between this Agreement and applicable federal regulations, the regulations shall take precedence.\\par
+\\par
+\\pard\\sa200\\sl276\\slmult1\\qc\\b IN WITNESS WHEREOF\\b0 , the parties have executed this Agreement.\\par
+\\par
+\\pard\\sa200\\sl276\\slmult1\\qj\\b {{companyName}}\\b0\\par
+\\par
+By: \\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\par
+Name: \\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\par
+Title: \\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\par
+Date: \\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\par
+\\par
+\\b UNITED STATES MAXIMUM, INC.\\b0\\par
+\\par
+By: \\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\par
+Name: \\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\par
+Title: \\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\par
+Date: \\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\par
+\\par
+\\pard\\sa200\\sl276\\slmult1\\qr\\fs20 DoD Contract Reference: {{abbreviatedName}}\\par
+Generated: {{generatedDate}}\\par
+CAGE Code: [To be added]\\par
+}`;
+
     await prisma.rtfTemplate.upsert({
       where: { id: '00000000-0000-0000-0000-000000000002' },
-      update: {},
+      update: { content: Buffer.from(dodNdaRtf) },
       create: {
         id: '00000000-0000-0000-0000-000000000002',
         name: 'DoD NDA Template',
-        description: 'Department of Defense specific NDA template',
-        content: Buffer.from('{\\rtf1\\ansi\\deff0 {\\fonttbl{\\f0 Times New Roman;}}\\f0\\fs24 DEPARTMENT OF DEFENSE NDA TEMPLATE\\par}'),
+        description: 'Department of Defense specific NDA with CUI, ITAR, and DFARS compliance clauses',
+        content: Buffer.from(dodNdaRtf),
         agencyGroupId: dodAgencyGroup.id,
         isDefault: false,
         isActive: true,
@@ -642,11 +865,11 @@ Title: \\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\
 
     await prisma.rtfTemplate.upsert({
       where: { id: '00000000-0000-0000-0000-000000000003' },
-      update: {},
+      update: { content: Buffer.from(mutualNdaRtf) },
       create: {
         id: '00000000-0000-0000-0000-000000000003',
-        name: 'Standard Mutual NDA',
-        description: 'Comprehensive mutual NDA with all standard clauses and placeholders',
+        name: 'Mutual NDA (Bidirectional)',
+        description: 'Mutual NDA where both parties exchange confidential information',
         content: Buffer.from(mutualNdaRtf),
         isDefault: false,
         isActive: true,
@@ -655,51 +878,136 @@ Title: \\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\
     });
   }
 
-  // Consultant Agreement Template
+  // Consultant/Contractor Agreement Template - Enhanced
   if (adminUser) {
-    const consultantNdaRtf = `{\\rtf1\\ansi\\deff0
-{\\fonttbl{\\f0 Times New Roman;}}
-\\f0\\fs24
-
-{\\b\\fs28 CONSULTANT NON-DISCLOSURE AGREEMENT}\\par
+    const consultantNdaRtf = `{\\rtf1\\ansi\\ansicpg1252\\deff0\\nouicompat\\deflang1033{\\fonttbl{\\f0\\fnil\\fcharset0 Times New Roman;}}
+{\\*\\generator Riched20 10.0.19041}\\viewkind4\\uc1
+\\pard\\sa200\\sl276\\slmult1\\qc\\b\\f0\\fs32 CONSULTANT/CONTRACTOR\\par
+NON-DISCLOSURE AGREEMENT\\par
+\\pard\\sa200\\sl276\\slmult1\\qj\\b0\\fs24\\par
+This Consultant Non-Disclosure Agreement (the \\"Agreement\\") is made effective as of {{effectiveDate}} between:\\par
 \\par
-This Consultant Non-Disclosure Agreement is made effective as of {{effectiveDate}} between:\\par
+\\b CONSULTANT:\\b0\\par
+{{companyName}}\\par
+{{companyCity}}, {{companyState}}\\par
+State of Incorporation: {{stateOfIncorporation}}\\par
+(hereinafter \\"Consultant\\")\\par
 \\par
-{\\b Consultant:} {{companyName}}\\par
-Located at: {{companyCity}}, {{companyState}}\\par
+\\pard\\sa200\\sl276\\slmult1\\qc\\b and\\b0\\par
 \\par
-{\\b Client:} United States Maximum, Inc.\\par
-Project: {{authorizedPurpose}}\\par
+\\pard\\sa200\\sl276\\slmult1\\b CLIENT:\\b0\\par
+United States Maximum, Inc.\\par
+(hereinafter \\"Client\\")\\par
 \\par
-{\\b AGREEMENT}\\par
+\\pard\\sa200\\sl276\\slmult1\\qc\\b ENGAGEMENT DETAILS\\b0\\par
 \\par
-1. {\\b CONFIDENTIALITY}: Consultant agrees to maintain strict confidentiality of all proprietary information disclosed during the engagement.\\par
+\\pard\\sa200\\sl276\\slmult1\\qj\\b Project/Engagement:\\b0 {{authorizedPurpose}}\\par
+\\b Government Agency:\\b0 {{agencyGroupName}}\\par
+\\b Subagency/Office:\\b0 {{subagencyName}}\\par
+\\b Reference:\\b0 {{abbreviatedName}}\\par
 \\par
-2. {\\b SCOPE OF WORK}: Services to be provided under {{agencyGroupName}} - {{subagencyName}}.\\par
+\\b AGREEMENT:\\b0\\par
 \\par
-3. {\\b TERM}: This agreement is effective from {{effectiveDate}} and remains in force for the duration of the consulting engagement plus two (2) years.\\par
+\\b 1. CONFIDENTIAL INFORMATION\\b0\\par
 \\par
-4. {\\b AUTHORIZED CONTACTS}:\\par
-   Primary: {{relationshipPocName}}\\par
-   Project Manager: {{opportunityPocName}}\\par
+\\"Confidential Information\\" means all proprietary, technical, business, and financial information disclosed by Client to Consultant in connection with the engagement, including but not limited to:\\par
 \\par
-{\\b SIGNATURES}\\par
+\\pard\\fi-360\\li720\\sa200\\sl276\\slmult1 (a)\\tab Client's business plans, strategies, methods, and practices;\\par
+(b)\\tab Technical specifications, designs, processes, and procedures;\\par
+(c)\\tab Customer information, pricing, and financial data;\\par
+(d)\\tab Government contract information and proposal data;\\par
+(e)\\tab Information marked as confidential or proprietary;\\par
+(f)\\tab Work product developed during the engagement.\\par
 \\par
-Consultant: {{companyName}}\\par
-\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\par
+\\pard\\sa200\\sl276\\slmult1\\qj\\b 2. CONSULTANT OBLIGATIONS\\b0\\par
 \\par
-USmax Representative\\par
-\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\par
-Date: {{generatedDate}}\\par
+Consultant agrees to:\\par
+\\par
+\\pard\\fi-360\\li720\\sa200\\sl276\\slmult1 (a)\\tab Maintain Confidential Information in strict confidence;\\par
+(b)\\tab Use Confidential Information solely for performing services under this engagement;\\par
+(c)\\tab Not disclose Confidential Information to any third party without prior written authorization;\\par
+(d)\\tab Protect Confidential Information with at least the same degree of care used to protect Consultant's own confidential information;\\par
+(e)\\tab Limit access to Confidential Information to Consultant's employees or subcontractors who need to know and who are bound by similar confidentiality obligations;\\par
+(f)\\tab Not reverse engineer, decompile, or disassemble any software or technical materials provided by Client.\\par
+\\par
+\\pard\\sa200\\sl276\\slmult1\\qj\\b 3. OWNERSHIP AND INTELLECTUAL PROPERTY\\b0\\par
+\\par
+All Confidential Information, including pre-existing materials provided by Client and work product developed under the engagement, remains the exclusive property of Client. Consultant assigns to Client all rights, title, and interest in any deliverables or work product created during the engagement.\\par
+\\par
+\\b 4. NO LICENSE GRANTED\\b0\\par
+\\par
+This Agreement does not grant Consultant any license or rights to Client's intellectual property, patents, copyrights, trade secrets, or trademarks, except as expressly necessary to perform the consulting services.\\par
+\\par
+\\b 5. RETURN OF MATERIALS\\b0\\par
+\\par
+Upon termination of the engagement or upon request, Consultant shall immediately return or destroy all Confidential Information, including all copies, notes, and work product, and certify in writing that such return or destruction has been completed.\\par
+\\par
+\\b 6. NON-COMPETE AND NON-SOLICITATION\\b0\\par
+\\par
+During the term of the engagement and for one (1) year thereafter, Consultant shall not, without Client's prior written consent:\\par
+\\par
+\\pard\\fi-360\\li720\\sa200\\sl276\\slmult1 (a)\\tab Compete directly with Client in areas related to the engagement;\\par
+(b)\\tab Solicit or recruit Client's employees or other consultants;\\par
+(c)\\tab Solicit Client's customers for competing services.\\par
+\\par
+\\pard\\sa200\\sl276\\slmult1\\qj\\b 7. TERM AND SURVIVAL\\b0\\par
+\\par
+This Agreement is effective from {{effectiveDate}} and remains in effect for the duration of the consulting engagement plus three (3) years. Confidentiality obligations survive termination indefinitely.\\par
+\\par
+\\b 8. GOVERNMENT CONTRACT COMPLIANCE\\b0\\par
+\\par
+Consultant acknowledges this engagement involves work for {{agencyGroupName}} - {{subagencyName}}. Consultant agrees to comply with all applicable federal regulations, including FAR and DFARS provisions.\\par
+\\par
+\\b 9. AUTHORIZED REPRESENTATIVES\\b0\\par
+\\par
+\\b For {{companyName}}:\\b0\\par
+Primary Contact: {{relationshipPocName}}\\par
+Contracts: {{contractsPocName}}\\par
+\\par
+\\b For USmax:\\b0\\par
+Project Manager: {{opportunityPocName}}\\par
+\\par
+\\b 10. REMEDIES\\b0\\par
+\\par
+Consultant acknowledges that breach of this Agreement may cause irreparable harm to Client for which monetary damages may be inadequate. Client shall be entitled to seek equitable relief, including injunction and specific performance, in addition to all other remedies available at law or in equity.\\par
+\\par
+\\b 11. GENERAL PROVISIONS\\b0\\par
+\\par
+11.1 {\\b Governing Law}: Delaware law governs this Agreement.\\par
+\\par
+11.2 {\\b Severability}: Invalid provisions shall be severed without affecting the remainder of the Agreement.\\par
+\\par
+11.3 {\\b Entire Agreement}: This Agreement constitutes the entire agreement regarding confidentiality between the parties.\\par
+\\par
+11.4 {\\b Independent Contractor}: Consultant is an independent contractor, not an employee or agent of Client.\\par
+\\par
+\\pard\\sa200\\sl276\\slmult1\\qc\\b IN WITNESS WHEREOF\\b0 , the parties have executed this Agreement.\\par
+\\par
+\\pard\\sa200\\sl276\\slmult1\\qj\\b {{companyName}} (Consultant)\\b0\\par
+\\par
+By: \\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\par
+Name: \\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\par
+Title: \\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\par
+Date: \\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\par
+\\par
+\\b UNITED STATES MAXIMUM, INC. (Client)\\b0\\par
+\\par
+By: \\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\par
+Name: \\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\par
+Title: \\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\par
+Date: \\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\par
+\\par
+\\pard\\sa200\\sl276\\slmult1\\qr\\fs20 Engagement Reference: {{abbreviatedName}}\\par
+Document Generated: {{generatedDate}}\\par
 }`;
 
     await prisma.rtfTemplate.upsert({
       where: { id: '00000000-0000-0000-0000-000000000004' },
-      update: {},
+      update: { content: Buffer.from(consultantNdaRtf) },
       create: {
         id: '00000000-0000-0000-0000-000000000004',
-        name: 'Consultant Agreement',
-        description: 'NDA template for consultant and contractor engagements',
+        name: 'Consultant/Contractor NDA',
+        description: 'Professional NDA for consultant and contractor engagements with IP assignment clauses',
         content: Buffer.from(consultantNdaRtf),
         isDefault: false,
         isActive: true,
@@ -760,7 +1068,7 @@ Date: {{generatedDate}}\\par
 
     await prisma.rtfTemplate.upsert({
       where: { id: '00000000-0000-0000-0000-000000000005' },
-      update: {},
+      update: { content: Buffer.from(federalNdaRtf) },
       create: {
         id: '00000000-0000-0000-0000-000000000005',
         name: 'Federal Agency NDA',
@@ -774,7 +1082,12 @@ Date: {{generatedDate}}\\par
     });
   }
 
-  console.log('  Created 5 RTF templates (Generic, DoD, Standard Mutual, Consultant, Federal)');
+  console.log('  ✅ Created/updated 5 professional RTF templates:');
+  console.log('     - Standard NDA Template (default, all agencies)');
+  console.log('     - DoD NDA Template (CUI/ITAR/DFARS compliance)');
+  console.log('     - Mutual NDA (bidirectional exchange)');
+  console.log('     - Consultant/Contractor NDA (IP assignment)');
+  console.log('     - Federal Agency NDA (FAR compliance)');
 }
 
 async function seedSystemConfig() {
