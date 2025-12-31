@@ -17,6 +17,7 @@ import { Dashboard } from './components/screens/Dashboard';
 import { AllNdas, MyDrafts, MyNdas } from './components/screens/Requests';
 import { RequestWizard } from './components/screens/RequestWizard';
 import { NDADetail } from './components/screens/NDADetail';
+import { NDADocumentEditor } from './components/screens/NDADocumentEditor';
 import { Templates } from './components/screens/Templates';
 import { Reports } from './components/screens/Reports';
 import { Administration } from './components/screens/Administration';
@@ -128,6 +129,7 @@ export default function App() {
           <Route path="/request-wizard" element={<MainLayout><RequestWizard /></MainLayout>} />
           <Route path="/request-wizard/:id" element={<MainLayout><RequestWizard /></MainLayout>} />
           <Route path="/nda/:id/edit" element={<MainLayout><RequestWizard /></MainLayout>} />
+          <Route path="/nda/:id/edit-document" element={<MainLayout><NDADocumentEditor /></MainLayout>} />
           <Route path="/nda/:id" element={<MainLayout><NDADetail /></MainLayout>} />
           <Route path="/templates" element={<MainLayout><Templates /></MainLayout>} />
           <Route path="/reports" element={<MainLayout><Reports /></MainLayout>} />

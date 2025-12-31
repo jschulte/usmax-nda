@@ -2291,4 +2291,177 @@ router.post('/:id/reject', requirePermission(PERMISSIONS.NDA_APPROVE), async (re
   }
 });
 
+// ============================================================================
+// Workflow Guidance
+// ============================================================================
+
+/**
+ * GET /api/ndas/:id/workflow-guidance
+ * Get workflow guidance for an NDA (what to do next)
+ *
+ * Returns:
+ * - nextAction: What should happen next
+ * - approvalRequired: Whether approval is needed
+ * - approvers: Who can approve
+ * - guidanceText: Clear explanation
+ * - availableActions: What user can do
+ */
+router.get(
+  '/:id/workflow-guidance',
+  requirePermission(PERMISSIONS.NDA_VIEW),
+  async (req, res) => {
+    try {
+      const { getWorkflowGuidance } = await import('../services/workflowService.js');
+      const guidance = await getWorkflowGuidance(req.params.id, req.userContext!);
+      res.json({ guidance });
+    } catch (error) {
+      console.error('[NDAs] Error getting workflow guidance:', error);
+      res.status(500).json({
+        error: 'Failed to get workflow guidance',
+        code: 'INTERNAL_ERROR',
+      });
+    }
+  }
+);
+
+// ============================================================================
+// Document Editing
+// ============================================================================
+
+/**
+ * GET /api/ndas/:id/documents/:docId/edit-content
+ * Get document content as HTML for editing
+ *
+ * Converts RTF → HTML using @jonahschulte/rtf-toolkit
+ */
+router.get(
+  '/:id/documents/:docId/edit-content',
+  requirePermission(PERMISSIONS.NDA_VIEW),
+  async (req, res) => {
+    try {
+      const { parseRTF, toHTML } = await import('@jonahschulte/rtf-toolkit');
+      const { getDocumentContent } = await import('../services/documentService.js');
+
+      // Get RTF content from S3
+      const rtfContent = await getDocumentContent(
+        req.params.id,
+        req.params.docId,
+        req.userContext!
+      );
+
+      // Convert RTF → HTML
+      const doc = parseRTF(rtfContent);
+      const htmlContent = toHTML(doc);
+
+      res.json({ htmlContent });
+    } catch (error) {
+      console.error('[NDAs] Error loading document for editing:', error);
+      res.status(500).json({
+        error: 'Failed to load document',
+        code: 'LOAD_ERROR',
+      });
+    }
+  }
+);
+
+/**
+ * PUT /api/ndas/:id/documents/:docId/save
+ * Save edited document content
+ *
+ * Converts HTML → RTF and creates new document version
+ */
+router.put(
+  '/:id/documents/:docId/save',
+  requirePermission(PERMISSIONS.NDA_UPDATE),
+  async (req, res) => {
+    try {
+      const { htmlContent } = req.body;
+
+      if (!htmlContent || typeof htmlContent !== 'string') {
+        return res.status(400).json({
+          error: 'htmlContent is required',
+          code: 'MISSING_CONTENT',
+        });
+      }
+
+      const { convertHtmlToRtf } = await import('html-to-rtf');
+      const { uploadDocument } = await import('../services/s3Service.js');
+
+      // Convert HTML → RTF
+      const rtfContent = convertHtmlToRtf(htmlContent);
+
+      // Create new document version
+      const filename = `NDA_${req.params.id}_v${Date.now()}.rtf`;
+      const uploadResult = await uploadDocument({
+        ndaId: req.params.id,
+        filename,
+        content: Buffer.from(rtfContent),
+        contentType: 'application/rtf',
+      });
+
+      // Create database record
+      const document = await prisma.document.create({
+        data: {
+          ndaId: req.params.id,
+          filename,
+          fileType: 'application/rtf',
+          fileSize: Buffer.byteLength(rtfContent),
+          s3Key: uploadResult.s3Key,
+          documentType: 'GENERATED',
+          uploadedById: req.userContext!.contactId,
+          versionNumber: await getNextVersionNumber(req.params.id),
+          notes: 'Edited in browser',
+        },
+        include: {
+          uploadedBy: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+            },
+          },
+        },
+      });
+
+      // Audit log
+      await auditService.log({
+        action: 'document_edited',
+        entityType: 'document',
+        entityId: document.id,
+        userId: req.userContext!.contactId,
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent'],
+        details: {
+          ndaId: req.params.id,
+          documentId: document.id,
+          filename: document.filename,
+          versionNumber: document.versionNumber,
+        },
+      });
+
+      res.json({
+        message: 'Document saved successfully',
+        document,
+      });
+    } catch (error) {
+      console.error('[NDAs] Error saving document:', error);
+      res.status(500).json({
+        error: 'Failed to save document',
+        code: 'SAVE_ERROR',
+      });
+    }
+  }
+);
+
+async function getNextVersionNumber(ndaId: string): Promise<number> {
+  const maxVersion = await prisma.document.findFirst({
+    where: { ndaId },
+    orderBy: { versionNumber: 'desc' },
+    select: { versionNumber: true },
+  });
+
+  return (maxVersion?.versionNumber || 0) + 1;
+}
+
 export default router;

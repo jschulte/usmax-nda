@@ -668,6 +668,66 @@ function sanitizeZipEntryName(filename: string, fallback: string): string {
  * Check if user has access to an agency
  */
 /**
+ * Get document content from S3 for editing
+ *
+ * @param ndaId - NDA ID
+ * @param documentId - Document ID
+ * @param userContext - User context for permissions
+ * @returns RTF content as string
+ */
+export async function getDocumentContent(
+  ndaId: string,
+  documentId: string,
+  userContext: UserContext
+): Promise<string> {
+  // Find document with agency scoping
+  const document = await prisma.document.findFirst({
+    where: {
+      id: documentId,
+      ndaId,
+    },
+    include: {
+      nda: {
+        include: {
+          subagency: true,
+        },
+      },
+    },
+  });
+
+  if (!document) {
+    throw new DocumentServiceError('Document not found', 'NOT_FOUND');
+  }
+
+  // Check agency access
+  const hasAccess = userContext.subagencyIds.includes(document.nda.subagencyId);
+  if (!hasAccess) {
+    throw new DocumentServiceError('Access denied', 'ACCESS_DENIED');
+  }
+
+  // Download from S3
+  const s3Client = getS3Client();
+  const command = new GetObjectCommand({
+    Bucket: S3_BUCKET,
+    Key: document.s3Key,
+  });
+
+  const response = await s3Client.send(command);
+
+  if (!response.Body) {
+    throw new DocumentServiceError('Document content not found in S3', 'NOT_FOUND');
+  }
+
+  // Convert stream to string
+  const chunks: Uint8Array[] = [];
+  for await (const chunk of response.Body as any) {
+    chunks.push(chunk);
+  }
+  const buffer = Buffer.concat(chunks);
+  return buffer.toString('utf-8');
+}
+
+/**
  * Format document for API response
  */
 function formatDocumentResponse(document: any): DocumentResponse {

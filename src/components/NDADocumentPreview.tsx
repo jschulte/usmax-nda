@@ -6,7 +6,8 @@
  */
 
 import React, { useState } from 'react';
-import { FileText, Download, Eye, Loader2, ExternalLink } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { FileText, Download, Eye, Loader2, Edit } from 'lucide-react';
 import { Button } from './ui/AppButton';
 import { Badge } from './ui/AppBadge';
 import { Card } from './ui/AppCard';
@@ -18,7 +19,6 @@ interface NDADocumentPreviewProps {
   ndaId: string;
   documents: Document[];
   templateId?: string;
-  onEdit?: () => void;
   canEdit?: boolean;
 }
 
@@ -26,9 +26,9 @@ export function NDADocumentPreview({
   ndaId,
   documents,
   templateId,
-  onEdit,
   canEdit = false
 }: NDADocumentPreviewProps) {
+  const navigate = useNavigate();
   const [previewing, setPreviewing] = useState(false);
 
   // Get the latest generated document
@@ -136,11 +136,11 @@ export function NDADocumentPreview({
           {previewing ? 'Opening...' : 'View Document'}
         </Button>
 
-        {canEdit && onEdit && (
+        {canEdit && latestDocument && (
           <Button
             variant="secondary"
-            icon={<ExternalLink className="w-4 h-4" />}
-            onClick={onEdit}
+            icon={<Edit className="w-4 h-4" />}
+            onClick={() => navigate(`/nda/${ndaId}/edit-document`)}
           >
             Edit in Browser
           </Button>

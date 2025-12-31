@@ -41,9 +41,11 @@ import {
 } from '../ui/dialog';
 import { NDADocumentPreview } from '../NDADocumentPreview';
 import { NDAWorkflowProgress } from '../NDAWorkflowProgress';
+import { WorkflowGuidanceCard } from '../WorkflowGuidanceCard';
 import { RecipientSelector, type Recipient } from '../RecipientSelector';
 import { EmailPreview } from '../EmailPreview';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
+import { getWorkflowGuidance, type WorkflowGuidance } from '../../client/services/workflowService';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -152,6 +154,7 @@ export function NDADetail() {
   const [selectedEmailTemplateId, setSelectedEmailTemplateId] = useState<string>('');
   const [availableRecipients, setAvailableRecipients] = useState<Recipient[]>([]);
   const [selectedRecipientIds, setSelectedRecipientIds] = useState<Set<string>>(new Set());
+  const [workflowGuidance, setWorkflowGuidance] = useState<WorkflowGuidance | null>(null);
   const [showAddNoteDialog, setShowAddNoteDialog] = useState(false);
   const [showMarkExecutedDialog, setShowMarkExecutedDialog] = useState(false);
   const [showStatusChangeModal, setShowStatusChangeModal] = useState(false); // Story 9.8
@@ -179,6 +182,15 @@ export function NDADetail() {
           statusProgression: detail.statusProgression,
         });
         setDocuments(detail.documents as Document[]);
+
+        // Load workflow guidance
+        try {
+          const guidance = await getWorkflowGuidance(id);
+          setWorkflowGuidance(guidance);
+        } catch (guidanceErr) {
+          console.error('Failed to load workflow guidance:', guidanceErr);
+          // Non-critical - continue without guidance
+        }
       } catch (err) {
         console.error('Failed to load NDA:', err);
         setError(err instanceof Error ? err.message : 'Failed to load NDA');
@@ -1830,6 +1842,17 @@ export function NDADetail() {
         
         {/* Right column - Side panels */}
         <div className="space-y-6">
+          {/* Workflow Guidance - Show for CREATED and PENDING_APPROVAL */}
+          {workflowGuidance && (nda.status === 'CREATED' || nda.status === 'PENDING_APPROVAL') && (
+            <WorkflowGuidanceCard
+              guidance={workflowGuidance}
+              onRouteForApproval={handleRouteForApproval}
+              onSendDirectly={handleSendForSignature}
+              onApprove={handleApproveNda}
+              loading={statusUpdating || previewing}
+            />
+          )}
+
           {/* Quick Actions */}
           <Card>
             <h3 className="mb-4">Quick actions</h3>
