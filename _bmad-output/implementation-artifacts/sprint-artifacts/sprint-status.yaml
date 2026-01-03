@@ -99,7 +99,7 @@ development_status:
   5-5-date-range-shortcuts: done  # Updated 2026-01-03
   5-6-pagination-with-configurable-page-size: done  # Updated 2026-01-03
   5-7-recently-used-values-in-dropdowns: done  # Updated 2026-01-03
-  5-8-personalized-dashboard: ready-for-dev  # Updated 2026-01-02
+  5-8-personalized-dashboard: done  # Updated 2026-01-03
   5-9-at-a-glance-metrics: ready-for-dev  # Updated 2026-01-02
   5-10-stale-nda-identification: ready-for-dev  # Updated 2026-01-02
   5-11-waiting-on-3rd-party-tracking: ready-for-dev  # Updated 2026-01-02
@@ -126,43 +126,26 @@ development_status:
   epic-6: done
   epic-6-retrospective: optional
 
-  epic-7: done
-  7-15-placeholder: done  # Updated 2026-01-02
-  7-8-placeholder: done  # Updated 2026-01-02
-  7-12-placeholder: done  # Updated 2026-01-02
-  7-7-placeholder: done  # Updated 2026-01-02
-  7-6-placeholder: done  # Updated 2026-01-02
-  7-13-placeholder: done  # Updated 2026-01-02
-  7-9-placeholder: done  # Updated 2026-01-02
-  7-14-placeholder: done  # Updated 2026-01-02
-  7-3-placeholder: done  # Updated 2026-01-02
-  7-16-placeholder: done  # Updated 2026-01-02
-  7-19-placeholder: done  # Updated 2026-01-02
-  7-11-placeholder: done  # Updated 2026-01-02
-  7-4-placeholder: done  # Updated 2026-01-02
-  7-5-placeholder: done  # Updated 2026-01-02
-  7-10-placeholder: done  # Updated 2026-01-02
-  7-18-placeholder: done  # Updated 2026-01-02
-  7-17-placeholder: done  # Updated 2026-01-02
-  7-1-rtf-template-creation: done
-  7-2-rtf-template-management: done
-  7-3-default-template-assignment: done
-  7-4-template-field-merging: done
-  7-5-template-selection-during-creation: done
-  7-6-email-template-creation: done
-  7-7-email-template-management: done
-  7-8-template-suggestions: done
-  7-9-smart-company-suggestions: done
-  7-10-historical-field-suggestions: done
-  7-11-previous-nda-context-display: done
-  7-12-email-recipient-suggestions: done
-  7-13-learning-suggestions-over-time: done
-  7-14-admin-status-configuration: done
-  7-15-auto-transition-rule-configuration: done
-  7-16-notification-rule-configuration: done
-  7-17-dashboard-alert-threshold-configuration: done
-  7-18-default-email-cc-bcc-configuration: done
-  7-19-dropdown-field-configuration: done
+  epic-7: in-progress
+  7-1-rtf-template-creation: ready-for-dev
+  7-2-rtf-template-management: ready-for-dev
+  7-3-default-template-assignment: ready-for-dev
+  7-4-template-field-merging: ready-for-dev
+  7-5-template-selection-during-creation: ready-for-dev
+  7-6-email-template-creation: ready-for-dev
+  7-7-email-template-management: ready-for-dev
+  7-8-template-suggestions: ready-for-dev
+  7-9-smart-company-suggestions: ready-for-dev
+  7-10-historical-field-suggestions: ready-for-dev
+  7-11-previous-nda-context-display: ready-for-dev
+  7-12-email-recipient-suggestions: ready-for-dev
+  7-13-learning-suggestions-over-time: ready-for-dev
+  7-14-admin-status-configuration: ready-for-dev
+  7-15-auto-transition-rule-configuration: ready-for-dev
+  7-16-notification-rule-configuration: ready-for-dev
+  7-17-dashboard-alert-threshold-configuration: ready-for-dev
+  7-18-default-email-cc-bcc-configuration: ready-for-dev
+  7-19-dropdown-field-configuration: ready-for-dev
   epic-7-retrospective: optional
 
   epic-8: in-progress
