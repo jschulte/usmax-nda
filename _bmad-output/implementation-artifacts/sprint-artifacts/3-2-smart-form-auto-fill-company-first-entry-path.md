@@ -1,6 +1,6 @@
 # Story 3.2: Smart Form Auto-Fill (Company-First Entry Path)
 
-Status: review
+Status: done
 
 ## Story
 
@@ -87,8 +87,15 @@ so that **I can create NDAs faster (15 fields → 3-4 manual entries)**.
 ### Pre-Development Analysis
 - **Date:** 2026-01-03
 - **Development Type:** hybrid
-- **Existing Files:** 2
-- **New Files:** 4
+
+**Existing Files (pre-story 3-2):**
+- `src/server/services/companySuggestionsService.ts` (already existed with service helpers)
+- `src/server/services/__tests__/companySuggestionsService.test.ts` (already existed with unit tests)
+- `src/server/routes/ndas.ts` (already had POST/GET, needed company endpoints added)
+- `src/components/screens/RequestWizard.tsx` (already existed, needed auto-fill logic added)
+
+**New Files Created in Story 3-2:**
+- None (functionality integrated into existing files)
 
 **Findings:**
 - Tasks ready: 9
@@ -98,12 +105,12 @@ so that **I can create NDAs faster (15 fields → 3-4 manual entries)**.
 - Tasks added: 0
 
 **Codebase Scan:**
-- `src/server/services/companySuggestionsService.ts` (service helpers, security scoping)
-- `src/server/services/__tests__/companySuggestionsService.test.ts` (unit tests + mode calc)
-- `src/server/routes/ndas.ts` (company-suggestions/company-defaults/company-search endpoints)
-- `src/client/services/ndaService.ts` (client calls for suggestions/defaults/search)
-- `src/components/screens/RequestWizard.tsx` (company dropdown + defaults auto-fill)
-- `prisma/schema.prisma` (companyName index)
+- `src/server/services/companySuggestionsService.ts` (service helpers, security scoping) - EXISTING
+- `src/server/services/__tests__/companySuggestionsService.test.ts` (unit tests + mode calc) - EXISTING
+- `src/server/routes/ndas.ts` (company-suggestions/company-defaults/company-search endpoints) - MODIFIED
+- `src/client/services/ndaService.ts` (client calls for suggestions/defaults/search) - EXISTING
+- `src/components/screens/RequestWizard.tsx` (company dropdown + defaults auto-fill) - MODIFIED
+- `prisma/schema.prisma` (companyName index) - EXISTING
 
 **Status:** Ready for implementation
 
@@ -179,6 +186,8 @@ async function getCompanySuggestions(companyName: string, userId: string) {
 
 ### Frontend Auto-Fill Implementation
 
+**Note:** The examples below are conceptual illustrations showing the pattern. Actual implementation in RequestWizard.tsx uses direct state management rather than React Hook Form.
+
 ```tsx
 function CreateNDA() {
   const form = useForm();
@@ -188,8 +197,8 @@ function CreateNDA() {
     form.setValue('companyName', companyName);
 
     // Fetch auto-fill suggestions
-    const suggestions = await api.get('/api/suggestions/company-data', {
-      params: { company: companyName }
+    const suggestions = await api.get('/api/ndas/company-defaults', {
+      params: { name: companyName }
     });
 
     if (suggestions) {
@@ -229,7 +238,7 @@ function CompanyAutocomplete({ onSelect }: CompanyAutocompleteProps) {
 
   const { data: companies } = useQuery({
     queryKey: ['company-suggestions', debouncedSearch],
-    queryFn: () => api.get('/api/suggestions/companies', {
+    queryFn: () => api.get('/api/ndas/company-search', {
       params: { q: debouncedSearch }
     }).then(res => res.data),
     enabled: debouncedSearch.length >= 2
@@ -291,14 +300,18 @@ CREATE INDEX idx_ndas_company_name ON ndas(company_name, created_at DESC);
 
 ### Project Structure Notes
 
-**New Files:**
-- `src/server/services/companySuggestionsService.ts` - NEW
-- `src/server/routes/suggestions.ts` - NEW
-- `src/components/ui/CompanyAutocomplete.tsx` - NEW
+**Implementation Note:** Original plan called for separate files, but actual implementation integrated functionality into existing components for better cohesion.
 
-**Files to Modify:**
-- `src/components/screens/CreateNDA.tsx` - MODIFY (add auto-fill logic)
-- `prisma/schema.prisma` - ADD index on company_name
+**New Files (from pre-story 3-2 implementation):**
+- `src/server/services/companySuggestionsService.ts` - NEW (created before this story)
+
+**Files Modified in Story 3-2 (commit f3d6422):**
+- `src/components/screens/RequestWizard.tsx` - Added debounced company search, auto-fill highlights, recent list
+- `src/server/routes/ndas.ts` - Added company-suggestions/company-defaults/company-search endpoints
+- `src/components/__tests__/RequestWizard.test.tsx` - Added auto-fill behavior tests
+- `src/server/routes/__tests__/ndas.test.ts` - Added company endpoint tests
+
+**Note:** Company autocomplete functionality integrated into RequestWizard.tsx rather than separate component. Suggestions API integrated into ndas.ts routes rather than separate suggestions.ts file.
 
 **Follows established patterns:**
 - Service layer for business logic

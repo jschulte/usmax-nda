@@ -1,6 +1,6 @@
 # Story 3.3: Clone/Duplicate NDA (Second Entry Path)
 
-Status: review
+Status: done
 
 ## Story
 
@@ -56,8 +56,8 @@ so that **I can quickly create similar NDAs (common for repeat partners)**.
   - [x] 5.1: When clone source loads, populate form with all fields
   - [x] 5.2: Use RequestWizard form state setters to pre-fill cloned data
   - [x] 5.3: Highlight fields that typically change (purpose, opp name, date)
-  - [x] 5.4: Clear those highlighted fields (user must re-enter)
-  - [x] 5.5: Or leave filled and just focus first field to edit
+  - [x] 5.4: Clear those highlighted fields (user must re-enter) ← IMPLEMENTED APPROACH
+  - [ ] 5.5: Or leave filled and just focus first field to edit ← Alternative approach NOT implemented
 
 - [x] **Task 6: Alternative Approach - Clone via Form Route** (AC: 1)
   - [x] 6.1: Navigate to /requests?cloneFrom={ndaId}
@@ -78,22 +78,23 @@ so that **I can quickly create similar NDAs (common for repeat partners)**.
 ### Pre-Development Analysis
 - **Date:** 2026-01-03
 - **Development Type:** hybrid
-- **Existing Files:** 5
-- **New Files:** 1
+
+**Existing Files (pre-story 3-3):**
+- `src/server/services/ndaService.ts` (cloneNda already implemented)
+- `src/server/routes/ndas.ts` (POST /api/ndas/:id/clone already implemented)
+- `src/client/services/ndaService.ts` (cloneNDA client already implemented)
+- `src/components/screens/RequestWizard.tsx` (basic clone flow existed)
+- `src/server/services/__tests__/ndaService.test.ts` (clone unit tests existed)
+
+**New Files Created in Story 3-3:**
+- `src/components/__tests__/NDADetail.test.tsx` (clone button test)
 
 **Findings:**
-- Tasks ready: 1
-- Tasks partially done: 3
-- Tasks already complete: 3
+- Tasks ready: 4 (UI enhancements: clone button, banner link, field highlighting, tests)
+- Tasks partially done: 0
+- Tasks already complete: 3 (backend clone logic, API endpoint, basic UI flow)
 - Tasks refined: 0
 - Tasks added: 0
-
-**Codebase Scan:**
-- `src/server/services/ndaService.ts` (cloneNda implemented with audit logging)
-- `src/server/routes/ndas.ts` (POST /api/ndas/:id/clone endpoint)
-- `src/client/services/ndaService.ts` (cloneNDA client)
-- `src/components/screens/RequestWizard.tsx` (clone flow + banner)
-- `src/server/services/__tests__/ndaService.test.ts` (clone tests)
 
 **Status:** Ready for implementation
 
@@ -167,6 +168,8 @@ async function cloneNda(sourceNdaId: string, userId: string) {
 ```
 
 ### Frontend Clone Flow
+
+**Note:** The examples below are conceptual illustrations. Actual implementation uses Option B (navigate to form with cloneFrom query param).
 
 **Option A: Clone then Navigate to Form:**
 ```tsx
@@ -330,8 +333,13 @@ Story created from PRD/Epics specifications without code anchoring.
 
 ### File List
 
-Files to be created/modified during implementation:
-- `src/components/screens/NDADetail.tsx` - MODIFY (add clone button)
-- `src/components/screens/RequestWizard.tsx` - MODIFY (clone banner/link, highlight fields)
-- `src/components/__tests__/RequestWizard.test.tsx` - MODIFY (clone banner behavior)
+**Files created/modified in this story (commit d2a4d9c):**
+- `src/components/screens/NDADetail.tsx` - MODIFY (add clone button with permission check)
+- `src/components/screens/RequestWizard.tsx` - MODIFY (clone banner/link, field highlighting, clear logic)
+- `src/components/__tests__/RequestWizard.test.tsx` - MODIFY (clone banner navigation test)
+- `src/components/__tests__/NDADetail.test.tsx` - NEW (clone button test)
 - `src/server/routes/__tests__/ndas.test.ts` - MODIFY (clone endpoint tests)
+- `src/server/routes/__tests__/ndaCreationFlow.e2e.test.ts` - MODIFY (clone flow test)
+- `_bmad-output/implementation-artifacts/sprint-artifacts/review-3-3.md` - NEW (code review report)
+
+**Note:** NDA service cloneNda() function and POST /api/ndas/:id/clone endpoint existed before this story. This story enhanced the UI/UX for cloning.

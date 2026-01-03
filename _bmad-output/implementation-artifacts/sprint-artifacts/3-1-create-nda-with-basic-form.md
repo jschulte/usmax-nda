@@ -1,6 +1,6 @@
 # Story 3.1: Create NDA with Basic Form
 
-Status: review
+Status: done
 
 ## Story
 
@@ -157,7 +157,7 @@ No batchable patterns detected. Remaining tasks require individual execution:
 
 ### Post-Implementation Validation
 - **Date:** 2026-01-03
-- **Tasks Verified:** 61
+- **Tasks Verified:** 47 (all subtasks)
 - **False Positives:** 0
 - **Status:** ✅ All work verified complete
 
@@ -284,6 +284,8 @@ async function createNda(data: CreateNdaInput, userId: string) {
 
 ### Frontend Form Component
 
+**Note:** The examples below are conceptual illustrations. Actual implementation uses RequestWizard.tsx with custom validation logic rather than Zod.
+
 ```tsx
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -399,13 +401,13 @@ async function getNextDisplayId(): Promise<number> {
 
 ### Project Structure Notes
 
-**New Files:**
+**New Files (from original planning - actual implementation differed):**
 - `prisma/schema.prisma` - ADD Nda model, enums
-- `src/server/services/ndaService.ts` - NEW
-- `src/server/validators/ndaValidator.ts` - NEW
+- `src/server/services/ndaService.ts` - NEW (includes validation logic)
 - `src/server/routes/ndas.ts` - NEW
-- `src/components/screens/CreateNDA.tsx` - NEW (or RequestWizard.tsx)
 - Migration files for NDA schema
+
+**Note:** Validation logic was implemented in ndaService.ts rather than a separate validator file. RequestWizard.tsx (the NDA form) existed before this story.
 
 **Follows established patterns:**
 - Service layer from Epic 2
@@ -445,15 +447,16 @@ Story created from PRD/Epics specifications without code anchoring.
 
 ### File List
 
-Files to be created/modified during implementation:
-- `prisma/schema.prisma` - NDA model and enums
-- `prisma/migrations/20251217091247_add_full_nda_model/migration.sql` - NDA schema migration
-- `prisma/migrations/20260103050000_set_nda_display_id_sequence_start/migration.sql` - displayId sequence baseline
-- `src/server/services/ndaService.ts` - NDA service + validation
-- `src/server/routes/ndas.ts` - NDA API routes
-- `src/components/screens/RequestWizard.tsx` - Create NDA form
-- `src/server/services/__tests__/ndaService.test.ts` - NDA service tests
-- `src/server/routes/__tests__/ndas.test.ts` - NDA routes tests
-- `src/server/services/__tests__/ndaDisplayIdSequence.test.ts` - displayId sequence test
-- `src/server/routes/__tests__/ndaCreationFlow.e2e.test.ts` - creation flow test
-- `src/components/__tests__/RequestWizard.test.tsx` - RequestWizard component test
+**Files created/modified in this story (commits bcb3386, a68c3a5, 537580e):**
+- `prisma/schema.prisma` - NDA model and enums (commit bcb3386)
+- `prisma/migrations/20251217091247_add_full_nda_model/migration.sql` - NDA schema migration (commit bcb3386)
+- `prisma/migrations/20260103050000_set_nda_display_id_sequence_start/migration.sql` - displayId sequence baseline 1590 (commit a68c3a5)
+- `src/server/services/ndaService.ts` - NDA service + validation (commits bcb3386, a68c3a5)
+- `src/server/routes/ndas.ts` - NDA API routes (commit bcb3386)
+- `src/server/services/__tests__/ndaService.test.ts` - NDA service validation tests (commits bcb3386, a68c3a5)
+- `src/server/routes/__tests__/ndas.test.ts` - POST /api/ndas endpoint tests (commit a68c3a5)
+- `src/server/services/__tests__/ndaDisplayIdSequence.test.ts` - displayId sequence baseline test (commit a68c3a5)
+- `src/server/routes/__tests__/ndaCreationFlow.e2e.test.ts` - NDA creation flow test (commit a68c3a5, 537580e)
+- `src/components/__tests__/RequestWizard.test.tsx` - RequestWizard component test for validation (commit a68c3a5)
+
+**Note:** RequestWizard.tsx existed before this story and implements the NDA creation form used by this feature.
