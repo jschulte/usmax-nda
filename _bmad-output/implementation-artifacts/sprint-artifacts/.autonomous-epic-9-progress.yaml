@@ -8,5 +8,6 @@ completed_stories:
   - 9-4-add-subagency-creation-button
   - 9-5-fix-role-assignment-error
   - 9-6-human-readable-audit-trail-display
+  - 9-7-fix-nda-edit-page-layout
 current_story: null
 status: running

@@ -1,6 +1,6 @@
 # Story 9.7: Fix NDA Detail Page Button Layout
 
-Status: review
+Status: done
 
 ## Story
 
