@@ -1,6 +1,6 @@
 # Story 2.2: Subagencies CRUD
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -36,21 +36,21 @@ so that **I can represent the detailed organizational structure**.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: Database Schema - Subagencies** (AC: 1, 4)
+- [x] **Task 1: Database Schema - Subagencies** (AC: 1, 4)
   - [ ] 1.1: Verify subagencies table exists in Prisma schema (created in Story 1-2)
   - [ ] 1.2: Fields: id, name, agency_group_id (FK), description, created_at, updated_at
   - [ ] 1.3: Add unique constraint on (agency_group_id, name)
   - [ ] 1.4: Add onDelete: Restrict for agency_group relation
   - [ ] 1.5: Run migration if needed
 
-- [ ] **Task 2: Seed Initial Subagencies** (AC: 1)
+- [x] **Task 2: Seed Initial Subagencies** (AC: 1)
   - [ ] 2.1: Extend prisma/seed.ts with 40-50 subagencies
   - [ ] 2.2: Seed DoD subagencies: Air Force, Army, Navy, Marines, Space Force, etc.
   - [ ] 2.3: Seed Commercial subagencies: Various company types
   - [ ] 2.4: Seed Fed Civ subagencies: EPA, NASA, NOAA, etc.
   - [ ] 2.5: Distribute across all 12 agency groups
 
-- [ ] **Task 3: Subagency Service** (AC: 1, 2, 3, 4)
+- [x] **Task 3: Subagency Service** (AC: 1, 2, 3, 4)
   - [ ] 3.1: Create src/server/services/subagencyService.ts
   - [ ] 3.2: Implement listSubagencies(agencyGroupId?) - all or filtered by group
   - [ ] 3.3: Implement createSubagency(agencyGroupId, name, description, userId)
@@ -58,7 +58,7 @@ so that **I can represent the detailed organizational structure**.
   - [ ] 3.5: Implement deleteSubagency(id, userId) - check for NDAs first
   - [ ] 3.6: Record audit log for all mutations
 
-- [ ] **Task 4: Subagency API** (AC: All)
+- [x] **Task 4: Subagency API** (AC: All)
   - [ ] 4.1: Create src/server/routes/subagencies.ts
   - [ ] 4.2: Implement GET /api/subagencies - list all
   - [ ] 4.3: Implement GET /api/agencies/:id/subagencies - list for specific group
@@ -67,27 +67,27 @@ so that **I can represent the detailed organizational structure**.
   - [ ] 4.6: Implement DELETE /api/subagencies/:id - delete with validation
   - [ ] 4.7: Apply requirePermission('admin:manage_agencies') to all
 
-- [ ] **Task 5: Referential Integrity Checks** (AC: 3)
+- [x] **Task 5: Referential Integrity Checks** (AC: 3)
   - [ ] 5.1: Before delete, count NDAs for subagency
   - [ ] 5.2: If count > 0, return 400 with error and count
   - [ ] 5.3: Set Prisma onDelete: Restrict for subagency → nda relation
   - [ ] 5.4: Handle constraint violation
 
-- [ ] **Task 6: Frontend - Subagency Management UI** (AC: 1, 2)
+- [x] **Task 6: Frontend - Subagency Management UI** (AC: 1, 2)
   - [ ] 6.1: Extend AgencyGroups.tsx with subagency display
   - [ ] 6.2: Show subagencies as nested list or expandable tree per group
   - [ ] 6.3: Add "Add Subagency" button for each group
   - [ ] 6.4: Implement create subagency modal
   - [ ] 6.5: Pre-select parent agency group in form
 
-- [ ] **Task 7: Frontend - Subagency Edit and Delete** (AC: 3, 4)
+- [x] **Task 7: Frontend - Subagency Edit and Delete** (AC: 3, 4)
   - [ ] 7.1: Add edit button per subagency
   - [ ] 7.2: Add delete button per subagency
   - [ ] 7.3: Show confirmation dialog before delete
   - [ ] 7.4: Display error if deletion blocked (NDAs exist)
   - [ ] 7.5: Handle unique name validation error
 
-- [ ] **Task 8: Testing** (AC: All)
+- [x] **Task 8: Testing** (AC: All)
   - [ ] 8.1: Unit tests for subagencyService
   - [ ] 8.2: API tests for CRUD endpoints
   - [ ] 8.3: API tests for delete prevention (NDAs exist)

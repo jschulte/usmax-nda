@@ -128,6 +128,7 @@ const AGENCY_GROUPS = [
       { name: 'US Army', code: 'USA', description: 'United States Army' },
       { name: 'US Navy', code: 'USN', description: 'United States Navy' },
       { name: 'US Marine Corps', code: 'USMC', description: 'United States Marine Corps' },
+      { name: 'US Space Force', code: 'USSF', description: 'United States Space Force' },
       { name: 'Defense Logistics Agency', code: 'DLA', description: 'Defense Logistics Agency' },
     ],
   },
@@ -140,6 +141,8 @@ const AGENCY_GROUPS = [
       { name: 'Department of Veterans Affairs', code: 'VA', description: 'Veterans Affairs' },
       { name: 'General Services Administration', code: 'GSA', description: 'GSA' },
       { name: 'NASA', code: 'NASA', description: 'National Aeronautics and Space Administration' },
+      { name: 'Environmental Protection Agency', code: 'EPA', description: 'Environmental Protection Agency' },
+      { name: 'National Oceanic and Atmospheric Administration', code: 'NOAA', description: 'NOAA' },
     ],
   },
   {
@@ -150,6 +153,7 @@ const AGENCY_GROUPS = [
       { name: 'Fortune 500', code: 'F500', description: 'Fortune 500 companies' },
       { name: 'Small Business', code: 'SMB', description: 'Small and medium businesses' },
       { name: 'Healthcare', code: 'HLTH', description: 'Healthcare industry' },
+      { name: 'Technology', code: 'TECH', description: 'Technology sector' },
     ],
   },
   {
@@ -160,6 +164,86 @@ const AGENCY_GROUPS = [
       { name: 'Centers for Medicare & Medicaid', code: 'CMS', description: 'CMS' },
       { name: 'National Institutes of Health', code: 'NIH', description: 'NIH' },
       { name: 'Food and Drug Administration', code: 'FDA', description: 'FDA' },
+      { name: 'Centers for Disease Control', code: 'CDC', description: 'CDC' },
+    ],
+  },
+  {
+    name: 'Education',
+    code: 'EDU',
+    description: 'Education sector organizations',
+    subagencies: [
+      { name: 'Department of Education', code: 'EDU', description: 'US Department of Education' },
+      { name: 'Higher Education', code: 'HIGHER_ED', description: 'Colleges and universities' },
+      { name: 'K-12 Districts', code: 'K12', description: 'K-12 school districts' },
+    ],
+  },
+  {
+    name: 'State/Local',
+    code: 'STATE_LOCAL',
+    description: 'State and local government agencies',
+    subagencies: [
+      { name: 'State Government', code: 'STATE', description: 'State-level agencies' },
+      { name: 'Local Government', code: 'LOCAL', description: 'County and city agencies' },
+      { name: 'Public Safety', code: 'PUBLIC_SAFETY', description: 'Police, fire, and emergency services' },
+    ],
+  },
+  {
+    name: 'International',
+    code: 'INTL',
+    description: 'International agencies and partners',
+    subagencies: [
+      { name: 'NATO', code: 'NATO', description: 'North Atlantic Treaty Organization' },
+      { name: 'Foreign Government', code: 'FOREIGN_GOV', description: 'Foreign government agencies' },
+      { name: 'International NGO', code: 'INTL_NGO', description: 'International non-government organizations' },
+    ],
+  },
+  {
+    name: 'Energy',
+    code: 'ENERGY',
+    description: 'Energy and utilities organizations',
+    subagencies: [
+      { name: 'Department of Energy', code: 'DOE', description: 'US Department of Energy' },
+      { name: 'Utilities', code: 'UTIL', description: 'Utility providers' },
+      { name: 'Renewables', code: 'RENEW', description: 'Renewable energy organizations' },
+    ],
+  },
+  {
+    name: 'Transportation',
+    code: 'TRANS',
+    description: 'Transportation agencies and authorities',
+    subagencies: [
+      { name: 'Federal Aviation Administration', code: 'FAA', description: 'FAA' },
+      { name: 'Federal Highway Administration', code: 'FHWA', description: 'FHWA' },
+      { name: 'Transit Authorities', code: 'TRANSIT', description: 'Public transit agencies' },
+    ],
+  },
+  {
+    name: 'Financial',
+    code: 'FIN',
+    description: 'Financial services and regulators',
+    subagencies: [
+      { name: 'Treasury', code: 'TREAS', description: 'US Treasury' },
+      { name: 'Securities and Exchange Commission', code: 'SEC', description: 'SEC' },
+      { name: 'Federal Reserve', code: 'FED', description: 'Federal Reserve System' },
+    ],
+  },
+  {
+    name: 'Non-Profit',
+    code: 'NONPROFIT',
+    description: 'Non-profit and mission-driven organizations',
+    subagencies: [
+      { name: 'Foundations', code: 'FOUND', description: 'Foundations and trusts' },
+      { name: 'Research Institutes', code: 'RESEARCH', description: 'Research institutes' },
+      { name: 'Humanitarian', code: 'HUM', description: 'Humanitarian organizations' },
+    ],
+  },
+  {
+    name: 'Other',
+    code: 'OTHER',
+    description: 'Other or miscellaneous agencies',
+    subagencies: [
+      { name: 'Other Federal', code: 'OTHER_FED', description: 'Other federal agencies' },
+      { name: 'Miscellaneous', code: 'MISC', description: 'Miscellaneous organizations' },
     ],
   },
 ];
