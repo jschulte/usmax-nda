@@ -78,6 +78,14 @@ resource "aws_ecs_task_definition" "main" {
           value = var.s3_bucket_name
         },
         {
+          name  = "S3_FAILOVER_BUCKET_NAME"
+          value = var.s3_failover_bucket_name
+        },
+        {
+          name  = "S3_FAILOVER_REGION"
+          value = var.s3_failover_region
+        },
+        {
           name  = "FRONTEND_URL"
           value = var.frontend_url
         }

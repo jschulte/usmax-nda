@@ -31,3 +31,15 @@ variable "enable_access_logging" {
   type        = bool
   default     = false
 }
+
+variable "replica_bucket_arn" {
+  description = "ARN of the replica S3 bucket (optional)"
+  type        = string
+  default     = null
+}
+
+variable "replica_bucket_region" {
+  description = "Region of the replica bucket"
+  type        = string
+  default     = "us-west-2"
+}

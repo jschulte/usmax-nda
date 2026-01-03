@@ -53,6 +53,11 @@ output "s3_bucket_name" {
   value       = module.s3.documents_bucket_name
 }
 
+output "s3_replica_bucket_name" {
+  description = "Name of the replica S3 documents bucket"
+  value       = module.s3_replica.documents_bucket_name
+}
+
 output "github_actions_role_arn" {
   description = "ARN of the GitHub Actions role"
   value       = module.iam.github_actions_role_arn

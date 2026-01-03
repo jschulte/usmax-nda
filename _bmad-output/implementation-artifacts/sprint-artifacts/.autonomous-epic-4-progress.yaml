@@ -1,6 +1,6 @@
 epic_num: 4
 started: 2026-01-03T07:47:58.832352Z
 total_stories: 5
-completed_stories: [4-4-document-version-history, 4-5-download-all-versions-as-zip, 4-6-document-metadata-tracking, 4-7-indefinite-document-preservation]
-current_story: 4-7-indefinite-document-preservation
+completed_stories: [4-4-document-version-history, 4-5-download-all-versions-as-zip, 4-6-document-metadata-tracking, 4-7-indefinite-document-preservation, 4-8-s3-cross-region-replication]
+current_story: 4-8-s3-cross-region-replication
 status: running

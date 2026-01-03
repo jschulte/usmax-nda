@@ -107,6 +107,18 @@ variable "s3_bucket_name" {
   type        = string
 }
 
+variable "s3_failover_bucket_name" {
+  description = "Name of the S3 replica bucket for failover"
+  type        = string
+  default     = ""
+}
+
+variable "s3_failover_region" {
+  description = "Region of the S3 replica bucket"
+  type        = string
+  default     = "us-west-2"
+}
+
 variable "frontend_url" {
   description = "URL of the frontend (for CORS)"
   type        = string

@@ -18,6 +18,12 @@ variable "s3_bucket_arn" {
   type        = string
 }
 
+variable "replica_bucket_arn" {
+  description = "ARN of the replica S3 bucket (optional)"
+  type        = string
+  default     = null
+}
+
 variable "ses_from_email" {
   description = "Email address used for sending emails via SES"
   type        = string

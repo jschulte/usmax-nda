@@ -36,6 +36,20 @@ provider "aws" {
   }
 }
 
+provider "aws" {
+  alias  = "replica"
+  region = var.replica_region
+
+  default_tags {
+    tags = {
+      Project     = var.project_name
+      Environment = var.environment
+      ManagedBy   = "terraform"
+      Replica     = "true"
+    }
+  }
+}
+
 locals {
   project_name = var.project_name
   environment  = var.environment
@@ -75,6 +89,19 @@ module "s3" {
   environment           = local.environment
   allowed_origins       = [var.frontend_url, "http://localhost:3000"]
   enable_access_logging = false
+  replica_bucket_arn    = module.s3_replica.documents_bucket_arn
+  replica_bucket_region = var.replica_region
+}
+
+# Replica bucket in us-west-2
+module "s3_replica" {
+  source = "../../modules/s3-replica"
+  providers = {
+    aws = aws.replica
+  }
+
+  project_name = local.project_name
+  environment  = local.environment
 }
 
 # Cognito User Pool
@@ -106,6 +133,7 @@ module "iam" {
   environment           = local.environment
   secrets_arns          = [module.rds.db_credentials_secret_arn, module.secrets.app_secrets_arn]
   s3_bucket_arn         = module.s3.documents_bucket_arn
+  replica_bucket_arn    = module.s3_replica.documents_bucket_arn
   ses_from_email        = var.ses_from_email
   cognito_user_pool_arn = module.cognito.user_pool_arn
   enable_ecs_exec       = true # Enable for debugging in nonprod
@@ -151,6 +179,8 @@ module "ecs" {
   enable_execute_command    = true
   log_retention_days        = 7
   s3_bucket_name            = module.s3.documents_bucket_name
+  s3_failover_bucket_name   = module.s3_replica.documents_bucket_name
+  s3_failover_region        = var.replica_region
   frontend_url              = var.frontend_url
   db_credentials_secret_arn = module.rds.db_credentials_secret_arn
   app_secrets_arn           = module.secrets.app_secrets_arn

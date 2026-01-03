@@ -16,6 +16,12 @@ variable "aws_region" {
   default     = "us-east-1"
 }
 
+variable "replica_region" {
+  description = "Replica AWS region for S3 failover"
+  type        = string
+  default     = "us-west-2"
+}
+
 variable "vpc_cidr" {
   description = "CIDR block for the VPC"
   type        = string

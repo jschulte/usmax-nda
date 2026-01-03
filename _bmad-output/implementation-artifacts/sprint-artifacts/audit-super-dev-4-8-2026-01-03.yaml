@@ -1,0 +1,14 @@
+story_id: "4-8"
+date: "2026-01-03"
+mode: "batch"
+summary:
+  status: "completed"
+  changes:
+    - "Added replica S3 bucket module with versioning and lifecycle"
+    - "Configured CRR replication role and rules on primary bucket"
+    - "Extended IAM to allow read-only access to replica bucket"
+    - "Injected failover bucket/region env vars into ECS"
+    - "Updated signed URL generation to use replica bucket"
+  tests_added: []
+notes:
+  - "Operational monitoring and validation steps deferred to ops"

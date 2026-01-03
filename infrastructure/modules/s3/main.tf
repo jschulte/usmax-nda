@@ -123,6 +123,86 @@ resource "aws_s3_bucket_policy" "documents" {
   })
 }
 
+# Cross-region replication (optional)
+resource "aws_iam_role" "replication" {
+  count = var.replica_bucket_arn != null ? 1 : 0
+  name  = "${var.project_name}-${var.environment}-s3-replication-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "s3.amazonaws.com"
+        }
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy" "replication" {
+  count = var.replica_bucket_arn != null ? 1 : 0
+  name  = "${var.project_name}-${var.environment}-s3-replication-policy"
+  role  = aws_iam_role.replication[0].id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = [
+          "s3:GetReplicationConfiguration",
+          "s3:ListBucket"
+        ]
+        Effect   = "Allow"
+        Resource = aws_s3_bucket.documents.arn
+      },
+      {
+        Action = [
+          "s3:GetObjectVersionForReplication",
+          "s3:GetObjectVersionAcl",
+          "s3:GetObjectVersionTagging"
+        ]
+        Effect   = "Allow"
+        Resource = "${aws_s3_bucket.documents.arn}/*"
+      },
+      {
+        Action = [
+          "s3:ReplicateObject",
+          "s3:ReplicateDelete",
+          "s3:ReplicateTags"
+        ]
+        Effect   = "Allow"
+        Resource = "${var.replica_bucket_arn}/*"
+      }
+    ]
+  })
+}
+
+resource "aws_s3_bucket_replication_configuration" "documents" {
+  count  = var.replica_bucket_arn != null ? 1 : 0
+  bucket = aws_s3_bucket.documents.id
+  role   = aws_iam_role.replication[0].arn
+
+  rule {
+    id     = "replicate-all"
+    status = "Enabled"
+
+    filter {
+      prefix = ""
+    }
+
+    destination {
+      bucket = var.replica_bucket_arn
+    }
+
+    delete_marker_replication {
+      status = "Enabled"
+    }
+  }
+}
+
 # Access logging bucket (optional, for production)
 resource "aws_s3_bucket" "access_logs" {
   count  = var.enable_access_logging ? 1 : 0
