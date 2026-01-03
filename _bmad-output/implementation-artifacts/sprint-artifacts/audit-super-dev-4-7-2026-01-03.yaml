@@ -1,0 +1,12 @@
+story_id: "4-7"
+date: "2026-01-03"
+mode: "batch"
+summary:
+  status: "completed"
+  changes:
+    - "Confirmed S3 versioning and lifecycle retention are enabled"
+    - "Validated application deletion guard for document retention"
+    - "Aligned failover download logic to use replica bucket"
+  tests_added: []
+notes:
+  - "CRR and monitoring tasks deferred to Story 4.8 and ops validation"

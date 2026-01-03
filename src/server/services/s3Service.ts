@@ -172,9 +172,12 @@ export async function getDownloadUrl(
   const fallbackRegion =
     normalizedPrimary === FAILOVER_REGION ? DEFAULT_REGION : FAILOVER_REGION;
 
+  const resolveBucket = (region: string) =>
+    region === FAILOVER_REGION ? FAILOVER_BUCKET_NAME : BUCKET_NAME;
+
   const generateSignedUrl = async (region: string) => {
     const command = new GetObjectCommand({
-      Bucket: BUCKET_NAME,
+      Bucket: resolveBucket(region),
       Key: s3Key,
     });
 
