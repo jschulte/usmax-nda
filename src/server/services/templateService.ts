@@ -8,11 +8,13 @@
  * - Edited document saving
  */
 
+import type { Prisma } from '../../generated/prisma/index.js';
 import { prisma } from '../db/index.js';
 import { uploadDocument, getDownloadUrl } from './s3Service.js';
 import { auditService, AuditAction } from './auditService.js';
 import type { UserContext } from '../types/auth.js';
 import { findNdaWithScope } from '../utils/scopedQuery.js';
+import { detectFieldChanges } from '../utils/detectFieldChanges.js';
 import { validateRtfStructure, validateHtmlPlaceholders } from './rtfTemplateValidation.js';
 import { extractPlaceholders } from './templatePreviewService.js';
 import { parseRTF, toHTML } from '@jonahschulte/rtf-toolkit';
@@ -388,7 +390,8 @@ export async function createTemplate(
     agencyGroupId?: string;
     isDefault?: boolean;
   },
-  userContext: UserContext
+  createdById: string,
+  auditContext?: { ipAddress?: string; userAgent?: string }
 ): Promise<{ id: string; name: string }> {
   // Validate RTF content structure
   const rtfContent = data.content.toString('utf-8');
@@ -405,29 +408,49 @@ export async function createTemplate(
   // RTF has single braces for formatting codes {\\b text} which are valid RTF
   // Placeholder validation happens on HTML source if provided (WYSIWYG flow)
 
-  // If setting as default, unset other defaults
-  if (data.isDefault) {
-    await prisma.rtfTemplate.updateMany({
-      where: {
-        isDefault: true,
-        agencyGroupId: data.agencyGroupId || null,
+  return prisma.$transaction(async (tx) => {
+    // If setting as default, unset other defaults
+    if (data.isDefault) {
+      await tx.rtfTemplate.updateMany({
+        where: {
+          isDefault: true,
+          agencyGroupId: data.agencyGroupId || null,
+        },
+        data: { isDefault: false },
+      });
+    }
+
+    const template = await tx.rtfTemplate.create({
+      data: {
+        name: data.name,
+        description: data.description,
+        content: new Uint8Array(data.content),
+        agencyGroupId: data.agencyGroupId,
+        isDefault: data.isDefault || false,
+        createdById,
       },
-      data: { isDefault: false },
     });
-  }
 
-  const template = await prisma.rtfTemplate.create({
-    data: {
-      name: data.name,
-      description: data.description,
-      content: new Uint8Array(data.content),
-      agencyGroupId: data.agencyGroupId,
-      isDefault: data.isDefault || false,
-      createdById: userContext.contactId,
-    },
+    await tx.auditLog.create({
+      data: {
+        action: AuditAction.RTF_TEMPLATE_CREATED,
+        entityType: 'rtf_template',
+        entityId: template.id,
+        userId: createdById,
+        details: {
+          name: template.name,
+          description: template.description,
+          agencyGroupId: template.agencyGroupId,
+          isDefault: template.isDefault,
+          isActive: template.isActive,
+        } as unknown as Prisma.InputJsonValue,
+        ipAddress: auditContext?.ipAddress ?? null,
+        userAgent: auditContext?.userAgent ?? null,
+      },
+    });
+
+    return { id: template.id, name: template.name };
   });
-
-  return { id: template.id, name: template.name };
 }
 
 /**
@@ -442,75 +465,136 @@ export async function updateTemplate(
     agencyGroupId?: string | null;
     isDefault?: boolean;
     isActive?: boolean;
-  }
+  },
+  updatedById: string,
+  auditContext?: { ipAddress?: string; userAgent?: string }
 ): Promise<{ id: string; name: string }> {
-  const existing = await prisma.rtfTemplate.findUnique({
-    where: { id: templateId },
-  });
+  return prisma.$transaction(async (tx) => {
+    const existing = await tx.rtfTemplate.findUnique({
+      where: { id: templateId },
+    });
 
-  if (!existing) {
-    throw new TemplateServiceError('Template not found', 'NOT_FOUND');
-  }
-
-  // Validate RTF content if provided
-  if (data.content) {
-    const rtfContent = data.content.toString('utf-8');
-    const rtfValidation = validateRtfStructure(rtfContent);
-
-    if (!rtfValidation.valid) {
-      throw new TemplateServiceError(
-        `Invalid RTF structure: ${rtfValidation.errors.join(', ')}`,
-        'VALIDATION_ERROR'
-      );
+    if (!existing) {
+      throw new TemplateServiceError('Template not found', 'NOT_FOUND');
     }
 
-    // Note: Do NOT validate RTF content with HTML placeholder validator
-    // RTF has single braces for formatting codes {\\b text} which are valid RTF
-    // Placeholder validation happens on HTML source if provided (WYSIWYG flow)
-  }
+    // Validate RTF content if provided
+    if (data.content) {
+      const rtfContent = data.content.toString('utf-8');
+      const rtfValidation = validateRtfStructure(rtfContent);
 
-  // If setting as default, unset other defaults
-  if (data.isDefault) {
-    await prisma.rtfTemplate.updateMany({
-      where: {
-        isDefault: true,
-        agencyGroupId: data.agencyGroupId ?? existing.agencyGroupId,
-        id: { not: templateId },
+      if (!rtfValidation.valid) {
+        throw new TemplateServiceError(
+          `Invalid RTF structure: ${rtfValidation.errors.join(', ')}`,
+          'VALIDATION_ERROR'
+        );
+      }
+
+      // Note: Do NOT validate RTF content with HTML placeholder validator
+      // RTF has single braces for formatting codes {\\b text} which are valid RTF
+      // Placeholder validation happens on HTML source if provided (WYSIWYG flow)
+    }
+
+    // If setting as default, unset other defaults
+    if (data.isDefault) {
+      const defaultAgencyGroupId =
+        data.agencyGroupId !== undefined ? data.agencyGroupId : existing.agencyGroupId;
+      await tx.rtfTemplate.updateMany({
+        where: {
+          isDefault: true,
+          agencyGroupId: defaultAgencyGroupId,
+          id: { not: templateId },
+        },
+        data: { isDefault: false },
+      });
+    }
+
+    const template = await tx.rtfTemplate.update({
+      where: { id: templateId },
+      data: {
+        name: data.name,
+        description: data.description,
+        content: data.content ? new Uint8Array(data.content) : undefined,
+        agencyGroupId: data.agencyGroupId,
+        isDefault: data.isDefault,
+        isActive: data.isActive,
       },
-      data: { isDefault: false },
     });
-  }
 
-  const template = await prisma.rtfTemplate.update({
-    where: { id: templateId },
-    data: {
-      name: data.name,
-      description: data.description,
-      content: data.content ? new Uint8Array(data.content) : undefined,
-      agencyGroupId: data.agencyGroupId,
-      isDefault: data.isDefault,
-      isActive: data.isActive,
-    },
+    const beforeValues: Record<string, unknown> = {
+      name: existing.name,
+      description: existing.description,
+      agencyGroupId: existing.agencyGroupId,
+      isDefault: existing.isDefault,
+      isActive: existing.isActive,
+    };
+
+    const afterValues: Record<string, unknown> = {
+      name: data.name ?? existing.name,
+      description: data.description ?? existing.description,
+      agencyGroupId: data.agencyGroupId ?? existing.agencyGroupId,
+      isDefault: data.isDefault ?? existing.isDefault,
+      isActive: data.isActive ?? existing.isActive,
+    };
+
+    const fieldChanges = detectFieldChanges(beforeValues, afterValues);
+
+    await tx.auditLog.create({
+      data: {
+        action: AuditAction.RTF_TEMPLATE_UPDATED,
+        entityType: 'rtf_template',
+        entityId: template.id,
+        userId: updatedById,
+        details: {
+          changes: fieldChanges,
+          contentUpdated: Boolean(data.content),
+        } as unknown as Prisma.InputJsonValue,
+        ipAddress: auditContext?.ipAddress ?? null,
+        userAgent: auditContext?.userAgent ?? null,
+      },
+    });
+
+    return { id: template.id, name: template.name };
   });
-
-  return { id: template.id, name: template.name };
 }
 
 /**
  * Delete a template (soft delete by setting isActive = false)
  */
-export async function deleteTemplate(templateId: string): Promise<void> {
-  const existing = await prisma.rtfTemplate.findUnique({
-    where: { id: templateId },
-  });
+export async function deleteTemplate(
+  templateId: string,
+  deletedById: string,
+  auditContext?: { ipAddress?: string; userAgent?: string }
+): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    const existing = await tx.rtfTemplate.findUnique({
+      where: { id: templateId },
+    });
 
-  if (!existing) {
-    throw new TemplateServiceError('Template not found', 'NOT_FOUND');
-  }
+    if (!existing) {
+      throw new TemplateServiceError('Template not found', 'NOT_FOUND');
+    }
 
-  await prisma.rtfTemplate.update({
-    where: { id: templateId },
-    data: { isActive: false },
+    const template = await tx.rtfTemplate.update({
+      where: { id: templateId },
+      data: { isActive: false },
+    });
+
+    await tx.auditLog.create({
+      data: {
+        action: AuditAction.RTF_TEMPLATE_DELETED,
+        entityType: 'rtf_template',
+        entityId: template.id,
+        userId: deletedById,
+        details: {
+          name: template.name,
+          previousIsActive: existing.isActive,
+          newIsActive: template.isActive,
+        } as unknown as Prisma.InputJsonValue,
+        ipAddress: auditContext?.ipAddress ?? null,
+        userAgent: auditContext?.userAgent ?? null,
+      },
+    });
   });
 }
 

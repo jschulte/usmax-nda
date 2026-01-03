@@ -15,24 +15,30 @@ import {
 } from '../templateService.js';
 import type { UserContext } from '../../types/auth.js';
 
+const prismaMock = {
+  rtfTemplate: {
+    findMany: vi.fn(),
+    findUnique: vi.fn(),
+    findFirst: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    updateMany: vi.fn(),
+  },
+  nda: {
+    findUnique: vi.fn(),
+  },
+  document: {
+    create: vi.fn(),
+  },
+  auditLog: {
+    create: vi.fn(),
+  },
+  $transaction: vi.fn(async (callback: (tx: any) => any) => callback(prismaMock)),
+};
+
 // Mock Prisma
 vi.mock('../../db/index.js', () => ({
-  prisma: {
-    rtfTemplate: {
-      findMany: vi.fn(),
-      findUnique: vi.fn(),
-      findFirst: vi.fn(),
-      create: vi.fn(),
-      update: vi.fn(),
-      updateMany: vi.fn(),
-    },
-    nda: {
-      findUnique: vi.fn(),
-    },
-    document: {
-      create: vi.fn(),
-    },
-  },
+  prisma: prismaMock,
 }));
 
 // Mock S3 service
@@ -230,7 +236,7 @@ describe('Template Service', () => {
           name: 'New Template',
           content: Buffer.from('content'),
         },
-        mockUserContext
+        mockUserContext.contactId
       );
 
       expect(result.name).toBe('New Template');
@@ -258,7 +264,7 @@ describe('Template Service', () => {
           content: Buffer.from('content'),
           isDefault: true,
         },
-        mockUserContext
+        mockUserContext.contactId
       );
 
       expect(mockPrisma.rtfTemplate.updateMany).toHaveBeenCalledWith({
@@ -284,7 +290,7 @@ describe('Template Service', () => {
         name: 'New Name',
       } as any);
 
-      const result = await updateTemplate('template-1', { name: 'New Name' });
+      const result = await updateTemplate('template-1', { name: 'New Name' }, mockUserContext.contactId);
 
       expect(result.name).toBe('New Name');
     });
@@ -293,7 +299,7 @@ describe('Template Service', () => {
       mockPrisma.rtfTemplate.findUnique.mockResolvedValue(null);
 
       await expect(
-        updateTemplate('nonexistent', { name: 'Test' })
+        updateTemplate('nonexistent', { name: 'Test' }, mockUserContext.contactId)
       ).rejects.toThrow(TemplateServiceError);
     });
   });
@@ -311,7 +317,7 @@ describe('Template Service', () => {
         isActive: false,
       } as any);
 
-      await deleteTemplate('template-1');
+      await deleteTemplate('template-1', mockUserContext.contactId);
 
       expect(mockPrisma.rtfTemplate.update).toHaveBeenCalledWith({
         where: { id: 'template-1' },
@@ -322,7 +328,7 @@ describe('Template Service', () => {
     it('should throw NOT_FOUND for non-existent template', async () => {
       mockPrisma.rtfTemplate.findUnique.mockResolvedValue(null);
 
-      await expect(deleteTemplate('nonexistent')).rejects.toThrow(TemplateServiceError);
+      await expect(deleteTemplate('nonexistent', mockUserContext.contactId)).rejects.toThrow(TemplateServiceError);
     });
   });
 });

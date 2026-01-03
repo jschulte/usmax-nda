@@ -11,15 +11,21 @@ import {
   sampleRtfContentWithUnknownPlaceholder,
 } from '../../../test/factories/rtfTemplateFactory';
 
-vi.mock('../../db/index.js', () => ({
-  prisma: {
-    rtfTemplate: {
-      create: vi.fn(),
-      update: vi.fn(),
-      updateMany: vi.fn(),
-      findUnique: vi.fn(),
-    },
+const prismaMock = {
+  rtfTemplate: {
+    create: vi.fn(),
+    update: vi.fn(),
+    updateMany: vi.fn(),
+    findUnique: vi.fn(),
   },
+  auditLog: {
+    create: vi.fn(),
+  },
+  $transaction: vi.fn(async (callback: (tx: any) => any) => callback(prismaMock)),
+};
+
+vi.mock('../../db/index.js', () => ({
+  prisma: prismaMock,
 }));
 
 import { prisma } from '../../db/index.js';
@@ -47,7 +53,7 @@ describe('RTF template validation', () => {
           name: 'Invalid Template',
           content: invalidRtfContent,
         },
-        mockUserContext
+        mockUserContext.contactId
       )
     ).rejects.toBeInstanceOf(TemplateServiceError);
 
@@ -57,7 +63,7 @@ describe('RTF template validation', () => {
           name: 'Invalid Template',
           content: invalidRtfContent,
         },
-        mockUserContext
+        mockUserContext.contactId
       )
     ).rejects.toMatchObject({ code: 'VALIDATION_ERROR' });
 
@@ -71,7 +77,7 @@ describe('RTF template validation', () => {
           name: 'Unknown Placeholder',
           content: sampleRtfContentWithUnknownPlaceholder,
         },
-        mockUserContext
+        mockUserContext.contactId
       )
     ).rejects.toBeInstanceOf(TemplateServiceError);
 
@@ -81,7 +87,7 @@ describe('RTF template validation', () => {
           name: 'Unknown Placeholder',
           content: sampleRtfContentWithUnknownPlaceholder,
         },
-        mockUserContext
+        mockUserContext.contactId
       )
     ).rejects.toMatchObject({ code: 'VALIDATION_ERROR' });
 
@@ -101,13 +107,13 @@ describe('RTF template validation', () => {
     await expect(
       updateTemplate('template-1', {
         content: invalidRtfContent,
-      })
+      }, mockUserContext.contactId)
     ).rejects.toBeInstanceOf(TemplateServiceError);
 
     await expect(
       updateTemplate('template-1', {
         content: invalidRtfContent,
-      })
+      }, mockUserContext.contactId)
     ).rejects.toMatchObject({ code: 'VALIDATION_ERROR' });
 
     expect(mockPrisma.rtfTemplate.update).not.toHaveBeenCalled();
@@ -126,13 +132,13 @@ describe('RTF template validation', () => {
     await expect(
       updateTemplate('template-1', {
         content: sampleRtfContentWithUnknownPlaceholder,
-      })
+      }, mockUserContext.contactId)
     ).rejects.toBeInstanceOf(TemplateServiceError);
 
     await expect(
       updateTemplate('template-1', {
         content: sampleRtfContentWithUnknownPlaceholder,
-      })
+      }, mockUserContext.contactId)
     ).rejects.toMatchObject({ code: 'VALIDATION_ERROR' });
 
     expect(mockPrisma.rtfTemplate.update).not.toHaveBeenCalled();

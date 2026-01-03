@@ -76,6 +76,7 @@ export enum AuditAction {
   DOCUMENT_GENERATED = 'document_generated',
   DOCUMENT_UPLOADED = 'document_uploaded',
   DOCUMENT_DOWNLOADED = 'document_downloaded',
+  DOCUMENT_BULK_DOWNLOADED = 'bulk_download',
   DOCUMENT_MARKED_EXECUTED = 'document_marked_executed',
   DOCUMENT_DELETED = 'document_deleted',
 
@@ -93,6 +94,11 @@ export enum AuditAction {
   EMAIL_TEMPLATE_CREATED = 'email_template_created',
   EMAIL_TEMPLATE_UPDATED = 'email_template_updated',
   EMAIL_TEMPLATE_DELETED = 'email_template_deleted',
+
+  // RTF template management events (Story 7.1)
+  RTF_TEMPLATE_CREATED = 'rtf_template_created',
+  RTF_TEMPLATE_UPDATED = 'rtf_template_updated',
+  RTF_TEMPLATE_DELETED = 'rtf_template_deleted',
 
   // Test notification events (Story 9.17)
   TEST_NOTIFICATION_SENT = 'test_notification_sent',

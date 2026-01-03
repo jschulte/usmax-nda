@@ -38,6 +38,7 @@ import {
 } from '../services/rtfTemplateValidation.js';
 
 const router: Router = Router();
+const MAX_RTF_SIZE = 5 * 1024 * 1024; // 5MB
 
 // All routes require authentication and user context
 router.use(authenticateJWT);
@@ -213,6 +214,12 @@ router.post(
       }
 
       const contentBuffer = Buffer.from(content, 'base64');
+      if (contentBuffer.length > MAX_RTF_SIZE) {
+        return res.status(413).json({
+          error: `Content too large. Maximum size is ${MAX_RTF_SIZE} bytes`,
+          code: 'PAYLOAD_TOO_LARGE',
+        });
+      }
 
       // If htmlSource is provided (from WYSIWYG editor), validate both HTML and RTF
       if (htmlSource) {
@@ -237,7 +244,11 @@ router.post(
           agencyGroupId,
           isDefault,
         },
-        req.userContext!
+        req.userContext!.contactId,
+        {
+          ipAddress: req.ip,
+          userAgent: req.get('user-agent') ?? undefined,
+        }
       );
 
       res.status(201).json({
@@ -245,6 +256,14 @@ router.post(
         template,
       });
     } catch (error) {
+      if (error instanceof TemplateServiceError) {
+        const statusCode = error.code === 'VALIDATION_ERROR' ? 400 : 500;
+        return res.status(statusCode).json({
+          error: error.message,
+          code: error.code,
+        });
+      }
+
       console.error('[Templates] Error creating template:', error);
       res.status(500).json({
         error: 'Failed to create template',
@@ -275,6 +294,18 @@ router.put(
       const { name, description, content, htmlSource, agencyGroupId, isDefault, isActive } = req.body;
 
       const contentBuffer = content ? Buffer.from(content, 'base64') : undefined;
+      if (htmlSource && !contentBuffer) {
+        return res.status(400).json({
+          error: 'content is required when htmlSource is provided',
+          code: 'VALIDATION_ERROR',
+        });
+      }
+      if (contentBuffer && contentBuffer.length > MAX_RTF_SIZE) {
+        return res.status(413).json({
+          error: `Content too large. Maximum size is ${MAX_RTF_SIZE} bytes`,
+          code: 'PAYLOAD_TOO_LARGE',
+        });
+      }
 
       // If htmlSource is provided (from WYSIWYG editor), validate both HTML and RTF
       if (htmlSource && contentBuffer) {
@@ -291,14 +322,22 @@ router.put(
         }
       }
 
-      const template = await updateTemplate(req.params.id, {
-        name,
-        description,
-        content: contentBuffer,
-        agencyGroupId,
-        isDefault,
-        isActive,
-      });
+      const template = await updateTemplate(
+        req.params.id,
+        {
+          name,
+          description,
+          content: contentBuffer,
+          agencyGroupId,
+          isDefault,
+          isActive,
+        },
+        req.userContext!.contactId,
+        {
+          ipAddress: req.ip,
+          userAgent: req.get('user-agent') ?? undefined,
+        }
+      );
 
       res.json({
         message: 'Template updated successfully',
@@ -331,7 +370,10 @@ router.delete(
   requirePermission(PERMISSIONS.ADMIN_MANAGE_TEMPLATES),
   async (req, res) => {
     try {
-      await deleteTemplate(req.params.id);
+      await deleteTemplate(req.params.id, req.userContext!.contactId, {
+        ipAddress: req.ip,
+        userAgent: req.get('user-agent') ?? undefined,
+      });
 
       res.json({
         message: 'Template deleted successfully',
