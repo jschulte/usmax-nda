@@ -78,16 +78,17 @@ router.get(
 
       // Story 9.2: Filter system events from UI (unless explicitly requested)
       const includeSystemEvents = req.query.includeSystemEvents === 'true';
-      if (!includeSystemEvents) {
+      const actionFilter = req.query.action as string | undefined;
+      if (actionFilter) {
+        where.action = includeSystemEvents
+          ? { in: [actionFilter] }
+          : { in: [actionFilter], notIn: SYSTEM_EVENTS };
+      } else if (!includeSystemEvents) {
         where.action = { notIn: SYSTEM_EVENTS };
       }
 
       if (req.query.userId) {
         where.userId = req.query.userId as string;
-      }
-
-      if (req.query.action) {
-        where.action = req.query.action as string;
       }
 
       if (req.query.entityType) {
@@ -189,12 +190,18 @@ router.get(
       // Build filter conditions (same as above)
       const where: Prisma.AuditLogWhereInput = {};
 
-      if (req.query.userId) {
-        where.userId = req.query.userId as string;
+      const includeSystemEvents = req.query.includeSystemEvents === 'true';
+      const actionFilter = req.query.action as string | undefined;
+      if (actionFilter) {
+        where.action = includeSystemEvents
+          ? { in: [actionFilter] }
+          : { in: [actionFilter], notIn: SYSTEM_EVENTS };
+      } else if (!includeSystemEvents) {
+        where.action = { notIn: SYSTEM_EVENTS };
       }
 
-      if (req.query.action) {
-        where.action = req.query.action as string;
+      if (req.query.userId) {
+        where.userId = req.query.userId as string;
       }
 
       if (req.query.entityType) {
@@ -369,14 +376,15 @@ router.get(
       const where: Prisma.AuditLogWhereInput = {
         entityId: ndaId,
         entityType: { in: ['nda', 'document', 'email', 'notification'] },
-        // Story 9.2: Always filter system events from NDA timeline
-        action: { notIn: SYSTEM_EVENTS },
       };
+
+      // Story 9.2: Always filter system events from NDA timeline
+      where.action = { notIn: SYSTEM_EVENTS };
 
       // Optional action type filter
       if (req.query.actionTypes) {
         const actionTypes = (req.query.actionTypes as string).split(',');
-        where.action = { in: actionTypes };
+        where.action = { in: actionTypes, notIn: SYSTEM_EVENTS };
       }
 
       // Get total and audit logs
