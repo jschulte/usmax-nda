@@ -99,6 +99,8 @@ export enum AuditAction {
   RTF_TEMPLATE_CREATED = 'rtf_template_created',
   RTF_TEMPLATE_UPDATED = 'rtf_template_updated',
   RTF_TEMPLATE_DELETED = 'rtf_template_deleted',
+  RTF_TEMPLATE_DEFAULT_ASSIGNED = 'rtf_template_default_assigned',
+  RTF_TEMPLATE_DEFAULT_REMOVED = 'rtf_template_default_removed',
 
   // Test notification events (Story 9.17)
   TEST_NOTIFICATION_SENT = 'test_notification_sent',

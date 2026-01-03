@@ -448,7 +448,11 @@ export function RequestWizard() {
     }
 
     setTemplatesLoading(true);
-    listTemplates(formData.agencyGroupId)
+    listTemplates({
+      agencyGroupId: formData.agencyGroupId,
+      subagencyId: formData.subagencyId || undefined,
+      ndaType: formData.ndaType,
+    })
       .then((response) => {
         setTemplates(response.templates);
         setFormData((prev) => {
@@ -467,7 +471,7 @@ export function RequestWizard() {
         setTemplates([]);
       })
       .finally(() => setTemplatesLoading(false));
-  }, [formData.agencyGroupId]);
+  }, [formData.agencyGroupId, formData.subagencyId, formData.ndaType]);
 
   const handleCompanyFocus = useCallback(async () => {
     setShowCompanyDropdown(true);

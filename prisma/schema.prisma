@@ -71,6 +71,7 @@ model Contact {
 
   // Template relations (Story 3.13)
   rtfTemplatesCreated    RtfTemplate[]
+  rtfTemplateDefaultsCreated RtfTemplateDefault[]
 
   // Internal notes (Story 9.1)
   internalNotes          InternalNote[]
@@ -158,6 +159,7 @@ model AgencyGroup {
   agencyGroupGrants  AgencyGroupGrant[]
   ndas               Nda[]
   rtfTemplates       RtfTemplate[]
+  rtfTemplateDefaults RtfTemplateDefault[]
 
   @@map("agency_groups")
 }
@@ -176,6 +178,7 @@ model Subagency {
   agencyGroup     AgencyGroup      @relation(fields: [agencyGroupId], references: [id], onDelete: Restrict)
   subagencyGrants SubagencyGrant[]
   ndas            Nda[]
+  rtfTemplateDefaults RtfTemplateDefault[]
 
   @@unique([agencyGroupId, code])
   @@unique([agencyGroupId, name])
@@ -501,10 +504,32 @@ model RtfTemplate {
   createdById   String?      @map("created_by_id")
   createdBy     Contact?     @relation(fields: [createdById], references: [id])
   ndas          Nda[]
+  defaults      RtfTemplateDefault[]
 
   @@index([agencyGroupId])
   @@index([isActive])
   @@map("rtf_templates")
+}
+
+model RtfTemplateDefault {
+  id            String       @id @default(uuid())
+  templateId    String       @map("template_id")
+  template      RtfTemplate  @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  agencyGroupId String?      @map("agency_group_id")
+  agencyGroup   AgencyGroup? @relation(fields: [agencyGroupId], references: [id])
+  subagencyId   String?      @map("subagency_id")
+  subagency     Subagency?   @relation(fields: [subagencyId], references: [id])
+  ndaType       NdaType?     @map("nda_type")
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @updatedAt @map("updated_at")
+  createdById   String?      @map("created_by_id")
+  createdBy     Contact?     @relation(fields: [createdById], references: [id])
+
+  @@unique([agencyGroupId, subagencyId, ndaType], name: "rtf_template_defaults_scope_key")
+  @@index([templateId])
+  @@index([agencyGroupId])
+  @@index([subagencyId])
+  @@map("rtf_template_defaults")
 }
 
 // ============================================================================

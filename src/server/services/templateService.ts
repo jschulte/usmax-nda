@@ -8,7 +8,7 @@
  * - Edited document saving
  */
 
-import type { Prisma } from '../../generated/prisma/index.js';
+import type { Prisma, NdaType } from '../../generated/prisma/index.js';
 import { prisma } from '../db/index.js';
 import { uploadDocument, getDownloadUrl } from './s3Service.js';
 import { auditService, AuditAction } from './auditService.js';
@@ -49,6 +49,18 @@ export interface RtfTemplateWithRecommendation {
   updatedAt: Date;
 }
 
+export interface RtfTemplateDefaultAssignment {
+  id: string;
+  templateId: string;
+  agencyGroupId: string | null;
+  subagencyId: string | null;
+  ndaType: NdaType | null;
+  agencyGroup: { id: string; name: string; code: string } | null;
+  subagency: { id: string; name: string; code: string } | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 /**
  * Preview response data
  */
@@ -77,8 +89,48 @@ interface AuditMeta {
  * @param agencyGroupId - Agency group ID for recommendation matching
  * @returns List of templates with isRecommended flag
  */
+export async function resolveDefaultTemplateId(
+  agencyGroupId: string,
+  subagencyId?: string | null,
+  ndaType?: NdaType | null
+): Promise<string | undefined> {
+  const scopes: Array<{
+    agencyGroupId: string | null;
+    subagencyId: string | null;
+    ndaType: NdaType | null;
+  }> = [];
+
+  if (subagencyId) {
+    scopes.push({ agencyGroupId, subagencyId, ndaType: ndaType ?? null });
+    scopes.push({ agencyGroupId, subagencyId, ndaType: null });
+  }
+
+  scopes.push({ agencyGroupId, subagencyId: null, ndaType: ndaType ?? null });
+  scopes.push({ agencyGroupId, subagencyId: null, ndaType: null });
+  scopes.push({ agencyGroupId: null, subagencyId: null, ndaType: ndaType ?? null });
+  scopes.push({ agencyGroupId: null, subagencyId: null, ndaType: null });
+
+  for (const scope of scopes) {
+    const match = await prisma.rtfTemplateDefault.findFirst({
+      where: {
+        agencyGroupId: scope.agencyGroupId,
+        subagencyId: scope.subagencyId,
+        ndaType: scope.ndaType,
+        template: { isActive: true },
+      },
+      orderBy: { updatedAt: 'desc' },
+      select: { templateId: true },
+    });
+    if (match) return match.templateId;
+  }
+
+  return undefined;
+}
+
 export async function getTemplatesForNda(
-  agencyGroupId: string
+  agencyGroupId: string,
+  subagencyId?: string | null,
+  ndaType?: NdaType | null
 ): Promise<RtfTemplateWithRecommendation[]> {
   const templates = await prisma.rtfTemplate.findMany({
     where: { isActive: true },
@@ -93,6 +145,12 @@ export async function getTemplatesForNda(
     },
   });
 
+  const defaultTemplateId = await resolveDefaultTemplateId(
+    agencyGroupId,
+    subagencyId,
+    ndaType
+  );
+
   return templates.map((t) => ({
     id: t.id,
     name: t.name,
@@ -106,9 +164,10 @@ export async function getTemplatesForNda(
     // Recommended if:
     // 1. Template is specific to this agency group, OR
     // 2. Template is generic (no agencyGroupId) AND is default
-    isRecommended:
-      t.agencyGroupId === agencyGroupId ||
-      (t.isDefault && t.agencyGroupId === null),
+    isRecommended: defaultTemplateId
+      ? t.id === defaultTemplateId
+      : t.agencyGroupId === agencyGroupId ||
+        (t.isDefault && t.agencyGroupId === null),
   }));
 }
 
@@ -116,7 +175,8 @@ export async function getTemplatesForNda(
  * Get all templates (admin)
  */
 export async function listTemplates(
-  includeInactive = false
+  includeInactive = false,
+  options?: { agencyGroupId?: string; subagencyId?: string; ndaType?: NdaType }
 ): Promise<RtfTemplateWithRecommendation[]> {
   const templates = await prisma.rtfTemplate.findMany({
     where: includeInactive ? {} : { isActive: true },
@@ -128,6 +188,14 @@ export async function listTemplates(
     },
   });
 
+  const defaultTemplateId = options?.agencyGroupId
+    ? await resolveDefaultTemplateId(
+        options.agencyGroupId,
+        options.subagencyId,
+        options.ndaType
+      )
+    : undefined;
+
   return templates.map((t) => ({
     id: t.id,
     name: t.name,
@@ -138,7 +206,7 @@ export async function listTemplates(
     isActive: t.isActive,
     createdAt: t.createdAt,
     updatedAt: t.updatedAt,
-    isRecommended: t.isDefault,
+    isRecommended: defaultTemplateId ? t.id === defaultTemplateId : t.isDefault,
   }));
 }
 
@@ -171,6 +239,192 @@ export async function getTemplate(
     isDefault: template.isDefault,
     isActive: template.isActive,
   };
+}
+
+export async function listTemplateDefaults(
+  templateId: string
+): Promise<RtfTemplateDefaultAssignment[]> {
+  const defaults = await prisma.rtfTemplateDefault.findMany({
+    where: { templateId },
+    orderBy: { updatedAt: 'desc' },
+    include: {
+      agencyGroup: { select: { id: true, name: true, code: true } },
+      subagency: { select: { id: true, name: true, code: true } },
+    },
+  });
+
+  return defaults.map((d) => ({
+    id: d.id,
+    templateId: d.templateId,
+    agencyGroupId: d.agencyGroupId,
+    subagencyId: d.subagencyId,
+    ndaType: d.ndaType,
+    agencyGroup: d.agencyGroup,
+    subagency: d.subagency,
+    createdAt: d.createdAt,
+    updatedAt: d.updatedAt,
+  }));
+}
+
+export async function assignTemplateDefault(
+  templateId: string,
+  data: { agencyGroupId?: string | null; subagencyId?: string | null; ndaType?: NdaType | null },
+  userContext: UserContext,
+  auditContext?: { ipAddress?: string; userAgent?: string }
+): Promise<RtfTemplateDefaultAssignment> {
+  return prisma.$transaction(async (tx) => {
+    const template = await tx.rtfTemplate.findUnique({
+      where: { id: templateId },
+      select: { id: true, name: true, isActive: true },
+    });
+
+    if (!template) {
+      throw new TemplateServiceError('Template not found', 'NOT_FOUND');
+    }
+
+    if (!template.isActive) {
+      throw new TemplateServiceError('Cannot assign defaults to inactive template', 'VALIDATION_ERROR');
+    }
+
+    let agencyGroupId = data.agencyGroupId ?? null;
+    const subagencyId = data.subagencyId ?? null;
+    const ndaType = data.ndaType ?? null;
+
+    if (subagencyId) {
+      const subagency = await tx.subagency.findUnique({
+        where: { id: subagencyId },
+        select: { id: true, agencyGroupId: true },
+      });
+      if (!subagency) {
+        throw new TemplateServiceError('Subagency not found', 'VALIDATION_ERROR');
+      }
+      if (agencyGroupId && agencyGroupId !== subagency.agencyGroupId) {
+        throw new TemplateServiceError(
+          'Subagency does not belong to selected agency group',
+          'VALIDATION_ERROR'
+        );
+      }
+      agencyGroupId = subagency.agencyGroupId;
+    }
+
+    const existing = await tx.rtfTemplateDefault.findMany({
+      where: { agencyGroupId, subagencyId, ndaType },
+      select: { id: true, templateId: true },
+    });
+
+    if (existing.length === 1 && existing[0]?.templateId === templateId) {
+      const current = await tx.rtfTemplateDefault.findUnique({
+        where: { id: existing[0].id },
+        include: {
+          agencyGroup: { select: { id: true, name: true, code: true } },
+          subagency: { select: { id: true, name: true, code: true } },
+        },
+      });
+      if (!current) {
+        throw new TemplateServiceError('Default template not found', 'NOT_FOUND');
+      }
+      return {
+        id: current.id,
+        templateId: current.templateId,
+        agencyGroupId: current.agencyGroupId,
+        subagencyId: current.subagencyId,
+        ndaType: current.ndaType,
+        agencyGroup: current.agencyGroup,
+        subagency: current.subagency,
+        createdAt: current.createdAt,
+        updatedAt: current.updatedAt,
+      };
+    }
+
+    if (existing.length > 0) {
+      await tx.rtfTemplateDefault.deleteMany({
+        where: { agencyGroupId, subagencyId, ndaType },
+      });
+    }
+
+    const created = await tx.rtfTemplateDefault.create({
+      data: {
+        templateId,
+        agencyGroupId,
+        subagencyId,
+        ndaType,
+        createdById: userContext.contactId,
+      },
+      include: {
+        agencyGroup: { select: { id: true, name: true, code: true } },
+        subagency: { select: { id: true, name: true, code: true } },
+      },
+    });
+
+    await tx.auditLog.create({
+      data: {
+        action: AuditAction.RTF_TEMPLATE_DEFAULT_ASSIGNED,
+        entityType: 'rtf_template_default',
+        entityId: created.id,
+        userId: userContext.contactId,
+        details: {
+          templateId,
+          templateName: template.name,
+          agencyGroupId,
+          subagencyId,
+          ndaType,
+          replacedDefaultIds: existing.map((item) => item.id),
+          replacedTemplateIds: existing.map((item) => item.templateId),
+        } as unknown as Prisma.InputJsonValue,
+        ipAddress: auditContext?.ipAddress ?? null,
+        userAgent: auditContext?.userAgent ?? null,
+      },
+    });
+
+    return {
+      id: created.id,
+      templateId: created.templateId,
+      agencyGroupId: created.agencyGroupId,
+      subagencyId: created.subagencyId,
+      ndaType: created.ndaType,
+      agencyGroup: created.agencyGroup,
+      subagency: created.subagency,
+      createdAt: created.createdAt,
+      updatedAt: created.updatedAt,
+    };
+  });
+}
+
+export async function removeTemplateDefault(
+  defaultId: string,
+  userContext: UserContext,
+  auditContext?: { ipAddress?: string; userAgent?: string }
+): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    const existing = await tx.rtfTemplateDefault.findUnique({
+      where: { id: defaultId },
+      include: { template: { select: { id: true, name: true } } },
+    });
+
+    if (!existing) {
+      throw new TemplateServiceError('Default template not found', 'NOT_FOUND');
+    }
+
+    await tx.rtfTemplateDefault.delete({ where: { id: defaultId } });
+
+    await tx.auditLog.create({
+      data: {
+        action: AuditAction.RTF_TEMPLATE_DEFAULT_REMOVED,
+        entityType: 'rtf_template_default',
+        entityId: defaultId,
+        userId: userContext.contactId,
+        details: {
+          templateId: existing.templateId,
+          templateName: existing.template?.name ?? null,
+          agencyGroupId: existing.agencyGroupId,
+          subagencyId: existing.subagencyId,
+          ndaType: existing.ndaType,
+        } as unknown as Prisma.InputJsonValue,
+        ipAddress: auditContext?.ipAddress ?? null,
+        userAgent: auditContext?.userAgent ?? null,
+      },
+    });
+  });
 }
 
 /**

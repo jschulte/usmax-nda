@@ -55,14 +55,24 @@ export interface DocumentPreview {
  * List all templates with optional agency filter
  */
 export async function listTemplates(
-  agencyGroupId?: string,
-  includeInactive = false
+  options?: {
+    agencyGroupId?: string;
+    subagencyId?: string;
+    ndaType?: string;
+    includeInactive?: boolean;
+  }
 ): Promise<{ templates: RtfTemplate[]; count: number }> {
   const params: Record<string, string | boolean> = {};
-  if (agencyGroupId) {
-    params.agencyGroupId = agencyGroupId;
+  if (options?.agencyGroupId) {
+    params.agencyGroupId = options.agencyGroupId;
   }
-  if (includeInactive) {
+  if (options?.subagencyId) {
+    params.subagencyId = options.subagencyId;
+  }
+  if (options?.ndaType) {
+    params.ndaType = options.ndaType;
+  }
+  if (options?.includeInactive) {
     params.includeInactive = true;
   }
   return get<{ templates: RtfTemplate[]; count: number }>('/api/rtf-templates', params);
@@ -99,6 +109,43 @@ export async function updateTemplate(
  */
 export async function deleteTemplate(id: string): Promise<{ message: string }> {
   return del<{ message: string }>(`/api/rtf-templates/${id}`);
+}
+
+export interface TemplateDefaultAssignment {
+  id: string;
+  templateId: string;
+  agencyGroupId: string | null;
+  subagencyId: string | null;
+  ndaType: string | null;
+  agencyGroup?: { id: string; name: string; code: string } | null;
+  subagency?: { id: string; name: string; code: string } | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export async function listTemplateDefaults(
+  templateId: string
+): Promise<{ defaults: TemplateDefaultAssignment[] }> {
+  return get<{ defaults: TemplateDefaultAssignment[] }>(
+    `/api/rtf-templates/${templateId}/defaults`
+  );
+}
+
+export async function addTemplateDefault(
+  templateId: string,
+  data: { agencyGroupId?: string; subagencyId?: string; ndaType?: string }
+): Promise<{ defaultAssignment: TemplateDefaultAssignment }> {
+  return post<{ defaultAssignment: TemplateDefaultAssignment }>(
+    `/api/rtf-templates/${templateId}/defaults`,
+    data
+  );
+}
+
+export async function removeTemplateDefault(
+  templateId: string,
+  defaultId: string
+): Promise<{ message: string }> {
+  return del<{ message: string }>(`/api/rtf-templates/${templateId}/defaults/${defaultId}`);
 }
 
 /**

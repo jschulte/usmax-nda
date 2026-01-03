@@ -255,7 +255,11 @@ export function NDADetail() {
 
     const loadTemplates = async () => {
       try {
-        const data = await listTemplates(nda.agencyGroup.id);
+        const data = await listTemplates({
+          agencyGroupId: nda.agencyGroup.id,
+          subagencyId: nda.subagency?.id ?? undefined,
+          ndaType: nda.ndaType,
+        });
         setTemplates(data.templates);
         const selected = nda.rtfTemplateId && data.templates.some((template) => template.id === nda.rtfTemplateId)
           ? nda.rtfTemplateId

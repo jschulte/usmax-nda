@@ -8,6 +8,8 @@ import {
   getTemplatesForNda,
   listTemplates,
   getTemplate,
+  resolveDefaultTemplateId,
+  assignTemplateDefault,
   createTemplate,
   updateTemplate,
   deleteTemplate,
@@ -33,6 +35,16 @@ const prismaMock = {
   },
   auditLog: {
     create: vi.fn(),
+  },
+  subagency: {
+    findUnique: vi.fn(),
+  },
+  rtfTemplateDefault: {
+    findMany: vi.fn(),
+    findFirst: vi.fn(),
+    findUnique: vi.fn(),
+    create: vi.fn(),
+    delete: vi.fn(),
   },
   $transaction: vi.fn(async (callback: (tx: any) => any) => callback(prismaMock)),
 };
@@ -214,6 +226,58 @@ describe('Template Service', () => {
       const template = await getTemplate('nonexistent');
 
       expect(template).toBeNull();
+    });
+  });
+
+  describe('resolveDefaultTemplateId', () => {
+    it('returns first matching scoped default', async () => {
+      mockPrisma.rtfTemplateDefault.findFirst
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ templateId: 'template-2' } as any);
+
+      const result = await resolveDefaultTemplateId('agency-1', 'sub-1', 'MUTUAL' as any);
+
+      expect(result).toBe('template-2');
+      expect(mockPrisma.rtfTemplateDefault.findFirst).toHaveBeenCalled();
+    });
+  });
+
+  describe('assignTemplateDefault', () => {
+    it('replaces existing default and records audit', async () => {
+      mockPrisma.rtfTemplate.findUnique.mockResolvedValue({
+        id: 'template-1',
+        name: 'Template 1',
+        isActive: true,
+      } as any);
+
+      mockPrisma.rtfTemplateDefault.findFirst.mockResolvedValue({
+        id: 'default-1',
+        templateId: 'template-old',
+      } as any);
+
+      mockPrisma.rtfTemplateDefault.create.mockResolvedValue({
+        id: 'default-2',
+        templateId: 'template-1',
+        agencyGroupId: 'agency-1',
+        subagencyId: null,
+        ndaType: 'MUTUAL',
+        agencyGroup: { id: 'agency-1', name: 'DoD', code: 'DOD' },
+        subagency: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      } as any);
+
+      const result = await assignTemplateDefault(
+        'template-1',
+        { agencyGroupId: 'agency-1', ndaType: 'MUTUAL' as any },
+        mockUserContext
+      );
+
+      expect(mockPrisma.rtfTemplateDefault.delete).toHaveBeenCalledWith({
+        where: { id: 'default-1' },
+      });
+      expect(mockPrisma.auditLog.create).toHaveBeenCalled();
+      expect(result.templateId).toBe('template-1');
     });
   });
 

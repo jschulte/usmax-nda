@@ -12,6 +12,7 @@ import prisma from '../db/index.js';
 import type { UserContext } from '../types/auth.js';
 import type { UsMaxPosition, NdaType } from '../../generated/prisma/index.js';
 import { buildSecurityFilter } from './ndaService.js';
+import { resolveDefaultTemplateId } from './templateService.js';
 
 export interface AgencySuggestions {
   commonCompanies: Array<{
@@ -116,6 +117,17 @@ export async function getDefaultTemplate(
   agencyGroupId: string,
   _userContext: UserContext
 ): Promise<{ templateId?: string; templateName?: string }> {
+  const scopedDefaultId = await resolveDefaultTemplateId(agencyGroupId);
+  if (scopedDefaultId) {
+    const template = await prisma.rtfTemplate.findFirst({
+      where: { id: scopedDefaultId, isActive: true },
+      select: { id: true, name: true },
+    });
+    if (template) {
+      return { templateId: template.id, templateName: template.name };
+    }
+  }
+
   // Prefer agency-specific default, then any active agency template,
   // then global default, then any active global template.
   const defaultForAgency = await prisma.rtfTemplate.findFirst({

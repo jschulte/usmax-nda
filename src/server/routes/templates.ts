@@ -21,6 +21,9 @@ import {
   getTemplatesForNda,
   listTemplates,
   getTemplate,
+  listTemplateDefaults,
+  assignTemplateDefault,
+  removeTemplateDefault,
   generatePreview,
   saveEditedDocument,
   createTemplate,
@@ -39,6 +42,7 @@ import {
 
 const router: Router = Router();
 const MAX_RTF_SIZE = 5 * 1024 * 1024; // 5MB
+const VALID_NDA_TYPES = new Set(['MUTUAL', 'CONSULTANT']);
 
 // All routes require authentication and user context
 router.use(authenticateJWT);
@@ -57,16 +61,30 @@ router.get(
   requireAnyPermission([PERMISSIONS.NDA_VIEW, PERMISSIONS.NDA_CREATE]),
   async (req, res) => {
     try {
-      const { agencyGroupId, includeInactive } = req.query;
+      const { agencyGroupId, subagencyId, ndaType, includeInactive } = req.query;
+      if (typeof ndaType === 'string' && !VALID_NDA_TYPES.has(ndaType)) {
+        return res.status(400).json({
+          error: 'Invalid ndaType value',
+          code: 'VALIDATION_ERROR',
+        });
+      }
 
       let templates;
       if (agencyGroupId && typeof agencyGroupId === 'string') {
-        templates = await getTemplatesForNda(agencyGroupId);
+        templates = await getTemplatesForNda(
+          agencyGroupId,
+          typeof subagencyId === 'string' ? subagencyId : undefined,
+          typeof ndaType === 'string' ? (ndaType as any) : undefined
+        );
       } else {
         const showInactive =
           includeInactive === 'true' &&
           req.userContext?.permissions.has(PERMISSIONS.ADMIN_MANAGE_TEMPLATES);
-        templates = await listTemplates(showInactive);
+        templates = await listTemplates(showInactive, {
+          agencyGroupId: typeof agencyGroupId === 'string' ? agencyGroupId : undefined,
+          subagencyId: typeof subagencyId === 'string' ? subagencyId : undefined,
+          ndaType: typeof ndaType === 'string' ? (ndaType as any) : undefined,
+        });
       }
 
       res.json({
@@ -77,6 +95,114 @@ router.get(
       console.error('[Templates] Error listing templates:', error);
       res.status(500).json({
         error: 'Failed to list templates',
+        code: 'INTERNAL_ERROR',
+      });
+    }
+  }
+);
+
+/**
+ * GET /api/rtf-templates/:id/defaults
+ * List default assignments for a template (admin only)
+ */
+router.get(
+  '/:id/defaults',
+  requirePermission(PERMISSIONS.ADMIN_MANAGE_TEMPLATES),
+  async (req, res) => {
+    try {
+      const defaults = await listTemplateDefaults(req.params.id);
+      res.json({ defaults });
+    } catch (error) {
+      console.error('[Templates] Error listing template defaults:', error);
+      res.status(500).json({
+        error: 'Failed to list template defaults',
+        code: 'INTERNAL_ERROR',
+      });
+    }
+  }
+);
+
+/**
+ * POST /api/rtf-templates/:id/defaults
+ * Assign a default template for a scope (admin only)
+ */
+router.post(
+  '/:id/defaults',
+  requirePermission(PERMISSIONS.ADMIN_MANAGE_TEMPLATES),
+  async (req, res) => {
+    try {
+      const { agencyGroupId, subagencyId, ndaType } = req.body ?? {};
+      if (ndaType && !VALID_NDA_TYPES.has(ndaType)) {
+        return res.status(400).json({
+          error: 'Invalid ndaType value',
+          code: 'VALIDATION_ERROR',
+        });
+      }
+      const created = await assignTemplateDefault(
+        req.params.id,
+        { agencyGroupId, subagencyId, ndaType },
+        req.userContext!,
+        {
+          ipAddress: req.ip,
+          userAgent: req.get('user-agent') ?? undefined,
+        }
+      );
+
+      res.status(201).json({ defaultAssignment: created });
+    } catch (error) {
+      if (error instanceof TemplateServiceError) {
+        const statusCode = error.code === 'NOT_FOUND' ? 404 : 400;
+        return res.status(statusCode).json({
+          error: error.message,
+          code: error.code,
+        });
+      }
+
+      console.error('[Templates] Error assigning template default:', error);
+      res.status(500).json({
+        error: 'Failed to assign template default',
+        code: 'INTERNAL_ERROR',
+      });
+    }
+  }
+);
+
+/**
+ * DELETE /api/rtf-templates/:id/defaults/:defaultId
+ * Remove a default assignment (admin only)
+ */
+router.delete(
+  '/:id/defaults/:defaultId',
+  requirePermission(PERMISSIONS.ADMIN_MANAGE_TEMPLATES),
+  async (req, res) => {
+    try {
+      const defaults = await listTemplateDefaults(req.params.id);
+      const target = defaults.find((item) => item.id === req.params.defaultId);
+      if (!target) {
+        return res.status(404).json({
+          error: 'Default assignment not found',
+          code: 'NOT_FOUND',
+        });
+      }
+
+      await removeTemplateDefault(req.params.defaultId, req.userContext!, {
+        ipAddress: req.ip,
+        userAgent: req.get('user-agent') ?? undefined,
+      });
+
+      res.json({ message: 'Default assignment removed' });
+    } catch (error) {
+      if (error instanceof TemplateServiceError) {
+        const statusCode = error.code === 'NOT_FOUND' ? 404 : 400;
+        return res.status(statusCode).json({
+          error: error.message,
+          code: error.code,
+        });
+      }
+
+      console.error('[Templates] Error removing template default:', error);
+      res.status(500).json({
+        error: 'Failed to remove template default',
         code: 'INTERNAL_ERROR',
       });
     }

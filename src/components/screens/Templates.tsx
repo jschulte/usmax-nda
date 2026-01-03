@@ -22,9 +22,16 @@ import {
 } from '../ui/dropdown-menu';
 import { toast } from 'sonner@2.0.3';
 import * as templateService from '../../client/services/templateService';
-import type { RtfTemplate } from '../../client/services/templateService';
+import type { RtfTemplate, TemplateDefaultAssignment } from '../../client/services/templateService';
+import { listAgencyGroups, listSubagencies, type AgencyGroup, type Subagency } from '../../client/services/agencyService';
+import type { NdaType } from '../../client/services/ndaService';
 import { RTFTemplateEditor } from './admin/RTFTemplateEditor';
 import { simpleRtfToHtml } from '../../client/utils/rtfConverter';
+
+const ndaTypes: { value: NdaType; label: string }[] = [
+  { value: 'MUTUAL', label: 'Mutual NDA' },
+  { value: 'CONSULTANT', label: 'Consultant' },
+];
 
 export function Templates() {
   // Story 9.19: Keep activeView for backward compatibility, but clauses disabled (empty array)
@@ -52,6 +59,13 @@ export function Templates() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [templateDefaults, setTemplateDefaults] = useState<TemplateDefaultAssignment[]>([]);
+  const [defaultsLoading, setDefaultsLoading] = useState(false);
+  const [agencyGroups, setAgencyGroups] = useState<AgencyGroup[]>([]);
+  const [subagencies, setSubagencies] = useState<Subagency[]>([]);
+  const [defaultAgencyGroupId, setDefaultAgencyGroupId] = useState('');
+  const [defaultSubagencyId, setDefaultSubagencyId] = useState('');
+  const [defaultNdaType, setDefaultNdaType] = useState<NdaType | ''>('');
 
   // Filters
   const [agencyGroupFilter, setAgencyGroupFilter] = useState<string>('');
@@ -77,14 +91,24 @@ export function Templates() {
     loadTemplates();
   }, [agencyGroupFilter, showInactive]);
 
+  useEffect(() => {
+    if (!defaultAgencyGroupId) {
+      setDefaultSubagencyId('');
+      setSubagencies([]);
+      return;
+    }
+    setDefaultSubagencyId('');
+    loadSubagenciesForGroup(defaultAgencyGroupId);
+  }, [defaultAgencyGroupId]);
+
   const loadTemplates = async () => {
     try {
       setIsLoading(true);
       setError(null);
-      const data = await templateService.listTemplates(
-        agencyGroupFilter || undefined,
-        showInactive
-      );
+      const data = await templateService.listTemplates({
+        agencyGroupId: agencyGroupFilter || undefined,
+        includeInactive: showInactive,
+      });
       setTemplates(data.templates);
     } catch (err: any) {
       setError(err.message || 'Failed to load templates');
@@ -94,6 +118,61 @@ export function Templates() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const loadAgencyGroups = async () => {
+    try {
+      const response = await listAgencyGroups({ page: 1, limit: 200 });
+      setAgencyGroups(response.agencyGroups);
+    } catch (err: any) {
+      toast.error('Failed to load agency groups', {
+        description: err.message || 'An error occurred'
+      });
+    }
+  };
+
+  const loadSubagenciesForGroup = async (groupId: string) => {
+    if (!groupId) {
+      setSubagencies([]);
+      return;
+    }
+    try {
+      const response = await listSubagencies(groupId);
+      setSubagencies(response.subagencies);
+    } catch (err: any) {
+      toast.error('Failed to load subagencies', {
+        description: err.message || 'An error occurred'
+      });
+    }
+  };
+
+  const loadTemplateDefaults = async (templateId: string) => {
+    try {
+      setDefaultsLoading(true);
+      const response = await templateService.listTemplateDefaults(templateId);
+      setTemplateDefaults(response.defaults);
+    } catch (err: any) {
+      toast.error('Failed to load default assignments', {
+        description: err.message || 'An error occurred'
+      });
+    } finally {
+      setDefaultsLoading(false);
+    }
+  };
+
+  const resetDefaultAssignmentForm = () => {
+    setDefaultAgencyGroupId('');
+    setDefaultSubagencyId('');
+    setDefaultNdaType('');
+    setSubagencies([]);
+  };
+
+  const formatDefaultScope = (assignment: TemplateDefaultAssignment) => {
+    const agencyLabel = assignment.agencyGroup?.name || 'All agencies';
+    const subagencyLabel = assignment.subagency?.name;
+    const ndaLabel =
+      assignment.ndaType && ndaTypes.find((t) => t.value === assignment.ndaType)?.label;
+    return [agencyLabel, subagencyLabel, ndaLabel].filter(Boolean).join(' • ');
   };
 
   const filteredTemplates = templates.filter(t =>
@@ -208,6 +287,9 @@ export function Templates() {
     setTemplateIsDefault(template.isDefault);
     setTemplateContent(''); // Content is only loaded on demand
     setUploadedFile(null);
+    resetDefaultAssignmentForm();
+    loadAgencyGroups();
+    loadTemplateDefaults(template.id);
     setShowEditDialog(true);
   };
 
@@ -234,6 +316,49 @@ export function Templates() {
       await loadTemplates();
     } catch (err: any) {
       toast.error('Failed to update template', {
+        description: err.message || 'An error occurred'
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleAddDefaultAssignment = async () => {
+    if (!selectedItem?.id) return;
+
+    try {
+      setIsSubmitting(true);
+      await templateService.addTemplateDefault(selectedItem.id, {
+        agencyGroupId: defaultAgencyGroupId || undefined,
+        subagencyId: defaultSubagencyId || undefined,
+        ndaType: defaultNdaType || undefined,
+      });
+      toast.success('Default assigned', {
+        description: 'Default assignment saved.'
+      });
+      resetDefaultAssignmentForm();
+      await loadTemplateDefaults(selectedItem.id);
+    } catch (err: any) {
+      toast.error('Failed to assign default', {
+        description: err.message || 'An error occurred'
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleRemoveDefaultAssignment = async (defaultId: string) => {
+    if (!selectedItem?.id) return;
+
+    try {
+      setIsSubmitting(true);
+      await templateService.removeTemplateDefault(selectedItem.id, defaultId);
+      toast.success('Default removed', {
+        description: 'Default assignment removed.'
+      });
+      await loadTemplateDefaults(selectedItem.id);
+    } catch (err: any) {
+      toast.error('Failed to remove default', {
         description: err.message || 'An error occurred'
       });
     } finally {
@@ -1050,6 +1175,94 @@ export function Templates() {
                 className="rounded border-[var(--color-border)]"
               />
               <label htmlFor="isDefaultEdit" className="text-sm">Set as default template</label>
+            </div>
+            <div className="border-t border-[var(--color-border)] pt-4">
+              <div className="mb-2">
+                <p className="text-sm font-medium">Default Assignments</p>
+                <p className="text-xs text-[var(--color-text-secondary)]">
+                  Assign this template as the default for an agency/subagency and NDA type.
+                </p>
+              </div>
+              <div className="grid grid-cols-1 gap-3">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Agency Group</label>
+                  <select
+                    className="w-full px-3 py-2 border border-[var(--color-border)] rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+                    value={defaultAgencyGroupId}
+                    onChange={(e) => setDefaultAgencyGroupId(e.target.value)}
+                  >
+                    <option value="">All agencies</option>
+                    {agencyGroups.map((group) => (
+                      <option key={group.id} value={group.id}>
+                        {group.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Subagency</label>
+                  <select
+                    className="w-full px-3 py-2 border border-[var(--color-border)] rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+                    value={defaultSubagencyId}
+                    onChange={(e) => setDefaultSubagencyId(e.target.value)}
+                    disabled={!defaultAgencyGroupId}
+                  >
+                    <option value="">All subagencies</option>
+                    {subagencies.map((subagency) => (
+                      <option key={subagency.id} value={subagency.id}>
+                        {subagency.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">NDA Type</label>
+                  <select
+                    className="w-full px-3 py-2 border border-[var(--color-border)] rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+                    value={defaultNdaType}
+                    onChange={(e) => setDefaultNdaType(e.target.value as NdaType | '')}
+                  >
+                    <option value="">All types</option>
+                    {ndaTypes.map((type) => (
+                      <option key={type.value} value={type.value}>
+                        {type.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={handleAddDefaultAssignment}
+                  disabled={isSubmitting}
+                >
+                  Add Default Assignment
+                </Button>
+              </div>
+              <div className="mt-3 space-y-2">
+                {defaultsLoading ? (
+                  <p className="text-xs text-[var(--color-text-secondary)]">Loading defaults...</p>
+                ) : templateDefaults.length === 0 ? (
+                  <p className="text-xs text-[var(--color-text-secondary)]">No defaults assigned.</p>
+                ) : (
+                  templateDefaults.map((assignment) => (
+                    <div
+                      key={assignment.id}
+                      className="flex items-center justify-between rounded-md border border-[var(--color-border)] px-3 py-2 text-sm"
+                    >
+                      <span>{formatDefaultScope(assignment)}</span>
+                      <Button
+                        variant="subtle"
+                        size="sm"
+                        onClick={() => handleRemoveDefaultAssignment(assignment.id)}
+                        disabled={isSubmitting}
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           </div>
           <DialogFooter>
