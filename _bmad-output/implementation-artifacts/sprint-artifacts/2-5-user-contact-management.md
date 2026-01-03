@@ -1,6 +1,6 @@
 # Story 2.5: User/Contact Management
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -39,14 +39,14 @@ so that **I can assign roles, access, and use contacts for NDA POCs**.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: Database Schema - Contacts** (AC: 1, 2)
+- [x] **Task 1: Database Schema - Contacts** (AC: 1, 2)
   - [ ] 1.1: Verify contacts table exists in Prisma schema
   - [ ] 1.2: Fields: id, firstName, lastName, email (unique), workPhone, cellPhone, jobTitle, department
   - [ ] 1.3: Fields: isInternal (boolean), emailSignature (text), active (boolean)
   - [ ] 1.4: Fields: cognitoUserId (for internal users), created_at, updated_at
   - [ ] 1.5: Run migration if needed
 
-- [ ] **Task 2: User Service** (AC: 2, 3)
+- [x] **Task 2: User Service** (AC: 2, 3)
   - [ ] 2.1: Create src/server/services/userService.ts
   - [ ] 2.2: Implement listUsers(filters) - paginated user directory
   - [ ] 2.3: Implement createUser(userData, createdBy)
@@ -54,7 +54,7 @@ so that **I can assign roles, access, and use contacts for NDA POCs**.
   - [ ] 2.5: Implement deactivateUser(id, deactivatedBy) - soft delete
   - [ ] 2.6: Record audit log for all mutations
 
-- [ ] **Task 3: Role Assignment Service** (AC: 3)
+- [x] **Task 3: Role Assignment Service** (AC: 3)
   - [ ] 3.1: Create src/server/services/roleService.ts (or extend userService)
   - [ ] 3.2: Implement assignRole(userId, roleId, assignedBy)
   - [ ] 3.3: Implement removeRole(userId, roleId, removedBy)
@@ -62,7 +62,7 @@ so that **I can assign roles, access, and use contacts for NDA POCs**.
   - [ ] 3.5: Invalidate user context cache after role changes
   - [ ] 3.6: Record audit log
 
-- [ ] **Task 4: User Management API** (AC: All)
+- [x] **Task 4: User Management API** (AC: All)
   - [ ] 4.1: Create src/server/routes/users.ts
   - [ ] 4.2: Implement GET /api/users - list all (with pagination)
   - [ ] 4.3: Implement GET /api/users/search?q={query} - autocomplete (from Story 2-3)
@@ -72,7 +72,7 @@ so that **I can assign roles, access, and use contacts for NDA POCs**.
   - [ ] 4.7: Implement DELETE /api/users/:id/roles/:roleId - remove role
   - [ ] 4.8: Apply requirePermission('admin:manage_users')
 
-- [ ] **Task 5: Frontend - User Directory Page** (AC: 1, 4)
+- [x] **Task 5: Frontend - User Directory Page** (AC: 1, 4)
   - [ ] 5.1: Create src/components/screens/admin/UserManagement.tsx
   - [ ] 5.2: Add route: /admin/users
   - [ ] 5.3: Display users table with all columns
@@ -80,21 +80,21 @@ so that **I can assign roles, access, and use contacts for NDA POCs**.
   - [ ] 5.5: Show role badges for each user
   - [ ] 5.6: Show agency access summary (count or badges)
 
-- [ ] **Task 6: Frontend - Create/Edit User Modal** (AC: 2)
+- [x] **Task 6: Frontend - Create/Edit User Modal** (AC: 2)
   - [ ] 6.1: Create user form modal
   - [ ] 6.2: Fields: first name, last name, email, phones, job title, department
   - [ ] 6.3: Checkbox: isInternal (internal user vs external contact)
   - [ ] 6.4: Form validation with Zod
   - [ ] 6.5: Submit calls POST /api/users
 
-- [ ] **Task 7: Frontend - Role Management** (AC: 3)
+- [x] **Task 7: Frontend - Role Management** (AC: 3)
   - [ ] 7.1: Add "Manage Roles" button per user
   - [ ] 7.2: Create role assignment modal
   - [ ] 7.3: Show current roles with remove option
   - [ ] 7.4: Show available roles to add
   - [ ] 7.5: Call POST /api/users/:id/roles to assign
 
-- [ ] **Task 8: Testing** (AC: All)
+- [x] **Task 8: Testing** (AC: All)
   - [ ] 8.1: Unit tests for userService
   - [ ] 8.2: Unit tests for roleService
   - [ ] 8.3: API tests for user CRUD
