@@ -64,6 +64,8 @@ describe('AgencyGroups menu', () => {
         totalPages: 1,
       },
     });
+
+    vi.mocked(agencyService.listSubagencies).mockResolvedValue({ subagencies: [] });
   });
 
   it('shows menu items when three-dots trigger is clicked', async () => {
@@ -120,5 +122,57 @@ describe('AgencyGroups menu', () => {
     await waitFor(() => {
       expect(screen.getByText('Manage Access - Test Agency')).toBeInTheDocument();
     });
+  });
+
+  it('shows Add Subagency button in empty state and opens dialog', async () => {
+    render(
+      <MemoryRouter>
+        <AgencyGroups />
+      </MemoryRouter>
+    );
+
+    await screen.findByText('Test Agency');
+
+    fireEvent.click(screen.getByLabelText('Toggle subagency list'));
+
+    expect(await screen.findByText('No subagencies yet')).toBeInTheDocument();
+
+    const addButton = screen.getByRole('button', { name: 'Add Subagency' });
+    fireEvent.click(addButton);
+
+    await waitFor(() => {
+      expect(screen.getByText('Create Subagency')).toBeInTheDocument();
+    });
+  });
+
+  it('shows Add Subagency button when subagencies exist', async () => {
+    const agencyService = await import('../../../../client/services/agencyService');
+    vi.mocked(agencyService.listSubagencies).mockResolvedValue({
+      subagencies: [
+        {
+          id: 'sub-1',
+          name: 'Subagency 1',
+          code: 'S1',
+          agencyGroupId: 'agency-1',
+          description: 'Test subagency',
+          ndaCount: 0,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+      ],
+    });
+
+    render(
+      <MemoryRouter>
+        <AgencyGroups />
+      </MemoryRouter>
+    );
+
+    await screen.findByText('Test Agency');
+
+    fireEvent.click(screen.getByLabelText('Toggle subagency list'));
+
+    expect(await screen.findByText('Subagencies (1)')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Add Subagency' })).toBeInTheDocument();
   });
 });

@@ -702,6 +702,8 @@ export function AgencyGroups() {
                               variant="subtle"
                               size="sm"
                               className="px-2"
+                              type="button"
+                              aria-label="Toggle subagency list"
                               onClick={() => void toggleGroupExpanded(group.id)}
                             >
                               <ChevronDown
@@ -794,7 +796,7 @@ export function AgencyGroups() {
                                       Subagencies ({subagencies.length})
                                     </h4>
                                     <Button
-                                      variant="subtle"
+                                      variant="secondary"
                                       size="sm"
                                       icon={<Plus className="w-4 h-4" />}
                                       onClick={() => openCreateSubagency(group)}
