@@ -5,5 +5,6 @@ total_stories: 8
 completed_stories:
   - 4-1-document-upload-with-drag-drop
   - 4-2-mark-document-as-fully-executed
+  - 4-3-document-download-with-pre-signed-urls
 current_story: null
 status: running
