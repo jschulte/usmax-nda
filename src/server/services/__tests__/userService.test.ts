@@ -438,28 +438,32 @@ describe('User Service', () => {
     });
 
     it('allows updating to same email (no change)', async () => {
-      mockPrisma.contact.findUnique.mockResolvedValue({
+      const existingUser = {
         id: 'user-1',
         email: 'same@test.com',
         firstName: 'User',
-      });
-      mockPrisma.contact.update.mockResolvedValue({
-        id: 'user-1',
-        firstName: 'Updated',
         lastName: 'Name',
-        email: 'same@test.com',
         workPhone: null,
         cellPhone: null,
         jobTitle: null,
         active: true,
         createdAt: new Date(),
         updatedAt: new Date(),
-      });
+      };
 
-      // Should not throw - same email is allowed
+      mockPrisma.contact.findUnique.mockReset().mockResolvedValue(existingUser as any);
+      mockPrisma.contact.findFirst.mockReset(); // Clear any previous mocks
+      mockPrisma.contact.update.mockResolvedValue({
+        ...existingUser,
+        firstName: 'Updated',
+      } as any);
+
+      // Should not throw - same email is allowed (duplicate check skipped)
       await updateUser('user-1', { email: 'same@test.com', firstName: 'Updated' }, 'admin-1');
 
       expect(mockPrisma.contact.update).toHaveBeenCalled();
+      // Duplicate check should be skipped when email unchanged
+      expect(mockPrisma.contact.findFirst).not.toHaveBeenCalled();
     });
   });
 

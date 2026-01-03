@@ -71,11 +71,7 @@ describe('Status Transition Service', () => {
         expect(isValidTransition(NdaStatus.CREATED, NdaStatus.SENT_PENDING_SIGNATURE)).toBe(true);
       });
 
-      it('should allow CREATED → INACTIVE', () => {
-        expect(isValidTransition(NdaStatus.CREATED, NdaStatus.INACTIVE)).toBe(true);
-      });
-
-      it('should allow CREATED → CANCELLED', () => {
+      it('should allow CREATED → INACTIVE_CANCELED', () => {
         expect(isValidTransition(NdaStatus.CREATED, NdaStatus.INACTIVE_CANCELED)).toBe(true);
       });
 
@@ -97,11 +93,7 @@ describe('Status Transition Service', () => {
         expect(isValidTransition(NdaStatus.SENT_PENDING_SIGNATURE, NdaStatus.FULLY_EXECUTED)).toBe(true);
       });
 
-      it('should allow EMAILED → INACTIVE', () => {
-        expect(isValidTransition(NdaStatus.SENT_PENDING_SIGNATURE, NdaStatus.INACTIVE)).toBe(true);
-      });
-
-      it('should allow EMAILED → CANCELLED', () => {
+      it('should allow EMAILED → INACTIVE_CANCELED', () => {
         expect(isValidTransition(NdaStatus.SENT_PENDING_SIGNATURE, NdaStatus.INACTIVE_CANCELED)).toBe(true);
       });
 
@@ -125,42 +117,42 @@ describe('Status Transition Service', () => {
     });
 
     describe('from FULLY_EXECUTED', () => {
-      it('should allow FULLY_EXECUTED → INACTIVE', () => {
-        expect(isValidTransition(NdaStatus.FULLY_EXECUTED, NdaStatus.INACTIVE)).toBe(true);
+      it('should allow FULLY_EXECUTED → INACTIVE_CANCELED', () => {
+        expect(isValidTransition(NdaStatus.FULLY_EXECUTED, NdaStatus.INACTIVE_CANCELED)).toBe(true);
       });
 
-      it('should NOT allow FULLY_EXECUTED → any other status', () => {
+      it('should NOT allow FULLY_EXECUTED → active statuses', () => {
         expect(isValidTransition(NdaStatus.FULLY_EXECUTED, NdaStatus.CREATED)).toBe(false);
         expect(isValidTransition(NdaStatus.FULLY_EXECUTED, NdaStatus.SENT_PENDING_SIGNATURE)).toBe(false);
-        expect(isValidTransition(NdaStatus.FULLY_EXECUTED, NdaStatus.INACTIVE_CANCELED)).toBe(false);
+        expect(isValidTransition(NdaStatus.FULLY_EXECUTED, NdaStatus.IN_REVISION)).toBe(false);
       });
     });
 
-    describe('from INACTIVE', () => {
-      it('should allow INACTIVE → CREATED', () => {
-        expect(isValidTransition(NdaStatus.INACTIVE, NdaStatus.CREATED)).toBe(true);
+    describe('from INACTIVE_CANCELED (reactivatable)', () => {
+      it('should allow INACTIVE_CANCELED → CREATED (reactivation)', () => {
+        expect(isValidTransition(NdaStatus.INACTIVE_CANCELED, NdaStatus.CREATED)).toBe(true);
       });
 
-      it('should allow INACTIVE → EMAILED', () => {
-        expect(isValidTransition(NdaStatus.INACTIVE, NdaStatus.SENT_PENDING_SIGNATURE)).toBe(true);
+      it('should allow INACTIVE_CANCELED → EMAILED (reactivation)', () => {
+        expect(isValidTransition(NdaStatus.INACTIVE_CANCELED, NdaStatus.SENT_PENDING_SIGNATURE)).toBe(true);
       });
 
-      it('should allow INACTIVE → FULLY_EXECUTED', () => {
-        expect(isValidTransition(NdaStatus.INACTIVE, NdaStatus.FULLY_EXECUTED)).toBe(true);
+      it('should allow INACTIVE_CANCELED → IN_REVISION (reactivation)', () => {
+        expect(isValidTransition(NdaStatus.INACTIVE_CANCELED, NdaStatus.IN_REVISION)).toBe(true);
       });
 
-      it('should NOT allow INACTIVE → CANCELLED', () => {
-        expect(isValidTransition(NdaStatus.INACTIVE, NdaStatus.INACTIVE_CANCELED)).toBe(false);
+      it('should allow INACTIVE_CANCELED → FULLY_EXECUTED (reactivation)', () => {
+        expect(isValidTransition(NdaStatus.INACTIVE_CANCELED, NdaStatus.FULLY_EXECUTED)).toBe(true);
       });
     });
 
-    describe('from CANCELLED (terminal state)', () => {
-      it('should NOT allow CANCELLED → any status', () => {
-        expect(isValidTransition(NdaStatus.INACTIVE_CANCELED, NdaStatus.CREATED)).toBe(false);
-        expect(isValidTransition(NdaStatus.INACTIVE_CANCELED, NdaStatus.SENT_PENDING_SIGNATURE)).toBe(false);
-        expect(isValidTransition(NdaStatus.INACTIVE_CANCELED, NdaStatus.IN_REVISION)).toBe(false);
-        expect(isValidTransition(NdaStatus.INACTIVE_CANCELED, NdaStatus.FULLY_EXECUTED)).toBe(false);
-        expect(isValidTransition(NdaStatus.INACTIVE_CANCELED, NdaStatus.INACTIVE)).toBe(false);
+    describe('from EXPIRED (terminal state)', () => {
+      it('should NOT allow EXPIRED → any status', () => {
+        expect(isValidTransition(NdaStatus.EXPIRED, NdaStatus.CREATED)).toBe(false);
+        expect(isValidTransition(NdaStatus.EXPIRED, NdaStatus.SENT_PENDING_SIGNATURE)).toBe(false);
+        expect(isValidTransition(NdaStatus.EXPIRED, NdaStatus.IN_REVISION)).toBe(false);
+        expect(isValidTransition(NdaStatus.EXPIRED, NdaStatus.FULLY_EXECUTED)).toBe(false);
+        expect(isValidTransition(NdaStatus.EXPIRED, NdaStatus.INACTIVE_CANCELED)).toBe(false);
       });
     });
   });
@@ -314,11 +306,11 @@ describe('Status Transition Service', () => {
       }
     });
 
-    it('should throw for transitions from CANCELLED (terminal state)', async () => {
+    it('should throw for transitions from EXPIRED (terminal state)', async () => {
       mockPrisma.nda.findUnique.mockResolvedValue({
         id: 'nda-123',
         displayId: 1590,
-        status: 'INACTIVE_CANCELED',
+        status: 'EXPIRED',
       } as any);
 
       await expect(
@@ -386,23 +378,34 @@ describe('Status Transition Service', () => {
     it('should return valid transitions for CREATED', () => {
       const transitions = getValidTransitionsFrom(NdaStatus.CREATED);
       expect(transitions).toContain(NdaStatus.SENT_PENDING_SIGNATURE);
-      expect(transitions).toContain(NdaStatus.INACTIVE);
+      expect(transitions).toContain(NdaStatus.PENDING_APPROVAL);
       expect(transitions).toContain(NdaStatus.INACTIVE_CANCELED);
       expect(transitions).not.toContain(NdaStatus.IN_REVISION);
     });
 
-    it('should return empty array for CANCELLED', () => {
-      const transitions = getValidTransitionsFrom(NdaStatus.INACTIVE_CANCELED);
+    it('should return empty array for EXPIRED (terminal)', () => {
+      const transitions = getValidTransitionsFrom(NdaStatus.EXPIRED);
       expect(transitions).toHaveLength(0);
+    });
+
+    it('should return reactivation transitions for INACTIVE_CANCELED', () => {
+      const transitions = getValidTransitionsFrom(NdaStatus.INACTIVE_CANCELED);
+      expect(transitions.length).toBeGreaterThan(0);
+      expect(transitions).toContain(NdaStatus.CREATED);
+      expect(transitions).toContain(NdaStatus.SENT_PENDING_SIGNATURE);
     });
   });
 
   describe('isTerminalStatus', () => {
-    it('should return true for CANCELLED', () => {
-      expect(isTerminalStatus(NdaStatus.INACTIVE_CANCELED)).toBe(true);
+    it('should return true for EXPIRED', () => {
+      expect(isTerminalStatus(NdaStatus.EXPIRED)).toBe(true);
     });
 
-    it('should return false for other statuses', () => {
+    it('should return false for reactivatable INACTIVE_CANCELED', () => {
+      expect(isTerminalStatus(NdaStatus.INACTIVE_CANCELED)).toBe(false);
+    });
+
+    it('should return false for active statuses', () => {
       expect(isTerminalStatus(NdaStatus.CREATED)).toBe(false);
       expect(isTerminalStatus(NdaStatus.SENT_PENDING_SIGNATURE)).toBe(false);
       expect(isTerminalStatus(NdaStatus.FULLY_EXECUTED)).toBe(false);
@@ -424,11 +427,7 @@ describe('Status Transition Service', () => {
 
   describe('Story 3.15: Inactive & Cancelled Status Management', () => {
     describe('isHiddenByDefault', () => {
-      it('should return true for INACTIVE', () => {
-        expect(isHiddenByDefault(NdaStatus.INACTIVE)).toBe(true);
-      });
-
-      it('should return true for CANCELLED', () => {
+      it('should return true for INACTIVE_CANCELED', () => {
         expect(isHiddenByDefault(NdaStatus.INACTIVE_CANCELED)).toBe(true);
       });
 
@@ -438,15 +437,19 @@ describe('Status Transition Service', () => {
         expect(isHiddenByDefault(NdaStatus.IN_REVISION)).toBe(false);
         expect(isHiddenByDefault(NdaStatus.FULLY_EXECUTED)).toBe(false);
       });
+
+      it('should return false for EXPIRED (visible terminal status)', () => {
+        expect(isHiddenByDefault(NdaStatus.EXPIRED)).toBe(false);
+      });
     });
 
     describe('canReactivate', () => {
-      it('should return true for INACTIVE (reversible)', () => {
-        expect(canReactivate(NdaStatus.INACTIVE)).toBe(true);
+      it('should return true for INACTIVE_CANCELED (reversible)', () => {
+        expect(canReactivate(NdaStatus.INACTIVE_CANCELED)).toBe(true);
       });
 
-      it('should return false for CANCELLED (terminal)', () => {
-        expect(canReactivate(NdaStatus.INACTIVE_CANCELED)).toBe(false);
+      it('should return false for EXPIRED (terminal)', () => {
+        expect(canReactivate(NdaStatus.EXPIRED)).toBe(false);
       });
 
       it('should return false for other statuses', () => {
@@ -457,9 +460,9 @@ describe('Status Transition Service', () => {
     });
 
     describe('HIDDEN_BY_DEFAULT_STATUSES', () => {
-      it('should contain INACTIVE and CANCELLED', () => {
-        expect(HIDDEN_BY_DEFAULT_STATUSES).toContain(NdaStatus.INACTIVE);
+      it('should contain only INACTIVE_CANCELED', () => {
         expect(HIDDEN_BY_DEFAULT_STATUSES).toContain(NdaStatus.INACTIVE_CANCELED);
+        expect(HIDDEN_BY_DEFAULT_STATUSES).toHaveLength(1);
       });
 
       it('should not contain active statuses', () => {
@@ -467,21 +470,25 @@ describe('Status Transition Service', () => {
         expect(HIDDEN_BY_DEFAULT_STATUSES).not.toContain(NdaStatus.SENT_PENDING_SIGNATURE);
         expect(HIDDEN_BY_DEFAULT_STATUSES).not.toContain(NdaStatus.FULLY_EXECUTED);
       });
+
+      it('should not contain EXPIRED', () => {
+        expect(HIDDEN_BY_DEFAULT_STATUSES).not.toContain(NdaStatus.EXPIRED);
+      });
     });
 
     describe('STATUS_DISPLAY', () => {
-      it('should mark INACTIVE as hidden by default', () => {
-        expect(STATUS_DISPLAY[NdaStatus.INACTIVE].hiddenByDefault).toBe(true);
-        expect(STATUS_DISPLAY[NdaStatus.INACTIVE].canReactivate).toBe(true);
-        expect(STATUS_DISPLAY[NdaStatus.INACTIVE].isTerminal).toBe(false);
-        expect(STATUS_DISPLAY[NdaStatus.INACTIVE].variant).toBe('muted');
+      it('should mark INACTIVE_CANCELED as hidden, reactivatable, not terminal', () => {
+        expect(STATUS_DISPLAY[NdaStatus.INACTIVE_CANCELED].hiddenByDefault).toBe(true);
+        expect(STATUS_DISPLAY[NdaStatus.INACTIVE_CANCELED].canReactivate).toBe(true);
+        expect(STATUS_DISPLAY[NdaStatus.INACTIVE_CANCELED].isTerminal).toBe(false);
+        expect(STATUS_DISPLAY[NdaStatus.INACTIVE_CANCELED].variant).toBe('muted');
       });
 
-      it('should mark CANCELLED as terminal and hidden', () => {
-        expect(STATUS_DISPLAY[NdaStatus.INACTIVE_CANCELED].hiddenByDefault).toBe(true);
-        expect(STATUS_DISPLAY[NdaStatus.INACTIVE_CANCELED].canReactivate).toBe(false);
-        expect(STATUS_DISPLAY[NdaStatus.INACTIVE_CANCELED].isTerminal).toBe(true);
-        expect(STATUS_DISPLAY[NdaStatus.INACTIVE_CANCELED].variant).toBe('danger');
+      it('should mark EXPIRED as terminal and not hidden', () => {
+        expect(STATUS_DISPLAY[NdaStatus.EXPIRED].hiddenByDefault).toBe(false);
+        expect(STATUS_DISPLAY[NdaStatus.EXPIRED].canReactivate).toBe(false);
+        expect(STATUS_DISPLAY[NdaStatus.EXPIRED].isTerminal).toBe(true);
+        expect(STATUS_DISPLAY[NdaStatus.EXPIRED].variant).toBe('danger');
       });
 
       it('should mark active statuses as not hidden', () => {
@@ -500,13 +507,13 @@ describe('Status Transition Service', () => {
 
     describe('getStatusDisplayInfo', () => {
       it('should return correct display info for each status', () => {
-        const inactiveInfo = getStatusDisplayInfo(NdaStatus.INACTIVE);
-        expect(inactiveInfo.label).toBe('Inactive');
-        expect(inactiveInfo.color).toBe('gray');
+        const inactiveCanceledInfo = getStatusDisplayInfo(NdaStatus.INACTIVE_CANCELED);
+        expect(inactiveCanceledInfo.label).toBe('Inactive/Canceled');
+        expect(inactiveCanceledInfo.color).toBe('gray');
 
-        const cancelledInfo = getStatusDisplayInfo(NdaStatus.INACTIVE_CANCELED);
-        expect(cancelledInfo.label).toBe('Cancelled');
-        expect(cancelledInfo.color).toBe('red');
+        const expiredInfo = getStatusDisplayInfo(NdaStatus.EXPIRED);
+        expect(expiredInfo.label).toBe('Expired');
+        expect(expiredInfo.color).toBe('red');
       });
     });
 
@@ -525,17 +532,17 @@ describe('Status Transition Service', () => {
     });
 
     describe('Reactivation transitions', () => {
-      it('should allow INACTIVE to transition back to active statuses', () => {
-        expect(isValidTransition(NdaStatus.INACTIVE, NdaStatus.CREATED)).toBe(true);
-        expect(isValidTransition(NdaStatus.INACTIVE, NdaStatus.SENT_PENDING_SIGNATURE)).toBe(true);
-        expect(isValidTransition(NdaStatus.INACTIVE, NdaStatus.IN_REVISION)).toBe(true);
-        expect(isValidTransition(NdaStatus.INACTIVE, NdaStatus.FULLY_EXECUTED)).toBe(true);
+      it('should allow INACTIVE_CANCELED to transition back to active statuses', () => {
+        expect(isValidTransition(NdaStatus.INACTIVE_CANCELED, NdaStatus.CREATED)).toBe(true);
+        expect(isValidTransition(NdaStatus.INACTIVE_CANCELED, NdaStatus.SENT_PENDING_SIGNATURE)).toBe(true);
+        expect(isValidTransition(NdaStatus.INACTIVE_CANCELED, NdaStatus.IN_REVISION)).toBe(true);
+        expect(isValidTransition(NdaStatus.INACTIVE_CANCELED, NdaStatus.FULLY_EXECUTED)).toBe(true);
       });
 
-      it('should NOT allow CANCELLED to transition anywhere', () => {
-        // CANCELLED is terminal - verify no outgoing transitions
-        const cancelledTransitions = getValidTransitionsFrom(NdaStatus.INACTIVE_CANCELED);
-        expect(cancelledTransitions).toHaveLength(0);
+      it('should NOT allow EXPIRED to transition anywhere', () => {
+        // EXPIRED is terminal - verify no outgoing transitions
+        const expiredTransitions = getValidTransitionsFrom(NdaStatus.EXPIRED);
+        expect(expiredTransitions).toHaveLength(0);
       });
     });
   });

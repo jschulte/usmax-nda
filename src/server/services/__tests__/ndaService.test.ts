@@ -25,6 +25,11 @@ vi.mock('../../db/index.js', () => ({
       count: vi.fn(),
       update: vi.fn(),
     },
+    contact: {
+      findUnique: vi.fn(),
+      findFirst: vi.fn(),
+      findMany: vi.fn(),
+    },
     subagency: {
       findUnique: vi.fn(),
       findFirst: vi.fn(),
@@ -138,6 +143,8 @@ function createMockUserContext(overrides: Partial<UserContext> = {}): UserContex
 describe('NDA Service', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Mock contact validation for POC checks
+    mockPrisma.contact.findUnique.mockResolvedValue({ id: 'poc-1' } as any);
   });
 
   describe('createNda', () => {
@@ -371,8 +378,8 @@ describe('NDA Service', () => {
   describe('listNdas', () => {
     it('returns paginated list with default values', async () => {
       const mockNdas = [
-        { id: 'nda-1', displayId: 1001, companyName: 'TechCorp', agencyGroupId: 'group-1' },
-        { id: 'nda-2', displayId: 1002, companyName: 'DataCorp', agencyGroupId: 'group-1' },
+        { id: 'nda-1', displayId: 1001, companyName: 'TechCorp', agencyGroupId: 'group-1', status: 'FULLY_EXECUTED' as const, abbreviatedName: 'TC', authorizedPurpose: 'Test', relationshipPocId: 'poc-1' },
+        { id: 'nda-2', displayId: 1002, companyName: 'DataCorp', agencyGroupId: 'group-1', status: 'FULLY_EXECUTED' as const, abbreviatedName: 'DC', authorizedPurpose: 'Test', relationshipPocId: 'poc-1' },
       ];
 
       mockPrisma.nda.findMany.mockResolvedValue(mockNdas);
@@ -380,7 +387,10 @@ describe('NDA Service', () => {
 
       const result = await listNdas({}, createMockUserContext());
 
-      expect(result.ndas).toEqual(mockNdas);
+      expect(result.ndas.length).toBe(2);
+      expect(result.ndas[0].id).toBe('nda-1');
+      expect(result.ndas[0]).toHaveProperty('incompleteFields');
+      expect(result.ndas[0]).toHaveProperty('isDraft');
       expect(result.total).toBe(2);
       expect(result.page).toBe(1);
       expect(result.limit).toBe(25);
@@ -431,13 +441,9 @@ describe('NDA Service', () => {
 
       await listNdas({}, createMockUserContext());
 
-      expect(mockPrisma.nda.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: expect.objectContaining({
-            status: { notIn: ['INACTIVE_CANCELED', 'INACTIVE_CANCELED'] },
-          }),
-        })
-      );
+      const where = mockPrisma.nda.findMany.mock.calls[0][0].where;
+      expect(where.status.notIn).toEqual(expect.arrayContaining(['INACTIVE_CANCELED', 'EXPIRED']));
+      expect(where.status.notIn).toHaveLength(2);
     });
 
     it('includes inactive when showInactive is true', async () => {
@@ -446,14 +452,9 @@ describe('NDA Service', () => {
 
       await listNdas({ showInactive: true }, createMockUserContext());
 
-      // When showInactive=true, only CANCELLED should be excluded
-      expect(mockPrisma.nda.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: expect.objectContaining({
-            status: { notIn: ['INACTIVE_CANCELED'] },
-          }),
-        })
-      );
+      // When showInactive=true, only EXPIRED should be excluded
+      const where = mockPrisma.nda.findMany.mock.calls[0][0].where;
+      expect(where.status.notIn).toEqual(['EXPIRED']);
     });
 
     it('includes cancelled when showCancelled is true', async () => {
@@ -1374,6 +1375,8 @@ describe('NDA Service', () => {
         canUploadDocument: false,
         canChangeStatus: false,
         canDelete: false,
+        canApprove: false,
+        canRouteForApproval: false,
       });
     });
 
@@ -1389,6 +1392,8 @@ describe('NDA Service', () => {
           'nda:upload_document',
           'nda:mark_status',
           'nda:delete',
+          'nda:approve',
+          'nda:create',
         ]),
       });
 
@@ -1400,6 +1405,8 @@ describe('NDA Service', () => {
         canUploadDocument: true,
         canChangeStatus: true,
         canDelete: true,
+        canApprove: true,
+        canRouteForApproval: true,
       });
     });
 
@@ -1437,24 +1444,29 @@ describe('NDA Service', () => {
         { status: 'CREATED', changedAt: new Date('2024-01-01'), changedBy: { id: 'u1', firstName: 'John', lastName: 'Doe' } },
       ]);
 
-      expect(result.steps).toHaveLength(4);
+      expect(result.steps).toHaveLength(5);
       expect(result.steps[0]).toEqual(expect.objectContaining({
         status: 'CREATED',
-        label: 'Created',
+        label: 'Created/Pending Release',
         completed: true,
         isCurrent: true,
       }));
       expect(result.steps[1]).toEqual(expect.objectContaining({
-        status: 'SENT_PENDING_SIGNATURE',
+        status: 'PENDING_APPROVAL',
         completed: false,
         isCurrent: false,
       }));
       expect(result.steps[2]).toEqual(expect.objectContaining({
-        status: 'IN_REVISION',
+        status: 'SENT_PENDING_SIGNATURE',
         completed: false,
         isCurrent: false,
       }));
       expect(result.steps[3]).toEqual(expect.objectContaining({
+        status: 'IN_REVISION',
+        completed: false,
+        isCurrent: false,
+      }));
+      expect(result.steps[4]).toEqual(expect.objectContaining({
         status: 'FULLY_EXECUTED',
         completed: false,
         isCurrent: false,
@@ -1468,11 +1480,12 @@ describe('NDA Service', () => {
         { status: 'SENT_PENDING_SIGNATURE', changedAt: new Date('2024-01-02') },
       ]);
 
-      expect(result.steps[0].completed).toBe(true);
-      expect(result.steps[1].completed).toBe(true);
-      expect(result.steps[1].isCurrent).toBe(true);
-      expect(result.steps[2].completed).toBe(false);
-      expect(result.steps[3].completed).toBe(false);
+      expect(result.steps[0].completed).toBe(true); // CREATED
+      expect(result.steps[1].completed).toBe(true); // PENDING_APPROVAL (auto-completed since we're past it)
+      expect(result.steps[2].completed).toBe(true); // SENT_PENDING_SIGNATURE
+      expect(result.steps[2].isCurrent).toBe(true);
+      expect(result.steps[3].completed).toBe(false); // IN_REVISION
+      expect(result.steps[4].completed).toBe(false); // FULLY_EXECUTED
     });
 
     it('returns correct progression for FULLY_EXECUTED status', () => {
@@ -1483,7 +1496,7 @@ describe('NDA Service', () => {
       ]);
 
       expect(result.steps.every((s) => s.completed)).toBe(true);
-      expect(result.steps[3].isCurrent).toBe(true);
+      expect(result.steps[4].isCurrent).toBe(true); // FULLY_EXECUTED is now at index 4
       expect(result.isTerminal).toBe(false);
     });
 
@@ -1519,9 +1532,11 @@ describe('NDA Service', () => {
         { status: 'SENT_PENDING_SIGNATURE', changedAt: emailedDate },
       ]);
 
-      expect(result.steps[0].timestamp).toEqual(createdDate);
-      expect(result.steps[1].timestamp).toEqual(emailedDate);
-      expect(result.steps[2].timestamp).toBeUndefined();
+      expect(result.steps[0].timestamp).toEqual(createdDate); // CREATED
+      expect(result.steps[1].timestamp).toBeUndefined(); // PENDING_APPROVAL (skipped)
+      expect(result.steps[2].timestamp).toEqual(emailedDate); // SENT_PENDING_SIGNATURE
+      expect(result.steps[3].timestamp).toBeUndefined(); // IN_REVISION (not yet)
+      expect(result.steps[4].timestamp).toBeUndefined(); // FULLY_EXECUTED (not yet)
     });
 
     it('includes changedBy info when available', () => {
@@ -1543,7 +1558,7 @@ describe('NDA Service', () => {
     it('handles empty status history', () => {
       const result = calculateStatusProgression('CREATED', []);
 
-      expect(result.steps).toHaveLength(4);
+      expect(result.steps).toHaveLength(5); // Now includes PENDING_APPROVAL
       expect(result.steps[0].completed).toBe(true); // Current status is always completed
       expect(result.steps[0].isCurrent).toBe(true);
       expect(result.steps[0].timestamp).toBeUndefined(); // No timestamp without history

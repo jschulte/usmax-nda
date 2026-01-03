@@ -63,7 +63,7 @@ development_status:
   3-16-in-browser-rtf-editing: ready-for-dev  # Updated 2026-01-02
   3-1-create-nda-with-basic-form: done  # Updated 2026-01-03
   3-2-smart-form-auto-fill-company-first-entry-path: done  # Updated 2026-01-03
-  3-3-clone-duplicate-nda-second-entry-path: ready-for-dev  # Updated 2026-01-02
+  3-3-clone-duplicate-nda-second-entry-path: done  # Updated 2026-01-03
   3-4-agency-first-entry-path-with-suggestions: ready-for-dev  # Updated 2026-01-02
   3-5-rtf-document-generation: ready-for-dev  # Updated 2026-01-02
   3-6-draft-management-and-auto-save: ready-for-dev  # Updated 2026-01-02

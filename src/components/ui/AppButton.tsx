@@ -1,6 +1,6 @@
 import React from 'react';
 
-type ButtonVariant = 'primary' | 'secondary' | 'subtle' | 'destructive';
+type ButtonVariant = 'primary' | 'secondary' | 'subtle' | 'destructive' | 'warning';
 type ButtonSize = 'sm' | 'md' | 'lg';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -10,21 +10,22 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   children: React.ReactNode;
 }
 
-export function Button({ 
-  variant = 'primary', 
-  size = 'md', 
+export function Button({
+  variant = 'primary',
+  size = 'md',
   icon,
-  children, 
+  children,
   className = '',
-  ...props 
+  ...props
 }: ButtonProps) {
   const baseStyles = 'inline-flex items-center justify-center gap-2 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed';
-  
+
   const variantStyles = {
     primary: 'bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary-hover)]',
     secondary: 'bg-white text-[var(--color-text-primary)] border border-[var(--color-border)] hover:bg-gray-50',
     subtle: 'bg-transparent text-[var(--color-text-secondary)] hover:bg-gray-100',
-    destructive: 'bg-[var(--color-danger)] text-white hover:bg-red-700'
+    destructive: 'bg-[var(--color-danger)] text-white hover:bg-red-700',
+    warning: 'bg-amber-500 text-white hover:bg-amber-600'
   };
   
   const sizeStyles = {

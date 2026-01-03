@@ -1,34 +1,39 @@
 # Code Review Report - Story 9-7
 
-**Story:** 9-7-fix-nda-edit-page-layout  
-**Date:** 2026-01-03  
-**Reviewer:** Automated Code Review  
+**Story:** 9-7-fix-nda-edit-page-layout
+**Date:** 2026-01-03
+**Reviewer:** Adversarial Code Review (Automated)
 
 ## Overview
-Improved NDA detail page action button layout by grouping primary and secondary actions with consistent sizing and responsive alignment.
+Improved NDA detail page action button layout by grouping primary and secondary actions with consistent sizing and responsive alignment. **Code changes were in bulk commit 0a8babe; story 9-7 commit (1f9db44) was documentation only.**
 
 ## Files Changed
-- `src/components/screens/NDADetail.tsx` - Button layout restructure
+- `src/components/screens/NDADetail.tsx` - Button layout restructure (commit 0a8babe)
+- `src/components/ui/AppButton.tsx` - Added missing "warning" variant (code review fix)
 
-## Issues Found
+## Issues Found During Adversarial Review
 
-### Issue 1: ✅ FIXED - Button variant consistency
-**Severity:** Low  
-**Location:** NDADetail.tsx:1383  
-**Description:** Changed "warning" variant to "destructive" for Reject button  
-**Resolution:** Applied destructive variant for clearer visual hierarchy  
+### Issue 1: 🔴 HIGH - Missing Button Variant
+**Severity:** High
+**Location:** src/components/ui/AppButton.tsx:3
+**Description:** NDADetail.tsx uses `variant="warning"` but AppButton only defined: primary, secondary, subtle, destructive
+**Impact:** TypeScript error - invalid variant causes type mismatch
+**Resolution:** ✅ FIXED - Added "warning" variant with amber-500 background to match Badge component
 
-### Issue 2: ✅ FIXED - Action grouping
-**Severity:** Medium  
-**Location:** NDADetail.tsx:1352-1432  
-**Description:** Primary and secondary actions were not visually grouped  
-**Resolution:** Separated primary actions from secondary with conditional rendering and ml-auto spacing  
+### Issue 2: 🔴 HIGH - Git History Mismatch
+**Severity:** High (Documentation)
+**Location:** Story File List
+**Description:** Story claims NDADetail.tsx modified in commit 1f9db44, but git shows NO source code changes in that commit - only story artifacts
+**Impact:** Misleading git history
+**Actual Implementation:** Code changes were in bulk Epic 9 commit 0a8babe (2025-12)
+**Resolution:** ✅ FIXED - Updated story to acknowledge actual commit history
 
-### Issue 3: ✅ FIXED - Button sizing inconsistency
-**Severity:** Low  
-**Location:** NDADetail.tsx:1359-1429  
-**Description:** Not all action buttons had consistent size="sm"  
-**Resolution:** Applied size="sm" to all primary action buttons  
+### Issue 3: 🟡 MEDIUM - Conditional Layout Shift
+**Severity:** Medium (UX)
+**Location:** NDADetail.tsx:1409
+**Description:** `sm:ml-auto` applied conditionally based on `hasPrimaryActions` - causes secondary buttons to shift when NDA status changes
+**Impact:** Layout jumps when transitioning between statuses
+**Resolution:** ⚠️ ACCEPTED - Design decision, acceptable behavior for status-driven UI  
 
 ## Code Quality Assessment
 
