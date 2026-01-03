@@ -6,7 +6,24 @@
  * and detecting potential security threats.
  */
 
+import type { Prisma } from '../../generated/prisma/index.js';
 import { prisma } from '../db/index.js';
+
+type AuditLogDetails = Prisma.JsonObject;
+
+function isJsonObject(value: Prisma.JsonValue | null): value is Prisma.JsonObject {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function getDetailString(details: AuditLogDetails, key: string, fallback: string): string {
+  const value = details[key];
+  return typeof value === 'string' ? value : fallback;
+}
+
+function getDetailNumber(details: AuditLogDetails, key: string): number | undefined {
+  const value = details[key];
+  return typeof value === 'number' ? value : undefined;
+}
 
 /**
  * Get count of failed login attempts for an IP address
@@ -87,13 +104,16 @@ export async function getRecentFailedLogins(
   limit: number = 100,
   since: Date = new Date(Date.now() - 24 * 60 * 60 * 1000)
 ) {
+  const normalizedLimit = Number.isFinite(limit)
+    ? Math.min(Math.max(Math.trunc(limit), 1), 500)
+    : 100;
   const entries = await prisma.auditLog.findMany({
     where: {
       action: { in: ['login_failed', 'mfa_failed'] },
       createdAt: { gte: since },
     },
     orderBy: { createdAt: 'desc' },
-    take: limit,
+    take: normalizedLimit,
     select: {
       id: true,
       action: true,
@@ -104,16 +124,20 @@ export async function getRecentFailedLogins(
     },
   });
 
-  return entries.map((entry) => ({
-    id: entry.id,
-    action: entry.action,
-    timestamp: entry.createdAt,
-    ipAddress: entry.ipAddress,
-    userAgent: entry.userAgent,
-    email: (entry.details as any)?.email || 'unknown',
-    reason: (entry.details as any)?.reason || 'unknown',
-    attemptsRemaining: (entry.details as any)?.attemptsRemaining,
-  }));
+  return entries.map((entry) => {
+    const details: AuditLogDetails = isJsonObject(entry.details) ? entry.details : {};
+
+    return {
+      id: entry.id,
+      action: entry.action,
+      timestamp: entry.createdAt,
+      ipAddress: entry.ipAddress ?? 'unknown',
+      userAgent: entry.userAgent ?? 'unknown',
+      email: getDetailString(details, 'email', 'unknown'),
+      reason: getDetailString(details, 'reason', 'unknown'),
+      attemptsRemaining: getDetailNumber(details, 'attemptsRemaining'),
+    };
+  });
 }
 
 /**
@@ -137,7 +161,11 @@ export async function shouldBlockIp(
   threshold: number = 10,
   windowMinutes: number = 60
 ): Promise<boolean> {
-  const since = new Date(Date.now() - windowMinutes * 60 * 1000);
+  const safeThreshold = Number.isFinite(threshold) ? Math.max(1, Math.trunc(threshold)) : 1;
+  const safeWindowMinutes = Number.isFinite(windowMinutes)
+    ? Math.max(1, Math.trunc(windowMinutes))
+    : 60;
+  const since = new Date(Date.now() - safeWindowMinutes * 60 * 1000);
   const failures = await getFailedLoginsByIp(ipAddress, since);
-  return failures >= threshold;
+  return failures >= safeThreshold;
 }

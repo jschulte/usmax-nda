@@ -4,6 +4,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import type { Prisma } from '../../../generated/prisma/index.js';
 import {
   getFailedLoginsByIp,
   getFailedLoginsByEmail,
@@ -92,7 +93,16 @@ describe('Security Monitoring Utilities', () => {
     it('should return recent failed login attempts', async () => {
       const { prisma } = await import('../../db/index.js');
 
-      const mockEntries = [
+      type AuditLogSelection = {
+        id: string;
+        action: string;
+        createdAt: Date;
+        ipAddress: string | null;
+        userAgent: string | null;
+        details: Prisma.JsonValue | null;
+      };
+
+      const mockEntries: AuditLogSelection[] = [
         {
           id: 'log-1',
           action: 'login_failed',
@@ -111,7 +121,7 @@ describe('Security Monitoring Utilities', () => {
         },
       ];
 
-      vi.mocked(prisma.auditLog.findMany).mockResolvedValue(mockEntries as any);
+      vi.mocked(prisma.auditLog.findMany).mockResolvedValue(mockEntries);
 
       const results = await getRecentFailedLogins(50);
 
@@ -127,6 +137,19 @@ describe('Security Monitoring Utilities', () => {
         attemptsRemaining: undefined,
       });
       expect(results[1].attemptsRemaining).toBe(2);
+    });
+
+    it('should clamp limit to a safe range', async () => {
+      const { prisma } = await import('../../db/index.js');
+
+      vi.mocked(prisma.auditLog.findMany).mockResolvedValue([]);
+
+      await getRecentFailedLogins(-10);
+      await getRecentFailedLogins(9999);
+
+      const calls = vi.mocked(prisma.auditLog.findMany).mock.calls;
+      expect(calls[0][0]).toEqual(expect.objectContaining({ take: 1 }));
+      expect(calls[1][0]).toEqual(expect.objectContaining({ take: 500 }));
     });
   });
 

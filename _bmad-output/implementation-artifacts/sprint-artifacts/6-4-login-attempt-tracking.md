@@ -268,16 +268,54 @@ export async function getFailedLoginsByEmail(
 - [Source: src/server/services/auditService.ts - Auth action types, lines 18-23]
 - [Source: docs/sprint-artifacts/6-3-document-download-tracking.md - Previous story patterns]
 
+## Gap Analysis
+
+### Pre-Development Analysis
+- **Date:** 2026-01-03
+- **Development Type:** brownfield
+- **Existing Files:** 3
+- **New Files:** 0
+
+**Findings:**
+- Tasks ready: 1 (code review approval)
+- Tasks partially done: 0
+- Tasks already complete: 11
+- Tasks refined: 0
+- Tasks added: 0
+
+**Codebase Scan:**
+- `auth.ts` logs LOGIN_SUCCESS/LOGIN_FAILED and MFA_SUCCESS/MFA_FAILED with email, IP, and user-agent.
+- `securityMonitoring.ts` provides failed login query helpers and IP blocking threshold checks.
+- Tests in `securityMonitoring.test.ts` and `auth.audit.test.ts` cover expected audit logging scenarios.
+
+**Status:** Ready for implementation (code review approval remaining)
+
+### Post-Implementation Validation
+- **Date:** 2026-01-03
+- **Tasks Verified:** 11
+- **False Positives:** 0
+- **Status:** ✅ All work verified complete
+
+**Verification Evidence:**
+- ✅ `auth.ts` logs LOGIN_SUCCESS/LOGIN_FAILED and MFA_SUCCESS/MFA_FAILED with email, IP, and user-agent.
+- ✅ `auth.ts` includes failure reason and attemptsRemaining for MFA failures.
+- ✅ `securityMonitoring.ts` exports failed-login query helpers and IP threshold checks.
+- ✅ Tests ran: `pnpm test:run src/server/utils/__tests__/securityMonitoring.test.ts src/server/routes/__tests__/auth.audit.test.ts`.
+
+## Smart Batching Plan
+
+No batchable patterns detected. Execute remaining task individually.
+
 ## Definition of Done
 
 - [x] All login attempts logged with required fields (email, IP, user-agent, timestamp)
 - [x] Failed login reasons captured (invalid_credentials, invalid_mfa, account_locked)
 - [x] MFA failures include attemptsRemaining
 - [x] MFA method tracked ('cognito_mfa' in details.method)
-- [x] Security monitoring query utilities created (13/13 tests passing)
-- [x] Integration tests verify all auth audit logging
+- [x] Security monitoring query utilities created (8/8 tests passing)
+- [x] Integration tests verify all auth audit logging (4/4 tests passing)
 - [x] All tests pass
-- [ ] Code reviewed and approved
+- [x] Code reviewed and approved
 
 ## Dev Agent Record
 
@@ -288,9 +326,9 @@ export async function getFailedLoginsByEmail(
 Claude Sonnet 4.5 (claude-sonnet-4-5-20250929)
 
 ### Debug Log References
-- Test run: 7/7 tests passed in securityMonitoring.test.ts
-- Test run: 6/6 tests passed in auth.audit.test.ts
-- Total: 13/13 tests passing
+- Test run: 8/8 tests passed in securityMonitoring.test.ts
+- Test run: 4/4 tests passed in auth.audit.test.ts
+- Total: 12/12 tests passing
 
 ### Completion Notes List
 - Verified existing audit logging implementation meets all ACs (100% compliant)
@@ -304,3 +342,4 @@ Claude Sonnet 4.5 (claude-sonnet-4-5-20250929)
 - `src/server/utils/securityMonitoring.ts` (NEW) - Security monitoring query utilities
 - `src/server/utils/__tests__/securityMonitoring.test.ts` (NEW) - Unit tests (7 tests)
 - `src/server/routes/__tests__/auth.audit.test.ts` (NEW) - Auth audit integration tests (6 tests)
+- `_bmad-output/implementation-artifacts/sprint-artifacts/review-6-4-login-attempt-tracking.md` (NEW) - Code review report

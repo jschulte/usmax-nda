@@ -3,8 +3,11 @@
  * Story 6.4: Verify all login attempts are tracked
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { auditService, AuditAction } from '../../services/auditService.js';
+import { describe, it, expect, vi, beforeEach, beforeAll, afterEach } from 'vitest';
+import express from 'express';
+import cookieParser from 'cookie-parser';
+import request from 'supertest';
+import { auditService } from '../../services/auditService.js';
 
 // Mock cognitoService
 vi.mock('../../services/cognitoService.js', () => ({
@@ -28,185 +31,156 @@ vi.mock('../../services/auditService.js', async () => {
 });
 
 describe('Authentication Audit Logging', () => {
-  beforeEach(() => {
+  let app: express.Express;
+
+  beforeAll(() => {
+    process.env.USE_MOCK_AUTH = 'true';
+    process.env.COOKIE_SECURE = 'false';
+    vi.resetModules();
+  });
+
+  beforeEach(async () => {
+    app = express();
+    app.use(express.json());
+    app.use(cookieParser());
+
+    const { default: authRouter } = await import('../auth');
+    app.use('/api/auth', authRouter);
+  });
+
+  afterEach(() => {
     vi.clearAllMocks();
   });
 
-  describe('LOGIN_SUCCESS audit logging', () => {
-    it('should log successful login with all required fields', async () => {
-      // This test verifies the existing implementation in auth.ts
-      // lines 105-112 logs LOGIN_SUCCESS with:
-      // - action: LOGIN_SUCCESS
-      // - entityType: 'authentication'
-      // - userId: extracted from token
-      // - ipAddress: req.ip
-      // - userAgent: req.get('user-agent')
-      // - details: { email, method }
+  const buildMockToken = (email: string, sub: string = 'contact-123'): string => {
+    const payload = {
+      sub,
+      email,
+      exp: Math.floor(Date.now() / 1000) + 3600,
+    };
+    return `mock.${Buffer.from(JSON.stringify(payload)).toString('base64')}.sig`;
+  };
 
-      // Verify audit service accepts LOGIN_SUCCESS
-      expect(AuditAction.LOGIN_SUCCESS).toBe('login_success');
+  it('logs LOGIN_SUCCESS when login returns tokens', async () => {
+    const { cognitoService } = await import('../../services/cognitoService.js');
 
-      await auditService.log({
-        action: AuditAction.LOGIN_SUCCESS,
+    vi.mocked(cognitoService.initiateAuth).mockResolvedValue({
+      type: 'tokens',
+      tokens: {
+        accessToken: buildMockToken('test@usmax.com'),
+        refreshToken: 'mock-refresh',
+        idToken: 'mock-id',
+        expiresIn: 3600,
+      },
+    });
+
+    const response = await request(app)
+      .post('/api/auth/login')
+      .set('User-Agent', 'TestAgent/1.0')
+      .send({ email: 'test@usmax.com', password: 'Test1234!@#$' });
+
+    expect(response.status).toBe(200);
+    expect(auditService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'login_success',
         entityType: 'authentication',
-        userId: 'contact-123',
-        ipAddress: '192.168.1.100',
-        userAgent: 'Mozilla/5.0',
-        details: {
+        ipAddress: expect.any(String),
+        userAgent: 'TestAgent/1.0',
+        details: expect.objectContaining({
           email: 'test@usmax.com',
           method: 'cognito_direct',
-        },
-      });
-
-      expect(auditService.log).toHaveBeenCalledWith(
-        expect.objectContaining({
-          action: 'login_success',
-          entityType: 'authentication',
-          userId: 'contact-123',
-          ipAddress: '192.168.1.100',
-          userAgent: 'Mozilla/5.0',
-        })
-      );
-    });
+        }),
+      })
+    );
   });
 
-  describe('LOGIN_FAILED audit logging', () => {
-    it('should log failed login with reason', async () => {
-      // Verifies auth.ts lines 126-133
+  it('logs LOGIN_FAILED when credentials are invalid', async () => {
+    const { cognitoService } = await import('../../services/cognitoService.js');
 
-      await auditService.log({
-        action: AuditAction.LOGIN_FAILED,
-        entityType: 'authentication',
-        userId: null,
-        ipAddress: '192.168.1.100',
-        userAgent: 'Mozilla/5.0',
-        details: {
+    vi.mocked(cognitoService.initiateAuth).mockRejectedValue(new Error('Invalid credentials'));
+
+    const response = await request(app)
+      .post('/api/auth/login')
+      .set('User-Agent', 'TestAgent/1.0')
+      .send({ email: 'test@usmax.com', password: 'wrong-password' });
+
+    expect(response.status).toBe(401);
+    expect(auditService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'login_failed',
+        details: expect.objectContaining({
           email: 'test@usmax.com',
           reason: 'invalid_credentials',
-        },
-      });
-
-      expect(auditService.log).toHaveBeenCalledWith(
-        expect.objectContaining({
-          action: 'login_failed',
-          details: expect.objectContaining({
-            email: 'test@usmax.com',
-            reason: 'invalid_credentials',
-          }),
-        })
-      );
-    });
+        }),
+      })
+    );
   });
 
-  describe('MFA_SUCCESS audit logging', () => {
-    it('should log successful MFA with method', async () => {
-      // Verifies auth.ts lines 198-205
+  it('logs MFA_SUCCESS and LOGIN_SUCCESS on MFA verification', async () => {
+    const { cognitoService } = await import('../../services/cognitoService.js');
 
-      await auditService.log({
-        action: AuditAction.MFA_SUCCESS,
-        entityType: 'authentication',
-        userId: 'contact-123',
-        ipAddress: '192.168.1.100',
-        userAgent: 'Mozilla/5.0',
-        details: {
+    vi.mocked(cognitoService.respondToMFAChallenge).mockResolvedValue({
+      success: true,
+      tokens: {
+        accessToken: buildMockToken('test@usmax.com'),
+        refreshToken: 'mock-refresh',
+        idToken: 'mock-id',
+        expiresIn: 3600,
+      },
+    });
+
+    const response = await request(app)
+      .post('/api/auth/mfa-challenge')
+      .set('User-Agent', 'TestAgent/1.0')
+      .set('Cookie', ['_auth_email=test@usmax.com'])
+      .send({ session: 'mock-session', mfaCode: '123456' });
+
+    expect(response.status).toBe(200);
+    expect(auditService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'mfa_success',
+        details: expect.objectContaining({
           email: 'test@usmax.com',
           method: 'cognito_mfa',
-        },
-      });
-
-      expect(auditService.log).toHaveBeenCalledWith(
-        expect.objectContaining({
-          action: 'mfa_success',
-          details: expect.objectContaining({
-            email: 'test@usmax.com',
-            method: 'cognito_mfa',
-          }),
-        })
-      );
-    });
+        }),
+      })
+    );
+    expect(auditService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'login_success',
+        details: expect.objectContaining({
+          email: 'test@usmax.com',
+          method: 'cognito_mfa',
+        }),
+      })
+    );
   });
 
-  describe('MFA_FAILED audit logging', () => {
-    it('should log failed MFA with attemptsRemaining', async () => {
-      // Verifies auth.ts lines 170-177
+  it('logs MFA_FAILED with attemptsRemaining on MFA error', async () => {
+    const { cognitoService } = await import('../../services/cognitoService.js');
 
-      await auditService.log({
-        action: AuditAction.MFA_FAILED,
-        entityType: 'authentication',
-        userId: null,
-        ipAddress: '192.168.1.100',
-        userAgent: 'Mozilla/5.0',
-        details: {
+    vi.mocked(cognitoService.respondToMFAChallenge).mockResolvedValue({
+      success: false,
+      attemptsRemaining: 2,
+      error: 'Invalid MFA code, please try again',
+    });
+
+    const response = await request(app)
+      .post('/api/auth/mfa-challenge')
+      .set('User-Agent', 'TestAgent/1.0')
+      .set('Cookie', ['_auth_email=test@usmax.com'])
+      .send({ session: 'mock-session', mfaCode: '000000' });
+
+    expect(response.status).toBe(401);
+    expect(auditService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'mfa_failed',
+        details: expect.objectContaining({
           email: 'test@usmax.com',
           reason: 'invalid_mfa',
           attemptsRemaining: 2,
-        },
-      });
-
-      expect(auditService.log).toHaveBeenCalledWith(
-        expect.objectContaining({
-          action: 'mfa_failed',
-          details: expect.objectContaining({
-            email: 'test@usmax.com',
-            reason: 'invalid_mfa',
-            attemptsRemaining: 2,
-          }),
-        })
-      );
-    });
-
-    it('should log account locked when attempts reach zero', async () => {
-      await auditService.log({
-        action: AuditAction.MFA_FAILED,
-        entityType: 'authentication',
-        userId: null,
-        ipAddress: '192.168.1.100',
-        userAgent: 'Mozilla/5.0',
-        details: {
-          email: 'test@usmax.com',
-          reason: 'invalid_mfa',
-          attemptsRemaining: 0,
-        },
-      });
-
-      expect(auditService.log).toHaveBeenCalledWith(
-        expect.objectContaining({
-          details: expect.objectContaining({
-            attemptsRemaining: 0,
-          }),
-        })
-      );
-    });
-  });
-
-  describe('Required field validation', () => {
-    it('should include all required fields in login audit entries', async () => {
-      const requiredFields = {
-        action: AuditAction.LOGIN_SUCCESS,
-        entityType: 'authentication',
-        userId: 'contact-123',
-        ipAddress: '192.168.1.100',
-        userAgent: 'Mozilla/5.0',
-        details: {
-          email: 'test@usmax.com',
-          method: 'cognito_mfa',
-        },
-      };
-
-      await auditService.log(requiredFields);
-
-      // Verify all AC1 required fields are present
-      expect(auditService.log).toHaveBeenCalledWith(
-        expect.objectContaining({
-          action: expect.stringContaining('login'),
-          userId: expect.any(String),
-          ipAddress: expect.any(String),
-          userAgent: expect.any(String),
-          details: expect.objectContaining({
-            email: expect.any(String),
-          }),
-        })
-      );
-    });
+        }),
+      })
+    );
   });
 });
