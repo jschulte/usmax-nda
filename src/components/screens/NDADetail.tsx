@@ -60,7 +60,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '../ui/alert-dialog';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import {
   getNdaDetail,
   updateNDAStatus,
@@ -1287,6 +1287,10 @@ export function NDADetail() {
   const canChangeStatus = !!nda.availableActions?.canChangeStatus;
   const canMarkExecutedOnUpload = canUploadDocument && canChangeStatus;
   const canClone = user?.permissions?.includes('nda:create') || user?.roles?.includes('Admin');
+  const showRouteForApproval = nda.status === 'CREATED' && nda.availableActions?.canRouteForApproval;
+  const showApproveActions = nda.status === 'PENDING_APPROVAL' && nda.availableActions?.canApprove;
+  const showSendForSignature = nda.status === 'IN_REVISION';
+  const hasPrimaryActions = showRouteForApproval || showApproveActions || showSendForSignature;
   
   return (
     <div className="p-8">
@@ -1345,77 +1349,87 @@ export function NDADetail() {
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant="secondary"
-              size="sm"
-              icon={subscribing ? <Loader2 className="w-4 h-4 animate-spin" /> : isSubscribed ? <BellOff className="w-4 h-4" /> : <Bell className="w-4 h-4" />}
-              onClick={handleToggleSubscription}
-              disabled={subscribing}
-            >
-              {isSubscribed ? 'Unsubscribe' : 'Subscribe'}
-            </Button>
-            <Button variant="secondary" size="sm" icon={<Download className="w-4 h-4" />} onClick={handleDownloadPDF}>
-              Download PDF
-            </Button>
-            {canClone && (
+          <div className="flex flex-wrap items-start gap-2">
+            {hasPrimaryActions && (
+              <div className="flex flex-wrap gap-2">
+                {/* Story 10.6: Route for Approval button (when CREATED) */}
+                {showRouteForApproval && (
+                  <Button
+                    variant="warning"
+                    size="sm"
+                    icon={<Send className="w-4 h-4" />}
+                    onClick={handleRouteForApproval}
+                    disabled={previewing}
+                  >
+                    Route for Approval
+                  </Button>
+                )}
+
+                {/* Story 10.6: Approve & Send button (when PENDING_APPROVAL) */}
+                {showApproveActions && (
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    icon={<CheckCircle className="w-4 h-4" />}
+                    onClick={handleApproveNda}
+                  >
+                    Approve & Send
+                  </Button>
+                )}
+
+                {/* Story 10.6: Reject button (when PENDING_APPROVAL) */}
+                {showApproveActions && (
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    icon={<X className="w-4 h-4" />}
+                    onClick={handleRejectNda}
+                  >
+                    Reject
+                  </Button>
+                )}
+
+                {showSendForSignature && renderPermissionedButton(
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    icon={<Send className="w-4 h-4" />}
+                    onClick={handleSendForSignature}
+                    disabled={statusUpdating || !canSendEmail}
+                  >
+                    Send for signature
+                  </Button>,
+                  !canSendEmail,
+                  "You don't have permission to send emails"
+                )}
+                {/* External signing portal button removed - out of scope per PRD */}
+              </div>
+            )}
+
+            <div className={`flex flex-wrap gap-2 ${hasPrimaryActions ? 'sm:ml-auto' : ''}`}>
               <Button
                 variant="secondary"
                 size="sm"
-                icon={<Copy className="w-4 h-4" />}
-                onClick={() => navigate(`/requests?cloneFrom=${nda.id}`)}
+                icon={subscribing ? <Loader2 className="w-4 h-4 animate-spin" /> : isSubscribed ? <BellOff className="w-4 h-4" /> : <Bell className="w-4 h-4" />}
+                onClick={handleToggleSubscription}
+                disabled={subscribing}
               >
-                Clone NDA
+                {isSubscribed ? 'Unsubscribe' : 'Subscribe'}
               </Button>
-            )}
-
-            {/* Story 10.6: Route for Approval button (when CREATED) */}
-            {nda.status === 'CREATED' && nda.availableActions?.canRouteForApproval && (
-              <Button
-                variant="warning"
-                icon={<Send className="w-4 h-4" />}
-                onClick={handleRouteForApproval}
-                disabled={previewing}
-              >
-                Route for Approval
+              <Button variant="secondary" size="sm" icon={<Download className="w-4 h-4" />} onClick={handleDownloadPDF}>
+                Download PDF
               </Button>
-            )}
-
-            {/* Story 10.6: Approve & Send button (when PENDING_APPROVAL) */}
-            {nda.status === 'PENDING_APPROVAL' && nda.availableActions?.canApprove && (
-              <Button
-                variant="primary"
-                icon={<CheckCircle className="w-4 h-4" />}
-                onClick={handleApproveNda}
-              >
-                Approve & Send
-              </Button>
-            )}
-
-            {/* Story 10.6: Reject button (when PENDING_APPROVAL) */}
-            {nda.status === 'PENDING_APPROVAL' && nda.availableActions?.canApprove && (
-              <Button
-                variant="secondary"
-                icon={<X className="w-4 h-4" />}
-                onClick={handleRejectNda}
-              >
-                Reject
-              </Button>
-            )}
-
-            {nda.status === 'IN_REVISION' && renderPermissionedButton(
-              <Button
-                variant="primary"
-                icon={<Send className="w-4 h-4" />}
-                onClick={handleSendForSignature}
-                disabled={statusUpdating || !canSendEmail}
-              >
-                Send for signature
-              </Button>,
-              !canSendEmail,
-              "You don't have permission to send emails"
-            )}
-            {/* External signing portal button removed - out of scope per PRD */}
+              {canClone && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon={<Copy className="w-4 h-4" />}
+                  onClick={() => navigate(`/requests?cloneFrom=${nda.id}`)}
+                >
+                  Clone NDA
+                </Button>
+              )}
+            </div>
           </div>
         </div>
       </div>

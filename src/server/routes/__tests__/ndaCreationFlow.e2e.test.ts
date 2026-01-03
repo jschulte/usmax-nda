@@ -51,6 +51,7 @@ vi.mock('../../services/ndaService.js', () => {
   return {
     createNda: vi.fn(),
     getNdaDetail: vi.fn(),
+    cloneNda: vi.fn(),
     NdaServiceError,
   };
 });
@@ -114,5 +115,26 @@ describe('NDA creation flow (E2E)', () => {
 
     expect(detailResponse.status).toBe(200);
     expect(detailResponse.body.nda.id).toBe('nda-1');
+  });
+
+  it('clones an NDA and returns the cloned summary', async () => {
+    vi.mocked(ndaService.cloneNda).mockResolvedValue({
+      id: 'nda-2',
+      displayId: 1600,
+      companyName: 'E2E Corp',
+      status: 'CREATED',
+      agencyGroup: { id: 'agency-1', name: 'DoD', code: 'DOD' },
+      subagency: null,
+      clonedFrom: { id: 'nda-1', displayId: 1590, companyName: 'E2E Corp' },
+      createdAt: new Date(),
+    } as any);
+
+    const cloneResponse = await request(app).post('/api/ndas/nda-1/clone').send({
+      abbreviatedName: 'E2E-CLONE',
+    });
+
+    expect(cloneResponse.status).toBe(201);
+    expect(cloneResponse.body.nda.id).toBe('nda-2');
+    expect(cloneResponse.body.nda.clonedFrom.displayId).toBe(1590);
   });
 });

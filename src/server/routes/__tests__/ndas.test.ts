@@ -307,6 +307,40 @@ describe('NDA Routes Integration', () => {
     });
   });
 
+  describe('POST /api/ndas/:id/clone', () => {
+    it('returns cloned NDA summary', async () => {
+      vi.mocked(ndaService.cloneNda).mockResolvedValue({
+        id: 'nda-2',
+        displayId: 1600,
+        companyName: 'TechCorp',
+        status: 'CREATED',
+        agencyGroup: { id: 'agency-1', name: 'DoD', code: 'DOD' },
+        subagency: null,
+        clonedFrom: { id: 'nda-1', displayId: 1500, companyName: 'TechCorp' },
+        createdAt: new Date(),
+      } as any);
+
+      const response = await request(app).post('/api/ndas/nda-1/clone').send({
+        abbreviatedName: 'TC-Clone',
+      });
+
+      expect(response.status).toBe(201);
+      expect(response.body.message).toBe('NDA cloned successfully');
+      expect(response.body.nda.id).toBe('nda-2');
+      expect(response.body.nda.clonedFrom.displayId).toBe(1500);
+    });
+
+    it('returns 404 when source NDA not found', async () => {
+      const error = new ndaService.NdaServiceError('Source NDA not found', 'NOT_FOUND');
+      vi.mocked(ndaService.cloneNda).mockRejectedValue(error);
+
+      const response = await request(app).post('/api/ndas/nda-missing/clone').send({});
+
+      expect(response.status).toBe(404);
+      expect(response.body.code).toBe('NOT_FOUND');
+    });
+  });
+
   describe('Internal notes', () => {
     beforeEach(() => {
       prismaMock.internalNote.findMany.mockReset();

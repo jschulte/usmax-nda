@@ -1,6 +1,6 @@
 # Story 3.3: Clone/Duplicate NDA (Second Entry Path)
 
-Status: ready-for-dev
+Status: review
 
 ## Story
 
@@ -23,55 +23,83 @@ so that **I can quickly create similar NDAs (common for repeat partners)**.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: NDA Service - Clone Logic** (AC: 1)
-  - [ ] 1.1: Extend ndaService with cloneNda(sourceNdaId, userId) function
-  - [ ] 1.2: Fetch source NDA with row-level security check
-  - [ ] 1.3: Copy all fields except: id, displayId, createdAt, updatedAt, status
-  - [ ] 1.4: Assign new UUID and display ID
-  - [ ] 1.5: Set status = "Created"
-  - [ ] 1.6: Set createdBy = current user
-  - [ ] 1.7: Record audit log with clonedFromNdaId metadata
+- [x] **Task 1: NDA Service - Clone Logic** (AC: 1)
+  - [x] 1.1: Extend ndaService with cloneNda(sourceNdaId, userId) function
+  - [x] 1.2: Fetch source NDA with row-level security check
+  - [x] 1.3: Copy all fields except: id, displayId, createdAt, updatedAt, status
+  - [x] 1.4: Assign new UUID and display ID
+  - [x] 1.5: Set status = "Created"
+  - [x] 1.6: Set createdBy = current user
+  - [x] 1.7: Record audit log with clonedFromNdaId metadata
 
-- [ ] **Task 2: Clone API Endpoint** (AC: 1)
-  - [ ] 2.1: Create POST /api/ndas/:id/clone endpoint
-  - [ ] 2.2: Apply middleware: authenticateJWT, attachUserContext, requirePermission('nda:create'), scopeToAgencies
-  - [ ] 2.3: Verify user has access to source NDA (row-level security)
-  - [ ] 2.4: Call ndaService.cloneNda()
-  - [ ] 2.5: Return cloned NDA with new ID
+- [x] **Task 2: Clone API Endpoint** (AC: 1)
+  - [x] 2.1: Create POST /api/ndas/:id/clone endpoint
+  - [x] 2.2: Apply middleware: authenticateJWT, attachUserContext, requirePermission('nda:create'), scopeToAgencies
+  - [x] 2.3: Verify user has access to source NDA (row-level security)
+  - [x] 2.4: Call ndaService.cloneNda()
+  - [x] 2.5: Return cloned NDA with new ID
 
-- [ ] **Task 3: Frontend - Clone Button** (AC: 1)
-  - [ ] 3.1: Add "Clone NDA" button to NDA detail page
-  - [ ] 3.2: Position in header actions area
-  - [ ] 3.3: Use Copy icon from lucide-react
-  - [ ] 3.4: On click, call POST /api/ndas/:id/clone
-  - [ ] 3.5: Navigate to create form with pre-filled data
+- [x] **Task 3: Frontend - Clone Button** (AC: 1)
+  - [x] 3.1: Add "Clone NDA" button to NDA detail page
+  - [x] 3.2: Position in header actions area
+  - [x] 3.3: Use Copy icon from lucide-react
+  - [x] 3.4: On click, navigate to /requests?cloneFrom={ndaId}
+  - [x] 3.5: Keep existing clone flow in RequestWizard
 
-- [ ] **Task 4: Frontend - Clone Banner** (AC: 1)
-  - [ ] 4.1: Detect if form is in "clone mode" (URL param or state)
-  - [ ] 4.2: Show banner at top of form: "Cloned from NDA #{sourceDisplayId}"
-  - [ ] 4.3: Link banner to source NDA
-  - [ ] 4.4: Use Info or AlertCircle icon
+- [x] **Task 4: Frontend - Clone Banner** (AC: 1)
+  - [x] 4.1: Detect if form is in "clone mode" (URL param or state)
+  - [x] 4.2: Show banner at top of form: "Cloned from NDA #{sourceDisplayId}"
+  - [x] 4.3: Link banner to source NDA
+  - [x] 4.4: Use Info or AlertCircle icon
 
-- [ ] **Task 5: Frontend - Pre-Fill Form from Clone** (AC: 1)
-  - [ ] 5.1: When clone API returns, populate form with all fields
-  - [ ] 5.2: Use form.reset(clonedData) from React Hook Form
-  - [ ] 5.3: Highlight fields that typically change (purpose, opp name, date)
-  - [ ] 5.4: Clear those highlighted fields (user must re-enter)
-  - [ ] 5.5: Or leave filled and just focus first field to edit
+- [x] **Task 5: Frontend - Pre-Fill Form from Clone** (AC: 1)
+  - [x] 5.1: When clone source loads, populate form with all fields
+  - [x] 5.2: Use RequestWizard form state setters to pre-fill cloned data
+  - [x] 5.3: Highlight fields that typically change (purpose, opp name, date)
+  - [x] 5.4: Clear those highlighted fields (user must re-enter)
+  - [x] 5.5: Or leave filled and just focus first field to edit
 
-- [ ] **Task 6: Alternative Approach - Clone via Form Route** (AC: 1)
-  - [ ] 6.1: Navigate to /nda/create?cloneFrom={ndaId}
-  - [ ] 6.2: Form fetches source NDA and pre-fills
-  - [ ] 6.3: Submit creates new NDA (not updates original)
-  - [ ] 6.4: Include clonedFromNdaId in create request
+- [x] **Task 6: Alternative Approach - Clone via Form Route** (AC: 1)
+  - [x] 6.1: Navigate to /requests?cloneFrom={ndaId}
+  - [x] 6.2: Form fetches source NDA and pre-fills
+  - [x] 6.3: Submit creates new NDA (not updates original)
+  - [x] 6.4: Include clonedFromNdaId in create request
 
-- [ ] **Task 7: Testing** (AC: All)
-  - [ ] 7.1: Unit tests for ndaService.cloneNda()
-  - [ ] 7.2: API tests for clone endpoint
-  - [ ] 7.3: Test row-level security (cannot clone unauthorized NDA)
-  - [ ] 7.4: Test audit log includes clonedFromNdaId
-  - [ ] 7.5: Component tests for clone button and banner
-  - [ ] 7.6: E2E test for clone flow
+- [x] **Task 7: Testing** (AC: All)
+  - [x] 7.1: Unit tests for ndaService.cloneNda()
+  - [x] 7.2: API tests for clone endpoint
+  - [x] 7.3: Test row-level security (cannot clone unauthorized NDA)
+  - [x] 7.4: Test audit log includes clonedFromNdaId
+  - [x] 7.5: Component tests for clone button and banner
+  - [x] 7.6: E2E test for clone flow
+
+## Gap Analysis
+
+### Pre-Development Analysis
+- **Date:** 2026-01-03
+- **Development Type:** hybrid
+- **Existing Files:** 5
+- **New Files:** 1
+
+**Findings:**
+- Tasks ready: 1
+- Tasks partially done: 3
+- Tasks already complete: 3
+- Tasks refined: 0
+- Tasks added: 0
+
+**Codebase Scan:**
+- `src/server/services/ndaService.ts` (cloneNda implemented with audit logging)
+- `src/server/routes/ndas.ts` (POST /api/ndas/:id/clone endpoint)
+- `src/client/services/ndaService.ts` (cloneNDA client)
+- `src/components/screens/RequestWizard.tsx` (clone flow + banner)
+- `src/server/services/__tests__/ndaService.test.ts` (clone tests)
+
+**Status:** Ready for implementation
+
+## Smart Batching Plan
+
+No low-risk batchable patterns detected. Execute remaining UI and test tasks individually.
 
 ## Dev Notes
 
@@ -303,9 +331,7 @@ Story created from PRD/Epics specifications without code anchoring.
 ### File List
 
 Files to be created/modified during implementation:
-- `src/server/services/ndaService.ts` - MODIFY (add cloneNda)
-- `src/server/routes/ndas.ts` - MODIFY (add clone endpoint)
 - `src/components/screens/NDADetail.tsx` - MODIFY (add clone button)
-- `src/components/screens/CreateNDA.tsx` - MODIFY (clone banner, pre-fill)
-- `src/server/services/__tests__/ndaService.test.ts` - MODIFY (test clone)
-- `src/server/routes/__tests__/ndas.test.ts` - MODIFY (test clone endpoint)
+- `src/components/screens/RequestWizard.tsx` - MODIFY (clone banner/link, highlight fields)
+- `src/components/__tests__/RequestWizard.test.tsx` - MODIFY (clone banner behavior)
+- `src/server/routes/__tests__/ndas.test.ts` - MODIFY (clone endpoint tests)

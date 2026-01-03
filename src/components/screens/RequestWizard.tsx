@@ -88,6 +88,7 @@ export function RequestWizard() {
   const [recentCompanies, setRecentCompanies] = useState<CompanySuggestion[]>([]);
   const [showCompanyDropdown, setShowCompanyDropdown] = useState(false);
   const [autoFilledFields, setAutoFilledFields] = useState<Record<string, boolean>>({});
+  const [cloneFieldsToUpdate, setCloneFieldsToUpdate] = useState<Record<string, boolean>>({});
   const [agencySuggestions, setAgencySuggestions] = useState<AgencySuggestions | null>(null);
   const [templates, setTemplates] = useState<RtfTemplate[]>([]);
   const [templatesLoading, setTemplatesLoading] = useState(false);
@@ -128,6 +129,34 @@ export function RequestWizard() {
         ? 'bg-[var(--color-primary-light)] border-[var(--color-primary)]'
         : '',
     [autoFilledFields]
+  );
+
+  const markCloneFields = useCallback((fields: string[]) => {
+    if (fields.length === 0) return;
+    setCloneFieldsToUpdate((prev) => {
+      const next = { ...prev };
+      for (const field of fields) {
+        next[field] = true;
+      }
+      return next;
+    });
+  }, []);
+
+  const clearCloneField = useCallback((field: string) => {
+    setCloneFieldsToUpdate((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  }, []);
+
+  const cloneHighlightClass = useCallback(
+    (field: string) =>
+      cloneFieldsToUpdate[field]
+        ? 'bg-[var(--color-primary-light)] border-[var(--color-primary)]'
+        : '',
+    [cloneFieldsToUpdate]
   );
 
   const updateRecentCompanies = useCallback((companyName: string) => {
@@ -245,6 +274,7 @@ export function RequestWizard() {
     getNDA(ndaId)
       .then((nda) => {
         setCloneSource(null);
+        setCloneFieldsToUpdate({});
         setDraftId(ndaId);
         setDraftStatus(nda.status === 'CREATED' ? 'CREATED' : 'OTHER');
         setHasTouchedPosition(true);
@@ -306,8 +336,10 @@ export function RequestWizard() {
         setCloneSource({ id: nda.id, displayId: Number(nda.displayId), companyName: nda.companyName });
         setDraftId(null);
         setDraftStatus(null);
+        setCloneFieldsToUpdate({});
         setHasTouchedPosition(true);
         setHasTouchedNdaType(true);
+        markCloneFields(['abbreviatedName', 'authorizedPurpose', 'effectiveDate']);
         setFormData({
           companyName: nda.companyName,
           companyCity: nda.companyCity || '',
@@ -317,9 +349,9 @@ export function RequestWizard() {
           subagencyId: nda.subagency?.id || '',
           agencyOfficeName: nda.agencyOfficeName || '',
           ndaType: nda.ndaType || 'MUTUAL',
-          abbreviatedName: nda.abbreviatedName,
-          authorizedPurpose: nda.authorizedPurpose,
-          effectiveDate: nda.effectiveDate ? nda.effectiveDate.split('T')[0] : '',
+          abbreviatedName: '',
+          authorizedPurpose: '',
+          effectiveDate: '',
           usMaxPosition: nda.usMaxPosition,
           isNonUsMax: nda.isNonUsMax,
           opportunityPocId: nda.opportunityPoc?.id || '',
@@ -353,7 +385,7 @@ export function RequestWizard() {
         navigate('/requests');
       })
       .finally(() => setIsLoading(false));
-  }, [cloneFromId, ndaId, navigate]);
+  }, [cloneFromId, ndaId, navigate, markCloneFields]);
 
   // Load agency groups on mount
   useEffect(() => {
@@ -1287,8 +1319,20 @@ export function RequestWizard() {
           {ndaId ? 'Update the NDA information and save changes' : 'Complete the following steps to create your NDA'}
         </p>
         {cloneSource && (
-          <div className="mt-4 p-3 bg-[var(--color-primary-light)] border border-[var(--color-border)] rounded-lg text-sm">
-            Cloned from NDA #{cloneSource.displayId} ({cloneSource.companyName})
+          <div className="mt-4 p-3 bg-[var(--color-primary-light)] border border-[var(--color-border)] rounded-lg text-sm flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Info className="w-4 h-4 text-[var(--color-primary)]" />
+              <span>
+                Cloned from NDA #{cloneSource.displayId} ({cloneSource.companyName})
+              </span>
+            </div>
+            <button
+              type="button"
+              className="text-xs font-medium text-[var(--color-primary)] hover:underline"
+              onClick={() => navigate(`/nda/${cloneSource.id}`)}
+            >
+              View source NDA
+            </button>
           </div>
         )}
       </div>
@@ -1368,10 +1412,15 @@ export function RequestWizard() {
                   label="Abbreviated name *"
                   placeholder="e.g., TechCorp Integration"
                   value={formData.abbreviatedName}
-                  onChange={(e) => setFormData({ ...formData, abbreviatedName: e.target.value })}
+                  onChange={(e) => {
+                    clearCloneField('abbreviatedName');
+                    setFormData({ ...formData, abbreviatedName: e.target.value });
+                  }}
                   onBlur={() => markTouched('abbreviatedName')}
                   error={requiredErrors.abbreviatedName}
                   helperText="Short name for this NDA"
+                  className={cloneHighlightClass('abbreviatedName')}
+                  autoFocus={Boolean(cloneSource)}
                 />
 
                 <TextArea
@@ -1380,10 +1429,14 @@ export function RequestWizard() {
                   rows={4}
                   maxLength={255}
                   value={formData.authorizedPurpose}
-                  onChange={(e) => setFormData({ ...formData, authorizedPurpose: e.target.value })}
+                  onChange={(e) => {
+                    clearCloneField('authorizedPurpose');
+                    setFormData({ ...formData, authorizedPurpose: e.target.value });
+                  }}
                   onBlur={() => markTouched('authorizedPurpose')}
                   error={requiredErrors.authorizedPurpose}
                   helperText={`${authorizedPurposeCount}/255`}
+                  className={cloneHighlightClass('authorizedPurpose')}
                 />
 
                 <div>
@@ -1474,8 +1527,12 @@ export function RequestWizard() {
                   label="Effective date"
                   type="date"
                   value={formData.effectiveDate}
-                  onChange={(e) => setFormData({ ...formData, effectiveDate: e.target.value })}
+                  onChange={(e) => {
+                    clearCloneField('effectiveDate');
+                    setFormData({ ...formData, effectiveDate: e.target.value });
+                  }}
                   helperText="Leave blank to use today's date"
+                  className={cloneHighlightClass('effectiveDate')}
                 />
               </div>
             )}

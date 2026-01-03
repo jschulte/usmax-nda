@@ -1,0 +1,58 @@
+---
+story_id: "3-3"
+story_file: "_bmad-output/implementation-artifacts/sprint-artifacts/3-3-clone-duplicate-nda-second-entry-path.md"
+mode: "batch"
+development_type: "hybrid"
+
+stepsCompleted: [1, 2]
+lastStep: 2
+currentStep: 3
+status: "in_progress"
+
+started_at: "2026-01-03T05:46:20Z"
+updated_at: "2026-01-03T05:48:52Z"
+
+cached_context:
+  story_loaded: true
+  project_context_loaded: true
+
+development_analysis:
+  existing_files: 5
+  new_files: 1
+  total_tasks: 7
+  unchecked_tasks: 7
+
+steps:
+  step-01-init:
+    status: completed
+    completed_at: "2026-01-03T05:46:20Z"
+  step-02-pre-gap-analysis:
+    status: completed
+    completed_at: "2026-01-03T05:48:52Z"
+  step-03-implement:
+    status: pending
+  step-04-post-validation:
+    status: pending
+  step-05-code-review:
+    status: pending
+  step-06-complete:
+    status: pending
+  step-07-summary:
+    status: pending
+
+gap_analysis:
+  development_type: "hybrid"
+  tasks_ready: 1
+  tasks_partial: 3
+  tasks_done: 3
+  tasks_refined: 0
+  tasks_added: 0
+
+smart_batching:
+  enabled: true
+  patterns_detected: 0
+  batchable_tasks: 0
+  individual_tasks: 4
+  estimated_time_with_batching: 2
+  estimated_time_without_batching: 2
+  estimated_savings: 0

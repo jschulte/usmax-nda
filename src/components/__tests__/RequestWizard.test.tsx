@@ -7,10 +7,13 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 
+const mockNavigate = vi.fn();
+let mockSearch = '';
+
 vi.mock('react-router-dom', () => ({
-  useNavigate: () => vi.fn(),
+  useNavigate: () => mockNavigate,
   useParams: () => ({}),
-  useLocation: () => ({ search: '' }),
+  useLocation: () => ({ search: mockSearch }),
 }));
 
 vi.mock('react-quill', () => ({
@@ -49,7 +52,13 @@ vi.mock('../../client/services/ndaService', () => ({
   searchCompanies: vi.fn().mockResolvedValue({ companies: [] }),
   getCompanySuggestions: vi.fn().mockResolvedValue({ companies: [] }),
   getCompanyDefaults: vi.fn().mockResolvedValue({ defaults: {} }),
-  getAgencySuggestions: vi.fn().mockResolvedValue(null),
+  getAgencySuggestions: vi.fn().mockResolvedValue({
+    suggestions: {
+      commonCompanies: [],
+      positionCounts: [],
+      typeCounts: [],
+    },
+  }),
   updateDraft: vi.fn(),
 }));
 
@@ -76,9 +85,14 @@ vi.mock('../../client/services/documentService', () => ({
 }));
 
 import { RequestWizard } from '../screens/RequestWizard';
-import { getCompanyDefaults, getCompanySuggestions } from '../../client/services/ndaService';
+import { getCompanyDefaults, getCompanySuggestions, getNDA } from '../../client/services/ndaService';
 
 describe('RequestWizard', () => {
+  beforeEach(() => {
+    mockSearch = '';
+    mockNavigate.mockReset();
+  });
+
   it('disables Save as Draft until required fields are provided', async () => {
     render(<RequestWizard />);
 
@@ -132,5 +146,40 @@ describe('RequestWizard', () => {
     await user.type(cityInput, 'Oakland');
 
     expect(cityInput).not.toHaveClass('bg-[var(--color-primary-light)]');
+  });
+
+  it('shows clone banner with link when cloning from an NDA', async () => {
+    mockSearch = '?cloneFrom=nda-1';
+    vi.mocked(getNDA).mockResolvedValue({
+      id: 'nda-1',
+      displayId: 1590,
+      companyName: 'TechCorp',
+      companyCity: 'San Francisco',
+      companyState: 'CA',
+      stateOfIncorporation: 'Delaware',
+      agencyGroup: { id: 'agency-1', name: 'DoD' },
+      subagency: null,
+      agencyOfficeName: '',
+      ndaType: 'MUTUAL',
+      abbreviatedName: 'TC-2024',
+      authorizedPurpose: 'Original purpose',
+      effectiveDate: '2025-01-15T00:00:00Z',
+      usMaxPosition: 'PRIME',
+      isNonUsMax: false,
+      opportunityPoc: null,
+      contractsPoc: null,
+      relationshipPoc: { id: 'poc-1', firstName: 'Jane', lastName: 'Doe', email: 'jane@test.com' },
+      contactsPoc: null,
+      rtfTemplateId: '',
+    } as any);
+
+    render(<RequestWizard />);
+
+    expect(await screen.findByText(/Cloned from NDA #1590/i)).toBeInTheDocument();
+
+    const viewButton = screen.getByRole('button', { name: /view source nda/i });
+    await userEvent.click(viewButton);
+
+    expect(mockNavigate).toHaveBeenCalledWith('/nda/nda-1');
   });
 });
