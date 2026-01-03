@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Card } from '../ui/AppCard';
 import { Badge } from '../ui/AppBadge';
@@ -266,8 +266,83 @@ export function Requests({
   const navigate = useNavigate();
   const location = useLocation();
 
+  // Filter state
+  const [searchTerm, setSearchTerm] = useState(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get('search') ?? '';
+  });
+  // Migrate old status values from localStorage
+  const [statusFilter, setStatusFilter] = useState<NdaStatus | 'all'>(() => {
+    const stored = localStorage.getItem('ndaStatusFilter');
+    if (stored && !['CREATED', 'PENDING_APPROVAL', 'SENT_PENDING_SIGNATURE', 'IN_REVISION', 'FULLY_EXECUTED', 'INACTIVE_CANCELED', 'EXPIRED', 'all'].includes(stored)) {
+      localStorage.removeItem('ndaStatusFilter');
+      return 'all';
+    }
+    return 'all';
+  });
+  const [presetFilter, setPresetFilter] = useState<PresetKey>(myDraftsOnly ? 'drafts' : preset);
+  const [agencyGroupInput, setAgencyGroupInput] = useState('');
+  const [agencyGroupId, setAgencyGroupId] = useState<string | undefined>(undefined);
+  const [subagencyInput, setSubagencyInput] = useState('');
+  const [subagencyId, setSubagencyId] = useState<string | undefined>(undefined);
+  const [companyName, setCompanyName] = useState('');
+  const [companyCity, setCompanyCity] = useState('');
+  const [companyState, setCompanyState] = useState('');
+  const [stateOfIncorporation, setStateOfIncorporation] = useState('');
+  const [agencyOfficeName, setAgencyOfficeName] = useState('');
+  const [ndaType, setNdaType] = useState<NdaType | 'all'>('all');
+  const [isNonUsMax, setIsNonUsMax] = useState<'all' | 'true' | 'false'>('all');
+  const [usMaxPosition, setUsMaxPosition] = useState<'all' | 'PRIME' | 'SUB_CONTRACTOR' | 'OTHER'>('all');
+  const [effectiveDateFrom, setEffectiveDateFrom] = useState('');
+  const [effectiveDateTo, setEffectiveDateTo] = useState('');
+  const [requestedDateFrom, setRequestedDateFrom] = useState('');
+  const [requestedDateTo, setRequestedDateTo] = useState('');
+  const [opportunityPocName, setOpportunityPocName] = useState('');
+  const [contractsPocName, setContractsPocName] = useState('');
+  const [relationshipPocName, setRelationshipPocName] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const hasLoadedFiltersFromUrl = useRef(false);
+  const [filtersHydrated, setFiltersHydrated] = useState(false);
+
+  // Data state
+  const [ndas, setNdas] = useState<NdaListItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [totalCount, setTotalCount] = useState(0);
+
+  // Sorting state - Story H-1: Load from localStorage
+  const [sortBy, setSortBy] = useState<SortKey>(() => loadSortPreferences().sortBy);
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>(() => loadSortPreferences().sortOrder);
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const [totalPages, setTotalPages] = useState(1);
+
+  // Reference data
+  const [agencyGroups, setAgencyGroups] = useState<AgencyGroup[]>([]);
+  const [subagencies, setSubagencies] = useState<Subagency[]>([]);
+  const [companySuggestions, setCompanySuggestions] = useState<string[]>([]);
+  const [citySuggestions, setCitySuggestions] = useState<string[]>([]);
+  const [stateSuggestions, setStateSuggestions] = useState<string[]>([]);
+  const [incorporationSuggestions, setIncorporationSuggestions] = useState<string[]>([]);
+  const [agencyOfficeSuggestions, setAgencyOfficeSuggestions] = useState<string[]>([]);
+  const [pocSuggestions, setPocSuggestions] = useState<string[]>([]);
+  const [recentFilters, setRecentFilters] = useState<RecentFilters>(loadRecentFilters());
+
+  // Confirmation dialog state
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [ndaToCancel, setNdaToCancel] = useState<NdaListItem | null>(null);
+  const [isCancelling, setIsCancelling] = useState(false);
+
+  // Debounce search term
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+  const highlightQuery = debouncedSearchTerm.trim();
+
   // Clean up deprecated status values from URL
   useEffect(() => {
+    if (!hasLoadedFiltersFromUrl.current) return;
     const params = new URLSearchParams(location.search);
     const status = params.get('status');
     const oldStatuses = ['EMAILED', 'INACTIVE', 'CANCELLED'];
@@ -325,77 +400,157 @@ export function Requests({
     }
   }, [sortBy, sortOrder, location.pathname, location.search, navigate]);
 
-  // Filter state
-  const [searchTerm, setSearchTerm] = useState(() => {
+  useEffect(() => {
+    if (hasLoadedFiltersFromUrl.current) return;
     const params = new URLSearchParams(location.search);
-    return params.get('search') ?? '';
-  });
-  // Migrate old status values from localStorage
-  const [statusFilter, setStatusFilter] = useState<NdaStatus | 'all'>(() => {
-    const stored = localStorage.getItem('ndaStatusFilter');
-    if (stored && !['CREATED', 'PENDING_APPROVAL', 'SENT_PENDING_SIGNATURE', 'IN_REVISION', 'FULLY_EXECUTED', 'INACTIVE_CANCELED', 'EXPIRED', 'all'].includes(stored)) {
-      localStorage.removeItem('ndaStatusFilter');
-      return 'all';
+    const getParam = (key: string) => params.get(key) ?? '';
+
+    const statusParam = getParam('status');
+    const statusValue = statusParam && getStatusOptions().some((option) => option.value === statusParam)
+      ? (statusParam as NdaStatus)
+      : 'all';
+
+    const ndaTypeParam = getParam('ndaType');
+    const ndaTypeValue =
+      ndaTypeParam && NDA_TYPE_OPTIONS.some((option) => option.value === ndaTypeParam)
+        ? (ndaTypeParam as NdaType)
+        : 'all';
+
+    const isNonUsMaxParam = getParam('isNonUsMax');
+    const isNonUsMaxValue =
+      isNonUsMaxParam === 'true' || isNonUsMaxParam === 'false' ? isNonUsMaxParam : 'all';
+
+    const usMaxPositionParam = getParam('usMaxPosition');
+    const usMaxPositionValue =
+      usMaxPositionParam === 'PRIME' ||
+      usMaxPositionParam === 'SUB_CONTRACTOR' ||
+      usMaxPositionParam === 'OTHER'
+        ? usMaxPositionParam
+        : 'all';
+
+    const presetParam = getParam('preset');
+    const presetValue =
+      presetParam === 'my-ndas' || presetParam === 'expiring-soon' || presetParam === 'drafts' || presetParam === 'inactive'
+        ? (presetParam as PresetKey)
+        : myDraftsOnly
+          ? 'drafts'
+          : 'all';
+
+    setAgencyGroupInput(getParam('agencyGroup'));
+    setSubagencyInput(getParam('subagency'));
+    setCompanyName(getParam('companyName'));
+    setCompanyCity(getParam('companyCity'));
+    setCompanyState(getParam('companyState'));
+    setStateOfIncorporation(getParam('stateOfIncorporation'));
+    setAgencyOfficeName(getParam('agencyOfficeName'));
+    setOpportunityPocName(getParam('opportunityPocName'));
+    setContractsPocName(getParam('contractsPocName'));
+    setRelationshipPocName(getParam('relationshipPocName'));
+    setEffectiveDateFrom(getParam('effectiveDateFrom'));
+    setEffectiveDateTo(getParam('effectiveDateTo'));
+    setRequestedDateFrom(getParam('requestedDateFrom'));
+    setRequestedDateTo(getParam('requestedDateTo'));
+    setStatusFilter(statusValue);
+    setNdaType(ndaTypeValue);
+    setIsNonUsMax(isNonUsMaxValue as 'all' | 'true' | 'false');
+    setUsMaxPosition(usMaxPositionValue as typeof usMaxPosition);
+    setPresetFilter(presetValue);
+
+    const searchParam = getParam('search');
+    if (searchParam) {
+      setSearchTerm(searchParam);
     }
-    return 'all';
-  });
-  const [presetFilter, setPresetFilter] = useState<PresetKey>(myDraftsOnly ? 'drafts' : preset);
-  const [agencyGroupInput, setAgencyGroupInput] = useState('');
-  const [agencyGroupId, setAgencyGroupId] = useState<string | undefined>(undefined);
-  const [subagencyInput, setSubagencyInput] = useState('');
-  const [subagencyId, setSubagencyId] = useState<string | undefined>(undefined);
-  const [companyName, setCompanyName] = useState('');
-  const [companyCity, setCompanyCity] = useState('');
-  const [companyState, setCompanyState] = useState('');
-  const [stateOfIncorporation, setStateOfIncorporation] = useState('');
-  const [agencyOfficeName, setAgencyOfficeName] = useState('');
-  const [ndaType, setNdaType] = useState<NdaType | 'all'>('all');
-  const [isNonUsMax, setIsNonUsMax] = useState<'all' | 'true' | 'false'>('all');
-  const [usMaxPosition, setUsMaxPosition] = useState<'all' | 'PRIME' | 'SUB_CONTRACTOR' | 'OTHER'>('all');
-  const [effectiveDateFrom, setEffectiveDateFrom] = useState('');
-  const [effectiveDateTo, setEffectiveDateTo] = useState('');
-  const [requestedDateFrom, setRequestedDateFrom] = useState('');
-  const [requestedDateTo, setRequestedDateTo] = useState('');
-  const [opportunityPocName, setOpportunityPocName] = useState('');
-  const [contractsPocName, setContractsPocName] = useState('');
-  const [relationshipPocName, setRelationshipPocName] = useState('');
-  const [showFilters, setShowFilters] = useState(false);
-  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
-  // Data state
-  const [ndas, setNdas] = useState<NdaListItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [totalCount, setTotalCount] = useState(0);
+    hasLoadedFiltersFromUrl.current = true;
+    setFiltersHydrated(true);
+  }, [location.search, myDraftsOnly]);
 
-  // Sorting state - Story H-1: Load from localStorage
-  const [sortBy, setSortBy] = useState<SortKey>(() => loadSortPreferences().sortBy);
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>(() => loadSortPreferences().sortOrder);
+  useEffect(() => {
+    if (!filtersHydrated) return;
+    const params = new URLSearchParams(location.search);
+    const setParam = (key: string, value?: string) => {
+      if (value && value.trim()) {
+        params.set(key, value);
+      } else {
+        params.delete(key);
+      }
+    };
 
-  // Pagination state
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
-  const [totalPages, setTotalPages] = useState(1);
+    setParam('agencyGroup', agencyGroupInput.trim());
+    setParam('subagency', subagencyInput.trim());
+    setParam('companyName', companyName.trim());
+    setParam('companyCity', companyCity.trim());
+    setParam('companyState', companyState.trim());
+    setParam('stateOfIncorporation', stateOfIncorporation.trim());
+    setParam('agencyOfficeName', agencyOfficeName.trim());
+    setParam('opportunityPocName', opportunityPocName.trim());
+    setParam('contractsPocName', contractsPocName.trim());
+    setParam('relationshipPocName', relationshipPocName.trim());
+    setParam('effectiveDateFrom', effectiveDateFrom);
+    setParam('effectiveDateTo', effectiveDateTo);
+    setParam('requestedDateFrom', requestedDateFrom);
+    setParam('requestedDateTo', requestedDateTo);
 
-  // Reference data
-  const [agencyGroups, setAgencyGroups] = useState<AgencyGroup[]>([]);
-  const [subagencies, setSubagencies] = useState<Subagency[]>([]);
-  const [companySuggestions, setCompanySuggestions] = useState<string[]>([]);
-  const [citySuggestions, setCitySuggestions] = useState<string[]>([]);
-  const [stateSuggestions, setStateSuggestions] = useState<string[]>([]);
-  const [incorporationSuggestions, setIncorporationSuggestions] = useState<string[]>([]);
-  const [agencyOfficeSuggestions, setAgencyOfficeSuggestions] = useState<string[]>([]);
-  const [pocSuggestions, setPocSuggestions] = useState<string[]>([]);
-  const [recentFilters, setRecentFilters] = useState<RecentFilters>(loadRecentFilters());
+    if (statusFilter !== 'all') {
+      params.set('status', statusFilter);
+    } else {
+      params.delete('status');
+    }
 
-  // Confirmation dialog state
-  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
-  const [ndaToCancel, setNdaToCancel] = useState<NdaListItem | null>(null);
-  const [isCancelling, setIsCancelling] = useState(false);
+    if (ndaType !== 'all') {
+      params.set('ndaType', ndaType);
+    } else {
+      params.delete('ndaType');
+    }
 
-  // Debounce search term
-  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
-  const highlightQuery = debouncedSearchTerm.trim();
+    if (isNonUsMax !== 'all') {
+      params.set('isNonUsMax', isNonUsMax);
+    } else {
+      params.delete('isNonUsMax');
+    }
+
+    if (usMaxPosition !== 'all') {
+      params.set('usMaxPosition', usMaxPosition);
+    } else {
+      params.delete('usMaxPosition');
+    }
+
+    if (presetFilter !== 'all') {
+      params.set('preset', presetFilter);
+    } else {
+      params.delete('preset');
+    }
+
+    const nextSearch = params.toString();
+    const currentSearch = location.search.startsWith('?') ? location.search.slice(1) : location.search;
+    if (nextSearch !== currentSearch) {
+      navigate({ pathname: location.pathname, search: nextSearch }, { replace: true });
+    }
+  }, [
+    agencyGroupInput,
+    subagencyInput,
+    companyName,
+    companyCity,
+    companyState,
+    stateOfIncorporation,
+    agencyOfficeName,
+    opportunityPocName,
+    contractsPocName,
+    relationshipPocName,
+    effectiveDateFrom,
+    effectiveDateTo,
+    requestedDateFrom,
+    requestedDateTo,
+    statusFilter,
+    ndaType,
+    isNonUsMax,
+    usMaxPosition,
+    presetFilter,
+    filtersHydrated,
+    location.pathname,
+    location.search,
+    navigate,
+  ]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -589,6 +744,196 @@ export function Requests({
     [recentFilters.relationshipPocName, pocSuggestions]
   );
 
+  const activeFilters = useMemo(() => {
+    const filters: Array<{ key: string; label: string; onClear: () => void }> = [];
+    const trimmedSearch = searchTerm.trim();
+    if (trimmedSearch) {
+      filters.push({
+        key: 'search',
+        label: `Search: ${trimmedSearch}`,
+        onClear: () => setSearchTerm(''),
+      });
+    }
+
+    if (statusFilter !== 'all') {
+      filters.push({
+        key: 'status',
+        label: `Status: ${getStatusDisplayName(statusFilter)}`,
+        onClear: () => setStatusFilter('all'),
+      });
+    }
+
+    if (!myDraftsOnly && presetFilter !== 'all') {
+      const presetLabelMap: Record<string, string> = {
+        'my-ndas': 'My NDAs',
+        'expiring-soon': 'Expiring Soon',
+        drafts: 'Drafts',
+        inactive: 'Inactive',
+      };
+      filters.push({
+        key: 'preset',
+        label: `Preset: ${presetLabelMap[presetFilter] ?? presetFilter}`,
+        onClear: () => setPresetFilter('all'),
+      });
+    }
+
+    if (agencyGroupInput.trim()) {
+      filters.push({
+        key: 'agencyGroup',
+        label: `Agency: ${agencyGroupInput.trim()}`,
+        onClear: () => setAgencyGroupInput(''),
+      });
+    }
+
+    if (subagencyInput.trim()) {
+      filters.push({
+        key: 'subagency',
+        label: `Subagency: ${subagencyInput.trim()}`,
+        onClear: () => setSubagencyInput(''),
+      });
+    }
+
+    if (companyName.trim()) {
+      filters.push({
+        key: 'companyName',
+        label: `Company: ${companyName.trim()}`,
+        onClear: () => setCompanyName(''),
+      });
+    }
+
+    if (companyCity.trim()) {
+      filters.push({
+        key: 'companyCity',
+        label: `City: ${companyCity.trim()}`,
+        onClear: () => setCompanyCity(''),
+      });
+    }
+
+    if (companyState.trim()) {
+      filters.push({
+        key: 'companyState',
+        label: `State: ${companyState.trim()}`,
+        onClear: () => setCompanyState(''),
+      });
+    }
+
+    if (stateOfIncorporation.trim()) {
+      filters.push({
+        key: 'stateOfIncorporation',
+        label: `Incorporation: ${stateOfIncorporation.trim()}`,
+        onClear: () => setStateOfIncorporation(''),
+      });
+    }
+
+    if (agencyOfficeName.trim()) {
+      filters.push({
+        key: 'agencyOfficeName',
+        label: `Office: ${agencyOfficeName.trim()}`,
+        onClear: () => setAgencyOfficeName(''),
+      });
+    }
+
+    if (ndaType !== 'all') {
+      const ndaTypeLabel = NDA_TYPE_OPTIONS.find((option) => option.value === ndaType)?.label ?? ndaType;
+      filters.push({
+        key: 'ndaType',
+        label: `NDA Type: ${ndaTypeLabel}`,
+        onClear: () => setNdaType('all'),
+      });
+    }
+
+    if (isNonUsMax !== 'all') {
+      filters.push({
+        key: 'isNonUsMax',
+        label: `Non-USmax: ${isNonUsMax === 'true' ? 'Yes' : 'No'}`,
+        onClear: () => setIsNonUsMax('all'),
+      });
+    }
+
+    if (usMaxPosition !== 'all') {
+      const positionLabelMap: Record<string, string> = {
+        PRIME: 'Prime',
+        SUB_CONTRACTOR: 'Sub-contractor',
+        OTHER: 'Other',
+      };
+      filters.push({
+        key: 'usMaxPosition',
+        label: `USmax Position: ${positionLabelMap[usMaxPosition] ?? usMaxPosition}`,
+        onClear: () => setUsMaxPosition('all'),
+      });
+    }
+
+    if (effectiveDateFrom || effectiveDateTo) {
+      filters.push({
+        key: 'effectiveDate',
+        label: `Effective Date: ${effectiveDateFrom || 'Any'} → ${effectiveDateTo || 'Any'}`,
+        onClear: () => {
+          setEffectiveDateFrom('');
+          setEffectiveDateTo('');
+        },
+      });
+    }
+
+    if (requestedDateFrom || requestedDateTo) {
+      filters.push({
+        key: 'requestedDate',
+        label: `Requested Date: ${requestedDateFrom || 'Any'} → ${requestedDateTo || 'Any'}`,
+        onClear: () => {
+          setRequestedDateFrom('');
+          setRequestedDateTo('');
+        },
+      });
+    }
+
+    if (opportunityPocName.trim()) {
+      filters.push({
+        key: 'opportunityPocName',
+        label: `Opportunity POC: ${opportunityPocName.trim()}`,
+        onClear: () => setOpportunityPocName(''),
+      });
+    }
+
+    if (contractsPocName.trim()) {
+      filters.push({
+        key: 'contractsPocName',
+        label: `Contracts POC: ${contractsPocName.trim()}`,
+        onClear: () => setContractsPocName(''),
+      });
+    }
+
+    if (relationshipPocName.trim()) {
+      filters.push({
+        key: 'relationshipPocName',
+        label: `Relationship POC: ${relationshipPocName.trim()}`,
+        onClear: () => setRelationshipPocName(''),
+      });
+    }
+
+    return filters;
+  }, [
+    searchTerm,
+    statusFilter,
+    presetFilter,
+    myDraftsOnly,
+    agencyGroupInput,
+    subagencyInput,
+    companyName,
+    companyCity,
+    companyState,
+    stateOfIncorporation,
+    agencyOfficeName,
+    ndaType,
+    isNonUsMax,
+    usMaxPosition,
+    effectiveDateFrom,
+    effectiveDateTo,
+    requestedDateFrom,
+    requestedDateTo,
+    opportunityPocName,
+    contractsPocName,
+    relationshipPocName,
+  ]);
+
   const getAriaSort = (key: SortKey) => {
     if (sortBy !== key) return 'none';
     return sortOrder === 'asc' ? 'ascending' : 'descending';
@@ -612,6 +957,31 @@ export function Requests({
       setSortBy(key);
       setSortOrder('asc');
     }
+  };
+
+  const clearAllFilters = () => {
+    setSearchTerm('');
+    setStatusFilter('all');
+    setPresetFilter(myDraftsOnly ? 'drafts' : 'all');
+    setAgencyGroupInput('');
+    setAgencyGroupId(undefined);
+    setSubagencyInput('');
+    setSubagencyId(undefined);
+    setCompanyName('');
+    setCompanyCity('');
+    setCompanyState('');
+    setStateOfIncorporation('');
+    setAgencyOfficeName('');
+    setNdaType('all');
+    setIsNonUsMax('all');
+    setUsMaxPosition('all');
+    setEffectiveDateFrom('');
+    setEffectiveDateTo('');
+    setRequestedDateFrom('');
+    setRequestedDateTo('');
+    setOpportunityPocName('');
+    setContractsPocName('');
+    setRelationshipPocName('');
   };
 
   const recordRecentFilters = () => {
@@ -1168,23 +1538,7 @@ export function Requests({
             <Button
               variant="subtle"
               size="sm"
-              onClick={() => {
-                // Clear all filters
-                setSearchTerm('');
-                setSelectedAgency('');
-                setSelectedSubagency('');
-                setSelectedStatus('');
-                setEffectiveDateFrom('');
-                setEffectiveDateTo('');
-                setRequestedDateFrom('');
-                setRequestedDateTo('');
-                setOpportunityPocName('');
-                setContractsPocName('');
-                setRelationshipPocName('');
-                setNdaType('');
-                setUsMaxPosition('');
-                setIsNonUsMax('');
-              }}
+              onClick={clearAllFilters}
             >
               Clear All
             </Button>
@@ -1200,7 +1554,26 @@ export function Requests({
         )}
         </Card>
       )}
-      
+
+      {activeFilters.length > 0 && (
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          {activeFilters.map((filter) => (
+            <button
+              key={filter.key}
+              type="button"
+              onClick={filter.onClear}
+              className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-700 hover:bg-gray-200"
+            >
+              {filter.label}
+              <X className="w-3 h-3" />
+            </button>
+          ))}
+          <Button variant="subtle" size="sm" onClick={clearAllFilters}>
+            Clear All
+          </Button>
+        </div>
+      )}
+
       {/* Results Summary */}
       <div className="mb-4 flex items-center justify-between gap-4">
         <p className="text-sm text-[var(--color-text-secondary)]">
@@ -1257,29 +1630,6 @@ export function Requests({
           effectiveDateFrom || effectiveDateTo || requestedDateFrom || requestedDateTo ||
           opportunityPocName || contractsPocName || relationshipPocName || presetFilter !== 'all' ||
           searchTerm.trim().length > 0;
-
-        const clearAllFilters = () => {
-          setStatusFilter('all');
-          setAgencyGroupId(undefined);
-          setSubagencyId(undefined);
-          setCompanyName('');
-          setCompanyCity('');
-          setCompanyState('');
-          setStateOfIncorporation('');
-          setAgencyOfficeName('');
-          setNdaType('all');
-          setIsNonUsMax('all');
-          setUsMaxPosition('all');
-          setEffectiveDateFrom('');
-          setEffectiveDateTo('');
-          setRequestedDateFrom('');
-          setRequestedDateTo('');
-          setOpportunityPocName('');
-          setContractsPocName('');
-          setRelationshipPocName('');
-          setPresetFilter('all');
-          setSearchTerm('');
-        };
 
         return (
           <Card className="flex items-center justify-center py-16">

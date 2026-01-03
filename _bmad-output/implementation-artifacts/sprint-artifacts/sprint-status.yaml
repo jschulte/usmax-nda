@@ -61,7 +61,7 @@ development_status:
   # Epic 3: NDA Lifecycle Management - COMPLETED via pre-BMAD implementation + H-1 hardening
   epic-3: done
   3-16-in-browser-rtf-editing: ready-for-dev  # Updated 2026-01-02
-  3-1-create-nda-with-basic-form: ready-for-dev  # Updated 2026-01-02
+  3-1-create-nda-with-basic-form: done  # Updated 2026-01-03
   3-2-smart-form-auto-fill-company-first-entry-path: ready-for-dev  # Updated 2026-01-02
   3-3-clone-duplicate-nda-second-entry-path: ready-for-dev  # Updated 2026-01-02
   3-4-agency-first-entry-path-with-suggestions: ready-for-dev  # Updated 2026-01-02
@@ -94,7 +94,7 @@ development_status:
   epic-5: done
   5-1-global-nda-search: done  # Updated 2026-01-03
   5-2-column-sorting-with-persistence: done  # Updated 2026-01-03
-  5-3-advanced-filtering-system: ready-for-dev  # Updated 2026-01-02
+  5-3-advanced-filtering-system: done  # Updated 2026-01-03
   5-4-filter-presets: ready-for-dev  # Updated 2026-01-02
   5-5-date-range-shortcuts: ready-for-dev  # Updated 2026-01-02
   5-6-pagination-with-configurable-page-size: ready-for-dev  # Updated 2026-01-02

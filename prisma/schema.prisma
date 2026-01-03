@@ -325,10 +325,17 @@ model Nda {
   @@index([companyCity])
   @@index([companyState])
   @@index([stateOfIncorporation])
+  @@index([ndaType])
+  @@index([isNonUsMax])
+  @@index([usMaxPosition])
   @@index([createdById])
+  @@index([createdAt])
   @@index([effectiveDate])
   @@index([expirationDate])
   @@index([rtfTemplateId])
+  @@index([opportunityPocId])
+  @@index([contractsPocId])
+  @@index([relationshipPocId])
   @@map("ndas")
 }
 

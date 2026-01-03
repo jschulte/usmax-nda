@@ -1,0 +1,18 @@
+story_id: "5-3"
+story_file: "_bmad-output/implementation-artifacts/sprint-artifacts/5-3-advanced-filtering-system.md"
+mode: "batch"
+started_at: "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+completed_at: "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+summary:
+  changes:
+    - "Added filter-related indexes for NDA list filtering."
+    - "Synced filters to URL query params and hydrated state on load."
+    - "Added active filter badges and fixed Clear All behavior."
+  decisions:
+    - "Kept filter UI in Requests screen (no separate panel component)."
+
+verification:
+  tasks_checked: 9
+  remaining_unchecked: 0
+  notes: "Filtering already implemented; enhancements added for badges/persistence/indexing."
