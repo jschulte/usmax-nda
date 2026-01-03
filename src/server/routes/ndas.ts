@@ -279,7 +279,15 @@ router.get(
         opportunityPocName: req.query.opportunityPocName as string | undefined,
         contractsPocName: req.query.contractsPocName as string | undefined,
         relationshipPocName: req.query.relationshipPocName as string | undefined,
-        preset: req.query.preset as 'my-ndas' | 'expiring-soon' | 'drafts' | 'inactive' | undefined,
+        preset: req.query.preset as
+          | 'my-ndas'
+          | 'expiring-soon'
+          | 'drafts'
+          | 'inactive'
+          | 'waiting-on-third-party'
+          | 'stale-no-activity'
+          | 'active-ndas'
+          | undefined,
       };
 
       const result = await exportNdas(params, req.userContext!);
@@ -1378,7 +1386,19 @@ router.post(
         });
       }
 
-      const isFullyExecuted = req.body.isFullyExecuted === 'true';
+      const isFullyExecutedRaw = req.body.isFullyExecuted;
+      if (
+        isFullyExecutedRaw !== undefined &&
+        isFullyExecutedRaw !== 'true' &&
+        isFullyExecutedRaw !== 'false'
+      ) {
+        return res.status(400).json({
+          error: 'Invalid isFullyExecuted value',
+          code: 'INVALID_INPUT',
+        });
+      }
+
+      const isFullyExecuted = isFullyExecutedRaw === 'true';
       const notes = req.body.notes as string | undefined;
 
       const document = await uploadNdaDocument(
@@ -1463,6 +1483,8 @@ router.patch(
         const statusCode =
           error.code === 'DOCUMENT_NOT_FOUND'
             ? 404
+            : error.code === 'INVALID_TRANSITION'
+              ? 400
             : error.code === 'ACCESS_DENIED'
               ? 403
               : 500;

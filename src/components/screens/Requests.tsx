@@ -767,8 +767,11 @@ export function Requests({
       const presetLabelMap: Record<string, string> = {
         'my-ndas': 'My NDAs',
         'expiring-soon': 'Expiring Soon',
+        'waiting-on-third-party': 'Waiting on 3rd Party',
+        'stale-no-activity': 'Stale - No Activity',
         drafts: 'Drafts',
         inactive: 'Inactive',
+        'active-ndas': 'Active NDAs',
       };
       filters.push({
         key: 'preset',
@@ -1244,8 +1247,11 @@ export function Requests({
                   <SelectItem value="all">All NDAs</SelectItem>
                   <SelectItem value="my-ndas">My NDAs</SelectItem>
                   <SelectItem value="expiring-soon">Expiring Soon</SelectItem>
+                  <SelectItem value="waiting-on-third-party">Waiting on 3rd Party</SelectItem>
+                  <SelectItem value="stale-no-activity">Stale - No Activity</SelectItem>
                   <SelectItem value="drafts">Drafts</SelectItem>
                   <SelectItem value="inactive">Inactive</SelectItem>
+                  <SelectItem value="active-ndas">Active NDAs</SelectItem>
                 </SelectContent>
               </Select>
             </div>

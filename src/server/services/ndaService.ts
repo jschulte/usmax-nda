@@ -157,7 +157,14 @@ export interface ListNdaParams {
   contractsPocName?: string;
   relationshipPocName?: string;
   // Filter preset
-  preset?: 'my-ndas' | 'expiring-soon' | 'drafts' | 'inactive';
+  preset?:
+    | 'my-ndas'
+    | 'expiring-soon'
+    | 'drafts'
+    | 'inactive'
+    | 'waiting-on-third-party'
+    | 'stale-no-activity'
+    | 'active-ndas';
 }
 
 /**
@@ -867,6 +874,7 @@ export async function listNdas(
 
   // Filter presets (Story 3.7)
   if (params.preset) {
+    const now = new Date();
     switch (params.preset) {
       case 'my-ndas':
         where.createdById = userContext.contactId;
@@ -883,7 +891,6 @@ export async function listNdas(
         const termDays = Number.isFinite(defaultTermDays) && defaultTermDays > 0 ? defaultTermDays : 365;
         const windowDays = Number.isFinite(warningDays) && warningDays > 0 ? warningDays : 30;
 
-        const now = new Date();
         const earliestEffectiveDate = new Date(now);
         earliestEffectiveDate.setDate(now.getDate() - termDays);
         const latestEffectiveDate = new Date(now);
@@ -900,6 +907,29 @@ export async function listNdas(
         break;
       case 'inactive':
         where.status = 'INACTIVE_CANCELED';
+        break;
+      case 'waiting-on-third-party': {
+        const waitingDaysValue = await getConfig(ConfigKey.DASHBOARD_STALE_EMAILED_DAYS);
+        const waitingDays = Number.parseInt(waitingDaysValue, 10);
+        const thresholdDays = Number.isFinite(waitingDays) && waitingDays > 0 ? waitingDays : 14;
+        const waitingThreshold = new Date(now);
+        waitingThreshold.setDate(now.getDate() - thresholdDays);
+        where.status = { in: [NdaStatus.SENT_PENDING_SIGNATURE, NdaStatus.IN_REVISION] };
+        where.updatedAt = { lte: waitingThreshold };
+        break;
+      }
+      case 'stale-no-activity': {
+        const staleDaysValue = await getConfig(ConfigKey.DASHBOARD_STALE_CREATED_DAYS);
+        const staleDays = Number.parseInt(staleDaysValue, 10);
+        const thresholdDays = Number.isFinite(staleDays) && staleDays > 0 ? staleDays : 14;
+        const staleThreshold = new Date(now);
+        staleThreshold.setDate(now.getDate() - thresholdDays);
+        where.status = NdaStatus.CREATED;
+        where.createdAt = { lte: staleThreshold };
+        break;
+      }
+      case 'active-ndas':
+        where.status = { notIn: [NdaStatus.INACTIVE_CANCELED, NdaStatus.EXPIRED] };
         break;
     }
   }
@@ -1024,10 +1054,28 @@ export function getFilterPresets(): FilterPreset[] {
       params: { preset: 'expiring-soon' },
     },
     {
+      id: 'waiting-on-third-party',
+      name: 'Waiting on 3rd Party',
+      description: 'NDAs awaiting external signature',
+      params: { preset: 'waiting-on-third-party' },
+    },
+    {
+      id: 'stale-no-activity',
+      name: 'Stale - No Activity',
+      description: 'Created NDAs without activity beyond threshold',
+      params: { preset: 'stale-no-activity' },
+    },
+    {
       id: 'inactive',
       name: 'Inactive',
       description: 'Inactive NDAs',
       params: { preset: 'inactive', showInactive: true },
+    },
+    {
+      id: 'active-ndas',
+      name: 'Active NDAs',
+      description: 'NDAs that are not inactive or expired',
+      params: { preset: 'active-ndas' },
     },
     {
       id: 'all',

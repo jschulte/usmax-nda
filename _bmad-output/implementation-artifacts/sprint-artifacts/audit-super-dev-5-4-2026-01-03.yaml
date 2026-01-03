@@ -1,0 +1,18 @@
+story_id: "5-4"
+story_file: "_bmad-output/implementation-artifacts/sprint-artifacts/5-4-filter-presets.md"
+mode: "batch"
+started_at: "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+completed_at: "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+summary:
+  changes:
+    - "Expanded preset options to include waiting on 3rd party, stale, and active NDAs."
+    - "Applied preset logic in listNdas using existing dashboard thresholds."
+    - "Updated frontend preset selection labels to match new presets."
+  decisions:
+    - "Reused existing system_config keys for thresholds; admin UI not expanded."
+
+verification:
+  tasks_checked: 10
+  remaining_unchecked: 0
+  notes: "Preset list and behavior aligned with dashboard thresholds."

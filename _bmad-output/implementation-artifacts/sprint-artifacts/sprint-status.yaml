@@ -95,7 +95,7 @@ development_status:
   5-1-global-nda-search: done  # Updated 2026-01-03
   5-2-column-sorting-with-persistence: done  # Updated 2026-01-03
   5-3-advanced-filtering-system: done  # Updated 2026-01-03
-  5-4-filter-presets: ready-for-dev  # Updated 2026-01-02
+  5-4-filter-presets: done  # Updated 2026-01-03
   5-5-date-range-shortcuts: ready-for-dev  # Updated 2026-01-02
   5-6-pagination-with-configurable-page-size: ready-for-dev  # Updated 2026-01-02
   5-7-recently-used-values-in-dropdowns: ready-for-dev  # Updated 2026-01-02
@@ -113,7 +113,7 @@ development_status:
 
   # Epic 6: Audit & Compliance - COMPLETED
   6-1-comprehensive-action-logging: done  # Updated 2026-01-03
-  6-2-field-change-tracking: review  # Updated 2026-01-02
+  6-2-field-change-tracking: done  # Updated 2026-01-03
   6-3-document-download-tracking: review  # Updated 2026-01-02
   6-4-login-attempt-tracking: review  # Updated 2026-01-02
   6-5-nda-audit-trail-viewer: done

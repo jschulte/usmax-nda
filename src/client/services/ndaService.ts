@@ -77,6 +77,7 @@ export interface NdaDetail {
   abbreviatedName: string;
   authorizedPurpose: string;
   effectiveDate?: string;
+  fullyExecutedDate?: string | null;
   usMaxPosition: UsMaxPosition;
   isNonUsMax: boolean;
   opportunityPoc?: {
@@ -234,7 +235,14 @@ export interface ListNdasParams {
   opportunityPocName?: string;
   contractsPocName?: string;
   relationshipPocName?: string;
-  preset?: 'my-ndas' | 'expiring-soon' | 'drafts' | 'inactive';
+  preset?:
+    | 'my-ndas'
+    | 'expiring-soon'
+    | 'drafts'
+    | 'inactive'
+    | 'waiting-on-third-party'
+    | 'stale-no-activity'
+    | 'active-ndas';
 }
 
 export interface ListNdasResponse {
