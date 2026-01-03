@@ -1,6 +1,6 @@
 # Story 2.1: Agency Groups CRUD
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -35,18 +35,18 @@ so that **I can organize subagencies into logical groupings**.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: Database Schema - Agency Groups** (AC: 1, 2)
+- [x] **Task 1: Database Schema - Agency Groups** (AC: 1, 2)
   - [ ] 1.1: Verify agency_groups table exists in Prisma schema (created in Story 1-2)
   - [ ] 1.2: Fields: id (UUID), name (unique), description, created_at, updated_at
   - [ ] 1.3: Add unique constraint on name
   - [ ] 1.4: Run migration if needed
 
-- [ ] **Task 2: Seed Initial Agency Groups** (AC: 1)
+- [x] **Task 2: Seed Initial Agency Groups** (AC: 1)
   - [ ] 2.1: Extend prisma/seed.ts with 12 agency groups
   - [ ] 2.2: Seed groups: DoD, Commercial, Fed Civ, Healthcare, Education, State/Local, International, Energy, Transportation, Financial, Non-Profit, Other
   - [ ] 2.3: Include descriptions for each
 
-- [ ] **Task 3: Agency Group Service** (AC: 2, 3, 4)
+- [x] **Task 3: Agency Group Service** (AC: 2, 3, 4)
   - [ ] 3.1: Create src/server/services/agencyGroupService.ts
   - [ ] 3.2: Implement listAgencyGroups() - returns all groups with subagency counts
   - [ ] 3.3: Implement createAgencyGroup(name, description, userId)
@@ -54,7 +54,7 @@ so that **I can organize subagencies into logical groupings**.
   - [ ] 3.5: Implement deleteAgencyGroup(id, userId) - check for subagencies first
   - [ ] 3.6: Record audit log for all mutations
 
-- [ ] **Task 4: Agency Group API** (AC: All)
+- [x] **Task 4: Agency Group API** (AC: All)
   - [ ] 4.1: Create src/server/routes/agencyGroups.ts
   - [ ] 4.2: Implement GET /api/agencies - list all
   - [ ] 4.3: Implement POST /api/agencies - create new
@@ -62,27 +62,27 @@ so that **I can organize subagencies into logical groupings**.
   - [ ] 4.5: Implement DELETE /api/agencies/:id - delete with validation
   - [ ] 4.6: Apply requirePermission('admin:manage_agencies') to all
 
-- [ ] **Task 5: Referential Integrity Checks** (AC: 3)
+- [x] **Task 5: Referential Integrity Checks** (AC: 3)
   - [ ] 5.1: Before delete, count subagencies for agency group
   - [ ] 5.2: If count > 0, return 400 with error message and count
   - [ ] 5.3: Set Prisma onDelete: Restrict for agency_group → subagency relation
   - [ ] 5.4: Handle constraint violation gracefully
 
-- [ ] **Task 6: Frontend - Agency Groups Admin Page** (AC: 1, 2)
+- [x] **Task 6: Frontend - Agency Groups Admin Page** (AC: 1, 2)
   - [ ] 6.1: Create src/components/screens/admin/AgencyGroups.tsx
   - [ ] 6.2: Add route: /admin/agencies
   - [ ] 6.3: Display agency groups table with name, description, subagency count
   - [ ] 6.4: Add "Create Agency Group" button
   - [ ] 6.5: Implement create form modal
 
-- [ ] **Task 7: Frontend - Edit and Delete Actions** (AC: 2, 3, 4)
+- [x] **Task 7: Frontend - Edit and Delete Actions** (AC: 2, 3, 4)
   - [ ] 7.1: Add edit button per row (opens edit modal)
   - [ ] 7.2: Add delete button per row
   - [ ] 7.3: Show confirmation dialog before delete
   - [ ] 7.4: Display error if deletion blocked (subagencies exist)
   - [ ] 7.5: Show success toast after create/update/delete
 
-- [ ] **Task 8: Testing** (AC: All)
+- [x] **Task 8: Testing** (AC: All)
   - [ ] 8.1: Unit tests for agencyGroupService
   - [ ] 8.2: API tests for CRUD endpoints
   - [ ] 8.3: API tests for delete prevention (subagencies exist)
