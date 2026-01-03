@@ -49,6 +49,7 @@ vi.mock('../../services/documentService.js', async () => {
   return {
     ...actual,
     uploadNdaDocument: vi.fn(),
+    getNdaDocuments: vi.fn(),
   };
 });
 
@@ -154,4 +155,42 @@ describe('Document Upload Routes Integration', () => {
     expect(response.status).toBe(404);
     expect(response.body.code).toBe('NDA_NOT_FOUND');
   });
+
+  it('lists documents for an NDA', async () => {
+    vi.mocked(documentService.getNdaDocuments).mockResolvedValue([
+      {
+        id: 'doc-1',
+        ndaId: 'nda-1',
+        filename: 'test.pdf',
+        documentType: 'UPLOADED',
+        isFullyExecuted: false,
+        versionNumber: 1,
+        uploadedAt: new Date().toISOString(),
+        uploadedBy: { id: 'contact-1', firstName: 'Test', lastName: 'User', email: 'user@usmax.com' },
+        fileSize: 1024,
+        fileType: 'application/pdf',
+        notes: 'Uploaded by Test User',
+      } as any,
+    ]);
+
+    const response = await request(app).get('/api/ndas/nda-1/documents');
+
+    expect(response.status).toBe(200);
+    expect(response.body.documents).toHaveLength(1);
+    expect(response.body.documents[0].filename).toBe('test.pdf');
+    expect(documentService.getNdaDocuments).toHaveBeenCalledWith('nda-1', expect.anything());
+  });
+
+  it('returns 404 when listing documents for missing NDA', async () => {
+    const { DocumentServiceError } = await import('../../services/documentService.js');
+    vi.mocked(documentService.getNdaDocuments).mockRejectedValue(
+      new DocumentServiceError('NDA not found', 'NDA_NOT_FOUND')
+    );
+
+    const response = await request(app).get('/api/ndas/nda-missing/documents');
+
+    expect(response.status).toBe(404);
+    expect(response.body.code).toBe('NDA_NOT_FOUND');
+  });
+
 });

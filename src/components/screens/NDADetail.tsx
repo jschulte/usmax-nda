@@ -112,6 +112,12 @@ const ndaTypeLabels: Record<string, string> = {
   CONSULTANT: 'Consultant'
 };
 
+const documentTypeLabels: Record<string, string> = {
+  GENERATED: 'Generated',
+  UPLOADED: 'Uploaded',
+  FULLY_EXECUTED: 'Fully Executed',
+};
+
 export function NDADetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -1178,6 +1184,18 @@ export function NDADetail() {
       </Tooltip>
     );
   };
+
+  const getDocumentTooltip = (doc: Document): string => {
+    const uploadedAtLabel = new Date(doc.uploadedAt).toLocaleString();
+    const uploaderName = `${doc.uploadedBy.firstName ?? ''} ${doc.uploadedBy.lastName ?? ''}`.trim()
+      || doc.uploadedBy.email;
+    if (doc.notes && doc.notes.trim().length > 0) {
+      return `${doc.notes} • ${uploaderName} on ${uploadedAtLabel}`;
+    }
+
+    const typeLabel = documentTypeLabels[doc.documentType] ?? 'Document';
+    return `${typeLabel} by ${uploaderName} on ${uploadedAtLabel}`;
+  };
   
   // Map backend status to UI display status
   // Story 10.3: Use legacy display names
@@ -1927,7 +1945,9 @@ export function NDADetail() {
                     </div>
                   ) : documents.length > 0 ? (
                     <div className="space-y-3">
-                      {documents.map((doc) => (
+                      {documents.map((doc) => {
+                        const isExecutedDoc = doc.isFullyExecuted || doc.documentType === 'FULLY_EXECUTED';
+                        return (
                         <div
                           key={doc.id}
                           className="flex items-center justify-between p-4 border border-[var(--color-border)] rounded-lg hover:bg-gray-50"
@@ -1936,11 +1956,23 @@ export function NDADetail() {
                             <FileText className="w-5 h-5 text-[var(--color-text-secondary)] flex-shrink-0" />
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 mb-1">
-                                <p className="font-medium truncate">{doc.filename}</p>
-                                {doc.isFullyExecuted && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span className="font-medium truncate cursor-help">
+                                      {doc.filename}
+                                    </span>
+                                  </TooltipTrigger>
+                                  <TooltipContent>{getDocumentTooltip(doc)}</TooltipContent>
+                                </Tooltip>
+                                {isExecutedDoc && (
                                   <Badge variant="success" className="flex-shrink-0">
                                     <Check className="w-3 h-3 mr-1" />
                                     Executed
+                                  </Badge>
+                                )}
+                                {!isExecutedDoc && (
+                                  <Badge variant="type" className="flex-shrink-0">
+                                    {documentTypeLabels[doc.documentType] ?? 'Document'}
                                   </Badge>
                                 )}
                               </div>
@@ -1965,7 +1997,7 @@ export function NDADetail() {
                             >
                               Download
                             </Button>
-                            {!doc.isFullyExecuted && nda.status !== 'FULLY_EXECUTED' && renderPermissionedButton(
+                            {!isExecutedDoc && nda.status !== 'FULLY_EXECUTED' && renderPermissionedButton(
                               <Button
                                 variant="primary"
                                 size="sm"
@@ -1980,7 +2012,8 @@ export function NDADetail() {
                             )}
                           </div>
                         </div>
-                      ))}
+                      );
+                      })}
                     </div>
                   ) : (
                     <div className="border border-[var(--color-border)] rounded-lg p-12 text-center">

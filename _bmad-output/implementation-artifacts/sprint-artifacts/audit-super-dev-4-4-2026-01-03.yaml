@@ -1,0 +1,16 @@
+story_id: "4-4"
+date: "2026-01-03"
+mode: "batch"
+summary:
+  status: "completed"
+  changes:
+    - "Added document tooltip context and document type badges in NDA detail documents list"
+    - "Hardened executed document detection to include documentType"
+    - "Added documents list route tests"
+    - "Added NDA detail document rendering test"
+  tests_added:
+    - "src/server/routes/__tests__/documents.test.ts"
+    - "src/components/__tests__/NDADetail.test.tsx"
+notes:
+  - "Document list API and service were already implemented and verified"
+  - "React Query not used in codebase; existing fetch service retained"

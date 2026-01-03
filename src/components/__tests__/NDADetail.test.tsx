@@ -173,6 +173,8 @@ vi.mock('../../client/utils/formatAuditChanges', () => ({
 }));
 
 import { NDADetail } from '../screens/NDADetail';
+import * as ndaService from '../../client/services/ndaService';
+import * as documentService from '../../client/services/documentService';
 
 describe('NDADetail', () => {
   beforeEach(() => {
@@ -187,5 +189,61 @@ describe('NDADetail', () => {
 
     cloneButton.click();
     expect(mockNavigate).toHaveBeenCalledWith('/requests?cloneFrom=nda-1');
+  });
+
+  it('renders document metadata in the documents tab', async () => {
+    const document = {
+      id: 'doc-1',
+      ndaId: 'nda-1',
+      filename: 'agreement.pdf',
+      documentType: 'UPLOADED',
+      isFullyExecuted: false,
+      versionNumber: 2,
+      uploadedAt: new Date().toISOString(),
+      uploadedBy: { id: 'contact-1', firstName: 'Test', lastName: 'User', email: 'user@usmax.com' },
+      fileSize: 1024,
+      fileType: 'application/pdf',
+      notes: 'Uploaded by Test User',
+    };
+
+    vi.mocked(ndaService.getNdaDetail).mockResolvedValueOnce({
+      nda: {
+        id: 'nda-1',
+        displayId: 1590,
+        companyName: 'TechCorp',
+        agencyGroup: { id: 'agency-1', name: 'DoD' },
+        subagency: null,
+        status: 'CREATED',
+        usMaxPosition: 'PRIME',
+        ndaType: 'MUTUAL',
+        effectiveDate: null,
+        isNonUsMax: false,
+        createdBy: { id: 'user-1' },
+        clonedFrom: null,
+        rtfTemplateId: null,
+      },
+      documents: [document],
+      emails: [],
+      auditTrail: [],
+      statusHistory: [],
+      statusProgression: { steps: [], isTerminal: false },
+      availableActions: {
+        canEdit: true,
+        canSendEmail: false,
+        canUploadDocument: false,
+        canChangeStatus: false,
+        canDelete: false,
+        canRouteForApproval: false,
+        canApprove: false,
+      },
+    } as any);
+
+    vi.mocked(documentService.listDocuments).mockResolvedValueOnce([document] as any);
+
+    render(<NDADetail />);
+
+    expect(await screen.findByText(/documents \\(1\\)/i)).toBeInTheDocument();
+    expect(await screen.findByText('agreement.pdf')).toBeInTheDocument();
+    expect(await screen.findByText(/uploaded by test user/i)).toBeInTheDocument();
   });
 });

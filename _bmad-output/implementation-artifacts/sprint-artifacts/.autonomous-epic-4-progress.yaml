@@ -1,6 +1,6 @@
 epic_num: 4
 started: 2026-01-03T07:47:58.832352Z
 total_stories: 5
-completed_stories: []
-current_story: null
+completed_stories: [4-4-document-version-history]
+current_story: 4-4-document-version-history
 status: running
