@@ -103,6 +103,21 @@ describe('NDA Routes Integration', () => {
       expect(response.body.ndas).toHaveLength(1);
       expect(response.body.total).toBe(1);
     });
+
+    it('rejects search queries shorter than 2 characters', async () => {
+      const response = await request(app).get('/api/ndas?search=a');
+
+      expect(response.status).toBe(400);
+      expect(response.body.code).toBe('INVALID_SEARCH_QUERY');
+    });
+
+    it('rejects search queries longer than 100 characters', async () => {
+      const longQuery = 'a'.repeat(101);
+      const response = await request(app).get(`/api/ndas?search=${longQuery}`);
+
+      expect(response.status).toBe(400);
+      expect(response.body.code).toBe('INVALID_SEARCH_QUERY');
+    });
   });
 
   describe('GET /api/ndas/:id', () => {
@@ -136,6 +151,50 @@ describe('NDA Routes Integration', () => {
 
       expect(response.status).toBe(200);
       expect(response.body.nda.id).toBe('nda-1');
+    });
+  });
+
+  describe('POST /api/ndas', () => {
+    it('creates NDA and returns summary payload', async () => {
+      vi.mocked(ndaService.createNda).mockResolvedValue({
+        id: 'nda-1',
+        displayId: 1590,
+        companyName: 'TechCorp',
+        status: 'CREATED',
+        agencyGroup: { id: 'agency-1', name: 'DoD', code: 'DOD' },
+        subagency: null,
+        createdAt: new Date(),
+      } as any);
+
+      const response = await request(app).post('/api/ndas').send({
+        companyName: 'TechCorp',
+        agencyGroupId: 'agency-1',
+        abbreviatedName: 'TC-DoD',
+        authorizedPurpose: 'Proposal work',
+        relationshipPocId: 'contact-2',
+      });
+
+      expect(response.status).toBe(201);
+      expect(response.body.message).toBe('NDA created successfully');
+      expect(response.body.nda.id).toBe('nda-1');
+      expect(response.body.nda.displayId).toBe(1590);
+    });
+
+    it('returns validation error for invalid input', async () => {
+      const error = new ndaService.NdaServiceError('Company Name is required', 'VALIDATION_ERROR');
+      vi.mocked(ndaService.createNda).mockRejectedValue(error);
+
+      const response = await request(app).post('/api/ndas').send({
+        companyName: '',
+        agencyGroupId: 'agency-1',
+        abbreviatedName: 'TC-DoD',
+        authorizedPurpose: 'Proposal work',
+        relationshipPocId: 'contact-2',
+      });
+
+      expect(response.status).toBe(400);
+      expect(response.body.code).toBe('VALIDATION_ERROR');
+      expect(response.body.error).toBe('Company Name is required');
     });
   });
 });

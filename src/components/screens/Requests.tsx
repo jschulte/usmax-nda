@@ -6,6 +6,7 @@ import { Button } from '../ui/AppButton';
 import {
   Plus,
   Search,
+  X,
   Calendar,
   Building,
   MoreVertical,
@@ -207,6 +208,27 @@ function mergeRecentSuggestions(recent: string[], suggestions: string[]): string
   return result;
 }
 
+function highlightMatch(value: string, query: string): React.ReactNode {
+  const trimmed = query.trim();
+  if (!trimmed || trimmed.length < 2) {
+    return value;
+  }
+  const escaped = trimmed.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const regex = new RegExp(`(${escaped})`, 'ig');
+  const parts = value.split(regex);
+  const matchLower = trimmed.toLowerCase();
+
+  return parts.map((part, index) =>
+    part.toLowerCase() === matchLower ? (
+      <mark key={`${part}-${index}`} className="rounded bg-yellow-100 px-0.5 text-yellow-900">
+        {part}
+      </mark>
+    ) : (
+      <span key={`${part}-${index}`}>{part}</span>
+    )
+  );
+}
+
 function formatContactName(contact: Contact): string {
   const name = `${contact.firstName ?? ''} ${contact.lastName ?? ''}`.trim();
   return name || contact.email;
@@ -242,8 +264,33 @@ export function Requests({
     }
   }, [location.search, location.pathname, navigate]);
 
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const query = params.get('search') ?? '';
+    if (query !== searchTerm) {
+      setSearchTerm(query);
+    }
+  }, [location.search, searchTerm]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (searchTerm.trim()) {
+      params.set('search', searchTerm.trim());
+    } else {
+      params.delete('search');
+    }
+    const nextSearch = params.toString();
+    const currentSearch = location.search.startsWith('?') ? location.search.slice(1) : location.search;
+    if (nextSearch !== currentSearch) {
+      navigate({ pathname: location.pathname, search: nextSearch }, { replace: true });
+    }
+  }, [searchTerm, location.pathname, location.search, navigate]);
+
   // Filter state
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get('search') ?? '';
+  });
   // Migrate old status values from localStorage
   const [statusFilter, setStatusFilter] = useState<NdaStatus | 'all'>(() => {
     const stored = localStorage.getItem('ndaStatusFilter');
@@ -309,6 +356,7 @@ export function Requests({
 
   // Debounce search term
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+  const highlightQuery = debouncedSearchTerm.trim();
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -542,12 +590,13 @@ export function Requests({
       recordRecentFilters();
 
       try {
+        const normalizedSearch = debouncedSearchTerm.trim();
         const params: ListNdasParams = {
           page: currentPage,
           limit: pageSize,
           sortBy: SORT_KEY_TO_PARAM[sortBy],
           sortOrder,
-          search: debouncedSearchTerm || undefined,
+          search: normalizedSearch.length >= 2 ? normalizedSearch : undefined,
           status: statusFilter !== 'all' ? statusFilter : undefined,
           agencyGroupId: agencyGroupId || undefined,
           subagencyId: subagencyId || undefined,
@@ -716,8 +765,23 @@ export function Requests({
               placeholder="Search by company, agency, or ID..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 border border-[var(--color-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
+              className="w-full pl-10 pr-16 py-2.5 border border-[var(--color-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
             />
+            {(searchTerm || loading) && (
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                {searchTerm && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchTerm('')}
+                    className="text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+                    aria-label="Clear search"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+                {loading && <Loader2 className="w-4 h-4 animate-spin text-[var(--color-text-muted)]" />}
+              </div>
+            )}
           </div>
         </div>
         <Button
@@ -729,6 +793,12 @@ export function Requests({
           {showFilters ? 'Hide Filters' : 'Filters'}
         </Button>
       </div>
+
+      {debouncedSearchTerm.trim().length >= 2 && !loading && (
+        <div className="mb-4 text-sm text-[var(--color-text-secondary)]">
+          {totalCount} results for "{debouncedSearchTerm.trim()}"
+        </div>
+      )}
 
       {/* Collapsible Filters */}
       {showFilters && (
@@ -1130,7 +1200,8 @@ export function Requests({
           companyName || companyCity || companyState || stateOfIncorporation ||
           agencyOfficeName || ndaType !== 'all' || isNonUsMax !== 'all' || usMaxPosition !== 'all' ||
           effectiveDateFrom || effectiveDateTo || requestedDateFrom || requestedDateTo ||
-          opportunityPocName || contractsPocName || relationshipPocName || presetFilter !== 'all';
+          opportunityPocName || contractsPocName || relationshipPocName || presetFilter !== 'all' ||
+          searchTerm.trim().length > 0;
 
         const clearAllFilters = () => {
           setStatusFilter('all');
@@ -1152,6 +1223,7 @@ export function Requests({
           setContractsPocName('');
           setRelationshipPocName('');
           setPresetFilter('all');
+          setSearchTerm('');
         };
 
         return (
@@ -1173,7 +1245,7 @@ export function Requests({
                 {myDraftsOnly && !hasActiveFilters
                   ? 'Ready to create one?'
                   : hasActiveFilters
-                    ? 'Try adjusting your search criteria or clear all filters to see all NDAs'
+                    ? `Try adjusting your search${searchTerm.trim() ? ` for "${searchTerm.trim()}"` : ''} or clear all filters to see all NDAs`
                     : 'Create your first NDA to get started tracking agreements'
                 }
               </p>
@@ -1261,15 +1333,17 @@ export function Requests({
                     onClick={() => handleViewNDA(nda)}
                   >
                     <td className="px-6 py-4">
-                      <p className="text-sm font-medium">{nda.displayId}</p>
+                      <p className="text-sm font-medium">{highlightMatch(String(nda.displayId), highlightQuery)}</p>
                     </td>
                     <td className="px-6 py-4">
-                      <p className="text-sm">{nda.companyName}</p>
+                      <p className="text-sm">{highlightMatch(nda.companyName, highlightQuery)}</p>
                     </td>
                     <td className="px-6 py-4">
-                      <p className="text-sm">{nda.agencyGroup.name}</p>
+                      <p className="text-sm">{highlightMatch(nda.agencyGroup.name, highlightQuery)}</p>
                       {nda.subagency && (
-                        <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">{nda.subagency.name}</p>
+                        <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">
+                          {highlightMatch(nda.subagency.name, highlightQuery)}
+                        </p>
                       )}
                     </td>
                     <td className="px-6 py-4">

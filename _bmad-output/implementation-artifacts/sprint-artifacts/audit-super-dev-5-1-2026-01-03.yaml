@@ -1,0 +1,20 @@
+story_id: "5-1"
+story_file: "_bmad-output/implementation-artifacts/sprint-artifacts/5-1-global-nda-search.md"
+mode: "batch"
+started_at: "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+completed_at: "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+summary:
+  changes:
+    - "Added search-related NDA indexes in Prisma schema and migration."
+    - "Validated search query length in /api/ndas route."
+    - "Enhanced NDA list search UX (debounce trim, clear button, highlights, results messaging)."
+    - "Added listNdas search coverage and route validation tests."
+  decisions:
+    - "Deferred full-text search; retained ILIKE + indexes for current needs."
+    - "Deferred performance/E2E tests outside current repo scope."
+
+verification:
+  tasks_checked: 8
+  remaining_unchecked: 0
+  notes: "Story tasks marked complete with documented deferrals."

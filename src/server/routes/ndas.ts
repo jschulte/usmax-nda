@@ -35,6 +35,7 @@
  * Row-level security is enforced via agency access grants.
  */
 
+import type { NextFunction, Request, Response } from 'express';
 import { Router } from 'express';
 import { prisma } from '../db/index.js'; // Story 9.1: Internal notes
 import { authenticateJWT } from '../middleware/authenticateJWT.js';
@@ -110,6 +111,40 @@ import {
 } from '../services/notificationService.js';
 import { auditService, AuditAction } from '../services/auditService.js';
 import { documentUpload } from '../middleware/fileUpload.js';
+
+// Multer wrapper to ensure file upload errors return 400 responses
+const documentUploadSingle = (req: Request, res: Response, next: NextFunction) => {
+  documentUpload.single('file')(req, res, (error: unknown) => {
+    if (!error) return next();
+
+    if (error && typeof error === 'object' && (error as any).name === 'MulterError') {
+      const code = (error as any).code as string | undefined;
+      if (code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({
+          error: 'File too large',
+          code: 'FILE_TOO_LARGE',
+        });
+      }
+
+      return res.status(400).json({
+        error: 'Invalid upload',
+        code: code || 'INVALID_UPLOAD',
+      });
+    }
+
+    if (error instanceof Error && error.message.includes('Invalid file')) {
+      return res.status(400).json({
+        error: error.message,
+        code: 'INVALID_FILE_TYPE',
+      });
+    }
+
+    return res.status(500).json({
+      error: 'Failed to process upload',
+      code: 'INTERNAL_ERROR',
+    });
+  });
+};
 
 const router: Router = Router();
 
@@ -342,6 +377,17 @@ router.get(
         relationshipPocName: req.query.relationshipPocName as string | undefined,
         preset: req.query.preset as 'my-ndas' | 'expiring-soon' | 'drafts' | 'inactive' | undefined,
       };
+
+      if (params.search) {
+        const trimmedSearch = params.search.trim();
+        if (trimmedSearch.length < 2 || trimmedSearch.length > 100) {
+          return res.status(400).json({
+            error: 'Search query must be between 2 and 100 characters',
+            code: 'INVALID_SEARCH_QUERY',
+          });
+        }
+        params.search = trimmedSearch;
+      }
 
       const result = await listNdas(params, req.userContext!);
 
@@ -1315,7 +1361,7 @@ router.get(
 router.post(
   '/:id/documents/upload',
   requireAnyPermission([PERMISSIONS.NDA_CREATE, PERMISSIONS.NDA_UPDATE]),
-  documentUpload.single('file'),
+  documentUploadSingle,
   async (req, res) => {
     try {
       if (!req.file) {

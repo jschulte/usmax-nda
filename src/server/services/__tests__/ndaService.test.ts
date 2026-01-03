@@ -214,6 +214,14 @@ describe('NDA Service', () => {
       );
     });
 
+    it('throws error when effective date is invalid', async () => {
+      const input = { ...validInput, effectiveDate: 'not-a-date' };
+
+      await expect(createNda(input, createMockUserContext())).rejects.toThrow(
+        'Effective Date must be a valid date'
+      );
+    });
+
     it('throws error when relationship POC is missing', async () => {
       const input = { ...validInput, relationshipPocId: '' };
 
@@ -397,6 +405,21 @@ describe('NDA Service', () => {
             agencyGroupId: 'group-1',
           }),
         })
+      );
+    });
+
+    it('applies global search across multiple fields', async () => {
+      mockPrisma.nda.findMany.mockResolvedValue([]);
+      mockPrisma.nda.count.mockResolvedValue(0);
+
+      await listNdas({ search: 'Acme' }, createMockUserContext());
+
+      const where = mockPrisma.nda.findMany.mock.calls[0][0].where;
+      expect(where.OR).toEqual(
+        expect.arrayContaining([
+          { companyName: { contains: 'Acme', mode: 'insensitive' } },
+          { authorizedPurpose: { contains: 'Acme', mode: 'insensitive' } },
+        ])
       );
     });
 
