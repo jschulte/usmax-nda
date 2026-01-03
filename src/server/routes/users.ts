@@ -27,7 +27,19 @@ import {
   reactivateUser,
   UserServiceError,
 } from '../services/userService.js';
-import { getUserAccessSummary } from '../services/accessSummaryService.js';
+import {
+  getUserAccessSummary,
+  exportUsersAccess,
+  convertToCSV,
+} from '../services/accessSummaryService.js';
+import {
+  bulkAssignRole,
+  bulkGrantAccess,
+  bulkDeactivateUsers,
+  BulkUserOperationError,
+} from '../services/bulkUserService.js';
+import { auditService, AuditAction } from '../services/auditService.js';
+import { randomUUID } from 'crypto';
 
 const router: Router = Router();
 
@@ -94,6 +106,164 @@ router.get('/search', async (req, res) => {
       error: 'Failed to search users',
       code: 'INTERNAL_ERROR',
     });
+  }
+});
+
+/**
+ * POST /api/users/bulk/assign-role
+ * Bulk assign a role to multiple users
+ */
+router.post('/bulk/assign-role', async (req, res) => {
+  const { userIds, roleId } = req.body as { userIds?: string[]; roleId?: string };
+
+  if (!Array.isArray(userIds) || userIds.length === 0) {
+    return res.status(400).json({
+      error: 'userIds must be a non-empty array',
+      code: 'INVALID_INPUT',
+    });
+  }
+
+  if (!roleId) {
+    return res.status(400).json({
+      error: 'roleId is required',
+      code: 'INVALID_INPUT',
+    });
+  }
+
+  try {
+    const result = await bulkAssignRole(userIds, roleId, req.userContext!.contactId, {
+      ipAddress: req.ip,
+      userAgent: req.get('User-Agent'),
+    });
+    return res.json(result);
+  } catch (error) {
+    if (error instanceof BulkUserOperationError) {
+      const status = error.code === 'ROLE_NOT_FOUND' ? 404 : 400;
+      return res.status(status).json({ error: error.message, code: error.code });
+    }
+    console.error('[Users] Error bulk assigning role:', error);
+    return res.status(500).json({ error: 'Failed to assign role', code: 'INTERNAL_ERROR' });
+  }
+});
+
+/**
+ * POST /api/users/bulk/grant-access
+ * Bulk grant agency group or subagency access
+ */
+router.post('/bulk/grant-access', async (req, res) => {
+  const { userIds, agencyGroupId, subagencyIds } = req.body as {
+    userIds?: string[];
+    agencyGroupId?: string;
+    subagencyIds?: string[];
+  };
+
+  if (!Array.isArray(userIds) || userIds.length === 0) {
+    return res.status(400).json({
+      error: 'userIds must be a non-empty array',
+      code: 'INVALID_INPUT',
+    });
+  }
+
+  try {
+    const result = await bulkGrantAccess(
+      userIds,
+      { agencyGroupId, subagencyIds },
+      req.userContext!.contactId,
+      {
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent'),
+      }
+    );
+    return res.json(result);
+  } catch (error) {
+    if (error instanceof BulkUserOperationError) {
+      const status =
+        error.code === 'AGENCY_GROUP_NOT_FOUND' || error.code === 'SUBAGENCY_NOT_FOUND'
+          ? 404
+          : 400;
+      return res.status(status).json({ error: error.message, code: error.code });
+    }
+    console.error('[Users] Error bulk granting access:', error);
+    return res.status(500).json({ error: 'Failed to grant access', code: 'INTERNAL_ERROR' });
+  }
+});
+
+/**
+ * POST /api/users/bulk/deactivate
+ * Bulk deactivate users (excludes current user)
+ */
+router.post('/bulk/deactivate', async (req, res) => {
+  const { userIds } = req.body as { userIds?: string[] };
+
+  if (!Array.isArray(userIds) || userIds.length === 0) {
+    return res.status(400).json({
+      error: 'userIds must be a non-empty array',
+      code: 'INVALID_INPUT',
+    });
+  }
+
+  try {
+    const result = await bulkDeactivateUsers(
+      userIds,
+      req.userContext!.contactId,
+      req.userContext!.contactId,
+      {
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent'),
+      }
+    );
+    return res.json(result);
+  } catch (error) {
+    if (error instanceof BulkUserOperationError) {
+      return res.status(400).json({ error: error.message, code: error.code });
+    }
+    console.error('[Users] Error bulk deactivating users:', error);
+    return res.status(500).json({ error: 'Failed to deactivate users', code: 'INTERNAL_ERROR' });
+  }
+});
+
+/**
+ * POST /api/users/bulk/export
+ * Export selected users access to CSV
+ */
+router.post('/bulk/export', async (req, res) => {
+  const { userIds } = req.body as { userIds?: string[] };
+
+  if (!Array.isArray(userIds) || userIds.length === 0) {
+    return res.status(400).json({
+      error: 'userIds must be a non-empty array',
+      code: 'INVALID_INPUT',
+    });
+  }
+
+  try {
+    const data = await exportUsersAccess(userIds);
+    const csv = convertToCSV(data);
+    const filename = `user-access-export-${new Date().toISOString().split('T')[0]}.csv`;
+
+    const batchId = randomUUID();
+    await auditService.log({
+      action: AuditAction.ACCESS_EXPORT,
+      entityType: 'contact',
+      userId: req.userContext!.contactId,
+      details: {
+        batchId,
+        userCount: data.length,
+        userIds,
+      },
+      ipAddress: req.ip,
+      userAgent: req.get('User-Agent'),
+    });
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    return res.send(csv);
+  } catch (error) {
+    if (error instanceof BulkUserOperationError) {
+      return res.status(400).json({ error: error.message, code: error.code });
+    }
+    console.error('[Users] Error exporting users:', error);
+    return res.status(500).json({ error: 'Failed to export users', code: 'INTERNAL_ERROR' });
   }
 });
 

@@ -62,6 +62,7 @@ const SYSTEM_EVENTS = [
  * - startDate: filter from date (ISO string)
  * - endDate: filter to date (ISO string)
  * - ipAddress: filter by IP address
+ * - batchId: filter by bulk operation batch ID
  * - search: search in details JSON
  */
 router.get(
@@ -101,6 +102,18 @@ router.get(
 
       if (req.query.ipAddress) {
         where.ipAddress = req.query.ipAddress as string;
+      }
+
+      if (req.query.batchId) {
+        where.AND = [
+          ...(where.AND ?? []),
+          {
+            details: {
+              path: ['batchId'],
+              equals: req.query.batchId as string,
+            },
+          },
+        ];
       }
 
       // Date range filtering
@@ -214,6 +227,18 @@ router.get(
 
       if (req.query.ipAddress) {
         where.ipAddress = req.query.ipAddress as string;
+      }
+
+      if (req.query.batchId) {
+        where.AND = [
+          ...(where.AND ?? []),
+          {
+            details: {
+              path: ['batchId'],
+              equals: req.query.batchId as string,
+            },
+          },
+        ];
       }
 
       if (req.query.startDate || req.query.endDate) {

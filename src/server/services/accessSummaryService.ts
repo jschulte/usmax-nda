@@ -288,6 +288,106 @@ export async function exportAllUsersAccess(): Promise<AccessExportRow[]> {
 }
 
 /**
+ * Export selected users' access for bulk operations
+ */
+export async function exportUsersAccess(userIds: string[]): Promise<AccessExportRow[]> {
+  if (userIds.length === 0) {
+    return [];
+  }
+
+  const users = await prisma.contact.findMany({
+    where: { id: { in: userIds } },
+    include: {
+      contactRoles: {
+        include: {
+          role: {
+            select: { name: true },
+          },
+        },
+      },
+      agencyGroupGrants: {
+        include: {
+          agencyGroup: {
+            select: {
+              name: true,
+              subagencies: { select: { id: true, name: true } },
+            },
+          },
+          grantedByUser: {
+            select: { firstName: true, lastName: true, email: true },
+          },
+        },
+      },
+      subagencyGrants: {
+        include: {
+          subagency: {
+            select: {
+              id: true,
+              name: true,
+              agencyGroup: { select: { id: true, name: true } },
+            },
+          },
+          grantedByUser: {
+            select: { firstName: true, lastName: true, email: true },
+          },
+        },
+      },
+    },
+    orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+  });
+
+  return users.map((user) => {
+    const userName = [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email;
+    const roles = user.contactRoles.map((cr) => cr.role.name).join(', ');
+    const agencyGroups = user.agencyGroupGrants.map((g) => g.agencyGroup.name).join(', ');
+
+    const directSubagencyIds = new Set(user.subagencyGrants.map((g) => g.subagency.id));
+    const inheritedSubagencies = user.agencyGroupGrants.flatMap((g) =>
+      g.agencyGroup.subagencies.map((sub) => ({
+        id: sub.id,
+        name: sub.name,
+        groupName: g.agencyGroup.name,
+      }))
+    );
+
+    const subagencies = [
+      ...user.subagencyGrants.map((g) => `${g.subagency.name} (direct)`),
+      ...inheritedSubagencies
+        .filter((sub) => !directSubagencyIds.has(sub.id))
+        .map((sub) => `${sub.name} (via ${sub.groupName})`),
+    ].join(', ');
+
+    const formatGrantor = (grantor: { firstName: string | null; lastName: string | null; email: string | null } | null) => {
+      if (!grantor) return 'Unknown';
+      const name = [grantor.firstName, grantor.lastName].filter(Boolean).join(' ');
+      return name || grantor.email || 'Unknown';
+    };
+
+    const formatDate = (value: Date) => value.toISOString().split('T')[0];
+
+    const grantedBy = [
+      ...user.agencyGroupGrants.map((g) => `${g.agencyGroup.name}: ${formatGrantor(g.grantedByUser)}`),
+      ...user.subagencyGrants.map((g) => `${g.subagency.name}: ${formatGrantor(g.grantedByUser)}`),
+    ].join('; ');
+
+    const grantedAt = [
+      ...user.agencyGroupGrants.map((g) => `${g.agencyGroup.name}: ${formatDate(g.grantedAt)}`),
+      ...user.subagencyGrants.map((g) => `${g.subagency.name}: ${formatDate(g.grantedAt)}`),
+    ].join('; ');
+
+    return {
+      userName,
+      email: user.email,
+      roles: roles || 'None',
+      agencyGroups: agencyGroups || 'None',
+      subagencies: subagencies || 'None',
+      grantedBy: grantedBy || 'None',
+      grantedAt: grantedAt || 'None',
+    };
+  });
+}
+
+/**
  * Convert export data to CSV string
  */
 export function convertToCSV(data: AccessExportRow[]): string {

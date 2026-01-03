@@ -51,6 +51,41 @@ export interface UserSearchResult {
   roles: string[];
 }
 
+export interface BulkRoleAssignResult {
+  batchId: string;
+  assignedCount: number;
+  skippedCount: number;
+  results: Array<{
+    userId: string;
+    status: 'assigned' | 'skipped' | 'error';
+    reason?: string;
+  }>;
+}
+
+export interface BulkAccessGrantResult {
+  batchId: string;
+  grantedCount: number;
+  skippedCount: number;
+  results: Array<{
+    userId: string;
+    granted: number;
+    skipped: number;
+    errors: string[];
+  }>;
+}
+
+export interface BulkDeactivateResult {
+  batchId: string;
+  deactivatedCount: number;
+  skippedCount: number;
+  skippedSelf: boolean;
+  results: Array<{
+    userId: string;
+    status: 'deactivated' | 'skipped' | 'error';
+    reason?: string;
+  }>;
+}
+
 export interface CreateUserData {
   firstName: string;
   lastName: string;
@@ -186,6 +221,57 @@ export async function reactivateUser(id: string): Promise<void> {
  */
 export async function getUserAccessSummary(id: string): Promise<UserAccessSummary> {
   return get<UserAccessSummary>(`/api/users/${id}/access-summary`);
+}
+
+/**
+ * Bulk assign a role to users
+ */
+export async function bulkAssignRole(
+  userIds: string[],
+  roleId: string
+): Promise<BulkRoleAssignResult> {
+  return post<BulkRoleAssignResult>('/api/users/bulk/assign-role', { userIds, roleId });
+}
+
+/**
+ * Bulk grant agency group or subagency access
+ */
+export async function bulkGrantAccess(
+  userIds: string[],
+  payload: { agencyGroupId?: string; subagencyIds?: string[] }
+): Promise<BulkAccessGrantResult> {
+  return post<BulkAccessGrantResult>('/api/users/bulk/grant-access', {
+    userIds,
+    ...payload,
+  });
+}
+
+/**
+ * Bulk deactivate users
+ */
+export async function bulkDeactivateUsers(userIds: string[]): Promise<BulkDeactivateResult> {
+  return post<BulkDeactivateResult>('/api/users/bulk/deactivate', { userIds });
+}
+
+/**
+ * Bulk export selected users to CSV
+ */
+export async function bulkExportUsers(userIds: string[]): Promise<Blob> {
+  const response = await fetch(
+    `${import.meta.env.VITE_API_URL || ''}/api/users/bulk/export`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ userIds }),
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error('Failed to export users');
+  }
+
+  return response.blob();
 }
 
 /**

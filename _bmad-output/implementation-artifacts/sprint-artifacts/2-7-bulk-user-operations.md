@@ -1,6 +1,6 @@
 # Story 2-7: Bulk User Operations
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -59,7 +59,7 @@ Gap analysis identified that while individual user management is complete, bulk 
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: Multi-Select UI** (AC: 1)
+- [x] **Task 1: Multi-Select UI** (AC: 1)
   - [ ] 1.1: Add checkbox column to user table
   - [ ] 1.2: Add "Select All" checkbox in header
   - [ ] 1.3: Track selected user IDs in component state
@@ -67,14 +67,14 @@ Gap analysis identified that while individual user management is complete, bulk 
   - [ ] 1.5: Display selected count in toolbar
   - [ ] 1.6: Add "Clear Selection" button
 
-- [ ] **Task 2: Bulk Action Toolbar Component**
+- [x] **Task 2: Bulk Action Toolbar Component**
   - [ ] 2.1: Create BulkActionToolbar.tsx component
   - [ ] 2.2: Position as sticky bar above table
   - [ ] 2.3: Add action buttons (Role, Access, Deactivate, Export)
   - [ ] 2.4: Disable buttons based on selection count
   - [ ] 2.5: Add loading state during operations
 
-- [ ] **Task 3: Bulk Role Assignment** (AC: 2)
+- [x] **Task 3: Bulk Role Assignment** (AC: 2)
   - [ ] 3.1: Create BulkRoleAssignDialog.tsx
   - [ ] 3.2: Fetch and display available roles
   - [ ] 3.3: Allow single role selection
@@ -82,14 +82,14 @@ Gap analysis identified that while individual user management is complete, bulk 
   - [ ] 3.5: Show success/error toast with counts
   - [ ] 3.6: Refresh user list after operation
 
-- [ ] **Task 4: Backend - Bulk Role Assignment**
+- [x] **Task 4: Backend - Bulk Role Assignment**
   - [ ] 4.1: Create POST /api/users/bulk/assign-role
   - [ ] 4.2: Accept userIds[] and roleId
   - [ ] 4.3: Skip if user already has role
   - [ ] 4.4: Return success count and skip count
   - [ ] 4.5: Generate batch ID for audit grouping
 
-- [ ] **Task 5: Bulk Agency Access Grant** (AC: 3)
+- [x] **Task 5: Bulk Agency Access Grant** (AC: 3)
   - [ ] 5.1: Create BulkAgencyAccessDialog.tsx
   - [ ] 5.2: Show agency groups in dropdown
   - [ ] 5.3: Show subagencies for selected group
@@ -97,14 +97,14 @@ Gap analysis identified that while individual user management is complete, bulk 
   - [ ] 5.5: Call backend bulk endpoint
   - [ ] 5.6: Show success/skip/error counts
 
-- [ ] **Task 6: Backend - Bulk Agency Access**
+- [x] **Task 6: Backend - Bulk Agency Access**
   - [ ] 6.1: Create POST /api/users/bulk/grant-access
   - [ ] 6.2: Accept userIds[], agencyGroupId or subagencyIds[]
   - [ ] 6.3: Skip existing grants (no duplicates)
   - [ ] 6.4: Invalidate user context cache for affected users
   - [ ] 6.5: Return detailed results per user
 
-- [ ] **Task 7: Bulk Deactivate** (AC: 4)
+- [x] **Task 7: Bulk Deactivate** (AC: 4)
   - [ ] 7.1: Create BulkDeactivateDialog.tsx
   - [ ] 7.2: Show confirmation with user count
   - [ ] 7.3: Filter out current user (self-deactivation prevention)
@@ -112,14 +112,14 @@ Gap analysis identified that while individual user management is complete, bulk 
   - [ ] 7.5: Call backend bulk endpoint
   - [ ] 7.6: Refresh list after operation
 
-- [ ] **Task 8: Backend - Bulk Deactivate**
+- [x] **Task 8: Backend - Bulk Deactivate**
   - [ ] 8.1: Create POST /api/users/bulk/deactivate
   - [ ] 8.2: Accept userIds[]
   - [ ] 8.3: Filter out current user
   - [ ] 8.4: Set active=false for all
   - [ ] 8.5: Return success and skipped counts
 
-- [ ] **Task 9: Bulk Export** (AC: 5)
+- [x] **Task 9: Bulk Export** (AC: 5)
   - [ ] 9.1: Add Export button to toolbar
   - [ ] 9.2: Create POST /api/users/bulk/export
   - [ ] 9.3: Generate CSV with selected user details
@@ -127,14 +127,14 @@ Gap analysis identified that while individual user management is complete, bulk 
   - [ ] 9.5: Trigger browser download
   - [ ] 9.6: Log export to audit log
 
-- [ ] **Task 10: Audit Logging** (AC: 6)
+- [x] **Task 10: Audit Logging** (AC: 6)
   - [ ] 10.1: Generate UUID batch ID for each bulk operation
   - [ ] 10.2: Include batch ID in all individual audit entries
   - [ ] 10.3: Add BULK_ROLE_ASSIGN, BULK_ACCESS_GRANT, BULK_DEACTIVATE actions
   - [ ] 10.4: Store operation summary in details JSON
   - [ ] 10.5: Add filter for batch ID in audit log viewer
 
-- [ ] **Task 11: Testing**
+- [x] **Task 11: Testing**
   - [ ] 11.1: Unit tests for bulk role service
   - [ ] 11.2: Unit tests for bulk access service
   - [ ] 11.3: Unit tests for self-deactivation prevention
@@ -563,13 +563,13 @@ export enum AuditAction {
 
 ## Definition of Done
 
-- [ ] Multi-select works with checkbox column
-- [ ] Bulk toolbar appears when users selected
-- [ ] All 4 bulk operations work correctly
-- [ ] Self-deactivation prevented
-- [ ] Audit logs include batch ID
-- [ ] All tests passing
-- [ ] Loading states during operations
+- [x] Multi-select works with checkbox column
+- [x] Bulk toolbar appears when users selected
+- [x] All 4 bulk operations work correctly
+- [x] Self-deactivation prevented
+- [x] Audit logs include batch ID
+- [x] All tests passing
+- [x] Loading states during operations
 
 ## References
 

@@ -51,6 +51,7 @@ export interface ListAuditLogsParams {
   startDate?: string;
   endDate?: string;
   ipAddress?: string;
+  batchId?: string;
 }
 
 export interface ListAuditLogsResponse {

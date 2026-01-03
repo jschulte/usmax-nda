@@ -43,10 +43,13 @@ import {
 import { Badge } from '../../ui/badge';
 import { Label } from '../../ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../ui/tabs';
+import { Checkbox } from '../../ui/checkbox';
 import * as userService from '../../../client/services/userService';
 import * as adminService from '../../../client/services/adminService';
 import * as agencyService from '../../../client/services/agencyService';
 import { ApiError } from '../../../client/services/api';
+import { useAuth } from '../../../client/hooks/useAuth';
+import { BulkActionToolbar } from './BulkActionToolbar';
 
 // Using backend types
 type User = userService.User & {
@@ -59,6 +62,7 @@ type AgencyGroup = agencyService.AgencyGroup;
 
 export function UserManagement() {
   const navigate = useNavigate();
+  const { user: authUser } = useAuth();
   const [activeTab, setActiveTab] = useState('users');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
@@ -82,6 +86,20 @@ export function UserManagement() {
     total: 0,
     totalPages: 0
   });
+
+  // Bulk selection + actions
+  const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(new Set());
+  const [showBulkRoleDialog, setShowBulkRoleDialog] = useState(false);
+  const [showBulkAccessDialog, setShowBulkAccessDialog] = useState(false);
+  const [showBulkDeactivateDialog, setShowBulkDeactivateDialog] = useState(false);
+  const [bulkRoleId, setBulkRoleId] = useState('');
+  const [bulkAccessMode, setBulkAccessMode] = useState<'group' | 'subagency'>('group');
+  const [bulkAccessGroupId, setBulkAccessGroupId] = useState('');
+  const [bulkAccessSubagencyIds, setBulkAccessSubagencyIds] = useState<Set<string>>(new Set());
+  const [bulkSubagencies, setBulkSubagencies] = useState<agencyService.Subagency[]>([]);
+  const [bulkSubagencyLoading, setBulkSubagencyLoading] = useState(false);
+  const [bulkActionLoading, setBulkActionLoading] = useState(false);
+  const [bulkExporting, setBulkExporting] = useState(false);
 
   // Loading and error states
   const [loading, setLoading] = useState(true);
@@ -156,6 +174,67 @@ export function UserManagement() {
     };
   }, [searchQuery, filterStatus]);
 
+  const selectedCount = selectedUserIds.size;
+  const isAllSelected = users.length > 0 && users.every((user) => selectedUserIds.has(user.id));
+  const isSomeSelected = users.some((user) => selectedUserIds.has(user.id));
+  const selectionIncludesSelf = authUser?.id ? selectedUserIds.has(authUser.id) : false;
+
+  const toggleUserSelection = (userId: string) => {
+    setSelectedUserIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(userId)) {
+        next.delete(userId);
+      } else {
+        next.add(userId);
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectAllVisible = (checked: boolean | 'indeterminate') => {
+    setSelectedUserIds((prev) => {
+      const next = new Set(prev);
+      if (checked) {
+        users.forEach((user) => next.add(user.id));
+      } else {
+        users.forEach((user) => next.delete(user.id));
+      }
+      return next;
+    });
+  };
+
+  const clearSelection = () => {
+    setSelectedUserIds(new Set());
+  };
+
+  useEffect(() => {
+    if (bulkAccessMode !== 'subagency' || !bulkAccessGroupId) {
+      setBulkSubagencies([]);
+      setBulkAccessSubagencyIds(new Set());
+      return;
+    }
+
+    let isActive = true;
+    setBulkSubagencyLoading(true);
+    agencyService
+      .listSubagencies(bulkAccessGroupId)
+      .then((response) => {
+        if (!isActive) return;
+        setBulkSubagencies(response.subagencies);
+      })
+      .catch(() => {
+        if (!isActive) return;
+        setBulkSubagencies([]);
+      })
+      .finally(() => {
+        if (isActive) setBulkSubagencyLoading(false);
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [bulkAccessMode, bulkAccessGroupId]);
+
   const formatDisplayName = (user: {
     firstName?: string | null;
     lastName?: string | null;
@@ -171,6 +250,109 @@ export function UserManagement() {
       month: 'short',
       day: 'numeric',
     });
+  };
+
+  const handleBulkAssignRole = async () => {
+    if (!bulkRoleId) {
+      toast.error('Select a role to assign');
+      return;
+    }
+
+    setBulkActionLoading(true);
+    try {
+      const result = await userService.bulkAssignRole(Array.from(selectedUserIds), bulkRoleId);
+      toast.success(`Role assigned to ${result.assignedCount} user${result.assignedCount !== 1 ? 's' : ''}`, {
+        description: result.skippedCount ? `${result.skippedCount} skipped` : undefined,
+      });
+      setShowBulkRoleDialog(false);
+      setBulkRoleId('');
+      clearSelection();
+      await loadUsers();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to assign role';
+      toast.error('Bulk role assignment failed', { description: message });
+    } finally {
+      setBulkActionLoading(false);
+    }
+  };
+
+  const handleBulkGrantAccess = async () => {
+    if (!bulkAccessGroupId) {
+      toast.error('Select an agency group');
+      return;
+    }
+
+    if (bulkAccessMode === 'subagency' && bulkAccessSubagencyIds.size === 0) {
+      toast.error('Select at least one subagency');
+      return;
+    }
+
+    setBulkActionLoading(true);
+    try {
+      const payload =
+        bulkAccessMode === 'group'
+          ? { agencyGroupId: bulkAccessGroupId }
+          : { subagencyIds: Array.from(bulkAccessSubagencyIds) };
+
+      const result = await userService.bulkGrantAccess(Array.from(selectedUserIds), payload);
+      toast.success(`Access granted for ${result.grantedCount} assignment${result.grantedCount !== 1 ? 's' : ''}`, {
+        description: result.skippedCount ? `${result.skippedCount} skipped` : undefined,
+      });
+      setShowBulkAccessDialog(false);
+      setBulkAccessGroupId('');
+      setBulkAccessSubagencyIds(new Set());
+      setBulkAccessMode('group');
+      clearSelection();
+      await loadUsers();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to grant access';
+      toast.error('Bulk access grant failed', { description: message });
+    } finally {
+      setBulkActionLoading(false);
+    }
+  };
+
+  const handleBulkDeactivate = async () => {
+    setBulkActionLoading(true);
+    try {
+      const result = await userService.bulkDeactivateUsers(Array.from(selectedUserIds));
+      const baseMessage = `Deactivated ${result.deactivatedCount} user${result.deactivatedCount !== 1 ? 's' : ''}`;
+      const description = result.skippedSelf
+        ? 'Your account was excluded from deactivation.'
+        : result.skippedCount
+          ? `${result.skippedCount} skipped`
+          : undefined;
+      toast.success(baseMessage, { description });
+      setShowBulkDeactivateDialog(false);
+      clearSelection();
+      await loadUsers();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to deactivate users';
+      toast.error('Bulk deactivate failed', { description: message });
+    } finally {
+      setBulkActionLoading(false);
+    }
+  };
+
+  const handleBulkExport = async () => {
+    setBulkExporting(true);
+    try {
+      const blob = await userService.bulkExportUsers(Array.from(selectedUserIds));
+      const url = window.URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `selected-users-access-${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success('Exported selected users');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to export users';
+      toast.error('Bulk export failed', { description: message });
+    } finally {
+      setBulkExporting(false);
+    }
   };
 
   const handleNavigateToGroup = (groupId: string) => {
@@ -448,8 +630,6 @@ export function UserManagement() {
 
   const handleAssignRole = async (userId: string, roleId: string) => {
     try {
-      // Story 9.5: Add logging to help diagnose role assignment issues
-      console.log('[UserManagement] Assigning role:', { userId, roleId });
       await adminService.assignRole(userId, roleId);
       toast.success('Role assigned successfully');
       if (viewingAccessUser?.id === userId) {
@@ -457,8 +637,7 @@ export function UserManagement() {
       }
       loadUsers(); // Refresh the list
     } catch (err) {
-      // Story 9.5: Better error handling and logging
-      console.error('[UserManagement] Role assignment failed:', err);
+      // Story 9.5: Better error handling
       const errorMessage = err instanceof ApiError ? err.message : 'Failed to assign role';
       const errorCode = err instanceof ApiError ? err.code : 'UNKNOWN';
       toast.error('Error assigning role', {
@@ -592,6 +771,17 @@ export function UserManagement() {
               </Button>
             </div>
 
+            <BulkActionToolbar
+              selectedCount={selectedCount}
+              isLoading={bulkActionLoading}
+              isExporting={bulkExporting}
+              onAssignRole={() => setShowBulkRoleDialog(true)}
+              onGrantAccess={() => setShowBulkAccessDialog(true)}
+              onDeactivate={() => setShowBulkDeactivateDialog(true)}
+              onExport={handleBulkExport}
+              onClearSelection={clearSelection}
+            />
+
             {/* Loading State */}
             {loading && (
               <div className="flex items-center justify-center py-12">
@@ -606,6 +796,13 @@ export function UserManagement() {
                   <table className="w-full">
                     <thead>
                       <tr className="border-b border-[var(--color-border)]">
+                        <th className="py-3 px-4 text-sm">
+                          <Checkbox
+                            checked={isAllSelected ? true : isSomeSelected ? 'indeterminate' : false}
+                            onCheckedChange={toggleSelectAllVisible}
+                            aria-label="Select all users on page"
+                          />
+                        </th>
                         <th className="text-left py-3 px-4 text-sm">Name</th>
                         <th className="text-left py-3 px-4 text-sm">Email</th>
                         <th className="text-left py-3 px-4 text-sm">Work Phone</th>
@@ -620,6 +817,13 @@ export function UserManagement() {
                     <tbody>
                       {users.map(user => (
                         <tr key={user.id} className="border-b border-[var(--color-border)] hover:bg-gray-50">
+                          <td className="py-4 px-4">
+                            <Checkbox
+                              checked={selectedUserIds.has(user.id)}
+                              onCheckedChange={() => toggleUserSelection(user.id)}
+                              aria-label={`Select ${user.fullName || user.email}`}
+                            />
+                          </td>
                           <td className="py-4 px-4">
                             <div>
                               <p className="font-medium">{user.fullName}</p>
@@ -722,12 +926,19 @@ export function UserManagement() {
                       className="p-4 border border-[var(--color-border)] rounded-lg"
                     >
                       <div className="flex items-start justify-between mb-3">
-                        <div className="flex-1">
+                        <div className="flex items-start gap-3 flex-1">
+                          <Checkbox
+                            checked={selectedUserIds.has(user.id)}
+                            onCheckedChange={() => toggleUserSelection(user.id)}
+                            aria-label={`Select ${user.fullName || user.email}`}
+                          />
+                          <div className="flex-1">
                           <p className="font-medium mb-1">{user.fullName}</p>
                           <p className="text-sm text-[var(--color-text-secondary)] mb-0.5">{user.email}</p>
                           {user.jobTitle && (
                             <p className="text-xs text-[var(--color-text-muted)]">{user.jobTitle}</p>
                           )}
+                          </div>
                         </div>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -1255,6 +1466,177 @@ export function UserManagement() {
             </Button>
             <Button variant="primary" onClick={confirmDeleteUser}>
               Deactivate User
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Role Assignment Dialog */}
+      <Dialog open={showBulkRoleDialog} onOpenChange={setShowBulkRoleDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Assign Role to Selected Users</DialogTitle>
+            <DialogDescription>
+              Assign a role to {selectedCount} selected user{selectedCount !== 1 ? 's' : ''}.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-4">
+            <Label>Role</Label>
+            <Select value={bulkRoleId} onValueChange={setBulkRoleId}>
+              <SelectTrigger className="mt-2">
+                <SelectValue placeholder="Select role" />
+              </SelectTrigger>
+              <SelectContent>
+                {roles.map((role) => (
+                  <SelectItem key={role.id} value={role.id}>
+                    {role.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <DialogFooter>
+            <Button variant="secondary" onClick={() => setShowBulkRoleDialog(false)} disabled={bulkActionLoading}>
+              Cancel
+            </Button>
+            <Button variant="primary" onClick={handleBulkAssignRole} disabled={bulkActionLoading || !bulkRoleId}>
+              {bulkActionLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Assigning...
+                </>
+              ) : (
+                'Assign Role'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Access Grant Dialog */}
+      <Dialog open={showBulkAccessDialog} onOpenChange={setShowBulkAccessDialog}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Grant Access to Selected Users</DialogTitle>
+            <DialogDescription>
+              Grant agency access to {selectedCount} selected user{selectedCount !== 1 ? 's' : ''}.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div>
+              <Label>Access Type</Label>
+              <Select value={bulkAccessMode} onValueChange={(value) => setBulkAccessMode(value as 'group' | 'subagency')}>
+                <SelectTrigger className="mt-2">
+                  <SelectValue placeholder="Select access type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="group">Agency Group (all subagencies)</SelectItem>
+                  <SelectItem value="subagency">Specific Subagencies</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>Agency Group</Label>
+              <Select value={bulkAccessGroupId} onValueChange={setBulkAccessGroupId}>
+                <SelectTrigger className="mt-2">
+                  <SelectValue placeholder="Select agency group" />
+                </SelectTrigger>
+                <SelectContent>
+                  {agencyGroups.map((group) => (
+                    <SelectItem key={group.id} value={group.id}>
+                      {group.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {bulkAccessMode === 'subagency' && (
+              <div>
+                <Label>Subagencies</Label>
+                <div className="mt-2 max-h-56 overflow-y-auto rounded-lg border border-[var(--color-border)] p-3 space-y-2">
+                  {bulkSubagencyLoading ? (
+                    <div className="flex items-center justify-center py-6">
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    </div>
+                  ) : bulkSubagencies.length === 0 ? (
+                    <p className="text-sm text-[var(--color-text-secondary)]">Select a group to load subagencies.</p>
+                  ) : (
+                    bulkSubagencies.map((sub) => (
+                      <label key={sub.id} className="flex items-center gap-2 text-sm">
+                        <Checkbox
+                          checked={bulkAccessSubagencyIds.has(sub.id)}
+                          onCheckedChange={() => {
+                            setBulkAccessSubagencyIds((prev) => {
+                              const next = new Set(prev);
+                              if (next.has(sub.id)) {
+                                next.delete(sub.id);
+                              } else {
+                                next.add(sub.id);
+                              }
+                              return next;
+                            });
+                          }}
+                        />
+                        <span>{sub.name}</span>
+                      </label>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="secondary" onClick={() => setShowBulkAccessDialog(false)} disabled={bulkActionLoading}>
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              onClick={handleBulkGrantAccess}
+              disabled={bulkActionLoading || !bulkAccessGroupId || (bulkAccessMode === 'subagency' && bulkAccessSubagencyIds.size === 0)}
+            >
+              {bulkActionLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Granting...
+                </>
+              ) : (
+                'Grant Access'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Deactivate Confirmation */}
+      <Dialog open={showBulkDeactivateDialog} onOpenChange={setShowBulkDeactivateDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Deactivate Selected Users</DialogTitle>
+            <DialogDescription>
+              You are about to deactivate {selectedCount} user{selectedCount !== 1 ? 's' : ''}.
+              {selectionIncludesSelf ? ' Your account will be skipped.' : ''}
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter>
+            <Button variant="secondary" onClick={() => setShowBulkDeactivateDialog(false)} disabled={bulkActionLoading}>
+              Cancel
+            </Button>
+            <Button variant="primary" onClick={handleBulkDeactivate} disabled={bulkActionLoading}>
+              {bulkActionLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Deactivating...
+                </>
+              ) : (
+                'Deactivate Users'
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

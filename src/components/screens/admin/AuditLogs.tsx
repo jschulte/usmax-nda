@@ -110,6 +110,7 @@ export function AuditLogs() {
 
   // Search and filter state
   const [searchQuery, setSearchQuery] = useState('');
+  const [batchIdFilter, setBatchIdFilter] = useState('');
   const [filterEventType, setFilterEventType] = useState('all');
   const [filterEntityType, setFilterEntityType] = useState('all');
   const [dateRange, setDateRange] = useState('week');
@@ -182,7 +183,8 @@ export function AuditLogs() {
         action: filterEventType !== 'all' ? filterEventType : undefined,
         entityType: filterEntityType !== 'all' ? filterEntityType : undefined,
         startDate: dateFilter.startDate,
-        endDate: dateFilter.endDate
+        endDate: dateFilter.endDate,
+        batchId: batchIdFilter.trim() || undefined,
       });
 
       const mappedEvents = response.auditLogs.map(mapAuditLogToEvent);
@@ -211,7 +213,7 @@ export function AuditLogs() {
   // Load data on mount and when filters change
   useEffect(() => {
     fetchAuditLogs();
-  }, [currentPage, filterEventType, filterEntityType, dateRange, customStartDate, customEndDate]);
+  }, [currentPage, filterEventType, filterEntityType, dateRange, customStartDate, customEndDate, batchIdFilter]);
 
   // Client-side search filtering (applies to current page results)
   const filteredEvents = auditEvents.filter(event => {
@@ -237,6 +239,7 @@ export function AuditLogs() {
         entityType: filterEntityType !== 'all' ? filterEntityType : undefined,
         startDate: dateFilter.startDate,
         endDate: dateFilter.endDate,
+        batchId: batchIdFilter.trim() || undefined,
         format: 'csv'
       });
 
@@ -425,6 +428,13 @@ export function AuditLogs() {
               />
             </div>
           </div>
+          <Input
+            placeholder="Batch ID"
+            value={batchIdFilter}
+            onChange={(e) => setBatchIdFilter(e.target.value)}
+            className="w-full sm:w-48"
+            disabled={loading}
+          />
           <Select value={dateRange} onValueChange={setDateRange} disabled={loading}>
             <SelectTrigger className="w-full sm:w-40">
               <SelectValue placeholder="Date Range" />
