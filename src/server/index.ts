@@ -35,10 +35,15 @@ import { sendEmail, handlePermanentEmailFailure } from './services/emailService.
 // adminConfig removed - out of scope per PRD
 import { authenticateJWT } from './middleware/authenticateJWT.js';
 import { attachUserContext } from './middleware/attachUserContext.js';
+import { initializeErrorReporting } from './services/errorReportingService.js'; // Story 8.1
+import { errorHandler, notFoundHandler } from './middleware/errorHandler.js'; // Story 8.1
 import type { Express } from 'express';
 
 const app: Express = express();
 const PORT = process.env.PORT || 3001;
+
+// === Initialize Error Reporting (Story 8.1) ===
+initializeErrorReporting();
 
 // === Middleware Setup ===
 
@@ -166,31 +171,14 @@ app.get('/api/me', authenticateJWT, attachUserContext, (req, res) => {
   });
 });
 
-// === Error Handling ===
+// === Error Handling (Story 8.1: Error Monitoring with Sentry) ===
 
-// 404 handler
-app.use((req, res) => {
-  res.status(404).json({
-    error: 'Not found',
-    code: 'NOT_FOUND',
-    path: req.path,
-  });
-});
+// 404 handler - catches all unmatched routes
+app.use(notFoundHandler);
 
-// Global error handler
-app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error('[ERROR]', err);
-
-  // Don't expose internal errors in production
-  const message = process.env.NODE_ENV === 'production'
-    ? 'Internal server error'
-    : err.message;
-
-  res.status(500).json({
-    error: message,
-    code: 'INTERNAL_ERROR',
-  });
-});
+// Global error handler - reports all errors to Sentry with full context
+// MUST be last middleware (after all routes)
+app.use(errorHandler);
 
 // === Server Start ===
 

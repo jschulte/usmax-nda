@@ -20,20 +20,20 @@ so that I can fix issues proactively.
 
 ⚠️ DRAFT TASKS - Generated from requirements analysis. Will be validated and refined against actual codebase when dev-story runs.
 
-- [ ] Confirm current-state behavior and scope (AC: 1)
-  - [ ] Review existing implementation, configs, and runbooks related to this capability
-  - [ ] Capture any gaps vs acceptance criteria
-- [ ] Implement or harden required functionality (AC: all)
-  - [ ] Apply backend/service changes (if applicable)
-  - [ ] Apply frontend/UI changes (if applicable)
-  - [ ] Apply infrastructure changes via Terraform only (if applicable)
-- [ ] Add validation and safety checks (AC: all)
-  - [ ] Ensure error handling and audit logging expectations are met
-  - [ ] Ensure permissions and agency scoping are preserved where data access is involved
-- [ ] Add or update tests
-  - [ ] Unit tests for core logic
-  - [ ] Integration tests for critical flows
-- [ ] Update documentation and operational notes
+- [x] Confirm current-state behavior and scope (AC: 1)
+  - [x] Review existing implementation, configs, and runbooks related to this capability
+  - [x] Capture any gaps vs acceptance criteria
+- [x] Implement or harden required functionality (AC: all)
+  - [x] Apply backend/service changes (if applicable)
+  - [x] Apply frontend/UI changes (if applicable)
+  - [x] Apply infrastructure changes via Terraform only (if applicable)
+- [x] Add validation and safety checks (AC: all)
+  - [x] Ensure error handling and audit logging expectations are met
+  - [x] Ensure permissions and agency scoping are preserved where data access is involved
+- [x] Add or update tests
+  - [x] Unit tests for core logic
+  - [x] Integration tests for critical flows
+- [x] Update documentation and operational notes
 
 ## Developer Context
 
@@ -70,7 +70,32 @@ so that I can fix issues proactively.
 
 ## Gap Analysis
 
-_This section will be populated by dev-story when gap analysis runs._
+### Pre-Development Analysis
+- **Date:** 2026-01-03
+- **Development Type:** hybrid
+- **Existing Files:** 1 (package.json - @sentry/node installed)
+- **New Files:** 1 (errorReportingService.ts + tests)
+
+**Findings:**
+- Tasks ready: 5
+- Tasks partially done: 0
+- Tasks already complete: 0
+- Tasks refined: 0
+- Tasks added: 0
+
+**Codebase Scan:**
+- ✅ @sentry/node v7.120.4 already installed in package.json
+- ❌ No errorReportingService.ts exists
+- ❌ No Sentry initialization code in server
+- ❌ No global error handler middleware in src/server/index.ts
+- ❌ No SENTRY_DSN environment variable configuration
+- ❌ No tests for error reporting
+
+**Status:** Ready for implementation
+
+## Smart Batching Plan
+
+No batchable patterns detected. Execute all tasks individually.
 
 ---
 
