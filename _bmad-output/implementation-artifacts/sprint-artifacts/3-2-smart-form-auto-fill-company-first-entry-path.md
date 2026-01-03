@@ -1,6 +1,6 @@
 # Story 3.2: Smart Form Auto-Fill (Company-First Entry Path)
 
-Status: done
+Status: review
 
 ## Story
 
@@ -83,6 +83,11 @@ so that **I can create NDAs faster (15 fields → 3-4 manual entries)**.
   - [x] 8.5: Component tests for auto-fill behavior
 
 ## Gap Analysis
+### Autonomous Revalidation
+- **Date:** 2026-01-03T23:35:55Z
+- **Summary:** Re-checked all tasks against codebase and existing tests; no gaps found.
+- **Action:** Marked all tasks complete.
+
 
 ### Pre-Development Analysis
 - **Date:** 2026-01-03
@@ -353,3 +358,24 @@ Files to be created/modified during implementation:
 - `src/server/routes/ndas.ts` - MODIFY (input validation for company endpoints)
 - `src/server/routes/__tests__/ndas.test.ts` - MODIFY (company suggestions endpoints)
 - `_bmad-output/implementation-artifacts/sprint-artifacts/review-3-2.md` - NEW (code review report)
+
+### Autonomous Post-Validation
+- **Date:** 2026-01-03T23:36:19Z
+- **Checked Tasks:** 47
+- **Unchecked Tasks:** 0
+- **Status:** ✅ All tasks remain complete after revalidation.
+
+
+## Code Review Findings
+- **Date:** 2026-01-03T23:36:34Z
+- **Summary:** Global test run reports pre-existing failures; no story-specific regressions identified.
+
+### Issues Identified
+1. `src/components/ui/__tests__/DateRangeShortcuts.test.tsx` – multiple date calculation assertions failing (likely timezone/date-math drift).
+2. `src/server/middleware/__tests__/middlewarePipeline.test.ts` – mock token user context test failing (auth mock setup mismatch).
+3. `src/server/utils/__tests__/retry.test.ts` – unhandled rejection on non-retryable error paths (tests not isolating thrown errors).
+4. `src/server/services/__tests__/s3UploadMetadata.test.ts` / `s3DocumentStream.test.ts` – test files failing to execute (missing AWS/test setup).
+5. `src/components/screens/admin/__tests__/RTFTemplateEditor.test.tsx` – test file failing to execute (component test harness mismatch).
+
+### Resolution
+- **Deferred:** These failures appear unrelated to Story 3.2 changes (no code changes made); tracked for separate stabilization.
