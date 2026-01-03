@@ -139,6 +139,13 @@ const documentUploadSingle = (req: Request, res: Response, next: NextFunction) =
       });
     }
 
+    const userContextId = (req as Request & { userContext?: { id?: string } }).userContext?.id;
+    reportError(error, {
+      ndaId: req.params?.id,
+      userId: userContextId,
+      source: 'documentUploadSingle',
+    });
+
     return res.status(500).json({
       error: 'Failed to process upload',
       code: 'INTERNAL_ERROR',
@@ -1360,7 +1367,7 @@ router.get(
  */
 router.post(
   '/:id/documents/upload',
-  requireAnyPermission([PERMISSIONS.NDA_CREATE, PERMISSIONS.NDA_UPDATE]),
+  requirePermission(PERMISSIONS.NDA_UPLOAD_DOCUMENT),
   documentUploadSingle,
   async (req, res) => {
     try {
@@ -1411,30 +1418,6 @@ router.post(
           code: error.code,
         });
 	      }
-
-	      // Handle multer errors
-	      if (error && typeof error === 'object' && (error as any).name === 'MulterError') {
-	        const code = (error as any).code as string | undefined;
-	        if (code === 'LIMIT_FILE_SIZE') {
-	          return res.status(400).json({
-	            error: 'File too large',
-	            code: 'FILE_TOO_LARGE',
-	          });
-	        }
-
-	        return res.status(400).json({
-	          error: 'Invalid upload',
-	          code: code || 'INVALID_UPLOAD',
-	        });
-	      }
-
-	      // Handle multer errors
-	      if (error instanceof Error && error.message.includes('Invalid file')) {
-	        return res.status(400).json({
-	          error: error.message,
-	          code: 'INVALID_FILE_TYPE',
-        });
-      }
 
       console.error('[NDAs] Error uploading document:', error);
       res.status(500).json({
@@ -2075,6 +2058,19 @@ router.post(
         },
       });
 
+      await auditService.log({
+        action: AuditAction.INTERNAL_NOTE_CREATED,
+        entityType: 'internal_note',
+        entityId: note.id,
+        userId: req.userContext!.contactId,
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent'],
+        details: {
+          ndaId: req.params.id,
+          noteId: note.id,
+        },
+      });
+
       res.status(201).json({ note });
     } catch (error) {
       console.error('[NDAs] Error creating internal note:', error);
@@ -2124,10 +2120,26 @@ router.put(
         });
       }
 
+      if (existing.ndaId !== req.params.id) {
+        return res.status(404).json({
+          error: 'Note not found',
+          code: 'NOTE_NOT_FOUND',
+        });
+      }
+
       if (existing.userId !== req.userContext!.contactId) {
         return res.status(403).json({
           error: 'You can only edit your own notes',
           code: 'FORBIDDEN',
+        });
+      }
+
+      // Verify NDA exists and user has access
+      const nda = await getNda(existing.ndaId, req.userContext!);
+      if (!nda) {
+        return res.status(404).json({
+          error: 'NDA not found',
+          code: 'NDA_NOT_FOUND',
         });
       }
 
@@ -2144,6 +2156,19 @@ router.put(
               email: true,
             },
           },
+        },
+      });
+
+      await auditService.log({
+        action: AuditAction.INTERNAL_NOTE_UPDATED,
+        entityType: 'internal_note',
+        entityId: note.id,
+        userId: req.userContext!.contactId,
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent'],
+        details: {
+          ndaId: existing.ndaId,
+          noteId: note.id,
         },
       });
 
@@ -2186,6 +2211,13 @@ router.delete(
         });
       }
 
+      if (existing.ndaId !== req.params.id) {
+        return res.status(404).json({
+          error: 'Note not found',
+          code: 'NOTE_NOT_FOUND',
+        });
+      }
+
       if (existing.userId !== req.userContext!.contactId) {
         return res.status(403).json({
           error: 'You can only delete your own notes',
@@ -2193,9 +2225,31 @@ router.delete(
         });
       }
 
+      // Verify NDA exists and user has access
+      const nda = await getNda(existing.ndaId, req.userContext!);
+      if (!nda) {
+        return res.status(404).json({
+          error: 'NDA not found',
+          code: 'NDA_NOT_FOUND',
+        });
+      }
+
       // Delete note
       await prisma.internalNote.delete({
         where: { id: req.params.noteId },
+      });
+
+      await auditService.log({
+        action: AuditAction.INTERNAL_NOTE_DELETED,
+        entityType: 'internal_note',
+        entityId: existing.id,
+        userId: req.userContext!.contactId,
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent'],
+        details: {
+          ndaId: existing.ndaId,
+          noteId: existing.id,
+        },
       });
 
       res.json({ message: 'Note deleted successfully' });
