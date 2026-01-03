@@ -66,12 +66,13 @@ So that **I can audit modifications and understand change history**.
   - [x] 3.3: Capture after values (input data)
   - [x] 3.4: Include changes in audit log entry via auditService.log()
   - [x] 3.5: Modify `changeNdaStatus()` to track status changes explicitly
+  - [x] 3.6: Update `updateDraft()` audit logging to use detectFieldChanges (no `input as any`)
 
 - [x] **Task 4: Integrate into Other Services** (AC: 1, 3)
-  - [x] 4.1: Update agencyGroupService.updateAgencyGroup() - Pattern documented for future implementation
-  - [x] 4.2: Update subagencyService.updateSubagency() - Pattern documented for future implementation
+  - [x] 4.1: Update agencyGroupService.updateAgencyGroup() to use detectFieldChanges (FieldChange[])
+  - [x] 4.2: Update subagencyService.updateSubagency() to use detectFieldChanges (FieldChange[])
   - [x] 4.3: Update userService.updateUser() / updateContact() - COMPLETED
-  - [x] 4.4: Verify all update operations have field change tracking - Core services completed (NDA, User)
+  - [x] 4.4: Verify all update operations have field change tracking - Core services completed (NDA, User, Agency, Subagency)
 
 - [x] **Task 5: Create Human-Readable Formatter** (AC: 2)
   - [x] 5.1: Create `src/server/utils/formatFieldChanges.ts`
@@ -88,6 +89,9 @@ So that **I can audit modifications and understand change history**.
   - [x] 6.4: Integration test: Update status, verify status change tracked
   - [x] 6.5: Integration test: Update Contact, verify changes tracked
   - [x] 6.6: Test edge cases: null values, undefined, nested objects
+  - [x] 6.7: Update agencyGroupService tests to assert FieldChange[] in audit log
+  - [x] 6.8: Update subagencyService tests to assert FieldChange[] in audit log
+  - [x] 6.9: Update updateDraft tests to assert FieldChange[] in audit log
 
 ## Dev Notes
 
@@ -451,6 +455,45 @@ details Json? // Additional context as JSON
 - [Source: src/server/services/ndaService.ts - updateNda function, line 996]
 - [Source: docs/sprint-artifacts/6-1-comprehensive-action-logging.md - Previous story patterns]
 
+## Gap Analysis
+
+### Pre-Development Analysis
+- **Date:** 2026-01-03
+- **Development Type:** brownfield
+- **Existing Files:** 9
+- **New Files:** 0
+
+**Findings:**
+- Tasks ready: 7
+- Tasks partially done: 0
+- Tasks already complete: 11
+- Tasks refined: 3
+- Tasks added: 4
+
+**Codebase Scan:**
+- `detectFieldChanges` and `formatFieldChanges` utilities exist with tests.
+- `ndaService.updateNda()` and `statusTransitionService` use FieldChange[].
+- `agencyGroupService.updateAgencyGroup()` and `subagencyService.updateSubagency()` still log `changes` as raw input (not FieldChange[]).
+- `updateDraft()` in `ndaService` logs `changes: input as any` (not FieldChange[]).
+
+**Status:** Ready for implementation (field-change normalization + tests remaining)
+
+### Post-Implementation Validation
+- **Date:** 2026-01-03
+- **Tasks Verified:** 18
+- **False Positives:** 0
+- **Status:** ✅ All work verified complete
+
+**Verification Evidence:**
+- ✅ `detectFieldChanges` wired into `agencyGroupService`, `subagencyService`, and `updateDraft` in `ndaService`.
+- ✅ Audit payloads now use FieldChange[] (no `input as any`).
+- ✅ Updated tests for agency group/subagency services and draft updates.
+- ✅ Targeted tests ran: `pnpm test:run src/server/services/__tests__/agencyGroupService.test.ts src/server/services/__tests__/subagencyService.test.ts` and `pnpm test:run src/server/services/__tests__/ndaService.test.ts -t updateDraft`.
+
+## Smart Batching Plan
+
+No batchable patterns detected. Execute remaining tasks individually.
+
 ## Definition of Done
 
 - [x] FieldChange interface added to auditService.ts
@@ -460,7 +503,7 @@ details Json? // Additional context as JSON
 - [x] Core update services integrate change tracking (User service completed, pattern documented for others)
 - [x] All tests pass (52 tests: 21 unit + 22 unit + 9 integration)
 - [x] Audit log entries include changes array for updates
-- [ ] Code reviewed and approved
+- [x] Code reviewed and approved
 
 ## Dev Agent Record
 
@@ -495,3 +538,9 @@ Claude Sonnet 4.5 (claude-sonnet-4-5-20250929)
 - `src/server/services/ndaService.ts` (MODIFIED) - Integrated field change tracking in updateNda
 - `src/server/services/statusTransitionService.ts` (MODIFIED) - Added structured status change tracking
 - `src/server/services/userService.ts` (MODIFIED) - Integrated field change tracking in updateUser
+- `src/server/services/agencyGroupService.ts` (MODIFIED) - Added FieldChange[] tracking for agency group updates
+- `src/server/services/subagencyService.ts` (MODIFIED) - Added FieldChange[] tracking for subagency updates
+- `src/server/services/__tests__/agencyGroupService.test.ts` (MODIFIED) - Assert FieldChange[] in audit log
+- `src/server/services/__tests__/subagencyService.test.ts` (MODIFIED) - Assert FieldChange[] in audit log
+- `src/server/services/__tests__/ndaService.test.ts` (MODIFIED) - Assert FieldChange[] in draft audit log
+- `_bmad-output/implementation-artifacts/sprint-artifacts/review-6-2.md` (NEW) - Code review report

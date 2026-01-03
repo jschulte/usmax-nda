@@ -93,7 +93,7 @@ vi.mock('../systemConfigService.js', () => ({
   },
 }));
 
-vi.mock('../utils/scopedQuery.js', () => ({
+vi.mock('../../utils/scopedQuery.js', () => ({
   findNdaWithScope: vi.fn(),
 }));
 
@@ -111,12 +111,14 @@ import {
   NdaServiceError,
 } from '../ndaService.js';
 import { prisma } from '../../db/index.js';
-import { findNdaWithScope } from '../utils/scopedQuery.js';
+import { auditService } from '../auditService.js';
+import { findNdaWithScope } from '../../utils/scopedQuery.js';
 import { scopeNDAsToUser } from '../agencyScopeService.js';
 import { getConfig } from '../systemConfigService.js';
 import type { UserContext } from '../../types/auth.js';
 
 const mockPrisma = vi.mocked(prisma);
+const mockAuditService = vi.mocked(auditService);
 
 // Helper to create mock user context
 function createMockUserContext(overrides: Partial<UserContext> = {}): UserContext {
@@ -916,8 +918,11 @@ describe('NDA Service', () => {
       createdBy: { id: 'contact-1', firstName: 'User', lastName: 'One', email: 'user@test.com' },
     };
 
-    it('updates draft and returns incomplete fields', async () => {
+    beforeEach(() => {
       vi.mocked(findNdaWithScope).mockResolvedValue(mockDraftNda as any);
+    });
+
+    it('updates draft and returns incomplete fields', async () => {
       mockPrisma.nda.update.mockResolvedValue({
         ...mockDraftNda,
         companyName: 'Updated Company',
@@ -929,6 +934,17 @@ describe('NDA Service', () => {
         createMockUserContext()
       );
 
+      expect(mockAuditService.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'nda_updated',
+          details: expect.objectContaining({
+            isDraftSave: true,
+            changes: expect.arrayContaining([
+              { field: 'companyName', before: 'Test Co', after: 'Updated Company' },
+            ]),
+          }),
+        })
+      );
       expect(result.savedAt).toBeInstanceOf(Date);
       expect(result.incompleteFields).toBeDefined();
       expect(Array.isArray(result.incompleteFields)).toBe(true);
@@ -946,15 +962,12 @@ describe('NDA Service', () => {
     });
 
     it('validates authorizedPurpose length', async () => {
-      vi.mocked(findNdaWithScope).mockResolvedValue(mockDraftNda as any);
-
       await expect(
         updateDraft('nda-1', { authorizedPurpose: 'a'.repeat(256) }, createMockUserContext())
       ).rejects.toThrow('Authorized Purpose must not exceed 255 characters');
     });
 
     it('returns correct incomplete fields after partial update', async () => {
-      vi.mocked(findNdaWithScope).mockResolvedValue(mockDraftNda as any);
       mockPrisma.nda.update.mockResolvedValue({
         ...mockDraftNda,
         companyName: 'New Company',

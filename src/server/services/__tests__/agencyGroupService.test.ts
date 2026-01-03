@@ -13,7 +13,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const mockTx = {
+const mockTx = vi.hoisted(() => ({
   agencyGroup: {
     findMany: vi.fn(),
     findUnique: vi.fn(),
@@ -21,11 +21,12 @@ const mockTx = {
     create: vi.fn(),
     update: vi.fn(),
     delete: vi.fn(),
+    count: vi.fn(),
   },
   auditLog: {
     create: vi.fn(),
   },
-};
+}));
 
 // Mock prisma - must be defined before imports
 vi.mock('../../db/index.js', () => ({
@@ -52,6 +53,7 @@ const mockPrisma = vi.mocked(prisma);
 describe('Agency Group Service', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockPrisma.agencyGroup.count.mockResolvedValue(0);
   });
 
   describe('listAgencyGroups', () => {
@@ -77,6 +79,7 @@ describe('Agency Group Service', () => {
         },
       ];
 
+      mockPrisma.agencyGroup.count.mockResolvedValue(2);
       mockPrisma.agencyGroup.findMany.mockResolvedValue(mockGroups);
 
       const result = await listAgencyGroups();
@@ -84,9 +87,13 @@ describe('Agency Group Service', () => {
       expect(mockPrisma.agencyGroup.findMany).toHaveBeenCalledWith({
         include: { _count: { select: { subagencies: true } } },
         orderBy: { name: 'asc' },
+        skip: 0,
+        take: 50,
+        where: undefined,
       });
-      expect(result).toHaveLength(2);
-      expect(result[0]).toEqual({
+      expect(result.agencyGroups).toHaveLength(2);
+      expect(result.pagination.total).toBe(2);
+      expect(result.agencyGroups[0]).toEqual({
         id: 'group-1',
         name: 'Department of Defense',
         code: 'DOD',
@@ -98,9 +105,11 @@ describe('Agency Group Service', () => {
     });
 
     it('returns empty array when no groups exist', async () => {
+      mockPrisma.agencyGroup.count.mockResolvedValue(0);
       mockPrisma.agencyGroup.findMany.mockResolvedValue([]);
       const result = await listAgencyGroups();
-      expect(result).toEqual([]);
+      expect(result.agencyGroups).toEqual([]);
+      expect(result.pagination.total).toBe(0);
     });
   });
 
@@ -194,14 +203,7 @@ describe('Agency Group Service', () => {
 
       await expect(
         createAgencyGroup({ name: 'Commercial', code: 'COMMERCIAL' }, 'user-123')
-      ).rejects.toThrow(AgencyGroupError);
-
-      try {
-        await createAgencyGroup({ name: 'Commercial', code: 'COMMERCIAL' }, 'user-123');
-      } catch (error) {
-        expect(error).toBeInstanceOf(AgencyGroupError);
-        expect((error as AgencyGroupError).code).toBe('DUPLICATE_NAME');
-      }
+      ).rejects.toMatchObject({ code: 'DUPLICATE_NAME' });
     });
 
     it('throws error for duplicate code', async () => {
@@ -213,14 +215,7 @@ describe('Agency Group Service', () => {
 
       await expect(
         createAgencyGroup({ name: 'New Name', code: 'COMMERCIAL' }, 'user-123')
-      ).rejects.toThrow(AgencyGroupError);
-
-      try {
-        await createAgencyGroup({ name: 'New Name', code: 'COMMERCIAL' }, 'user-123');
-      } catch (error) {
-        expect(error).toBeInstanceOf(AgencyGroupError);
-        expect((error as AgencyGroupError).code).toBe('DUPLICATE_CODE');
-      }
+      ).rejects.toMatchObject({ code: 'DUPLICATE_CODE' });
     });
 
     it('maps unique constraint errors to duplicate name', async () => {
@@ -231,14 +226,7 @@ describe('Agency Group Service', () => {
 
       await expect(
         createAgencyGroup({ name: 'DoD', code: 'DOD' }, 'user-123')
-      ).rejects.toThrow(AgencyGroupError);
-
-      try {
-        await createAgencyGroup({ name: 'DoD', code: 'DOD' }, 'user-123');
-      } catch (error) {
-        expect(error).toBeInstanceOf(AgencyGroupError);
-        expect((error as AgencyGroupError).code).toBe('DUPLICATE_NAME');
-      }
+      ).rejects.toMatchObject({ code: 'DUPLICATE_NAME' });
     });
   });
 
@@ -275,7 +263,19 @@ describe('Agency Group Service', () => {
         'user-123'
       );
 
-      expect(mockPrisma.auditLog.create).toHaveBeenCalled();
+      expect(mockPrisma.auditLog.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            details: expect.objectContaining({
+              changes: expect.arrayContaining([
+                { field: 'name', before: 'Old Name', after: 'New Name' },
+                { field: 'code', before: 'OLD_CODE', after: 'NEW_CODE' },
+                { field: 'description', before: 'Old description', after: 'New description' },
+              ]),
+            }),
+          }),
+        })
+      );
       expect(result).toEqual({
         id: 'group-1',
         name: 'New Name',

@@ -39,9 +39,11 @@ import {
   SubagencyError,
 } from '../subagencyService.js';
 import { prisma } from '../../db/index.js';
+import { auditService } from '../auditService.js';
 
 // Get the mocked prisma for assertions
 const mockPrisma = vi.mocked(prisma);
+const mockAuditService = vi.mocked(auditService);
 
 // Mock audit service
 vi.mock('../auditService.js', () => ({
@@ -298,6 +300,17 @@ describe('Subagency Service', () => {
         'user-123'
       );
 
+      expect(mockAuditService.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'subagency_updated',
+          details: expect.objectContaining({
+            changes: expect.arrayContaining([
+              { field: 'name', before: 'Old Name', after: 'New Name' },
+              { field: 'code', before: 'OLD_CODE', after: 'NEW_CODE' },
+            ]),
+          }),
+        })
+      );
       expect(result).toEqual(updatedSubagency);
     });
 

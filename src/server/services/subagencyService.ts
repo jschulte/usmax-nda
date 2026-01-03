@@ -11,6 +11,7 @@
 
 import { prisma } from '../db/index.js';
 import { auditService, AuditAction } from './auditService.js';
+import { detectFieldChanges } from '../utils/detectFieldChanges.js';
 
 export interface CreateSubagencyInput {
   name: string;
@@ -316,6 +317,20 @@ export async function updateSubagency(
       },
     });
 
+    const beforeValues: Record<string, unknown> = {
+      name: existing.name,
+      code: existing.code,
+      description: existing.description,
+    };
+
+    const afterValues: Record<string, unknown> = {
+      name: normalizedName ?? existing.name,
+      code: normalizedCode ?? existing.code,
+      description: input.description ?? existing.description,
+    };
+
+    const fieldChanges = detectFieldChanges(beforeValues, afterValues);
+
     // Audit log
     await auditService.log({
       action: AuditAction.SUBAGENCY_UPDATED,
@@ -323,11 +338,7 @@ export async function updateSubagency(
       entityId: subagency.id,
       userId,
       details: {
-        changes: {
-          ...(normalizedName !== undefined ? { name: normalizedName } : {}),
-          ...(normalizedCode !== undefined ? { code: normalizedCode } : {}),
-          ...(input.description !== undefined ? { description: input.description } : {}),
-        } as any,
+        changes: fieldChanges,
         previousName: existing.name,
         newName: subagency.name,
         agencyGroupName: existing.agencyGroup.name,

@@ -10,6 +10,7 @@
 
 import { prisma } from '../db/index.js';
 import { AuditAction } from './auditService.js';
+import { detectFieldChanges } from '../utils/detectFieldChanges.js';
 import type { UserContext } from '../types/auth.js';
 
 export interface CreateAgencyGroupInput {
@@ -375,6 +376,20 @@ export async function updateAgencyGroup(
         },
       });
 
+      const beforeValues: Record<string, unknown> = {
+        name: existing.name,
+        code: existing.code,
+        description: existing.description,
+      };
+
+      const afterValues: Record<string, unknown> = {
+        name: input.name ?? existing.name,
+        code: input.code ?? existing.code,
+        description: input.description ?? existing.description,
+      };
+
+      const fieldChanges = detectFieldChanges(beforeValues, afterValues);
+
       await tx.auditLog.create({
         data: {
           action: AuditAction.AGENCY_GROUP_UPDATED,
@@ -382,10 +397,10 @@ export async function updateAgencyGroup(
           entityId: group.id,
           userId,
           details: {
-            changes: input as any,
+            changes: fieldChanges,
             previousName: existing.name,
             newName: group.name,
-          } as any,
+          },
           ipAddress: auditContext?.ipAddress ?? null,
           userAgent: auditContext?.userAgent ?? null,
         },

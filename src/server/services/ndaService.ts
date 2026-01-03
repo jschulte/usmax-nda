@@ -1648,6 +1648,71 @@ export async function updateDraft(
     agencyGroupId: nda.agencyGroupId,
   });
 
+  // Story 6.2: Detect field changes for draft auto-save
+  const beforeValues: Record<string, unknown> = {
+    companyName: existing.companyName,
+    companyCity: existing.companyCity,
+    companyState: existing.companyState,
+    stateOfIncorporation: existing.stateOfIncorporation,
+    agencyGroupId: existing.agencyGroupId,
+    subagencyId: existing.subagencyId,
+    agencyOfficeName: existing.agencyOfficeName,
+    ndaType: existing.ndaType,
+    abbreviatedName: existing.abbreviatedName,
+    authorizedPurpose: existing.authorizedPurpose,
+    effectiveDate: existing.effectiveDate,
+    usMaxPosition: existing.usMaxPosition,
+    isNonUsMax: existing.isNonUsMax,
+    contractsPocId: existing.contractsPocId,
+    relationshipPocId: existing.relationshipPocId,
+    contactsPocId: existing.contactsPocId,
+    rtfTemplateId: existing.rtfTemplateId,
+  };
+
+  const afterValues: Record<string, unknown> = {
+    companyName:
+      input.companyName !== undefined ? input.companyName.trim() : existing.companyName,
+    companyCity:
+      input.companyCity !== undefined ? input.companyCity?.trim() || null : existing.companyCity,
+    companyState:
+      input.companyState !== undefined ? input.companyState?.trim() || null : existing.companyState,
+    stateOfIncorporation:
+      input.stateOfIncorporation !== undefined
+        ? input.stateOfIncorporation?.trim() || null
+        : existing.stateOfIncorporation,
+    agencyGroupId:
+      input.agencyGroupId !== undefined ? input.agencyGroupId : existing.agencyGroupId,
+    subagencyId:
+      input.subagencyId !== undefined ? input.subagencyId : existing.subagencyId,
+    agencyOfficeName:
+      input.agencyOfficeName !== undefined
+        ? input.agencyOfficeName?.trim() || null
+        : existing.agencyOfficeName,
+    ndaType: input.ndaType !== undefined ? input.ndaType : existing.ndaType,
+    abbreviatedName:
+      input.abbreviatedName !== undefined
+        ? input.abbreviatedName.trim()
+        : existing.abbreviatedName,
+    authorizedPurpose:
+      input.authorizedPurpose !== undefined
+        ? input.authorizedPurpose.trim()
+        : existing.authorizedPurpose,
+    effectiveDate: effectiveDate !== undefined ? effectiveDate : existing.effectiveDate,
+    usMaxPosition:
+      input.usMaxPosition !== undefined ? input.usMaxPosition : existing.usMaxPosition,
+    isNonUsMax: input.isNonUsMax !== undefined ? input.isNonUsMax : existing.isNonUsMax,
+    contractsPocId:
+      input.contractsPocId !== undefined ? input.contractsPocId : existing.contractsPocId,
+    relationshipPocId:
+      input.relationshipPocId !== undefined ? input.relationshipPocId : existing.relationshipPocId,
+    contactsPocId:
+      input.contactsPocId !== undefined ? input.contactsPocId : existing.contactsPocId,
+    rtfTemplateId:
+      input.rtfTemplateId !== undefined ? input.rtfTemplateId : existing.rtfTemplateId,
+  };
+
+  const fieldChanges = detectFieldChanges(beforeValues, afterValues);
+
   // Audit log (with flag that this is an auto-save)
   await auditService.log({
     action: AuditAction.NDA_UPDATED,
@@ -1659,7 +1724,7 @@ export async function updateDraft(
     details: {
       displayId: nda.displayId,
       isDraftSave: true,
-      changes: input as any,
+      changes: fieldChanges,
     },
   });
 
