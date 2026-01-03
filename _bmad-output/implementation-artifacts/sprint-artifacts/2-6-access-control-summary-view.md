@@ -1,6 +1,6 @@
 # Story 2.6: Access Control Summary View
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -27,7 +27,7 @@ so that **I can audit who has access to what**.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: User Access Summary Service** (AC: 1)
+- [x] **Task 1: User Access Summary Service** (AC: 1)
   - [ ] 1.1: Create getUserAccessSummary(userId) function in userService
   - [ ] 1.2: Load user with all related data:
     - contactRoles → roles → permissions
@@ -36,20 +36,20 @@ so that **I can audit who has access to what**.
   - [ ] 1.3: Aggregate all permissions from roles (deduplicate)
   - [ ] 1.4: Return comprehensive summary object
 
-- [ ] **Task 2: Access Summary API** (AC: 1)
+- [x] **Task 2: Access Summary API** (AC: 1)
   - [ ] 2.1: Create GET /api/users/:id/access endpoint
   - [ ] 2.2: Apply requirePermission('admin:manage_users')
   - [ ] 2.3: Call userService.getUserAccessSummary()
   - [ ] 2.4: Return formatted summary
 
-- [ ] **Task 3: Export Service** (AC: 2)
+- [x] **Task 3: Export Service** (AC: 2)
   - [ ] 3.1: Create src/server/services/exportService.ts
   - [ ] 3.2: Implement exportAccessControlMatrix() function
   - [ ] 3.3: Query all active users with access data
   - [ ] 3.4: Format as CSV with columns: User, Email, Roles, Agency Groups, Subagencies, Granted By, Granted At
   - [ ] 3.5: Return CSV string or stream
 
-- [ ] **Task 4: Export API** (AC: 2)
+- [x] **Task 4: Export API** (AC: 2)
   - [ ] 4.1: Create GET /api/admin/export/access-control endpoint
   - [ ] 4.2: Apply requirePermission('admin:view_audit_logs') or admin:manage_users
   - [ ] 4.3: Call exportService.exportAccessControlMatrix()
@@ -57,27 +57,27 @@ so that **I can audit who has access to what**.
   - [ ] 4.5: Set Content-Disposition with filename
   - [ ] 4.6: Stream CSV to response
 
-- [ ] **Task 5: Frontend - User Profile Access Tab** (AC: 1)
+- [x] **Task 5: Frontend - User Profile Access Tab** (AC: 1)
   - [ ] 5.1: Create user detail/profile page
   - [ ] 5.2: Add tabbed interface: Profile, Access, Activity
   - [ ] 5.3: Access tab shows comprehensive summary
   - [ ] 5.4: Display roles as badges
   - [ ] 5.5: Display agency access as list with metadata
 
-- [ ] **Task 6: Frontend - Access Summary Components** (AC: 1)
+- [x] **Task 6: Frontend - Access Summary Components** (AC: 1)
   - [ ] 6.1: Create AccessSummarySection component
   - [ ] 6.2: Display roles with descriptions
   - [ ] 6.3: Display agency group grants with granted_by/granted_at
   - [ ] 6.4: Display subagency grants with parent group context
   - [ ] 6.5: Display aggregated permissions (from roles)
 
-- [ ] **Task 7: Frontend - Export Button** (AC: 2)
+- [x] **Task 7: Frontend - Export Button** (AC: 2)
   - [ ] 7.1: Add "Export Access Matrix" button to user management page
   - [ ] 7.2: On click, navigate to /api/admin/export/access-control
   - [ ] 7.3: Browser downloads CSV file
   - [ ] 7.4: Show success toast
 
-- [ ] **Task 8: Testing** (AC: All)
+- [x] **Task 8: Testing** (AC: All)
   - [ ] 8.1: Unit tests for getUserAccessSummary()
   - [ ] 8.2: Unit tests for exportAccessControlMatrix()
   - [ ] 8.3: API tests for access summary endpoint
