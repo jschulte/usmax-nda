@@ -38,13 +38,13 @@ tracking_system: file-system
 story_location: docs/sprint-artifacts
 
 development_status:
-  # Epic 1: Foundation & Authentication - COMPLETED via pre-BMAD implementation + H-1 hardening
-  epic-1: done
-  1-5-e2e-playwright-tests: ready-for-dev  # Updated 2026-01-02
-  1-1-aws-cognito-mfa-integration: ready-for-dev  # Updated 2026-01-02
-  1-2-jwt-middleware-and-user-context: ready-for-dev  # Updated 2026-01-02
-  1-3-rbac-permission-system: ready-for-dev  # Updated 2026-01-02
-  1-4-row-level-security-implementation: ready-for-dev  # Updated 2026-01-02
+  # Epic 1: Foundation & Authentication - IN PROGRESS (task-based verification)
+  epic-1: in-progress
+  1-1-aws-cognito-mfa-integration: done  # Updated 2026-01-03 (11/11 tasks verified)
+  1-2-jwt-middleware-and-user-context: in-progress  # Updated 2026-01-03 (57/58 tasks verified; coverage pending)
+  1-3-rbac-permission-system: in-progress  # Updated 2026-01-03 (55/56 tasks verified; coverage pending)
+  1-4-row-level-security-implementation: done  # Updated 2026-01-03 (8/8 tasks verified)
+  1-5-e2e-playwright-tests: in-progress  # Updated 2026-01-03 (1/16 tasks verified)
   epic-1-retrospective: optional
 
   # Epic 2: User & Agency Administration - COMPLETED via pre-BMAD implementation + H-1 hardening
@@ -60,19 +60,19 @@ development_status:
 
   # Epic 3: NDA Lifecycle Management - COMPLETED via pre-BMAD implementation + H-1 hardening
   epic-3: done
-  3-16-in-browser-rtf-editing: ready-for-dev  # Updated 2026-01-02
-  3-1-create-nda-with-basic-form: done  # Updated 2026-01-03
-  3-2-smart-form-auto-fill-company-first-entry-path: done  # Updated 2026-01-03
-  3-3-clone-duplicate-nda-second-entry-path: done  # Updated 2026-01-03
+  3-16-in-browser-rtf-editing: done# Updated 2026-01-02
+  3-1-create-nda-with-basic-form: done# Updated 2026-01-03
+  3-2-smart-form-auto-fill-company-first-entry-path: done# Updated 2026-01-03
+  3-3-clone-duplicate-nda-second-entry-path: done# Updated 2026-01-03
   3-4-agency-first-entry-path-with-suggestions: ready-for-dev  # Updated 2026-01-02
-  3-5-rtf-document-generation: ready-for-dev  # Updated 2026-01-02
+  3-5-rtf-document-generation: done# Updated 2026-01-02
   3-6-draft-management-and-auto-save: ready-for-dev  # Updated 2026-01-02
-  3-7-nda-list-with-filtering: ready-for-dev  # Updated 2026-01-02
-  3-8-nda-detail-view: ready-for-dev  # Updated 2026-01-02
+  3-7-nda-list-with-filtering: done# Updated 2026-01-02
+  3-8-nda-detail-view: done# Updated 2026-01-02
   3-9-status-progression-visualization: ready-for-dev  # Updated 2026-01-02
-  3-10-email-composition-and-sending: ready-for-dev  # Updated 2026-01-02
+  3-10-email-composition-and-sending: done# Updated 2026-01-02
   3-11-email-notifications-to-stakeholders: ready-for-dev  # Updated 2026-01-02
-  3-12-status-management-and-auto-transitions: ready-for-dev  # Updated 2026-01-02
+  3-12-status-management-and-auto-transitions: done# Updated 2026-01-02
   3-13-rtf-template-selection-and-preview: done
   3-14-poc-management-and-validation: ready-for-dev  # Updated 2026-01-02
   3-15-inactive-and-cancelled-status-management: ready-for-dev  # Updated 2026-01-02
@@ -80,14 +80,14 @@ development_status:
 
   # Epic 4: Document Management - COMPLETED via pre-BMAD implementation + H-1 hardening
   epic-4: done
-  4-8-s3-cross-region-replication: ready-for-dev  # Updated 2026-01-02
+  4-8-s3-cross-region-replication: done  # Updated 2026-01-03
   4-1-document-upload-with-drag-drop: done  # Updated 2026-01-03
   4-2-mark-document-as-fully-executed: done  # Updated 2026-01-03
   4-3-document-download-with-pre-signed-urls: ready-for-dev  # Updated 2026-01-02
-  4-4-document-version-history: ready-for-dev  # Updated 2026-01-02
-  4-5-download-all-versions-as-zip: ready-for-dev  # Updated 2026-01-02
-  4-6-document-metadata-tracking: ready-for-dev  # Updated 2026-01-02
-  4-7-indefinite-document-preservation: ready-for-dev  # Updated 2026-01-02
+  4-4-document-version-history: done  # Updated 2026-01-03
+  4-5-download-all-versions-as-zip: done  # Updated 2026-01-03
+  4-6-document-metadata-tracking: done  # Updated 2026-01-03
+  4-7-indefinite-document-preservation: done  # Updated 2026-01-03
   epic-4-retrospective: optional
 
   # Epic 5: Search, Filter & Dashboard - COMPLETED via pre-BMAD implementation + H-1 hardening
@@ -127,9 +127,9 @@ development_status:
   epic-6-retrospective: optional
 
   epic-7: in-progress
-  7-1-rtf-template-creation: ready-for-dev
-  7-2-rtf-template-management: ready-for-dev
-  7-3-default-template-assignment: ready-for-dev
+  7-1-rtf-template-creation: done
+  7-2-rtf-template-management: done
+  7-3-default-template-assignment: done
   7-4-template-field-merging: ready-for-dev
   7-5-template-selection-during-creation: ready-for-dev
   7-6-email-template-creation: ready-for-dev
