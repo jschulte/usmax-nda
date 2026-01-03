@@ -11,6 +11,7 @@
  * Logs to console in development, writes to audit_log table when database is available.
  */
 
+import type { Prisma } from '../../generated/prisma/index.js';
 import prisma from '../db/index.js';
 import { reportError } from './errorReportingService.js';
 
@@ -59,6 +60,11 @@ export enum AuditAction {
   // Access export events (Story 2.6)
   ACCESS_EXPORT = 'access_export',
 
+  // Bulk user operations (Story 2.7)
+  BULK_ROLE_ASSIGN = 'bulk_role_assign',
+  BULK_ACCESS_GRANT = 'bulk_access_grant',
+  BULK_DEACTIVATE = 'bulk_deactivate',
+
   // NDA management events (Story 3.1+)
   NDA_CREATED = 'nda_created',
   NDA_UPDATED = 'nda_updated',
@@ -77,6 +83,11 @@ export enum AuditAction {
   EMAIL_QUEUED = 'email_queued',
   EMAIL_SENT = 'email_sent',
   EMAIL_FAILED = 'email_failed',
+
+  // Internal notes events (Story 9.1)
+  INTERNAL_NOTE_CREATED = 'internal_note_created',
+  INTERNAL_NOTE_UPDATED = 'internal_note_updated',
+  INTERNAL_NOTE_DELETED = 'internal_note_deleted',
 
   // Email template management events (Story 9.16)
   EMAIL_TEMPLATE_CREATED = 'email_template_created',
@@ -202,7 +213,7 @@ class AuditService {
             userId: entry.userId ?? null,
             ipAddress: entry.ipAddress ?? null,
             userAgent: entry.userAgent ?? null,
-            details: (entry.details ?? undefined) as any,
+            details: entry.details ? (entry.details as Prisma.InputJsonValue) : undefined,
           },
         });
         return; // Success - don't store in memory

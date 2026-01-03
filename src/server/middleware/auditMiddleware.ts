@@ -268,6 +268,8 @@ const EXCLUDED_PATHS = [
   '/api/auth/refresh',
   '/api/auth/logout',
   '/api/auth/me',
+  '/assets',
+  '/favicon.ico',
 ];
 
 /**
@@ -342,12 +344,19 @@ export function auditMiddleware(req: Request, res: Response, next: NextFunction)
     }
 
     // Fire-and-forget async logging
+    const forwardedFor = req.headers?.['x-forwarded-for'];
+    const clientIp = Array.isArray(forwardedFor)
+      ? forwardedFor[0]
+      : typeof forwardedFor === 'string'
+        ? forwardedFor.split(',')[0]?.trim()
+        : req.ip;
+
     auditService.log({
       action: actionConfig.action,
       entityType: actionConfig.entityType,
       entityId: entityId ?? null,
       userId: req.userContext?.contactId ?? null,
-      ipAddress: req.ip,
+      ipAddress: clientIp,
       userAgent: req.get('user-agent'),
       details,
     }).catch((err) => {
