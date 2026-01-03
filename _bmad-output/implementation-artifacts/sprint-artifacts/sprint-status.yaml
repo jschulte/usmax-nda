@@ -100,7 +100,7 @@ development_status:
   5-6-pagination-with-configurable-page-size: done  # Updated 2026-01-03
   5-7-recently-used-values-in-dropdowns: done  # Updated 2026-01-03
   5-8-personalized-dashboard: done  # Updated 2026-01-03
-  5-9-at-a-glance-metrics: done  # Updated 2026-01-03
+  5-9-at-a-glance-metrics: ready-for-dev  # Updated 2026-01-02
   5-10-stale-nda-identification: ready-for-dev  # Updated 2026-01-02
   5-11-waiting-on-3rd-party-tracking: ready-for-dev  # Updated 2026-01-02
   5-12-expiration-alerts: ready-for-dev  # Updated 2026-01-02
