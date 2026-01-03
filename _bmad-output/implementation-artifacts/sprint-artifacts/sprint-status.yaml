@@ -49,13 +49,13 @@ development_status:
 
   # Epic 2: User & Agency Administration - COMPLETED via pre-BMAD implementation + H-1 hardening
   epic-2: done
-  2-7-bulk-user-operations: ready-for-dev  # Updated 2026-01-02
-  2-1-agency-groups-crud: ready-for-dev  # Updated 2026-01-02
-  2-2-subagencies-crud: ready-for-dev  # Updated 2026-01-02
-  2-3-grant-agency-group-access-to-users: ready-for-dev  # Updated 2026-01-02
-  2-4-grant-subagency-specific-access: ready-for-dev  # Updated 2026-01-02
-  2-5-user-contact-management: ready-for-dev  # Updated 2026-01-02
-  2-6-access-control-summary-view: done
+    2-7-bulk-user-operations: done # Updated 2026-01-02
+    2-1-agency-groups-crud: done # Updated 2026-01-02
+    2-2-subagencies-crud: done # Updated 2026-01-02
+    2-3-grant-agency-group-access-to-users: done # Updated 2026-01-02
+    2-4-grant-subagency-specific-access: done # Updated 2026-01-02
+    2-5-user-contact-management: done # Updated 2026-01-02
+    2-6-access-control-summary-view: done
   epic-2-retrospective: optional
 
   # Epic 3: NDA Lifecycle Management - COMPLETED via pre-BMAD implementation + H-1 hardening
@@ -96,7 +96,7 @@ development_status:
   5-2-column-sorting-with-persistence: done  # Updated 2026-01-03
   5-3-advanced-filtering-system: done  # Updated 2026-01-03
   5-4-filter-presets: done  # Updated 2026-01-03
-  5-5-date-range-shortcuts: ready-for-dev  # Updated 2026-01-02
+  5-5-date-range-shortcuts: done  # Updated 2026-01-03
   5-6-pagination-with-configurable-page-size: ready-for-dev  # Updated 2026-01-02
   5-7-recently-used-values-in-dropdowns: ready-for-dev  # Updated 2026-01-02
   5-8-personalized-dashboard: ready-for-dev  # Updated 2026-01-02
@@ -165,36 +165,36 @@ development_status:
   7-19-dropdown-field-configuration: backlog
   epic-7-retrospective: optional
 
-  epic-8: done
+  epic-8: in-progress
   # Note: Most Epic 8 stories are infrastructure/AWS configuration done outside codebase
   # Validation and error handling patterns are implemented throughout the application
-  8-1-error-monitoring-with-sentry: backlog# Infrastructure - errorReportingService.ts implements Sentry
-  8-2-system-health-dashboards: backlog# Infrastructure - AWS CloudWatch (operational)
-  8-3-email-retry-logic: backlog# Implemented in emailService (pg-boss retry)
-  8-4-failsafe-error-logging: backlog# Implemented via auditService fallback
-  8-5-data-validation-required-fields: backlog# Implemented in service layer
-  8-6-format-validation: backlog# Implemented in routes/services
-  8-7-character-limit-enforcement: backlog# Implemented (authorizedPurpose 255 char limit)
-  8-8-date-range-validation: backlog# Implemented in filter params
-  8-9-file-upload-validation: backlog# Implemented in fileUpload middleware
-  8-10-referential-integrity: backlog# Enforced by Prisma/PostgreSQL
-  8-11-real-time-inline-validation: backlog# Frontend implementation (out of scope for backend)
-  8-12-database-encryption-at-rest: backlog# AWS RDS encryption (infrastructure)
-  8-13-s3-document-encryption: backlog# AWS S3 default encryption (infrastructure)
-  8-14-tls-1.3-enforcement: backlog# Infrastructure - load balancer config (operational)
-  8-15-pre-signed-s3-urls: backlog# Implemented in s3Service/documentService
-  8-16-s3-multi-region-replication: backlog# Infrastructure - AWS config (operational)
-  8-17-automated-database-snapshots: backlog# Infrastructure - AWS RDS config (operational)
-  8-18-database-restore-capability: backlog# Infrastructure - AWS RDS feature (operational)
-  8-19-dr-testing: backlog# Infrastructure - operational procedure (out of scope)
-  8-20-user-friendly-errors: backlog# Implemented in error handlers
-  8-21-operation-retry: backlog# Frontend retry patterns (out of scope for backend)
-  8-22-email-queue-retry: backlog# Implemented in emailService (pg-boss)
-  8-23-graceful-degradation: backlog# Implemented in error handling
-  8-24-offline-detection: backlog# Frontend implementation (out of scope for backend)
-  8-25-form-data-preservation: backlog# Implemented in draft auto-save (Story 3.6)
-  8-26-nda-list-export: backlog# Implemented - GET /api/ndas/export endpoint
-  8-27-data-import-tool-phase-2: backlog# Phase 2 scope - deferred (documented as out of scope)
+  8-1-error-monitoring-with-sentry: ready-for-dev# Infrastructure - errorReportingService.ts implements Sentry
+  8-2-system-health-dashboards: ready-for-dev# Infrastructure - AWS CloudWatch (operational)
+  8-3-email-retry-logic: ready-for-dev# Implemented in emailService (pg-boss retry)
+  8-4-failsafe-error-logging: ready-for-dev# Implemented via auditService fallback
+  8-5-data-validation-required-fields: ready-for-dev# Implemented in service layer
+  8-6-format-validation: ready-for-dev# Implemented in routes/services
+  8-7-character-limit-enforcement: ready-for-dev# Implemented (authorizedPurpose 255 char limit)
+  8-8-date-range-validation: ready-for-dev# Implemented in filter params
+  8-9-file-upload-validation: ready-for-dev# Implemented in fileUpload middleware
+  8-10-referential-integrity: ready-for-dev# Enforced by Prisma/PostgreSQL
+  8-11-real-time-inline-validation: ready-for-dev# Frontend implementation (out of scope for backend)
+  8-12-database-encryption-at-rest: ready-for-dev# AWS RDS encryption (infrastructure)
+  8-13-s3-document-encryption: ready-for-dev# AWS S3 default encryption (infrastructure)
+  8-14-tls-1.3-enforcement: ready-for-dev# Infrastructure - load balancer config (operational)
+  8-15-pre-signed-s3-urls: ready-for-dev# Implemented in s3Service/documentService
+  8-16-s3-multi-region-replication: ready-for-dev# Infrastructure - AWS config (operational)
+  8-17-automated-database-snapshots: ready-for-dev# Infrastructure - AWS RDS config (operational)
+  8-18-database-restore-capability: ready-for-dev# Infrastructure - AWS RDS feature (operational)
+  8-19-dr-testing: ready-for-dev# Infrastructure - operational procedure (out of scope)
+  8-20-user-friendly-errors: ready-for-dev# Implemented in error handlers
+  8-21-operation-retry: ready-for-dev# Frontend retry patterns (out of scope for backend)
+  8-22-email-queue-retry: ready-for-dev# Implemented in emailService (pg-boss)
+  8-23-graceful-degradation: ready-for-dev# Implemented in error handling
+  8-24-offline-detection: ready-for-dev# Frontend implementation (out of scope for backend)
+  8-25-form-data-preservation: ready-for-dev# Implemented in draft auto-save (Story 3.6)
+  8-26-nda-list-export: ready-for-dev# Implemented - GET /api/ndas/export endpoint
+  8-27-data-import-tool-phase-2: ready-for-dev# Phase 2 scope - deferred (documented as out of scope)
   epic-8-retrospective: optional
 
   # Epic 9: Post-Launch Refinement & Bug Fixes - Discovered during demo testing
