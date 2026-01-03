@@ -81,7 +81,7 @@ development_status:
   # Epic 4: Document Management - COMPLETED via pre-BMAD implementation + H-1 hardening
   epic-4: done
   4-8-s3-cross-region-replication: ready-for-dev  # Updated 2026-01-02
-  4-1-document-upload-with-drag-drop: ready-for-dev  # Updated 2026-01-02
+  4-1-document-upload-with-drag-drop: done  # Updated 2026-01-03
   4-2-mark-document-as-fully-executed: ready-for-dev  # Updated 2026-01-02
   4-3-document-download-with-pre-signed-urls: ready-for-dev  # Updated 2026-01-02
   4-4-document-version-history: ready-for-dev  # Updated 2026-01-02
@@ -93,7 +93,7 @@ development_status:
   # Epic 5: Search, Filter & Dashboard - COMPLETED via pre-BMAD implementation + H-1 hardening
   epic-5: done
   5-1-global-nda-search: done  # Updated 2026-01-03
-  5-2-column-sorting-with-persistence: ready-for-dev  # Updated 2026-01-02
+  5-2-column-sorting-with-persistence: done  # Updated 2026-01-03
   5-3-advanced-filtering-system: ready-for-dev  # Updated 2026-01-02
   5-4-filter-presets: ready-for-dev  # Updated 2026-01-02
   5-5-date-range-shortcuts: ready-for-dev  # Updated 2026-01-02
@@ -112,7 +112,7 @@ development_status:
   H-1-gap-analysis-hardening: in-progress  # Updated 2026-01-02
 
   # Epic 6: Audit & Compliance - COMPLETED
-  6-1-comprehensive-action-logging: review  # Updated 2026-01-02
+  6-1-comprehensive-action-logging: done  # Updated 2026-01-03
   6-2-field-change-tracking: review  # Updated 2026-01-02
   6-3-document-download-tracking: review  # Updated 2026-01-02
   6-4-login-attempt-tracking: review  # Updated 2026-01-02

@@ -7,6 +7,9 @@ import {
   Plus,
   Search,
   X,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown,
   Calendar,
   Building,
   MoreVertical,
@@ -88,6 +91,16 @@ const SORT_KEY_TO_PARAM: Record<SortKey, string> = {
   effectiveDate: 'effectiveDate',
   requestedDate: 'createdAt',
   latestChange: 'updatedAt',
+};
+
+const SORT_PARAM_TO_KEY: Record<string, SortKey> = {
+  displayId: 'displayId',
+  companyName: 'companyName',
+  agencyGroupName: 'agency',
+  status: 'status',
+  effectiveDate: 'effectiveDate',
+  createdAt: 'requestedDate',
+  updatedAt: 'latestChange',
 };
 
 const NDA_TYPE_OPTIONS: Array<{ value: NdaType; label: string }> = [
@@ -285,6 +298,32 @@ export function Requests({
       navigate({ pathname: location.pathname, search: nextSearch }, { replace: true });
     }
   }, [searchTerm, location.pathname, location.search, navigate]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const sortByParam = params.get('sortBy');
+    const sortOrderParam = params.get('sortOrder');
+    const mappedKey = sortByParam ? SORT_PARAM_TO_KEY[sortByParam] : undefined;
+    const mappedOrder = sortOrderParam === 'asc' || sortOrderParam === 'desc' ? sortOrderParam : undefined;
+
+    if (mappedKey && mappedKey !== sortBy) {
+      setSortBy(mappedKey);
+    }
+    if (mappedOrder && mappedOrder !== sortOrder) {
+      setSortOrder(mappedOrder);
+    }
+  }, [location.search, sortBy, sortOrder]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    params.set('sortBy', SORT_KEY_TO_PARAM[sortBy]);
+    params.set('sortOrder', sortOrder);
+    const nextSearch = params.toString();
+    const currentSearch = location.search.startsWith('?') ? location.search.slice(1) : location.search;
+    if (nextSearch !== currentSearch) {
+      navigate({ pathname: location.pathname, search: nextSearch }, { replace: true });
+    }
+  }, [sortBy, sortOrder, location.pathname, location.search, navigate]);
 
   // Filter state
   const [searchTerm, setSearchTerm] = useState(() => {
@@ -549,6 +588,22 @@ export function Requests({
     () => mergeRecentSuggestions(recentFilters.relationshipPocName, pocSuggestions),
     [recentFilters.relationshipPocName, pocSuggestions]
   );
+
+  const getAriaSort = (key: SortKey) => {
+    if (sortBy !== key) return 'none';
+    return sortOrder === 'asc' ? 'ascending' : 'descending';
+  };
+
+  const renderSortIcon = (key: SortKey) => {
+    if (sortBy !== key) {
+      return <ArrowUpDown className="w-3.5 h-3.5 text-[var(--color-text-muted)]" />;
+    }
+    return sortOrder === 'asc' ? (
+      <ArrowUp className="w-3.5 h-3.5 text-[var(--color-primary)]" />
+    ) : (
+      <ArrowDown className="w-3.5 h-3.5 text-[var(--color-primary)]" />
+    );
+  };
 
   const handleSort = (key: SortKey) => {
     if (sortBy === key) {
@@ -1279,46 +1334,95 @@ export function Requests({
               <thead className="bg-gray-50 border-b border-[var(--color-border)]">
                 <tr>
                   <th
-                    className="px-6 py-3 text-left text-xs uppercase tracking-wider text-[var(--color-text-secondary)] cursor-pointer"
-                    onClick={() => handleSort('displayId')}
+                    className="px-6 py-3 text-left text-xs uppercase tracking-wider text-[var(--color-text-secondary)]"
+                    aria-sort={getAriaSort('displayId')}
                   >
-                    Display ID
+                    <button
+                      type="button"
+                      onClick={() => handleSort('displayId')}
+                      className={`inline-flex items-center gap-1 ${sortBy === 'displayId' ? 'text-[var(--color-primary)]' : ''}`}
+                    >
+                      Display ID
+                      {renderSortIcon('displayId')}
+                    </button>
                   </th>
                   <th
-                    className="px-6 py-3 text-left text-xs uppercase tracking-wider text-[var(--color-text-secondary)] cursor-pointer"
-                    onClick={() => handleSort('companyName')}
+                    className="px-6 py-3 text-left text-xs uppercase tracking-wider text-[var(--color-text-secondary)]"
+                    aria-sort={getAriaSort('companyName')}
                   >
-                    Company
+                    <button
+                      type="button"
+                      onClick={() => handleSort('companyName')}
+                      className={`inline-flex items-center gap-1 ${sortBy === 'companyName' ? 'text-[var(--color-primary)]' : ''}`}
+                    >
+                      Company
+                      {renderSortIcon('companyName')}
+                    </button>
                   </th>
                   <th
-                    className="px-6 py-3 text-left text-xs uppercase tracking-wider text-[var(--color-text-secondary)] cursor-pointer"
-                    onClick={() => handleSort('agency')}
+                    className="px-6 py-3 text-left text-xs uppercase tracking-wider text-[var(--color-text-secondary)]"
+                    aria-sort={getAriaSort('agency')}
                   >
-                    Agency
+                    <button
+                      type="button"
+                      onClick={() => handleSort('agency')}
+                      className={`inline-flex items-center gap-1 ${sortBy === 'agency' ? 'text-[var(--color-primary)]' : ''}`}
+                    >
+                      Agency
+                      {renderSortIcon('agency')}
+                    </button>
                   </th>
                   <th
-                    className="px-6 py-3 text-left text-xs uppercase tracking-wider text-[var(--color-text-secondary)] cursor-pointer"
-                    onClick={() => handleSort('status')}
+                    className="px-6 py-3 text-left text-xs uppercase tracking-wider text-[var(--color-text-secondary)]"
+                    aria-sort={getAriaSort('status')}
                   >
-                    Status
+                    <button
+                      type="button"
+                      onClick={() => handleSort('status')}
+                      className={`inline-flex items-center gap-1 ${sortBy === 'status' ? 'text-[var(--color-primary)]' : ''}`}
+                    >
+                      Status
+                      {renderSortIcon('status')}
+                    </button>
                   </th>
                   <th
-                    className="px-6 py-3 text-left text-xs uppercase tracking-wider text-[var(--color-text-secondary)] cursor-pointer"
-                    onClick={() => handleSort('effectiveDate')}
+                    className="px-6 py-3 text-left text-xs uppercase tracking-wider text-[var(--color-text-secondary)]"
+                    aria-sort={getAriaSort('effectiveDate')}
                   >
-                    Effective Date
+                    <button
+                      type="button"
+                      onClick={() => handleSort('effectiveDate')}
+                      className={`inline-flex items-center gap-1 ${sortBy === 'effectiveDate' ? 'text-[var(--color-primary)]' : ''}`}
+                    >
+                      Effective Date
+                      {renderSortIcon('effectiveDate')}
+                    </button>
                   </th>
                   <th
-                    className="px-6 py-3 text-left text-xs uppercase tracking-wider text-[var(--color-text-secondary)] cursor-pointer"
-                    onClick={() => handleSort('requestedDate')}
+                    className="px-6 py-3 text-left text-xs uppercase tracking-wider text-[var(--color-text-secondary)]"
+                    aria-sort={getAriaSort('requestedDate')}
                   >
-                    Requested Date
+                    <button
+                      type="button"
+                      onClick={() => handleSort('requestedDate')}
+                      className={`inline-flex items-center gap-1 ${sortBy === 'requestedDate' ? 'text-[var(--color-primary)]' : ''}`}
+                    >
+                      Requested Date
+                      {renderSortIcon('requestedDate')}
+                    </button>
                   </th>
                   <th
-                    className="px-6 py-3 text-left text-xs uppercase tracking-wider text-[var(--color-text-secondary)] cursor-pointer"
-                    onClick={() => handleSort('latestChange')}
+                    className="px-6 py-3 text-left text-xs uppercase tracking-wider text-[var(--color-text-secondary)]"
+                    aria-sort={getAriaSort('latestChange')}
                   >
-                    Latest Change
+                    <button
+                      type="button"
+                      onClick={() => handleSort('latestChange')}
+                      className={`inline-flex items-center gap-1 ${sortBy === 'latestChange' ? 'text-[var(--color-primary)]' : ''}`}
+                    >
+                      Latest Change
+                      {renderSortIcon('latestChange')}
+                    </button>
                   </th>
                   <th className="px-6 py-3 text-center text-xs uppercase tracking-wider text-[var(--color-text-secondary)]">
                     Actions
