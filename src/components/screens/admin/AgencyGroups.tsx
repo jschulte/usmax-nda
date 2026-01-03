@@ -741,21 +741,21 @@ export function AgencyGroups() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" sideOffset={5}>
-                              <DropdownMenuItem onClick={() => openCreateSubagency(group)}>
+                              <DropdownMenuItem onSelect={() => openCreateSubagency(group)}>
                                 <Plus className="w-4 h-4 mr-2" />
-                                Add subagency
+                                Add Subagency
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => void openManageAccess(group)}>
+                              <DropdownMenuItem onSelect={() => void openManageAccess(group)}>
                                 <Users className="w-4 h-4 mr-2" />
-                                Manage access
+                                Manage Access
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => openEditGroup(group)}>
+                              <DropdownMenuItem onSelect={() => openEditGroup(group)}>
                                 <Pencil className="w-4 h-4 mr-2" />
-                                Edit group
+                                Edit Group
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => confirmDeleteGroup(group)}>
+                              <DropdownMenuItem onSelect={() => confirmDeleteGroup(group)}>
                                 <Trash2 className="w-4 h-4 mr-2" />
-                                Delete group
+                                Delete Group
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
