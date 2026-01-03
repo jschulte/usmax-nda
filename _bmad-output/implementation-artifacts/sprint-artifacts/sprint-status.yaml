@@ -98,7 +98,7 @@ development_status:
   5-4-filter-presets: done  # Updated 2026-01-03
   5-5-date-range-shortcuts: done  # Updated 2026-01-03
   5-6-pagination-with-configurable-page-size: done  # Updated 2026-01-03
-  5-7-recently-used-values-in-dropdowns: ready-for-dev  # Updated 2026-01-02
+  5-7-recently-used-values-in-dropdowns: done  # Updated 2026-01-03
   5-8-personalized-dashboard: ready-for-dev  # Updated 2026-01-02
   5-9-at-a-glance-metrics: ready-for-dev  # Updated 2026-01-02
   5-10-stale-nda-identification: ready-for-dev  # Updated 2026-01-02

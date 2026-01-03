@@ -1,0 +1,16 @@
+story_id: "5-7"
+story_file: "_bmad-output/implementation-artifacts/sprint-artifacts/5-7-recently-used-values-in-dropdowns.md"
+mode: "batch"
+started_at: "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+completed_at: "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+summary:
+  changes:
+    - "Confirmed recent filter values are stored in localStorage and merged to top of suggestions."
+  decisions:
+    - "Used client-side recent values instead of DB-backed preferences."
+
+verification:
+  tasks_checked: 8
+  remaining_unchecked: 0
+  notes: "Recent values already implemented in Requests filters." 

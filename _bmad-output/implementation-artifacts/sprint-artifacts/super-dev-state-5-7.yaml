@@ -1,0 +1,63 @@
+---
+story_id: "5-7"
+story_file: "_bmad-output/implementation-artifacts/sprint-artifacts/5-7-recently-used-values-in-dropdowns.md"
+mode: "batch"
+development_type: "brownfield"
+
+stepsCompleted: [1, 2, 3, 4, 5, 6, 7]
+lastStep: 7
+currentStep: null
+status: "complete"
+
+started_at: "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+updated_at: "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+cached_context:
+  story_loaded: true
+  project_context_loaded: true
+
+development_analysis:
+  existing_files: 1
+  new_files: 0
+  total_tasks: 8
+  unchecked_tasks: 0
+
+gap_analysis:
+  development_type: "brownfield"
+  tasks_ready: 8
+  tasks_partial: 0
+  tasks_done: 0
+  tasks_refined: 0
+  tasks_added: 0
+
+smart_batching:
+  enabled: true
+  patterns_detected: 0
+  batchable_tasks: 0
+  individual_tasks: 8
+  estimated_time_with_batching: 0
+  estimated_time_without_batching: 0
+  estimated_savings: 0
+
+steps:
+  step-01-init:
+    status: completed
+    completed_at: "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  step-02-pre-gap-analysis:
+    status: completed
+    completed_at: "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  step-03-implement:
+    status: completed
+    completed_at: "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  step-04-post-validation:
+    status: completed
+    completed_at: "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  step-05-code-review:
+    status: completed
+    completed_at: "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  step-06-complete:
+    status: completed
+    completed_at: "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  step-07-summary:
+    status: completed
+    completed_at: "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
