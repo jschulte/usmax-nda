@@ -12,7 +12,7 @@
  */
 
 import { prisma } from '../db/index.js';
-import { uploadDocument, getDownloadUrl, getDocumentContent, S3ServiceError } from './s3Service.js';
+import { uploadDocument, getDownloadUrl, getDocumentContent as getS3DocumentContent, S3ServiceError } from './s3Service.js';
 import { auditService, AuditAction } from './auditService.js';
 import { attemptAutoTransition, transitionStatus, StatusTrigger } from './statusTransitionService.js';
 import type { Document, DocumentType, NdaStatus } from '../../generated/prisma/index.js';
@@ -603,7 +603,7 @@ export async function createBulkDownload(
   // Add each document to the archive
   for (const doc of documents) {
     try {
-      const content = await getDocumentContent(doc.s3Key);
+      const content = await getS3DocumentContent(doc.s3Key);
       // Prefix filename with version number to avoid duplicates
       const safeBaseName = sanitizeZipEntryName(doc.filename, `document_${doc.id}`);
       const archiveFilename = `v${doc.versionNumber}_${safeBaseName}`;
@@ -675,7 +675,7 @@ function sanitizeZipEntryName(filename: string, fallback: string): string {
  * @param userContext - User context for permissions
  * @returns RTF content as string
  */
-export async function getDocumentContent(
+export async function getDocumentContentWithAuth(
   ndaId: string,
   documentId: string,
   userContext: UserContext
@@ -700,30 +700,16 @@ export async function getDocumentContent(
   }
 
   // Check agency access
-  const hasAccess = userContext.subagencyIds.includes(document.nda.subagencyId);
+  if (!document.nda.subagencyId) {
+    throw new DocumentServiceError('Document NDA has no subagency', 'INVALID_STATE');
+  }
+  const hasAccess = userContext.authorizedSubagencies.includes(document.nda.subagencyId);
   if (!hasAccess) {
     throw new DocumentServiceError('Access denied', 'ACCESS_DENIED');
   }
 
-  // Download from S3
-  const s3Client = getS3Client();
-  const command = new GetObjectCommand({
-    Bucket: S3_BUCKET,
-    Key: document.s3Key,
-  });
-
-  const response = await s3Client.send(command);
-
-  if (!response.Body) {
-    throw new DocumentServiceError('Document content not found in S3', 'NOT_FOUND');
-  }
-
-  // Convert stream to string
-  const chunks: Uint8Array[] = [];
-  for await (const chunk of response.Body as any) {
-    chunks.push(chunk);
-  }
-  const buffer = Buffer.concat(chunks);
+  // Download from S3 and convert to string
+  const buffer = await getS3DocumentContent(document.s3Key);
   return buffer.toString('utf-8');
 }
 

@@ -108,6 +108,7 @@ import {
   notifyStakeholders,
   NotificationEvent,
 } from '../services/notificationService.js';
+import { auditService, AuditAction } from '../services/auditService.js';
 import { documentUpload } from '../middleware/fileUpload.js';
 
 const router: Router = Router();
@@ -2339,10 +2340,10 @@ router.get(
   requirePermission(PERMISSIONS.NDA_VIEW),
   async (req, res) => {
     try {
-      const { getDocumentContent } = await import('../services/documentService.js');
+      const { getDocumentContentWithAuth } = await import('../services/documentService.js');
 
       // Get RTF content from S3
-      const rtfContent = await getDocumentContent(
+      const rtfContent = await getDocumentContentWithAuth(
         req.params.id,
         req.params.docId,
         req.userContext!
@@ -2421,7 +2422,7 @@ router.put(
 
       // Audit log
       await auditService.log({
-        action: 'document_edited',
+        action: AuditAction.DOCUMENT_UPLOADED,
         entityType: 'document',
         entityId: document.id,
         userId: req.userContext!.contactId,

@@ -18,6 +18,8 @@ vi.mock('../../db/index.js', () => ({
   prisma: {
     nda: {
       findUnique: vi.fn(),
+      findFirst: vi.fn(),
+      update: vi.fn(),
     },
     document: {
       findFirst: vi.fn(),
@@ -32,6 +34,7 @@ vi.mock('../../db/index.js', () => ({
 vi.mock('../s3Service.js', () => ({
   uploadDocument: vi.fn(),
   getDownloadUrl: vi.fn(),
+  getDocumentContent: vi.fn(),
   S3ServiceError: class S3ServiceError extends Error {
     code: string;
     constructor(message: string, code: string) {
@@ -59,7 +62,7 @@ vi.mock('../statusTransitionService.js', () => ({
   },
 }));
 
-vi.mock('../utils/scopedQuery.js', () => ({
+vi.mock('../../utils/scopedQuery.js', () => ({
   findNdaWithScope: vi.fn(),
 }));
 
@@ -71,7 +74,7 @@ import { prisma } from '../../db/index.js';
 import { uploadDocument, getDownloadUrl } from '../s3Service.js';
 import { auditService } from '../auditService.js';
 import { transitionStatus } from '../statusTransitionService.js';
-import { findNdaWithScope } from '../utils/scopedQuery.js';
+import { findNdaWithScope } from '../../utils/scopedQuery.js';
 import {
   uploadNdaDocument,
   getNdaDocuments,
