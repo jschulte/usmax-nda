@@ -46,6 +46,17 @@ const SYSTEM_EVENTS = [
   AuditAction.USER_AUTO_PROVISIONED,
 ];
 
+type AuditLogDetails = Prisma.JsonObject;
+
+function isJsonObject(value: Prisma.JsonValue | null): value is Prisma.JsonObject {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function getDetailString(details: AuditLogDetails, key: string): string | undefined {
+  const value = details[key];
+  return typeof value === 'string' ? value : undefined;
+}
+
 /**
  * GET /api/admin/audit-logs
  * Get all audit logs with filtering (admin only)
@@ -484,16 +495,30 @@ router.get(
 
         // Generate human-readable description
         let description = meta.label;
-        const details = log.details as Record<string, any> | null;
-        if (details) {
-          if (log.action === AuditAction.NDA_STATUS_CHANGED && details.previousStatus && details.newStatus) {
-            description = `Status changed from "${details.previousStatus}" to "${details.newStatus}"`;
-          } else if (log.action === AuditAction.NDA_UPDATED && details.changedFields) {
-            description = `Updated: ${Object.keys(details.changedFields).join(', ')}`;
-          } else if ((log.action === AuditAction.DOCUMENT_UPLOADED || log.action === AuditAction.DOCUMENT_DOWNLOADED) && details.filename) {
-            description = `${meta.label}: ${details.filename}`;
-          } else if (log.action === AuditAction.EMAIL_SENT && details.subject) {
-            description = `Email sent: "${details.subject}"`;
+        const details: AuditLogDetails = isJsonObject(log.details) ? log.details : {};
+        if (log.action === AuditAction.NDA_STATUS_CHANGED) {
+          const previousStatus = getDetailString(details, 'previousStatus');
+          const newStatus = getDetailString(details, 'newStatus');
+          if (previousStatus && newStatus) {
+            description = `Status changed from "${previousStatus}" to "${newStatus}"`;
+          }
+        } else if (log.action === AuditAction.NDA_UPDATED) {
+          const changedFields = details.changedFields;
+          if (isJsonObject(changedFields)) {
+            description = `Updated: ${Object.keys(changedFields).join(', ')}`;
+          }
+        } else if (
+          log.action === AuditAction.DOCUMENT_UPLOADED ||
+          log.action === AuditAction.DOCUMENT_DOWNLOADED
+        ) {
+          const filename = getDetailString(details, 'filename');
+          if (filename) {
+            description = `${meta.label}: ${filename}`;
+          }
+        } else if (log.action === AuditAction.EMAIL_SENT) {
+          const subject = getDetailString(details, 'subject');
+          if (subject) {
+            description = `Email sent: "${subject}"`;
           }
         }
 
