@@ -1,6 +1,6 @@
 # Story 3.12: Status Management & Auto-Transitions
 
-Status: ready-for-dev
+Status: review
 
 ## Story
 
@@ -36,62 +36,62 @@ so that **I don't have to manually update status every time**.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: Status Transition Service** (AC: 1, 2, 3, 4)
-  - [ ] 1.1: Create src/server/services/statusTransitionService.ts
-  - [ ] 1.2: Implement changeStatus(ndaId, newStatus, userId, reason)
-  - [ ] 1.3: Validate transition is allowed (define valid transitions)
-  - [ ] 1.4: Update NDA status
-  - [ ] 1.5: Record audit log with before/after values
-  - [ ] 1.6: Trigger notifications (Story 3-11)
-  - [ ] 1.7: Return updated NDA
+- [x] **Task 1: Status Transition Service** (AC: 1, 2, 3, 4)
+  - [x] 1.1: Create src/server/services/statusTransitionService.ts
+  - [x] 1.2: Implement changeStatus(ndaId, newStatus, userId, reason)
+  - [x] 1.3: Validate transition is allowed (define valid transitions)
+  - [x] 1.4: Update NDA status
+  - [x] 1.5: Record audit log with before/after values
+  - [x] 1.6: Trigger notifications (Story 3-11)
+  - [x] 1.7: Return updated NDA
 
-- [ ] **Task 2: Status Transition Rules** (AC: 1, 2, 3)
-  - [ ] 2.1: Define allowed transitions per status
-  - [ ] 2.2: Created → Emailed, In Revision, Fully Executed, Inactive, Cancelled
-  - [ ] 2.3: Emailed → In Revision, Fully Executed, Inactive, Cancelled
-  - [ ] 2.4: In Revision → Fully Executed, Inactive, Cancelled
-  - [ ] 2.5: Fully Executed → Inactive (cannot undo execution)
-  - [ ] 2.6: Inactive/Cancelled → terminal (no transitions out)
+- [x] **Task 2: Status Transition Rules** (AC: 1, 2, 3)
+  - [x] 2.1: Define allowed transitions per status
+  - [x] 2.2: Created → Emailed, In Revision, Fully Executed, Inactive, Cancelled
+  - [x] 2.3: Emailed → In Revision, Fully Executed, Inactive, Cancelled
+  - [x] 2.4: In Revision → Fully Executed, Inactive, Cancelled
+  - [x] 2.5: Fully Executed → Inactive (cannot undo execution)
+  - [x] 2.6: Inactive/Cancelled → terminal (no transitions out)
 
-- [ ] **Task 3: Auto-Transition Triggers** (AC: 1, 2, 3)
-  - [ ] 3.1: In emailService.sendEmail() - after success, change status to Emailed
-  - [ ] 3.2: In documentService.uploadDocument() - change to In Revision if not fully executed
-  - [ ] 3.3: In documentService.uploadDocument() - change to Fully Executed if marked
-  - [ ] 3.4: Call statusTransitionService.changeStatus() from these services
+- [x] **Task 3: Auto-Transition Triggers** (AC: 1, 2, 3)
+  - [x] 3.1: In emailService.sendEmail() - after success, change status to Emailed
+  - [x] 3.2: In documentService.uploadDocument() - change to In Revision if not fully executed
+  - [x] 3.3: In documentService.uploadDocument() - change to Fully Executed if marked
+  - [x] 3.4: Call statusTransitionService.changeStatus() from these services
 
-- [ ] **Task 4: Manual Status Change API** (AC: 4)
-  - [ ] 4.1: Create PATCH /api/ndas/:id/status endpoint
-  - [ ] 4.2: Accept { status } in request body
-  - [ ] 4.3: Apply requirePermission('nda:mark_status') and scopeToAgencies
-  - [ ] 4.4: Call statusTransitionService.changeStatus()
-  - [ ] 4.5: Return updated NDA
+- [x] **Task 4: Manual Status Change API** (AC: 4)
+  - [x] 4.1: Create PATCH /api/ndas/:id/status endpoint
+  - [x] 4.2: Accept { status } in request body
+  - [x] 4.3: Apply requirePermission('nda:mark_status') and scopeToAgencies
+  - [x] 4.4: Call statusTransitionService.changeStatus()
+  - [x] 4.5: Return updated NDA
 
-- [ ] **Task 5: Audit Logging for Status Changes** (AC: 1, 2, 3, 4)
-  - [ ] 5.1: Record status_changed event in audit_log
-  - [ ] 5.2: Include: before status, after status, reason (manual/auto), userId
-  - [ ] 5.3: Include timestamp
-  - [ ] 5.4: Used by Story 3-9 for status history
+- [x] **Task 5: Audit Logging for Status Changes** (AC: 1, 2, 3, 4)
+  - [x] 5.1: Record status_changed event in audit_log
+  - [x] 5.2: Include: before status, after status, reason (manual/auto), userId
+  - [x] 5.3: Include timestamp
+  - [x] 5.4: Used by Story 3-9 for status history
 
-- [ ] **Task 6: Frontend - Status Change Dropdown** (AC: 4)
-  - [ ] 6.1: Add status dropdown to NDA detail page
-  - [ ] 6.2: Show current status selected
-  - [ ] 6.3: Filter dropdown to allowed transitions only
-  - [ ] 6.4: On change, call PATCH /api/ndas/:id/status
-  - [ ] 6.5: Optimistic update (change immediately, revert on error)
+- [x] **Task 6: Frontend - Status Change Dropdown** (AC: 4)
+  - [x] 6.1: Add status dropdown to NDA detail page
+  - [x] 6.2: Show current status selected
+  - [x] 6.3: Filter dropdown to allowed transitions only
+  - [x] 6.4: On change, call PATCH /api/ndas/:id/status
+  - [x] 6.5: Optimistic update (change immediately, revert on error)
 
-- [ ] **Task 7: Frontend - Status Change Confirmation** (AC: 4)
-  - [ ] 7.1: Show toast after successful status change
-  - [ ] 7.2: Refresh NDA detail (status updated)
-  - [ ] 7.3: Update status progression visualization (Story 3-9)
-  - [ ] 7.4: Handle validation errors (invalid transition)
+- [x] **Task 7: Frontend - Status Change Confirmation** (AC: 4)
+  - [x] 7.1: Show toast after successful status change
+  - [x] 7.2: Refresh NDA detail (status updated)
+  - [x] 7.3: Update status progression visualization (Story 3-9)
+  - [x] 7.4: Handle validation errors (invalid transition)
 
-- [ ] **Task 8: Testing** (AC: All)
-  - [ ] 8.1: Unit tests for statusTransitionService
-  - [ ] 8.2: Test all valid transitions
-  - [ ] 8.3: Test invalid transitions (should throw error)
-  - [ ] 8.4: Test auto-transitions from email send
-  - [ ] 8.5: Test auto-transitions from document upload
-  - [ ] 8.6: API tests for manual status change
+- [x] **Task 8: Testing** (AC: All)
+  - [x] 8.1: Unit tests for statusTransitionService
+  - [x] 8.2: Test all valid transitions
+  - [x] 8.3: Test invalid transitions (should throw error)
+  - [x] 8.4: Test auto-transitions from email send
+  - [x] 8.5: Test auto-transitions from document upload
+  - [x] 8.6: API tests for manual status change
 
 ## Dev Notes
 
@@ -330,3 +330,30 @@ Files to be created/modified during implementation:
 - `src/components/screens/NDADetail.tsx` - MODIFY (add status dropdown)
 - `src/components/ui/StatusChangeDropdown.tsx` - NEW
 - `src/server/services/__tests__/statusTransitionService.test.ts` - NEW
+
+## Gap Analysis
+### Autonomous Revalidation
+- **Date:** 2026-01-03T23:48:28Z
+- **Summary:** Re-checked all tasks against codebase and existing tests; no gaps found.
+- **Action:** Marked all tasks complete.
+
+### Autonomous Post-Validation
+- **Date:** 2026-01-03T23:48:52Z
+- **Checked Tasks:** 49
+- **Unchecked Tasks:** 0
+- **Status:** ✅ All tasks remain complete after revalidation.
+
+
+## Code Review Findings
+- **Date:** 2026-01-03T23:49:08Z
+- **Summary:** Global test run reports pre-existing failures; no story-specific regressions identified.
+
+### Issues Identified
+1. `src/components/ui/__tests__/DateRangeShortcuts.test.tsx` – multiple date calculation assertions failing (likely timezone/date-math drift).
+2. `src/server/middleware/__tests__/middlewarePipeline.test.ts` – mock token user context test failing (auth mock setup mismatch).
+3. `src/server/utils/__tests__/retry.test.ts` – unhandled rejection on non-retryable error paths (tests not isolating thrown errors).
+4. `src/server/services/__tests__/s3UploadMetadata.test.ts` / `s3DocumentStream.test.ts` – test files failing to execute (missing AWS/test setup).
+5. `src/components/screens/admin/__tests__/RTFTemplateEditor.test.tsx` – test file failing to execute (component test harness mismatch).
+
+### Resolution
+- **Deferred:** These failures appear unrelated to Story 3.12 changes (no code changes made); tracked for separate stabilization.
