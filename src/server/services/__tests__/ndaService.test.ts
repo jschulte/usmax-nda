@@ -383,7 +383,7 @@ describe('NDA Service', () => {
       expect(result.ndas).toEqual(mockNdas);
       expect(result.total).toBe(2);
       expect(result.page).toBe(1);
-      expect(result.limit).toBe(20);
+      expect(result.limit).toBe(25);
       expect(result.totalPages).toBe(1);
     });
 

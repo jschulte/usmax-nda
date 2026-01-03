@@ -685,7 +685,7 @@ export async function listNdas(
   totalPages: number;
 }> {
   const page = Math.max(1, params.page || 1);
-  const limit = Math.min(100, Math.max(1, params.limit || 20));
+  const limit = Math.min(100, Math.max(1, params.limit || 25));
   const skip = (page - 1) * limit;
 
   // Build security filter

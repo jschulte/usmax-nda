@@ -71,6 +71,7 @@ const RECENT_FILTERS_KEY = 'ndaListRecentFilters';
 
 // Story H-1: Sort preferences persistence
 const SORT_PREFS_KEY = 'ndaListSortPreferences';
+const PAGE_SIZE_PREFS_KEY = 'ndaListPageSizePreference';
 
 type PresetKey = ListNdasParams['preset'] | 'all';
 
@@ -198,6 +199,23 @@ function saveSortPreferences(prefs: SortPreferences) {
   localStorage.setItem(SORT_PREFS_KEY, JSON.stringify(prefs));
 }
 
+function loadPageSizePreference(): number {
+  try {
+    const raw = localStorage.getItem(PAGE_SIZE_PREFS_KEY);
+    const parsed = raw ? Number.parseInt(raw, 10) : NaN;
+    if ([10, 25, 50, 100].includes(parsed)) {
+      return parsed;
+    }
+    return 25;
+  } catch {
+    return 25;
+  }
+}
+
+function savePageSizePreference(pageSize: number) {
+  localStorage.setItem(PAGE_SIZE_PREFS_KEY, String(pageSize));
+}
+
 function mergeRecentSuggestions(recent: string[], suggestions: string[]): string[] {
   const normalized = new Set<string>();
   const result: string[] = [];
@@ -316,8 +334,12 @@ export function Requests({
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>(() => loadSortPreferences().sortOrder);
 
   // Pagination state
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const [currentPage, setCurrentPage] = useState(() => {
+    const params = new URLSearchParams(location.search);
+    const page = Number.parseInt(params.get('page') ?? '1', 10);
+    return Number.isFinite(page) && page > 0 ? page : 1;
+  });
+  const [pageSize, setPageSize] = useState(() => loadPageSizePreference());
   const [totalPages, setTotalPages] = useState(1);
 
   // Reference data
@@ -456,6 +478,16 @@ export function Requests({
     setUsMaxPosition(usMaxPositionValue as typeof usMaxPosition);
     setPresetFilter(presetValue);
 
+    const pageParam = Number.parseInt(getParam('page'), 10);
+    if (Number.isFinite(pageParam) && pageParam > 0) {
+      setCurrentPage(pageParam);
+    }
+
+    const pageSizeParam = Number.parseInt(getParam('pageSize'), 10);
+    if ([10, 25, 50, 100].includes(pageSizeParam)) {
+      setPageSize(pageSizeParam);
+    }
+
     const searchParam = getParam('search');
     if (searchParam) {
       setSearchTerm(searchParam);
@@ -490,6 +522,9 @@ export function Requests({
     setParam('effectiveDateTo', effectiveDateTo);
     setParam('requestedDateFrom', requestedDateFrom);
     setParam('requestedDateTo', requestedDateTo);
+
+    params.set('page', String(currentPage));
+    params.set('pageSize', String(pageSize));
 
     if (statusFilter !== 'all') {
       params.set('status', statusFilter);
@@ -541,6 +576,8 @@ export function Requests({
     effectiveDateTo,
     requestedDateFrom,
     requestedDateTo,
+    currentPage,
+    pageSize,
     statusFilter,
     ndaType,
     isNonUsMax,
@@ -564,6 +601,10 @@ export function Requests({
   useEffect(() => {
     saveSortPreferences({ sortBy, sortOrder });
   }, [sortBy, sortOrder]);
+
+  useEffect(() => {
+    savePageSizePreference(pageSize);
+  }, [pageSize]);
 
   // Load agency groups for filter typeahead
   useEffect(() => {
@@ -936,6 +977,20 @@ export function Requests({
     contractsPocName,
     relationshipPocName,
   ]);
+
+  const paginationRange = useMemo(() => {
+    const total = totalPages;
+    const current = currentPage;
+    const maxVisible = 5;
+    let start = Math.max(1, current - Math.floor(maxVisible / 2));
+    let end = Math.min(total, start + maxVisible - 1);
+    start = Math.max(1, end - maxVisible + 1);
+    const pages = [];
+    for (let page = start; page <= end; page += 1) {
+      pages.push(page);
+    }
+    return { pages, start, end, total };
+  }, [currentPage, totalPages]);
 
   const getAriaSort = (key: SortKey) => {
     if (sortBy !== key) return 'none';
@@ -1586,17 +1641,27 @@ export function Requests({
           {loading ? (
             'Loading...'
           ) : (
-            `Showing ${ndas.length} of ${totalCount} NDAs`
+            `Showing ${
+              totalCount === 0 ? 0 : (currentPage - 1) * pageSize + 1
+            }-${
+              Math.min(currentPage * pageSize, totalCount)
+            } of ${totalCount} NDAs`
           )}
         </p>
         <div className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)] ml-auto">
           <span className="whitespace-nowrap">Rows per page</span>
-          <Select value={String(pageSize)} onValueChange={(value) => setPageSize(Number(value))}>
+          <Select
+            value={String(pageSize)}
+            onValueChange={(value) => {
+              setPageSize(Number(value));
+              setCurrentPage(1);
+            }}
+          >
             <SelectTrigger className="w-20">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {[20, 50, 100].map((size) => (
+              {[10, 25, 50, 100].map((size) => (
                 <SelectItem key={size} value={String(size)}>{size}</SelectItem>
               ))}
             </SelectContent>
@@ -2029,7 +2094,7 @@ export function Requests({
           <p className="text-sm text-[var(--color-text-secondary)]">
             Page {currentPage} of {totalPages}
           </p>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
             <Button
               variant="outline"
               onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
@@ -2037,6 +2102,42 @@ export function Requests({
             >
               Previous
             </Button>
+            <div className="flex items-center gap-1">
+              {paginationRange.start > 1 && (
+                <>
+                  <Button variant="secondary" size="sm" onClick={() => setCurrentPage(1)}>
+                    1
+                  </Button>
+                  {paginationRange.start > 2 && (
+                    <span className="px-1 text-[var(--color-text-muted)]">…</span>
+                  )}
+                </>
+              )}
+              {paginationRange.pages.map((page) => (
+                <Button
+                  key={page}
+                  variant={page === currentPage ? 'primary' : 'secondary'}
+                  size="sm"
+                  onClick={() => setCurrentPage(page)}
+                >
+                  {page}
+                </Button>
+              ))}
+              {paginationRange.end < paginationRange.total && (
+                <>
+                  {paginationRange.end < paginationRange.total - 1 && (
+                    <span className="px-1 text-[var(--color-text-muted)]">…</span>
+                  )}
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setCurrentPage(paginationRange.total)}
+                  >
+                    {paginationRange.total}
+                  </Button>
+                </>
+              )}
+            </div>
             <Button
               variant="outline"
               onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
