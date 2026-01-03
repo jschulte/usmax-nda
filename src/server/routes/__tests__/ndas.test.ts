@@ -85,7 +85,15 @@ vi.mock('../../services/ndaService.js', () => {
   };
 });
 
+vi.mock('../../services/companySuggestionsService.js', () => ({
+  getRecentCompanies: vi.fn(),
+  getCompanyDefaults: vi.fn(),
+  searchCompanies: vi.fn(),
+  getMostCommonAgency: vi.fn(),
+}));
+
 import * as ndaService from '../../services/ndaService.js';
+import * as companySuggestionsService from '../../services/companySuggestionsService.js';
 
 describe('NDA Routes Integration', () => {
   let app: express.Express;
@@ -135,6 +143,89 @@ describe('NDA Routes Integration', () => {
 
       expect(response.status).toBe(400);
       expect(response.body.code).toBe('INVALID_SEARCH_QUERY');
+    });
+  });
+
+  describe('Company suggestion endpoints', () => {
+    it('returns recent company suggestions', async () => {
+      vi.mocked(companySuggestionsService.getRecentCompanies).mockResolvedValue([
+        { companyName: 'TechCorp', count: 2, lastUsed: new Date() },
+      ]);
+
+      const response = await request(app).get('/api/ndas/company-suggestions?limit=5');
+
+      expect(response.status).toBe(200);
+      expect(response.body.companies).toHaveLength(1);
+      expect(response.body.companies[0].companyName).toBe('TechCorp');
+      expect(companySuggestionsService.getRecentCompanies).toHaveBeenCalledWith(
+        expect.any(Object),
+        5
+      );
+    });
+
+    it('falls back to default limit when company suggestions limit is invalid', async () => {
+      vi.mocked(companySuggestionsService.getRecentCompanies).mockResolvedValue([]);
+
+      const response = await request(app).get('/api/ndas/company-suggestions?limit=abc');
+
+      expect(response.status).toBe(200);
+      expect(companySuggestionsService.getRecentCompanies).toHaveBeenCalledWith(
+        expect.any(Object),
+        10
+      );
+    });
+
+    it('returns company defaults for auto-fill', async () => {
+      vi.mocked(companySuggestionsService.getCompanyDefaults).mockResolvedValue({
+        companyCity: 'San Francisco',
+      });
+
+      const response = await request(app).get('/api/ndas/company-defaults?name=TechCorp');
+
+      expect(response.status).toBe(200);
+      expect(response.body.defaults.companyCity).toBe('San Francisco');
+      expect(companySuggestionsService.getCompanyDefaults).toHaveBeenCalledWith(
+        'TechCorp',
+        expect.any(Object)
+      );
+    });
+
+    it('validates company defaults query', async () => {
+      const response = await request(app).get('/api/ndas/company-defaults');
+
+      expect(response.status).toBe(400);
+      expect(response.body.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('rejects blank company defaults query', async () => {
+      const response = await request(app).get('/api/ndas/company-defaults?name=%20%20');
+
+      expect(response.status).toBe(400);
+      expect(response.body.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('validates company search query length', async () => {
+      const response = await request(app).get('/api/ndas/company-search?q=a');
+
+      expect(response.status).toBe(400);
+      expect(response.body.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('searches companies by query', async () => {
+      vi.mocked(companySuggestionsService.searchCompanies).mockResolvedValue([
+        { name: 'TechCorp', count: 4 },
+      ]);
+
+      const response = await request(app).get('/api/ndas/company-search?q=Tech');
+
+      expect(response.status).toBe(200);
+      expect(response.body.companies).toHaveLength(1);
+      expect(response.body.companies[0].name).toBe('TechCorp');
+      expect(companySuggestionsService.searchCompanies).toHaveBeenCalledWith(
+        'Tech',
+        expect.any(Object),
+        20
+      );
     });
   });
 

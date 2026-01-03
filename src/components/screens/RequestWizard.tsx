@@ -84,8 +84,10 @@ export function RequestWizard() {
   const [agencyGroups, setAgencyGroups] = useState<AgencyGroup[]>([]);
   const [subagencies, setSubagencies] = useState<Subagency[]>([]);
   const [companySearchResults, setCompanySearchResults] = useState<Array<{ name: string; count: number }>>([]);
+  const [companySearchTerm, setCompanySearchTerm] = useState('');
   const [recentCompanies, setRecentCompanies] = useState<CompanySuggestion[]>([]);
   const [showCompanyDropdown, setShowCompanyDropdown] = useState(false);
+  const [autoFilledFields, setAutoFilledFields] = useState<Record<string, boolean>>({});
   const [agencySuggestions, setAgencySuggestions] = useState<AgencySuggestions | null>(null);
   const [templates, setTemplates] = useState<RtfTemplate[]>([]);
   const [templatesLoading, setTemplatesLoading] = useState(false);
@@ -99,6 +101,46 @@ export function RequestWizard() {
   const autoSaveRetryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autoSaveInFlightRef = useRef(false);
   const hasInitializedRef = useRef(false);
+
+  const markAutoFilled = useCallback((fields: string[]) => {
+    if (fields.length === 0) return;
+    setAutoFilledFields((prev) => {
+      const next = { ...prev };
+      for (const field of fields) {
+        next[field] = true;
+      }
+      return next;
+    });
+  }, []);
+
+  const clearAutoFilled = useCallback((field: string) => {
+    setAutoFilledFields((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  }, []);
+
+  const autoFillClass = useCallback(
+    (field: string) =>
+      autoFilledFields[field]
+        ? 'bg-[var(--color-primary-light)] border-[var(--color-primary)]'
+        : '',
+    [autoFilledFields]
+  );
+
+  const updateRecentCompanies = useCallback((companyName: string) => {
+    const trimmed = companyName.trim();
+    if (!trimmed) return;
+    setRecentCompanies((prev) => {
+      const normalized = trimmed.toLowerCase();
+      const existing = prev.find((company) => company.companyName.toLowerCase() === normalized);
+      const nextCount = existing ? existing.count + 1 : 1;
+      const remaining = prev.filter((company) => company.companyName.toLowerCase() !== normalized);
+      return [{ companyName: trimmed, count: nextCount }, ...remaining].slice(0, 5);
+    });
+  }, []);
 
   // Form state - map backend fields to form fields
   const [formData, setFormData] = useState({
@@ -400,7 +442,7 @@ export function RequestWizard() {
     if (recentCompanies.length > 0) return;
 
     try {
-      const response = await getCompanySuggestions();
+      const response = await getCompanySuggestions(5);
       setRecentCompanies(response.companies);
     } catch (err) {
       console.error('Failed to load company suggestions:', err);
@@ -425,15 +467,45 @@ export function RequestWizard() {
     []
   );
 
+  useEffect(() => {
+    const trimmed = companySearchTerm.trim();
+    if (trimmed.length < 2) {
+      setCompanySearchResults([]);
+      return;
+    }
+
+    const debounceTimer = setTimeout(() => {
+      handleCompanySearch(trimmed);
+    }, 300);
+
+    return () => clearTimeout(debounceTimer);
+  }, [companySearchTerm, handleCompanySearch]);
+
   // Load company defaults when company is selected
   const handleCompanySelect = useCallback(async (companyName: string) => {
     setFormData((prev) => ({ ...prev, companyName }));
     setShowCompanyDropdown(false);
+    setCompanySearchTerm('');
+    setCompanySearchResults([]);
     setTouchedFields((prev) => ({ ...prev, companyName: true }));
+    setAutoFilledFields({});
 
     try {
       const response = await getCompanyDefaults(companyName);
       const defaults = response.defaults;
+      const fieldsToMark: string[] = [];
+
+      if (defaults.companyCity) fieldsToMark.push('companyCity');
+      if (defaults.companyState) fieldsToMark.push('companyState');
+      if (defaults.stateOfIncorporation) fieldsToMark.push('stateOfIncorporation');
+      if (defaults.lastRelationshipPocId || defaults.lastRelationshipPocName) {
+        fieldsToMark.push('relationshipPocId', 'relationshipPocName');
+      }
+      if (defaults.lastContractsPocId || defaults.lastContractsPocName) {
+        fieldsToMark.push('contractsPocId', 'contractsPocName');
+      }
+      if (defaults.mostCommonAgencyGroupId) fieldsToMark.push('agencyGroupId');
+      if (defaults.mostCommonSubagencyId) fieldsToMark.push('subagencyId');
 
       setFormData((prev) => ({
         ...prev,
@@ -447,6 +519,8 @@ export function RequestWizard() {
         agencyGroupId: defaults.mostCommonAgencyGroupId || prev.agencyGroupId,
         subagencyId: defaults.mostCommonSubagencyId || prev.subagencyId,
       }));
+
+      markAutoFilled(fieldsToMark);
 
       if (defaults.companyCity || defaults.companyState) {
         toast.success('Company details auto-filled from previous records');
@@ -490,6 +564,47 @@ export function RequestWizard() {
 
     return items;
   }, [formData.companyName, recentCompanies, agencySuggestions, companySearchResults]);
+
+  const recentCompanySuggestions = useMemo(
+    () => companySuggestionItems.filter((item) => item.source === 'recent'),
+    [companySuggestionItems]
+  );
+
+  const otherCompanySuggestions = useMemo(
+    () => companySuggestionItems.filter((item) => item.source !== 'recent'),
+    [companySuggestionItems]
+  );
+
+  const renderCompanySuggestion = (company: {
+    name: string;
+    count?: number;
+    source: 'recent' | 'agency' | 'search';
+  }) => (
+    <button
+      key={`${company.source}-${company.name}`}
+      onClick={() => {
+        handleCompanySelect(company.name);
+        setCompanySearchResults([]);
+      }}
+      className="w-full px-4 py-2 text-left hover:bg-gray-50 transition-colors"
+    >
+      <div className="flex items-center justify-between">
+        <span>{company.name}</span>
+        <span className="text-xs text-[var(--color-text-secondary)] flex items-center gap-2">
+          {typeof company.count === 'number' && (
+            <span>
+              {company.count} NDA{company.count === 1 ? '' : 's'}
+            </span>
+          )}
+          <span>
+            {company.source === 'recent' && 'Recent'}
+            {company.source === 'agency' && 'Agency'}
+            {company.source === 'search' && 'Match'}
+          </span>
+        </span>
+      </div>
+    </button>
+  );
 
   // Debounced contact search
   const handleContactSearch = useCallback(
@@ -905,6 +1020,7 @@ export function RequestWizard() {
       } else if (cloneSource) {
         const response = await cloneNDA(cloneSource.id, payload as Partial<CreateNdaData>);
         toast.success('NDA cloned successfully!');
+        updateRecentCompanies(formData.companyName);
         const newNdaId = (response.nda as any)?.id;
         if (newNdaId) {
           // Auto-generate document if template is selected
@@ -925,6 +1041,7 @@ export function RequestWizard() {
         // Create new NDA
         const response = await createNDA(payload as CreateNdaData);
         toast.success('NDA created successfully!');
+        updateRecentCompanies(formData.companyName);
         // Extract NDA ID from response
         const newNdaId = (response.nda as any)?.id;
         if (newNdaId) {
@@ -1374,8 +1491,9 @@ export function RequestWizard() {
                     placeholder="Start typing to search..."
                     value={formData.companyName}
                     onChange={(e) => {
-                      setFormData({ ...formData, companyName: e.target.value });
-                      handleCompanySearch(e.target.value);
+                      const value = e.target.value;
+                      setFormData({ ...formData, companyName: value });
+                      setCompanySearchTerm(value);
                       setShowCompanyDropdown(true);
                     }}
                     onFocus={handleCompanyFocus}
@@ -1385,29 +1503,18 @@ export function RequestWizard() {
                     }}
                     error={requiredErrors.companyName}
                   />
-                  {showCompanyDropdown && companySuggestionItems.length > 0 && (
-                    <div className="absolute z-10 w-full mt-1 bg-white border border-[var(--color-border)] rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                      {companySuggestionItems.map((company) => (
-                        <button
-                          key={`${company.source}-${company.name}`}
-                          onClick={() => {
-                            handleCompanySelect(company.name);
-                            setCompanySearchResults([]);
-                          }}
-                          className="w-full px-4 py-2 text-left hover:bg-gray-50 transition-colors"
-                        >
-                          <div className="flex items-center justify-between">
-                            <span>{company.name}</span>
-                            <span className="text-xs text-[var(--color-text-secondary)]">
-                              {company.source === 'recent' && 'Recent'}
-                              {company.source === 'agency' && 'Agency'}
-                              {company.source === 'search' && 'Match'}
-                            </span>
+                  {showCompanyDropdown &&
+                    (recentCompanySuggestions.length > 0 || otherCompanySuggestions.length > 0) && (
+                      <div className="absolute z-10 w-full mt-1 bg-white border border-[var(--color-border)] rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                        {recentCompanySuggestions.map(renderCompanySuggestion)}
+                        {recentCompanySuggestions.length > 0 && otherCompanySuggestions.length > 0 && (
+                          <div className="px-4 py-1 text-[11px] uppercase tracking-wide text-[var(--color-text-secondary)] border-t border-[var(--color-border)] bg-[var(--color-background-secondary)]">
+                            Other matches
                           </div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                        )}
+                        {otherCompanySuggestions.map(renderCompanySuggestion)}
+                      </div>
+                    )}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1415,19 +1522,31 @@ export function RequestWizard() {
                     label="City"
                     placeholder="e.g., Washington"
                     value={formData.companyCity}
-                    onChange={(e) => setFormData({ ...formData, companyCity: e.target.value })}
+                    onChange={(e) => {
+                      clearAutoFilled('companyCity');
+                      setFormData({ ...formData, companyCity: e.target.value });
+                    }}
+                    className={autoFillClass('companyCity')}
                   />
                   <Input
                     label="State"
                     placeholder="e.g., DC"
                     value={formData.companyState}
-                    onChange={(e) => setFormData({ ...formData, companyState: e.target.value })}
+                    onChange={(e) => {
+                      clearAutoFilled('companyState');
+                      setFormData({ ...formData, companyState: e.target.value });
+                    }}
+                    className={autoFillClass('companyState')}
                   />
                   <Input
                     label="State of incorporation"
                     placeholder="e.g., DE"
                     value={formData.stateOfIncorporation}
-                    onChange={(e) => setFormData({ ...formData, stateOfIncorporation: e.target.value })}
+                    onChange={(e) => {
+                      clearAutoFilled('stateOfIncorporation');
+                      setFormData({ ...formData, stateOfIncorporation: e.target.value });
+                    }}
+                    className={autoFillClass('stateOfIncorporation')}
                   />
                 </div>
 
@@ -1436,11 +1555,13 @@ export function RequestWizard() {
                     label="Agency group *"
                     value={formData.agencyGroupId}
                     onChange={(e) => {
+                      clearAutoFilled('agencyGroupId');
                       markTouched('agencyGroupId');
                       setFormData({ ...formData, agencyGroupId: e.target.value, subagencyId: '' });
                     }}
                     onBlur={() => markTouched('agencyGroupId')}
                     error={requiredErrors.agencyGroupId}
+                    className={autoFillClass('agencyGroupId')}
                   >
                     <option value="">Select agency...</option>
                     {agencyGroups.map((ag) => (
@@ -1453,8 +1574,12 @@ export function RequestWizard() {
                   <Select
                     label="Subagency"
                     value={formData.subagencyId}
-                    onChange={(e) => setFormData({ ...formData, subagencyId: e.target.value })}
+                    onChange={(e) => {
+                      clearAutoFilled('subagencyId');
+                      setFormData({ ...formData, subagencyId: e.target.value });
+                    }}
                     disabled={!formData.agencyGroupId || subagencies.length === 0}
+                    className={autoFillClass('subagencyId')}
                   >
                     <option value="">Select subagency (optional)...</option>
                     {subagencies.map((sub) => (
@@ -1520,12 +1645,14 @@ export function RequestWizard() {
                         helperText="Main relationship manager for this NDA (required)"
                         value={formData.relationshipPocName}
                         onChange={(e) => {
+                          clearAutoFilled('relationshipPocName');
+                          clearAutoFilled('relationshipPocId');
                           setFormData({ ...formData, relationshipPocName: e.target.value, relationshipPocId: '' });
                           handleContactSearch(e.target.value, 'relationship');
                         }}
                         onBlur={() => markTouched('relationshipPoc')}
                         error={requiredErrors.relationshipPoc}
-                        helperText="Required: Primary relationship point of contact"
+                        className={autoFillClass('relationshipPocName')}
                       />
                       {activePocField === 'relationship' && !formData.relationshipPocId && formData.relationshipPocName.length >= 2 && (
                         <div className="absolute z-10 w-full mt-1 bg-white border border-[var(--color-border)] rounded-lg shadow-lg max-h-48 overflow-y-auto">
@@ -1533,6 +1660,8 @@ export function RequestWizard() {
                             <button
                               key={contact.id}
                               onClick={() => {
+                                clearAutoFilled('relationshipPocName');
+                                clearAutoFilled('relationshipPocId');
                                 // Story 9.14: Auto-fill phone from contact
                                 const phone = contact.workPhone || contact.cellPhone || '';
                                 setFormData({
@@ -1620,9 +1749,12 @@ export function RequestWizard() {
                         helperText="Handles contract-related matters and legal documentation"
                         value={formData.contractsPocName}
                         onChange={(e) => {
+                          clearAutoFilled('contractsPocName');
+                          clearAutoFilled('contractsPocId');
                           setFormData({ ...formData, contractsPocName: e.target.value, contractsPocId: '' });
                           handleContactSearch(e.target.value, 'contracts');
                         }}
+                        className={autoFillClass('contractsPocName')}
                       />
                       {activePocField === 'contracts' && !formData.contractsPocId && formData.contractsPocName && formData.contractsPocName.length >= 2 && (
                         <div className="absolute z-10 w-full mt-1 bg-white border border-[var(--color-border)] rounded-lg shadow-lg max-h-48 overflow-y-auto">
@@ -1630,6 +1762,8 @@ export function RequestWizard() {
                             <button
                               key={contact.id}
                               onClick={() => {
+                                clearAutoFilled('contractsPocName');
+                                clearAutoFilled('contractsPocId');
                                 // Story 9.14: Auto-fill phone from contact
                                 const phone = contact.workPhone || contact.cellPhone || '';
                                 setFormData({

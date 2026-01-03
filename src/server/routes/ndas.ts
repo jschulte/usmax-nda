@@ -432,7 +432,10 @@ router.get(
   requireAnyPermission([PERMISSIONS.NDA_CREATE, PERMISSIONS.NDA_UPDATE]),
   async (req, res) => {
     try {
-      const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 10;
+      const limitParam = req.query.limit as string | undefined;
+      const parsedLimit = limitParam ? parseInt(limitParam, 10) : NaN;
+      const limit =
+        Number.isFinite(parsedLimit) && parsedLimit > 0 ? parsedLimit : 10;
       const companies = await getRecentCompanies(req.userContext!, limit);
       res.json({ companies });
     } catch (error) {
@@ -465,7 +468,7 @@ router.get(
   requireAnyPermission([PERMISSIONS.NDA_CREATE, PERMISSIONS.NDA_UPDATE]),
   async (req, res) => {
     try {
-      const companyName = req.query.name as string;
+      const companyName = (req.query.name as string | undefined)?.trim();
 
       if (!companyName) {
         return res.status(400).json({
@@ -503,7 +506,10 @@ router.get(
   async (req, res) => {
     try {
       const query = req.query.q as string;
-      const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 20;
+      const limitParam = req.query.limit as string | undefined;
+      const parsedLimit = limitParam ? parseInt(limitParam, 10) : NaN;
+      const limit =
+        Number.isFinite(parsedLimit) && parsedLimit > 0 ? parsedLimit : 20;
 
       if (!query || query.length < 2) {
         return res.status(400).json({
@@ -1102,7 +1108,7 @@ router.patch('/:id/status', requirePermission(PERMISSIONS.NDA_MARK_STATUS), asyn
  * - savedAt: Timestamp of save
  * - incompleteFields: Array of required fields that are still empty
  *
- * Requires: nda:update permission
+ * Requires: nda:mark_status permission
  */
 router.patch('/:id/draft', requirePermission(PERMISSIONS.NDA_UPDATE), async (req, res) => {
   try {

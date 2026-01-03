@@ -3,7 +3,8 @@
  */
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 
 vi.mock('react-router-dom', () => ({
@@ -45,9 +46,9 @@ vi.mock('../../client/services/ndaService', () => ({
   createNDA: vi.fn(),
   updateNDA: vi.fn(),
   cloneNDA: vi.fn(),
-  searchCompanies: vi.fn().mockResolvedValue([]),
-  getCompanySuggestions: vi.fn().mockResolvedValue([]),
-  getCompanyDefaults: vi.fn().mockResolvedValue({}),
+  searchCompanies: vi.fn().mockResolvedValue({ companies: [] }),
+  getCompanySuggestions: vi.fn().mockResolvedValue({ companies: [] }),
+  getCompanyDefaults: vi.fn().mockResolvedValue({ defaults: {} }),
   getAgencySuggestions: vi.fn().mockResolvedValue(null),
   updateDraft: vi.fn(),
 }));
@@ -75,6 +76,7 @@ vi.mock('../../client/services/documentService', () => ({
 }));
 
 import { RequestWizard } from '../screens/RequestWizard';
+import { getCompanyDefaults, getCompanySuggestions } from '../../client/services/ndaService';
 
 describe('RequestWizard', () => {
   it('disables Save as Draft until required fields are provided', async () => {
@@ -84,5 +86,51 @@ describe('RequestWizard', () => {
     expect(saveDraft).toBeDisabled();
 
     expect(screen.getByText('0/255')).toBeInTheDocument();
+  });
+
+  it('auto-fills company defaults and highlights auto-filled fields', async () => {
+    const user = userEvent.setup();
+    vi.mocked(getCompanySuggestions).mockResolvedValue({
+      companies: [{ companyName: 'TechCorp Solutions Inc.', count: 3 }],
+    });
+    vi.mocked(getCompanyDefaults).mockResolvedValue({
+      defaults: {
+        companyCity: 'San Francisco',
+        companyState: 'CA',
+        stateOfIncorporation: 'Delaware',
+      },
+    });
+
+    render(<RequestWizard />);
+
+    await user.type(
+      screen.getByPlaceholderText('e.g., TechCorp Integration'),
+      'TechCorp Integration'
+    );
+    await user.type(
+      screen.getByPlaceholderText('Describe the authorized purpose of this NDA and the project context'),
+      'Authorized purpose for integration'
+    );
+
+    await user.click(screen.getByRole('button', { name: /next/i }));
+
+    const companyInput = await screen.findByPlaceholderText('Start typing to search...');
+    await user.click(companyInput);
+
+    const suggestion = await screen.findByText('TechCorp Solutions Inc.');
+    await user.click(suggestion);
+
+    const cityInput = screen.getByPlaceholderText('e.g., Washington');
+
+    await waitFor(() => {
+      expect(cityInput).toHaveValue('San Francisco');
+    });
+
+    expect(cityInput).toHaveClass('bg-[var(--color-primary-light)]');
+
+    await user.clear(cityInput);
+    await user.type(cityInput, 'Oakland');
+
+    expect(cityInput).not.toHaveClass('bg-[var(--color-primary-light)]');
   });
 });
