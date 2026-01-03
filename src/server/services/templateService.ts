@@ -495,8 +495,9 @@ export async function updateTemplate(
       // Placeholder validation happens on HTML source if provided (WYSIWYG flow)
     }
 
+    const shouldSetDefault = data.isDefault && data.isActive !== false;
     // If setting as default, unset other defaults
-    if (data.isDefault) {
+    if (shouldSetDefault) {
       const defaultAgencyGroupId =
         data.agencyGroupId !== undefined ? data.agencyGroupId : existing.agencyGroupId;
       await tx.rtfTemplate.updateMany({
@@ -509,6 +510,7 @@ export async function updateTemplate(
       });
     }
 
+    const nextIsDefault = data.isActive === false ? false : data.isDefault;
     const template = await tx.rtfTemplate.update({
       where: { id: templateId },
       data: {
@@ -516,7 +518,7 @@ export async function updateTemplate(
         description: data.description,
         content: data.content ? new Uint8Array(data.content) : undefined,
         agencyGroupId: data.agencyGroupId,
-        isDefault: data.isDefault,
+        isDefault: nextIsDefault,
         isActive: data.isActive,
       },
     });
@@ -533,7 +535,7 @@ export async function updateTemplate(
       name: data.name ?? existing.name,
       description: data.description ?? existing.description,
       agencyGroupId: data.agencyGroupId ?? existing.agencyGroupId,
-      isDefault: data.isDefault ?? existing.isDefault,
+      isDefault: nextIsDefault ?? existing.isDefault,
       isActive: data.isActive ?? existing.isActive,
     };
 
@@ -577,7 +579,7 @@ export async function deleteTemplate(
 
     const template = await tx.rtfTemplate.update({
       where: { id: templateId },
-      data: { isActive: false },
+      data: { isActive: false, isDefault: false },
     });
 
     await tx.auditLog.create({

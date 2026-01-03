@@ -246,6 +246,12 @@ export function Templates() {
       setIsSubmitting(true);
       // Load full template with content
       const { template: fullTemplate } = await templateService.getTemplate(template.id);
+      if (!fullTemplate.content) {
+        toast.error('Template content unavailable', {
+          description: 'You do not have access to duplicate this template.'
+        });
+        return;
+      }
 
       // Create duplicate
       await templateService.createTemplate({
@@ -1115,6 +1121,11 @@ export function Templates() {
             <DialogTitle>Delete Template</DialogTitle>
             <DialogDescription>
               Are you sure you want to delete "{templateToDelete?.name}"? This will deactivate the template.
+              {templateToDelete?.isDefault && (
+                <span className="mt-2 block text-sm text-[var(--color-warning)]">
+                  Warning: This template is currently the default. Deleting it will remove the default selection.
+                </span>
+              )}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
