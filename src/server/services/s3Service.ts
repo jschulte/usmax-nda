@@ -45,6 +45,8 @@ export interface UploadDocumentInput {
   content: Buffer | Uint8Array | string;
   contentType?: string;
   uploadedById?: string; // Story H-1: User ID for audit trail
+  documentType?: string;
+  versionNumber?: number;
 }
 
 /**
@@ -125,6 +127,8 @@ export async function uploadDocument(
         // Story H-1 Task 10: New metadata fields
         'upload-timestamp': uploadTimestamp,
         ...(input.uploadedById && { 'uploaded-by-id': input.uploadedById }),
+        ...(input.documentType && { 'document-type': input.documentType }),
+        ...(input.versionNumber !== undefined && { 'version-number': String(input.versionNumber) }),
       },
     });
 

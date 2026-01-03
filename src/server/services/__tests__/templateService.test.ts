@@ -29,6 +29,7 @@ const prismaMock = {
   },
   document: {
     create: vi.fn(),
+    aggregate: vi.fn(),
   },
   auditLog: {
     create: vi.fn(),

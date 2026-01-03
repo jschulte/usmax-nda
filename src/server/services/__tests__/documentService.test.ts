@@ -26,6 +26,7 @@ vi.mock('../../db/index.js', () => ({
       findFirst: vi.fn(),
       findUnique: vi.fn(),
       findMany: vi.fn(),
+      aggregate: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
     },
@@ -252,7 +253,9 @@ describe('Document Service', () => {
   describe('uploadNdaDocument', () => {
     it('should upload document successfully', async () => {
       vi.mocked(findNdaWithScope).mockResolvedValue(mockNda as any);
-      vi.mocked(prisma.document.findFirst).mockResolvedValue(null);
+      vi.mocked(prisma.document.aggregate).mockResolvedValue({
+        _max: { versionNumber: null },
+      } as any);
       vi.mocked(uploadDocument).mockResolvedValue({
         s3Key: 'documents/nda-123/test.pdf',
         etag: 'abc123',
@@ -281,13 +284,18 @@ describe('Document Service', () => {
         filename: 'test.pdf',
         content: expect.any(Buffer),
         contentType: 'application/pdf',
+        uploadedById: mockUserContext.contactId,
+        documentType: 'UPLOADED',
+        versionNumber: 1,
       });
       expect(auditService.log).toHaveBeenCalled();
     });
 
     it('should increment version number for subsequent uploads', async () => {
       vi.mocked(findNdaWithScope).mockResolvedValue(mockNda as any);
-      vi.mocked(prisma.document.findFirst).mockResolvedValue({ versionNumber: 3 } as any);
+      vi.mocked(prisma.document.aggregate).mockResolvedValue({
+        _max: { versionNumber: 3 },
+      } as any);
       vi.mocked(uploadDocument).mockResolvedValue({
         s3Key: 'documents/nda-123/test.pdf',
         etag: 'abc123',
@@ -309,6 +317,13 @@ describe('Document Service', () => {
       );
 
       expect(result.versionNumber).toBe(4);
+      expect(prisma.document.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            notes: `Uploaded by ${mockUserContext.email}`,
+          }),
+        })
+      );
     });
 
     it('should reject upload to non-existent NDA', async () => {

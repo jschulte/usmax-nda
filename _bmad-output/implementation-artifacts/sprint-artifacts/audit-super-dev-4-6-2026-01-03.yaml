@@ -1,0 +1,17 @@
+story_id: "4-6"
+date: "2026-01-03"
+mode: "batch"
+summary:
+  status: "completed"
+  changes:
+    - "Added helpers for version numbering and document notes"
+    - "Populated generated document metadata (notes, size, version, region)"
+    - "Enhanced S3 upload metadata with document type and version"
+    - "Updated upload and execution flows to use generated notes"
+    - "Added tests for metadata helpers and S3 metadata tagging"
+  tests_added:
+    - "src/server/utils/__tests__/versionNumberHelper.test.ts"
+    - "src/server/utils/__tests__/documentNotesGenerator.test.ts"
+    - "src/server/services/__tests__/s3UploadMetadata.test.ts"
+notes:
+  - "Database constraints and composite indexes deferred to migration work"

@@ -20,6 +20,8 @@ import type { Document, DocumentType, NdaStatus } from '../../generated/prisma/i
 import type { UserContext } from '../types/auth.js';
 import type { PassThrough } from 'stream';
 import { notifyStakeholders, NotificationEvent } from './notificationService.js';
+import { getNextVersionNumber } from '../utils/versionNumberHelper.js';
+import { generateDocumentNotes } from '../utils/documentNotesGenerator.js';
 import { buildSecurityFilter } from './ndaService.js';
 import { findNdaWithScope } from '../utils/scopedQuery.js';
 
@@ -168,12 +170,13 @@ export async function uploadNdaDocument(
   }
 
   // Get next version number
-  const lastDoc = await prisma.document.findFirst({
-    where: { ndaId: input.ndaId },
-    orderBy: { versionNumber: 'desc' },
-    select: { versionNumber: true },
-  });
-  const nextVersion = (lastDoc?.versionNumber ?? 0) + 1;
+  const nextVersion = await getNextVersionNumber(input.ndaId);
+
+  // Determine document type
+  let documentType: DocumentType = 'UPLOADED';
+  if (input.isFullyExecuted) {
+    documentType = 'FULLY_EXECUTED';
+  }
 
   // Upload to S3
   const s3Result = await uploadDocument({
@@ -181,13 +184,15 @@ export async function uploadNdaDocument(
     filename: input.filename,
     content: input.content,
     contentType: input.contentType,
+    uploadedById: userContext.contactId,
+    documentType,
+    versionNumber: nextVersion,
   });
 
-  // Determine document type
-  let documentType: DocumentType = 'UPLOADED';
-  if (input.isFullyExecuted) {
-    documentType = 'FULLY_EXECUTED';
-  }
+  const uploaderName = userContext.name || userContext.email;
+  const defaultNotes = generateDocumentNotes(documentType, {
+    uploaderName,
+  });
 
   // Create document record
   const document = await prisma.document.create({
@@ -201,7 +206,7 @@ export async function uploadNdaDocument(
       documentType,
       isFullyExecuted: input.isFullyExecuted ?? false,
       versionNumber: nextVersion,
-      notes: input.notes ?? `Uploaded by ${userContext.email}`,
+      notes: input.notes ?? defaultNotes,
       uploadedById: userContext.contactId,
     },
     include: {
@@ -517,6 +522,10 @@ export async function markDocumentFullyExecuted(
   const executionDate = new Date();
   const expirationDate = new Date(executionDate);
   expirationDate.setFullYear(expirationDate.getFullYear() + 1);
+  const executedNotes = generateDocumentNotes('FULLY_EXECUTED', {
+    uploaderName: userContext.name || userContext.email,
+    executedAt: executionDate,
+  });
 
   const shouldTransition = currentStatus !== ('FULLY_EXECUTED' as NdaStatus);
 
@@ -527,6 +536,7 @@ export async function markDocumentFullyExecuted(
       data: {
         isFullyExecuted: true,
         documentType: 'FULLY_EXECUTED',
+        notes: document.notes ?? executedNotes,
       },
       include: {
         uploadedBy: {

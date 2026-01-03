@@ -30,6 +30,7 @@ vi.mock('../../db/index.js', () => ({
       findFirst: vi.fn(),
       findUnique: vi.fn(),
       findMany: vi.fn(),
+      aggregate: vi.fn(),
     },
   },
 }));
@@ -122,11 +123,17 @@ describe('documentGenerationService', () => {
       content: Buffer.from('Hello {{companyName}}'),
     });
     mockPrisma.systemConfig.findUnique.mockResolvedValue(null);
+    mockPrisma.document.aggregate.mockResolvedValue({
+      _max: { versionNumber: 0 },
+    } as any);
   });
 
   describe('generateDocument', () => {
     it('generates document successfully', async () => {
       vi.mocked(findNdaWithScope).mockResolvedValue(mockNda as any);
+      mockPrisma.document.aggregate.mockResolvedValue({
+        _max: { versionNumber: 2 },
+      } as any);
       mockUploadDocument.mockResolvedValue({
         s3Key: 'ndas/nda-123/doc-456-NDA-001001-Test_Company_Inc.rtf',
         documentId: 'doc-456',
@@ -158,6 +165,9 @@ describe('documentGenerationService', () => {
           filename: expect.stringContaining('NDA-001001'),
           content: expect.any(Buffer),
           contentType: 'application/rtf',
+          uploadedById: 'contact-1',
+          documentType: 'GENERATED',
+          versionNumber: 3,
         })
       );
 
@@ -167,6 +177,9 @@ describe('documentGenerationService', () => {
           ndaId: 'nda-123',
           documentType: 'GENERATED',
           uploadedById: 'contact-1',
+          versionNumber: 3,
+          fileSize: expect.any(Number),
+          notes: expect.any(String),
         }),
       });
 

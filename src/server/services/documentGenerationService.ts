@@ -18,6 +18,8 @@ import type { UserContext } from '../types/auth.js';
 import type { Nda, DocumentType } from '../../generated/prisma/index.js';
 import { buildSecurityFilter } from './ndaService.js';
 import { findNdaWithScope } from '../utils/scopedQuery.js';
+import { getNextVersionNumber } from '../utils/versionNumberHelper.js';
+import { generateDocumentNotes } from '../utils/documentNotesGenerator.js';
 
 // Re-export DocumentType
 export { DocumentType } from '../../generated/prisma/index.js';
@@ -161,12 +163,23 @@ export async function generateDocument(
   // Generate filename
   const filename = generateFilename(nda);
 
+  // Determine next version number
+  const nextVersion = await getNextVersionNumber(nda.id);
+
   // Upload to S3
   const uploadResult = await uploadDocument({
     ndaId: nda.id,
     filename,
     content: rtfBuffer,
     contentType: 'application/rtf',
+    uploadedById: userContext.contactId,
+    documentType: 'GENERATED',
+    versionNumber: nextVersion,
+  });
+
+  const notes = generateDocumentNotes('GENERATED', {
+    uploaderName: userContext.name || userContext.email,
+    templateName: template.name,
   });
 
   // Create document record in database
@@ -179,6 +192,10 @@ export async function generateDocument(
       documentType: 'GENERATED',
       fileType: 'application/rtf',
       uploadedById: userContext.contactId,
+      fileSize: rtfBuffer.length,
+      versionNumber: nextVersion,
+      notes,
+      s3Region: process.env.AWS_REGION || 'us-east-1',
     },
   });
 

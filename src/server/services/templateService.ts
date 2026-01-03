@@ -18,6 +18,7 @@ import { detectFieldChanges } from '../utils/detectFieldChanges.js';
 import { validateRtfStructure, validateHtmlPlaceholders } from './rtfTemplateValidation.js';
 import { extractPlaceholders } from './templatePreviewService.js';
 import { parseRTF, toHTML } from '@jonahschulte/rtf-toolkit';
+import { getNextVersionNumber } from '../utils/versionNumberHelper.js';
 
 /**
  * Custom error for template service operations
@@ -323,12 +324,7 @@ export async function saveEditedDocument(
   const editedFilename = filename.replace(/(\.[^.]+)$/, '_edited$1');
 
   // Determine next version number
-  const lastDoc = await prisma.document.findFirst({
-    where: { ndaId },
-    orderBy: { versionNumber: 'desc' },
-    select: { versionNumber: true },
-  });
-  const nextVersion = (lastDoc?.versionNumber ?? 0) + 1;
+  const nextVersion = await getNextVersionNumber(ndaId);
 
   // Upload to S3
   const uploadResult = await uploadDocument({
@@ -336,6 +332,9 @@ export async function saveEditedDocument(
     filename: editedFilename,
     content,
     contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    uploadedById: userContext.contactId,
+    documentType: 'GENERATED',
+    versionNumber: nextVersion,
   });
 
   // Create document record
