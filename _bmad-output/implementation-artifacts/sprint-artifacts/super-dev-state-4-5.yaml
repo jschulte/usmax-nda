@@ -1,0 +1,63 @@
+---
+story_id: "4-5"
+story_file: "/Users/jonahschulte/git/usmax-nda/_bmad-output/implementation-artifacts/sprint-artifacts/4-5-download-all-versions-as-zip.md"
+mode: "batch"
+development_type: "hybrid"
+
+stepsCompleted: [1, 2, 3, 4, 5, 6, 7]
+lastStep: 7
+currentStep: 8
+status: "completed"
+
+started_at: "2026-01-03T08:04:15.817236Z"
+updated_at: "2026-01-03T08:04:15.817236Z"
+
+cached_context:
+  story_loaded: true
+  project_context_loaded: true
+
+development_analysis:
+  existing_files: 4
+  new_files: 3
+  total_tasks: 8
+  unchecked_tasks: 0
+
+steps:
+  step-01-init:
+    status: completed
+    completed_at: "2026-01-03T08:04:15.817236Z"
+  step-02-pre-gap-analysis:
+    status: completed
+    completed_at: "2026-01-03T08:04:15.817236Z"
+  step-03-implement:
+    status: completed
+    completed_at: "2026-01-03T08:04:15.817236Z"
+  step-04-post-validation:
+    status: completed
+    completed_at: "2026-01-03T08:04:15.817236Z"
+  step-05-code-review:
+    status: completed
+    completed_at: "2026-01-03T08:04:15.817236Z"
+  step-06-complete:
+    status: completed
+    completed_at: "2026-01-03T08:04:15.817236Z"
+  step-07-summary:
+    status: completed
+    completed_at: "2026-01-03T08:04:15.817236Z"
+
+gap_analysis:
+  development_type: "hybrid"
+  tasks_ready: 0
+  tasks_partial: 0
+  tasks_done: 8
+  tasks_refined: 1
+  tasks_added: 0
+
+smart_batching:
+  enabled: true
+  patterns_detected: 0
+  batchable_tasks: 0
+  individual_tasks: 8
+  estimated_time_with_batching: 2
+  estimated_time_without_batching: 2
+  estimated_savings: 0

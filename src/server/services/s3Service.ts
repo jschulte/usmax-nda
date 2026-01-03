@@ -17,6 +17,7 @@ import {
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { randomUUID } from 'crypto';
+import type { Readable } from 'stream';
 import { retryWithBackoff } from '../utils/retry.js';
 import { reportError } from './errorReportingService.js';
 
@@ -89,6 +90,7 @@ const s3Client = getOrCreateS3Client(DEFAULT_REGION);
 
 // S3 bucket name from environment
 const BUCKET_NAME = process.env.S3_BUCKET_NAME || 'usmax-nda-documents';
+const FAILOVER_BUCKET_NAME = process.env.S3_FAILOVER_BUCKET_NAME || BUCKET_NAME;
 
 /**
  * Upload a document to S3
@@ -262,6 +264,80 @@ export async function getDocumentContent(s3Key: string): Promise<Buffer> {
       'DOWNLOAD_FAILED',
       error instanceof Error ? error : undefined
     );
+  }
+}
+
+/**
+ * Get document stream from S3 (streaming download)
+ * Story 4.5: Download All Versions as ZIP
+ */
+export async function getDocumentStream(
+  s3Key: string,
+  primaryRegion: string = DEFAULT_REGION
+): Promise<Readable> {
+  const normalizedPrimary = primaryRegion || DEFAULT_REGION;
+  const fallbackRegion =
+    normalizedPrimary === FAILOVER_REGION ? DEFAULT_REGION : FAILOVER_REGION;
+
+  const shouldFailover = (error: unknown) => {
+    const code = (error as { name?: string; code?: string; Code?: string })?.name ||
+      (error as { code?: string })?.code ||
+      (error as { Code?: string })?.Code;
+    const nonFailoverCodes = new Set([
+      'AccessDenied',
+      'InvalidAccessKeyId',
+      'SignatureDoesNotMatch',
+    ]);
+    return !code || !nonFailoverCodes.has(code);
+  };
+
+  const getStream = async (region: string): Promise<Readable> => {
+    const bucket = region === FAILOVER_REGION ? FAILOVER_BUCKET_NAME : BUCKET_NAME;
+    const command = new GetObjectCommand({
+      Bucket: bucket,
+      Key: s3Key,
+    });
+
+    const response = await getOrCreateS3Client(region).send(command);
+    if (!response.Body) {
+      throw new S3ServiceError('Empty response body', 'DOWNLOAD_FAILED');
+    }
+
+    return response.Body as Readable;
+  };
+
+  try {
+    return await getStream(normalizedPrimary);
+  } catch (error) {
+    if (!shouldFailover(error) || fallbackRegion === normalizedPrimary) {
+      throw new S3ServiceError(
+        'Failed to stream document from S3',
+        'DOWNLOAD_FAILED',
+        error instanceof Error ? error : undefined
+      );
+    }
+
+    console.warn('[S3] Primary region failed, attempting stream failover', {
+      s3Key,
+      primaryRegion: normalizedPrimary,
+      fallbackRegion,
+    });
+    reportError(error, {
+      message: 'S3 streaming failover triggered',
+      s3Key,
+      primaryRegion: normalizedPrimary,
+      fallbackRegion,
+    });
+
+    try {
+      return await getStream(fallbackRegion);
+    } catch (fallbackError) {
+      throw new S3ServiceError(
+        'Failed to stream document from S3',
+        'DOWNLOAD_FAILED',
+        fallbackError instanceof Error ? fallbackError : undefined
+      );
+    }
   }
 }
 

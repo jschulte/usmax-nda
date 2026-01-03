@@ -13,14 +13,13 @@
 
 import { prisma } from '../db/index.js';
 import { uploadDocument, getDownloadUrl, getDocumentContent as getS3DocumentContent, S3ServiceError } from './s3Service.js';
+import { createDocumentZip } from './zipService.js';
 import { auditService, AuditAction } from './auditService.js';
 import { attemptAutoTransition, transitionStatus, StatusTrigger, isValidTransition } from './statusTransitionService.js';
 import type { Document, DocumentType, NdaStatus } from '../../generated/prisma/index.js';
 import type { UserContext } from '../types/auth.js';
+import type { PassThrough } from 'stream';
 import { notifyStakeholders, NotificationEvent } from './notificationService.js';
-import archiver from 'archiver';
-import { PassThrough } from 'stream';
-import path from 'node:path';
 import { buildSecurityFilter } from './ndaService.js';
 import { findNdaWithScope } from '../utils/scopedQuery.js';
 
@@ -655,6 +654,7 @@ export async function createBulkDownload(
       id: true,
       filename: true,
       s3Key: true,
+      s3Region: true,
       versionNumber: true,
       uploadedAt: true,
     },
@@ -664,38 +664,23 @@ export async function createBulkDownload(
     throw new DocumentServiceError('No documents found for this NDA', 'NO_DOCUMENTS');
   }
 
-  // Create ZIP archive
-  const archive = archiver('zip', {
-    zlib: { level: 9 }, // Maximum compression
-  });
-
-  const passthrough = new PassThrough();
-  archive.pipe(passthrough);
-
-  // Add each document to the archive
-  for (const doc of documents) {
-    try {
-      const content = await getS3DocumentContent(doc.s3Key);
-      // Prefix filename with version number to avoid duplicates
-      const safeBaseName = sanitizeZipEntryName(doc.filename, `document_${doc.id}`);
-      const archiveFilename = `v${doc.versionNumber}_${safeBaseName}`;
-      archive.append(content, { name: archiveFilename });
-    } catch (error) {
-      console.error(`[Document] Failed to add ${doc.filename} to archive:`, error);
-      // Continue with other files even if one fails
-    }
+  let zipResult;
+  try {
+    zipResult = await createDocumentZip(documents, {
+      displayId: nda.displayId,
+      companyName: nda.companyName,
+    });
+  } catch (error) {
+    console.error('[Document] Failed to create ZIP archive:', error);
+    throw new DocumentServiceError(
+      'Bulk download failed, try downloading individually',
+      'BULK_DOWNLOAD_FAILED'
+    );
   }
-
-  // Finalize the archive
-  archive.finalize();
-
-  // Generate ZIP filename
-  const sanitizedCompany = nda.companyName.replace(/[^a-zA-Z0-9]/g, '_');
-  const filename = `NDA_${nda.displayId}_${sanitizedCompany}_documents.zip`;
 
   // Log audit
   await auditService.log({
-    action: AuditAction.DOCUMENT_DOWNLOADED,
+    action: AuditAction.DOCUMENT_BULK_DOWNLOADED,
     entityType: 'nda',
     entityId: ndaId,
     userId: userContext.contactId,
@@ -706,34 +691,15 @@ export async function createBulkDownload(
       ndaDisplayId: nda.displayId,
       downloadType: 'bulk_zip',
       documentCount: documents.length,
+      documentIds: documents.map((doc) => doc.id),
     },
   });
 
   return {
-    stream: passthrough,
-    filename,
+    stream: zipResult.stream,
+    filename: zipResult.filename,
     documentCount: documents.length,
   };
-}
-
-function sanitizeZipEntryName(filename: string, fallback: string): string {
-  const normalized = filename
-    .replace(/[\0\r\n]/g, '') // prevent control chars / header issues
-    .replace(/\\/g, '/'); // normalize Windows separators
-
-  let base = path.posix.basename(normalized).trim();
-  if (!base || base === '.' || base === '..') {
-    base = fallback;
-  }
-
-  // Avoid extremely long names
-  if (base.length > 200) {
-    const ext = path.posix.extname(base);
-    const stem = base.slice(0, 200 - ext.length);
-    base = `${stem}${ext}`;
-  }
-
-  return base;
 }
 
 /**

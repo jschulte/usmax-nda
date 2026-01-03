@@ -148,6 +148,7 @@ export function NDADetail() {
   const [templates, setTemplates] = useState<RtfTemplate[]>([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
   const [previewing, setPreviewing] = useState(false);
+  const [downloadingAll, setDownloadingAll] = useState(false);
 
   // UI state
   const [activeTab, setActiveTab] = useState<'overview' | 'document' | 'activity'>('overview');
@@ -1144,6 +1145,7 @@ export function NDADetail() {
     if (!id) return;
 
     try {
+      setDownloadingAll(true);
       await downloadAllDocuments(id);
       toast.success('Download started', {
         description: 'Downloading all documents as ZIP'
@@ -1153,6 +1155,8 @@ export function NDADetail() {
       toast.error('Download failed', {
         description: err instanceof Error ? err.message : 'Failed to download documents'
       });
+    } finally {
+      setDownloadingAll(false);
     }
   };
 
@@ -1832,10 +1836,11 @@ export function NDADetail() {
                         <Button
                           variant="subtle"
                           size="sm"
-                          icon={<Archive className="w-4 h-4" />}
+                          icon={downloadingAll ? <Loader2 className="w-4 h-4 animate-spin" /> : <Archive className="w-4 h-4" />}
                           onClick={handleDownloadAll}
+                          disabled={downloadingAll}
                         >
-                          Download all
+                          {downloadingAll ? 'Preparing ZIP...' : `Download all (${documents.length} files)`}
                         </Button>
                       )}
                       {templates.length > 0 && (

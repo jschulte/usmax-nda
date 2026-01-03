@@ -1,0 +1,16 @@
+story_id: "4-5"
+date: "2026-01-03"
+mode: "batch"
+summary:
+  status: "completed"
+  changes:
+    - "Added streaming ZIP creation via zipService and S3 getDocumentStream"
+    - "Updated bulk download audit action and metadata with document IDs"
+    - "Adjusted bulk download filename to NDA-<display>-<company>-All-Versions.zip"
+    - "Added download-all UI loading state and count label"
+    - "Expanded bulk download tests (route + zip + stream)"
+  tests_added:
+    - "src/server/services/__tests__/zipService.test.ts"
+    - "src/server/services/__tests__/s3DocumentStream.test.ts"
+notes:
+  - "Bulk download endpoint already existed; aligned output to acceptance criteria"

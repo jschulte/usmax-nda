@@ -50,6 +50,7 @@ vi.mock('../../services/documentService.js', async () => {
     ...actual,
     uploadNdaDocument: vi.fn(),
     getNdaDocuments: vi.fn(),
+    createBulkDownload: vi.fn(),
   };
 });
 
@@ -191,6 +192,25 @@ describe('Document Upload Routes Integration', () => {
 
     expect(response.status).toBe(404);
     expect(response.body.code).toBe('NDA_NOT_FOUND');
+  });
+
+  it('downloads all documents as ZIP', async () => {
+    const { PassThrough } = await import('stream');
+    const stream = new PassThrough();
+    stream.end('zipdata');
+
+    vi.mocked(documentService.createBulkDownload).mockResolvedValue({
+      stream,
+      filename: 'NDA-1590-TechCorp-All-Versions.zip',
+      documentCount: 2,
+    } as any);
+
+    const response = await request(app)
+      .get('/api/ndas/nda-1/documents/download-all');
+
+    expect(response.status).toBe(200);
+    expect(response.headers['content-type']).toContain('application/zip');
+    expect(documentService.createBulkDownload).toHaveBeenCalledWith('nda-1', expect.anything(), expect.anything());
   });
 
 });

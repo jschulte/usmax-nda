@@ -1627,6 +1627,8 @@ router.get(
               ? 403
               : error.code === 'NO_DOCUMENTS'
                 ? 404
+                : error.code === 'BULK_DOWNLOAD_FAILED'
+                  ? 500
                 : 500;
 
         return res.status(statusCode).json({
@@ -1637,7 +1639,7 @@ router.get(
 
       console.error('[NDAs] Error creating bulk download:', error);
       res.status(500).json({
-        error: 'Failed to create bulk download',
+        error: 'Bulk download failed, try downloading individually',
         code: 'INTERNAL_ERROR',
       });
     }

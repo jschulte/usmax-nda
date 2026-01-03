@@ -50,6 +50,10 @@ vi.mock('../s3Service.js', () => ({
   },
 }));
 
+vi.mock('../zipService.js', () => ({
+  createDocumentZip: vi.fn(),
+}));
+
 // Mock auditService
 vi.mock('../auditService.js', async () => {
   const actual = await vi.importActual<typeof import('../auditService.js')>('../auditService.js');
@@ -187,7 +191,8 @@ describe('Document Download Tracking', () => {
       const { createBulkDownload } = await import('../documentService.js');
       const { findNdaWithScope } = await import('../../utils/scopedQuery.js');
       const { prisma } = await import('../../db/index.js');
-      const { getDocumentContent } = await import('../s3Service.js');
+      const { createDocumentZip } = await import('../zipService.js');
+      const { PassThrough } = await import('stream');
 
       const mockNda = {
         id: 'nda-456',
@@ -214,7 +219,10 @@ describe('Document Download Tracking', () => {
 
       vi.mocked(findNdaWithScope).mockResolvedValue(mockNda as any);
       vi.mocked(prisma.document.findMany).mockResolvedValue(mockDocuments as any);
-      vi.mocked(getDocumentContent).mockResolvedValue(Buffer.from('test content'));
+      vi.mocked(createDocumentZip).mockResolvedValue({
+        stream: new PassThrough(),
+        filename: 'NDA-NDA-2024-001-ACME-Corporation-All-Versions.zip',
+      } as any);
 
       // Reset auditService.log mock to return success
       vi.mocked(auditService.log).mockResolvedValue(undefined);
@@ -227,7 +235,7 @@ describe('Document Download Tracking', () => {
       // Verify audit log was called with ZIP download details
       expect(auditService.log).toHaveBeenCalledWith(
         expect.objectContaining({
-          action: AuditAction.DOCUMENT_DOWNLOADED,
+          action: AuditAction.DOCUMENT_BULK_DOWNLOADED,
           entityType: 'nda',
           entityId: 'nda-456',
           userId: 'contact-456',
@@ -238,6 +246,7 @@ describe('Document Download Tracking', () => {
             ndaDisplayId: 'NDA-2024-001',
             downloadType: 'bulk_zip',
             documentCount: 2,
+            documentIds: ['doc-1', 'doc-2'],
           }),
         })
       );
