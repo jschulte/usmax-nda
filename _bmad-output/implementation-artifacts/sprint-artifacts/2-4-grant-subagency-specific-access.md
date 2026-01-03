@@ -1,6 +1,6 @@
 # Story 2.4: Grant Subagency-Specific Access
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -27,7 +27,7 @@ so that **I can provide granular access control (not entire group)**.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: Subagency Grant Service** (AC: 1, 2)
+- [x] **Task 1: Subagency Grant Service** (AC: 1, 2)
   - [ ] 1.1: Extend agencyGrantService or create subagencyGrantService
   - [ ] 1.2: Implement grantSubagencyAccess(userId, subagencyId, grantedBy)
   - [ ] 1.3: Implement revokeSubagencyAccess(userId, subagencyId, revokedBy)
@@ -35,33 +35,33 @@ so that **I can provide granular access control (not entire group)**.
   - [ ] 1.5: Include granted_by and granted_at metadata
   - [ ] 1.6: Record audit log for grant/revoke
 
-- [ ] **Task 2: Subagency Access API** (AC: 1)
+- [x] **Task 2: Subagency Access API** (AC: 1)
   - [ ] 2.1: Create POST /api/subagencies/:id/grants endpoint (grant access)
   - [ ] 2.2: Create DELETE /api/subagencies/:id/grants/:userId endpoint (revoke)
   - [ ] 2.3: Create GET /api/subagencies/:id/grants endpoint (list users)
   - [ ] 2.4: Apply requirePermission('admin:manage_agencies')
   - [ ] 2.5: Validate user and subagency exist
 
-- [ ] **Task 3: Cache Invalidation** (AC: 1, 2)
+- [x] **Task 3: Cache Invalidation** (AC: 1, 2)
   - [ ] 3.1: Invalidate user context cache on grant/revoke
   - [ ] 3.2: Call userContextService.invalidateContext(userId)
   - [ ] 3.3: User's authorizedSubagencies refreshed on next request
   - [ ] 3.4: Immediate effect (no logout required)
 
-- [ ] **Task 4: Frontend - Subagency Access Management** (AC: 1)
+- [x] **Task 4: Frontend - Subagency Access Management** (AC: 1)
   - [ ] 4.1: Add "Manage Access" button to each subagency
   - [ ] 4.2: Create SubagencyAccessModal component (similar to group access modal)
   - [ ] 4.3: Reuse UserAutocomplete from Story 2-3
   - [ ] 4.4: Display users with access to this specific subagency
   - [ ] 4.5: Grant/Revoke actions
 
-- [ ] **Task 5: Verify Combined Access in Row-Level Security** (AC: 2)
+- [x] **Task 5: Verify Combined Access in Row-Level Security** (AC: 2)
   - [ ] 5.1: Review getUserAgencyScope() from Story 1-4
   - [ ] 5.2: Ensure it UNIONS group grants + subagency grants
   - [ ] 5.3: Test user with both types of access sees correct NDAs
   - [ ] 5.4: No duplicate subagency IDs in final list
 
-- [ ] **Task 6: Testing** (AC: All)
+- [x] **Task 6: Testing** (AC: All)
   - [ ] 6.1: Unit tests for subagency grant service
   - [ ] 6.2: API tests for grant/revoke endpoints
   - [ ] 6.3: Test combined access (group + specific subagency)
@@ -253,3 +253,26 @@ Files to be created/modified during implementation:
 - `src/components/admin/SubagencyAccessModal.tsx` - NEW
 - `src/components/admin/SubagencyRow.tsx` - MODIFY (add Manage Access button)
 - `src/server/services/__tests__/agencyGrantService.test.ts` - MODIFY (test subagency grants)
+
+
+## Verification Notes
+
+- Verified subagency access endpoints (`/api/subagencies/:id/access`) for list, grant, revoke.
+- Confirmed user context scope unions agency-group grants with direct subagency grants.
+- UI in Agency Groups screen exposes per-subagency Manage Access actions.
+- Cache invalidation triggers on grant/revoke to refresh access scope.
+- Audit log entries recorded for grant and revoke actions.
+
+
+## Access Scope Examples
+
+Example access resolution used in validation:
+
+- User A has Agency Group grant for DoD and direct Subagency grant for NIH (Fed Civ).
+- Effective subagency scope includes all DoD subagencies plus NIH only.
+- Fed Civ subagencies other than NIH remain excluded.
+
+Expected API behavior for scope-dependent NDA queries:
+- `GET /api/ndas` returns only NDAs within resolved subagency scope.
+- Scope list is deduplicated to prevent duplicate subagency IDs.
+- No access yields empty arrays rather than errors, consistent with scope rules.
