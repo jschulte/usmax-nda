@@ -2128,9 +2128,9 @@ router.put(
       }
 
       if (existing.userId !== req.userContext!.contactId) {
-        return res.status(403).json({
-          error: 'You can only edit your own notes',
-          code: 'FORBIDDEN',
+        return res.status(404).json({
+          error: 'Note not found',
+          code: 'NOTE_NOT_FOUND',
         });
       }
 
@@ -2219,9 +2219,9 @@ router.delete(
       }
 
       if (existing.userId !== req.userContext!.contactId) {
-        return res.status(403).json({
-          error: 'You can only delete your own notes',
-          code: 'FORBIDDEN',
+        return res.status(404).json({
+          error: 'Note not found',
+          code: 'NOTE_NOT_FOUND',
         });
       }
 

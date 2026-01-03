@@ -318,8 +318,8 @@ describe('NDA Routes Integration', () => {
         .put('/api/ndas/nda-1/notes/note-1')
         .send({ noteText: 'Updated note' });
 
-      expect(response.status).toBe(403);
-      expect(response.body.code).toBe('FORBIDDEN');
+      expect(response.status).toBe(404);
+      expect(response.body.code).toBe('NOTE_NOT_FOUND');
     });
 
     it('rejects edits when NDA id does not match', async () => {
@@ -350,6 +350,19 @@ describe('NDA Routes Integration', () => {
 
       expect(response.status).toBe(200);
       expect(response.body.message).toBe('Note deleted successfully');
+    });
+
+    it('rejects deletes for notes owned by other users', async () => {
+      prismaMock.internalNote.findUnique.mockResolvedValue({
+        id: 'note-1',
+        ndaId: 'nda-1',
+        userId: 'contact-2',
+      });
+
+      const response = await request(app).delete('/api/ndas/nda-1/notes/note-1');
+
+      expect(response.status).toBe(404);
+      expect(response.body.code).toBe('NOTE_NOT_FOUND');
     });
   });
 });

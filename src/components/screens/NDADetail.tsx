@@ -166,6 +166,8 @@ export function NDADetail() {
   const [reviewNotes, setReviewNotes] = useState('');
   const [internalNotes, setInternalNotes] = useState('');
   const [savedNotes, setSavedNotes] = useState<notesService.InternalNote[]>([]); // Story 9.1
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [editingNoteText, setEditingNoteText] = useState('');
 
   // Load NDA data on mount
   useEffect(() => {
@@ -212,6 +214,10 @@ export function NDADetail() {
               if (response.ok) {
                 const { htmlContent } = await response.json();
                 setDocumentHtml(htmlContent);
+              } else {
+                console.warn(`Failed to load document HTML: ${response.status}`);
+                // Document exists but content unavailable - still mark as loaded to avoid showing "No Document Yet"
+                setDocumentHtml(''); // Empty string instead of null to signal "exists but unavailable"
               }
             } catch (docErr) {
               console.error('Failed to load document HTML:', docErr);
@@ -325,7 +331,10 @@ export function NDADetail() {
     if (id) {
       notesService.getNotes(id)
         .then(data => setSavedNotes(data.notes))
-        .catch(err => console.error('Failed to load notes:', err));
+        .catch(err => {
+          console.error('Failed to load notes:', err);
+          toast.error('Failed to load internal notes');
+        });
     }
   }, [id]);
 
@@ -876,6 +885,35 @@ export function NDADetail() {
     }
   };
 
+  const handleStartEditNote = (note: notesService.InternalNote) => {
+    setEditingNoteId(note.id);
+    setEditingNoteText(note.noteText);
+  };
+
+  const handleCancelEditNote = () => {
+    setEditingNoteId(null);
+    setEditingNoteText('');
+  };
+
+  const handleSaveEditNote = async (noteId: string) => {
+    if (!id) return;
+    const trimmedNote = editingNoteText.trim();
+    if (!trimmedNote) {
+      toast.error('Note text is required');
+      return;
+    }
+    try {
+      await notesService.updateNote(id, noteId, trimmedNote);
+      toast.success('Note updated');
+      const data = await notesService.getNotes(id);
+      setSavedNotes(data.notes);
+      handleCancelEditNote();
+    } catch (error) {
+      toast.error('Failed to update note');
+      console.error('Error updating note:', error);
+    }
+  };
+
 
   // Document handlers
   const handleFileSelect = async (files: FileList | null) => {
@@ -1378,6 +1416,16 @@ export function NDADetail() {
               <div className="flex items-center justify-center py-24">
                 <Loader2 className="w-8 h-8 animate-spin text-[var(--color-primary)]" />
                 <p className="ml-3 text-[var(--color-text-secondary)]">Loading document...</p>
+              </div>
+            </Card>
+          ) : documentHtml === '' && documents.length > 0 ? (
+            <Card>
+              <div className="text-center py-24">
+                <AlertCircle className="w-16 h-16 text-[var(--color-text-muted)] mx-auto mb-4" />
+                <h3 className="text-lg font-semibold mb-2">Document Content Unavailable</h3>
+                <p className="text-sm text-[var(--color-text-secondary)] mb-4">
+                  The document exists but its content cannot be loaded for editing. Check the Document tab to view details.
+                </p>
               </div>
             </Card>
           ) : (
@@ -2190,21 +2238,61 @@ export function NDADetail() {
               <div className="mb-4 space-y-3">
                 {savedNotes.map((note) => (
                   <div key={note.id} className="border border-[var(--color-border)] rounded-md p-3 bg-slate-50">
-                    <p className="text-sm mb-2">{note.noteText}</p>
-                    <div className="flex items-center justify-between text-xs text-[var(--color-text-secondary)]">
-                      <span>
-                        {note.user.firstName} {note.user.lastName} • {new Date(note.createdAt).toLocaleString()}
-                      </span>
-                      <Button
-                        variant="subtle"
-                        size="sm"
-                        icon={<Trash2 className="w-3 h-3" />}
-                        onClick={() => handleDeleteNote(note.id)}
-                        className="text-xs"
-                      >
-                        Delete
-                      </Button>
-                    </div>
+                    {editingNoteId === note.id ? (
+                      <div className="space-y-2">
+                        <textarea
+                          className="w-full px-3 py-2 border border-[var(--color-border)] rounded-md text-sm min-h-[80px] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+                          value={editingNoteText}
+                          onChange={(e) => setEditingNoteText(e.target.value)}
+                        />
+                        <div className="flex items-center justify-between text-xs text-[var(--color-text-secondary)]">
+                          <span>
+                            {note.user.firstName} {note.user.lastName} • {new Date(note.createdAt).toLocaleString()}
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <Button variant="subtle" size="sm" onClick={handleCancelEditNote} className="text-xs">
+                              Cancel
+                            </Button>
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => handleSaveEditNote(note.id)}
+                              className="text-xs"
+                            >
+                              Save
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <p className="text-sm mb-2">{note.noteText}</p>
+                        <div className="flex items-center justify-between text-xs text-[var(--color-text-secondary)]">
+                          <span>
+                            {note.user.firstName} {note.user.lastName} • {new Date(note.createdAt).toLocaleString()}
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="subtle"
+                              size="sm"
+                              onClick={() => handleStartEditNote(note)}
+                              className="text-xs"
+                            >
+                              Edit
+                            </Button>
+                            <Button
+                              variant="subtle"
+                              size="sm"
+                              icon={<Trash2 className="w-3 h-3" />}
+                              onClick={() => handleDeleteNote(note.id)}
+                              className="text-xs"
+                            >
+                              Delete
+                            </Button>
+                          </div>
+                        </div>
+                      </>
+                    )}
                   </div>
                 ))}
               </div>
