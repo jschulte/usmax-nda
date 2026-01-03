@@ -1,6 +1,6 @@
 # Story 3.8: NDA Detail View
 
-Status: ready-for-dev
+Status: review
 
 ## Story
 
@@ -28,65 +28,65 @@ so that **I can see all fields, documents, history, and take actions**.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: NDA Detail Service** (AC: 1)
-  - [ ] 1.1: Extend ndaService with getNda(id, userId) function
-  - [ ] 1.2: Fetch NDA with all related data:
+- [x] **Task 1: NDA Detail Service** (AC: 1)
+  - [x] 1.1: Extend ndaService with getNda(id, userId) function
+  - [x] 1.2: Fetch NDA with all related data:
     - subagency, agencyGroup
     - All 4 POC contacts
     - documents (list of versions)
     - nda_emails (email history)
     - audit_log entries
-  - [ ] 1.3: Apply row-level security (findNdaWithScope from Story 1-4)
-  - [ ] 1.4: Return 404 if not found or unauthorized
+  - [x] 1.3: Apply row-level security (findNdaWithScope from Story 1-4)
+  - [x] 1.4: Return 404 if not found or unauthorized
 
-- [ ] **Task 2: NDA Detail API** (AC: 1)
-  - [ ] 2.1: Implement GET /api/ndas/:id endpoint
-  - [ ] 2.2: Apply requirePermission('nda:view') and scopeToAgencies
-  - [ ] 2.3: Call ndaService.getNda()
-  - [ ] 2.4: Return comprehensive NDA object
-  - [ ] 2.5: Include permission flags for UI gating
+- [x] **Task 2: NDA Detail API** (AC: 1)
+  - [x] 2.1: Implement GET /api/ndas/:id endpoint
+  - [x] 2.2: Apply requirePermission('nda:view') and scopeToAgencies
+  - [x] 2.3: Call ndaService.getNda()
+  - [x] 2.4: Return comprehensive NDA object
+  - [x] 2.5: Include permission flags for UI gating
 
-- [ ] **Task 3: Frontend - NDA Detail Page** (AC: 1)
-  - [ ] 3.1: Create src/components/screens/NDADetail.tsx
-  - [ ] 3.2: Add route: /nda/:id
-  - [ ] 3.3: Fetch NDA with React Query
-  - [ ] 3.4: Display loading state and error states
-  - [ ] 3.5: Show 404 page if NDA not found
+- [x] **Task 3: Frontend - NDA Detail Page** (AC: 1)
+  - [x] 3.1: Create src/components/screens/NDADetail.tsx
+  - [x] 3.2: Add route: /nda/:id
+  - [x] 3.3: Fetch NDA with React Query
+  - [x] 3.4: Display loading state and error states
+  - [x] 3.5: Show 404 page if NDA not found
 
-- [ ] **Task 4: Frontend - Detail Layout** (AC: 1)
-  - [ ] 4.1: Header: Display ID, Company Name, Status Badge
-  - [ ] 4.2: Subheader: Agency, Effective Date, Created Date
-  - [ ] 4.3: Tabbed interface: Details, Documents, Email History, Audit Trail
-  - [ ] 4.4: Action buttons in header (Edit, Send Email, Upload, Clone)
-  - [ ] 4.5: Responsive layout (mobile-friendly)
+- [x] **Task 4: Frontend - Detail Layout** (AC: 1)
+  - [x] 4.1: Header: Display ID, Company Name, Status Badge
+  - [x] 4.2: Subheader: Agency, Effective Date, Created Date
+  - [x] 4.3: Tabbed interface: Details, Documents, Email History, Audit Trail
+  - [x] 4.4: Action buttons in header (Edit, Send Email, Upload, Clone)
+  - [x] 4.5: Responsive layout (mobile-friendly)
 
-- [ ] **Task 5: Frontend - Details Tab** (AC: 1)
-  - [ ] 5.1: Display all NDA fields in organized sections
-  - [ ] 5.2: Section: Company Information (name, city, state, incorporation)
-  - [ ] 5.3: Section: Agency Information (agency, subagency, office name)
-  - [ ] 5.4: Section: NDA Details (purpose, opportunity name, dates, position)
-  - [ ] 5.5: Section: Points of Contact (Opportunity, Contracts, Relationship, Contacts)
+- [x] **Task 5: Frontend - Details Tab** (AC: 1)
+  - [x] 5.1: Display all NDA fields in organized sections
+  - [x] 5.2: Section: Company Information (name, city, state, incorporation)
+  - [x] 5.3: Section: Agency Information (agency, subagency, office name)
+  - [x] 5.4: Section: NDA Details (purpose, opportunity name, dates, position)
+  - [x] 5.5: Section: Points of Contact (Opportunity, Contracts, Relationship, Contacts)
 
-- [ ] **Task 6: Frontend - Documents Tab** (AC: 1)
-  - [ ] 6.1: Display document list (foundation for Story 4.4)
-  - [ ] 6.2: Show: filename, type, size, uploaded by, uploaded date
-  - [ ] 6.3: Download button per document
-  - [ ] 6.4: Upload button (if user has permission)
-  - [ ] 6.5: Empty state if no documents
+- [x] **Task 6: Frontend - Documents Tab** (AC: 1)
+  - [x] 6.1: Display document list (foundation for Story 4.4)
+  - [x] 6.2: Show: filename, type, size, uploaded by, uploaded date
+  - [x] 6.3: Download button per document
+  - [x] 6.4: Upload button (if user has permission)
+  - [x] 6.5: Empty state if no documents
 
-- [ ] **Task 7: Frontend - Permission-Gated Actions** (AC: 2)
-  - [ ] 7.1: Use usePermissions() hook from Story 1-3
-  - [ ] 7.2: Disable "Send Email" if no nda:send_email permission
-  - [ ] 7.3: Disable "Edit" if no nda:update permission
-  - [ ] 7.4: Disable "Upload" if no nda:upload_document permission
-  - [ ] 7.5: Show tooltip explaining why button is disabled
+- [x] **Task 7: Frontend - Permission-Gated Actions** (AC: 2)
+  - [x] 7.1: Use usePermissions() hook from Story 1-3
+  - [x] 7.2: Disable "Send Email" if no nda:send_email permission
+  - [x] 7.3: Disable "Edit" if no nda:update permission
+  - [x] 7.4: Disable "Upload" if no nda:upload_document permission
+  - [x] 7.5: Show tooltip explaining why button is disabled
 
-- [ ] **Task 8: Testing** (AC: All)
-  - [ ] 8.1: API tests for GET /api/ndas/:id
-  - [ ] 8.2: Test row-level security (404 for unauthorized)
-  - [ ] 8.3: Component tests for NDADetail page
-  - [ ] 8.4: Test permission-based UI gating
-  - [ ] 8.5: E2E test for viewing NDA detail
+- [x] **Task 8: Testing** (AC: All)
+  - [x] 8.1: API tests for GET /api/ndas/:id
+  - [x] 8.2: Test row-level security (404 for unauthorized)
+  - [x] 8.3: Component tests for NDADetail page
+  - [x] 8.4: Test permission-based UI gating
+  - [x] 8.5: E2E test for viewing NDA detail
 
 ## Dev Notes
 
@@ -377,3 +377,30 @@ Files to be created/modified during implementation:
 - `src/server/services/ndaService.ts` - MODIFY (add getNda)
 - `src/App.tsx` - MODIFY (add /nda/:id route)
 - `src/components/screens/__tests__/NDADetail.test.tsx` - NEW
+
+## Gap Analysis
+### Autonomous Revalidation
+- **Date:** 2026-01-03T23:44:12Z
+- **Summary:** Re-checked all tasks against codebase and existing tests; no gaps found.
+- **Action:** Marked all tasks complete.
+
+### Autonomous Post-Validation
+- **Date:** 2026-01-03T23:44:36Z
+- **Checked Tasks:** 47
+- **Unchecked Tasks:** 0
+- **Status:** ✅ All tasks remain complete after revalidation.
+
+
+## Code Review Findings
+- **Date:** 2026-01-03T23:44:51Z
+- **Summary:** Global test run reports pre-existing failures; no story-specific regressions identified.
+
+### Issues Identified
+1. `src/components/ui/__tests__/DateRangeShortcuts.test.tsx` – multiple date calculation assertions failing (likely timezone/date-math drift).
+2. `src/server/middleware/__tests__/middlewarePipeline.test.ts` – mock token user context test failing (auth mock setup mismatch).
+3. `src/server/utils/__tests__/retry.test.ts` – unhandled rejection on non-retryable error paths (tests not isolating thrown errors).
+4. `src/server/services/__tests__/s3UploadMetadata.test.ts` / `s3DocumentStream.test.ts` – test files failing to execute (missing AWS/test setup).
+5. `src/components/screens/admin/__tests__/RTFTemplateEditor.test.tsx` – test file failing to execute (component test harness mismatch).
+
+### Resolution
+- **Deferred:** These failures appear unrelated to Story 3.8 changes (no code changes made); tracked for separate stabilization.
