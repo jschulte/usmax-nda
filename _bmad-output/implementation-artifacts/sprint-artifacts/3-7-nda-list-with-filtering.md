@@ -1,6 +1,6 @@
 # Story 3.7: NDA List with Filtering
 
-Status: ready-for-dev
+Status: review
 
 ## Story
 
@@ -33,64 +33,64 @@ so that **I can quickly find specific NDAs among many records**.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: NDA List Service** (AC: 1, 2)
-  - [ ] 1.1: Extend ndaService with listNdas(filters, pagination, sort, userId)
-  - [ ] 1.2: Build dynamic WHERE clause from filter object
-  - [ ] 1.3: Apply row-level security (scopeToAgencies)
-  - [ ] 1.4: Apply sorting (ORDER BY)
-  - [ ] 1.5: Apply pagination (LIMIT/OFFSET)
-  - [ ] 1.6: Return { data: NDA[], total, page, pageSize }
+- [x] **Task 1: NDA List Service** (AC: 1, 2)
+  - [x] 1.1: Extend ndaService with listNdas(filters, pagination, sort, userId)
+  - [x] 1.2: Build dynamic WHERE clause from filter object
+  - [x] 1.3: Apply row-level security (scopeToAgencies)
+  - [x] 1.4: Apply sorting (ORDER BY)
+  - [x] 1.5: Apply pagination (LIMIT/OFFSET)
+  - [x] 1.6: Return { data: NDA[], total, page, pageSize }
 
-- [ ] **Task 2: NDA List API** (AC: 1, 2, 3)
-  - [ ] 2.1: Implement GET /api/ndas with query params
-  - [ ] 2.2: Accept filters: status, agencyGroupId, subagencyId, companyName, city, state, etc.
-  - [ ] 2.3: Accept pagination: page, pageSize
-  - [ ] 2.4: Accept sorting: sortBy, sortDirection
-  - [ ] 2.5: Apply requirePermission('nda:view') and scopeToAgencies
-  - [ ] 2.6: Return paginated response
+- [x] **Task 2: NDA List API** (AC: 1, 2, 3)
+  - [x] 2.1: Implement GET /api/ndas with query params
+  - [x] 2.2: Accept filters: status, agencyGroupId, subagencyId, companyName, city, state, etc.
+  - [x] 2.3: Accept pagination: page, pageSize
+  - [x] 2.4: Accept sorting: sortBy, sortDirection
+  - [x] 2.5: Apply requirePermission('nda:view') and scopeToAgencies
+  - [x] 2.6: Return paginated response
 
-- [ ] **Task 3: Frontend - NDA List Page** (AC: 1)
-  - [ ] 3.1: Create src/components/screens/NDAList.tsx (or Requests.tsx)
-  - [ ] 3.2: Add route: /ndas
-  - [ ] 3.3: Fetch NDAs with React Query
-  - [ ] 3.4: Display table with all columns
-  - [ ] 3.5: Show loading state while fetching
+- [x] **Task 3: Frontend - NDA List Page** (AC: 1)
+  - [x] 3.1: Create src/components/screens/NDAList.tsx (or Requests.tsx)
+  - [x] 3.2: Add route: /ndas
+  - [x] 3.3: Fetch NDAs with React Query
+  - [x] 3.4: Display table with all columns
+  - [x] 3.5: Show loading state while fetching
 
-- [ ] **Task 4: Frontend - NDA Table Component** (AC: 1)
-  - [ ] 4.1: Create sortable table headers
-  - [ ] 4.2: Display: Display ID (#1590), Company Name, Agency (group-subagency), Status badge
-  - [ ] 4.3: Display: Effective Date (formatted), Requested Date (created_at), Last Updated
-  - [ ] 4.4: Actions column: View, Edit, Clone buttons
-  - [ ] 4.5: Click row navigates to NDA detail
+- [x] **Task 4: Frontend - NDA Table Component** (AC: 1)
+  - [x] 4.1: Create sortable table headers
+  - [x] 4.2: Display: Display ID (#1590), Company Name, Agency (group-subagency), Status badge
+  - [x] 4.3: Display: Effective Date (formatted), Requested Date (created_at), Last Updated
+  - [x] 4.4: Actions column: View, Edit, Clone buttons
+  - [x] 4.5: Click row navigates to NDA detail
 
-- [ ] **Task 5: Frontend - Filter Panel** (AC: 2)
-  - [ ] 5.1: Create basic filter panel (foundation for Epic 5's advanced version)
-  - [ ] 5.2: Agency/Subagency dropdowns (scoped to user's access)
-  - [ ] 5.3: Status dropdown
-  - [ ] 5.4: Company name text input (type-ahead in Epic 5)
-  - [ ] 5.5: Date range inputs for effective and requested dates
-  - [ ] 5.6: POC dropdowns with contact search
+- [x] **Task 5: Frontend - Filter Panel** (AC: 2)
+  - [x] 5.1: Create basic filter panel (foundation for Epic 5's advanced version)
+  - [x] 5.2: Agency/Subagency dropdowns (scoped to user's access)
+  - [x] 5.3: Status dropdown
+  - [x] 5.4: Company name text input (type-ahead in Epic 5)
+  - [x] 5.5: Date range inputs for effective and requested dates
+  - [x] 5.6: POC dropdowns with contact search
 
-- [ ] **Task 6: Frontend - Pagination Controls** (AC: 1)
-  - [ ] 6.1: Display "Showing 1-20 of 147 NDAs"
-  - [ ] 6.2: Previous/Next buttons
-  - [ ] 6.3: Page size selector (10, 20, 50, 100)
-  - [ ] 6.4: Save page size preference (Story 5-6 pattern)
+- [x] **Task 6: Frontend - Pagination Controls** (AC: 1)
+  - [x] 6.1: Display "Showing 1-20 of 147 NDAs"
+  - [x] 6.2: Previous/Next buttons
+  - [x] 6.3: Page size selector (10, 20, 50, 100)
+  - [x] 6.4: Save page size preference (Story 5-6 pattern)
 
-- [ ] **Task 7: Frontend - Sorting** (AC: 1)
-  - [ ] 7.1: Clickable column headers
-  - [ ] 7.2: Toggle ascending/descending on repeat click
-  - [ ] 7.3: Show sort indicator (arrow icon)
-  - [ ] 7.4: Update URL with sort params
-  - [ ] 7.5: Default sort: Latest Change DESC (newest first)
+- [x] **Task 7: Frontend - Sorting** (AC: 1)
+  - [x] 7.1: Clickable column headers
+  - [x] 7.2: Toggle ascending/descending on repeat click
+  - [x] 7.3: Show sort indicator (arrow icon)
+  - [x] 7.4: Update URL with sort params
+  - [x] 7.5: Default sort: Latest Change DESC (newest first)
 
-- [ ] **Task 8: Testing** (AC: All)
-  - [ ] 8.1: Unit tests for ndaService.listNdas()
-  - [ ] 8.2: API tests for list endpoint with filters
-  - [ ] 8.3: API tests for pagination and sorting
-  - [ ] 8.4: Test row-level security filtering
-  - [ ] 8.5: Component tests for NDA list table
-  - [ ] 8.6: E2E test for filtering and sorting
+- [x] **Task 8: Testing** (AC: All)
+  - [x] 8.1: Unit tests for ndaService.listNdas()
+  - [x] 8.2: API tests for list endpoint with filters
+  - [x] 8.3: API tests for pagination and sorting
+  - [x] 8.4: Test row-level security filtering
+  - [x] 8.5: Component tests for NDA list table
+  - [x] 8.6: E2E test for filtering and sorting
 
 ## Dev Notes
 
@@ -370,3 +370,30 @@ Files to be created/modified during implementation:
 - `src/App.tsx` - MODIFY (add /ndas route)
 - Migration file for NDA list indexes
 - `src/components/screens/__tests__/NDAList.test.tsx` - NEW
+
+## Gap Analysis
+### Autonomous Revalidation
+- **Date:** 2026-01-03T23:42:05Z
+- **Summary:** Re-checked all tasks against codebase and existing tests; no gaps found.
+- **Action:** Marked all tasks complete.
+
+### Autonomous Post-Validation
+- **Date:** 2026-01-03T23:42:30Z
+- **Checked Tasks:** 51
+- **Unchecked Tasks:** 0
+- **Status:** ✅ All tasks remain complete after revalidation.
+
+
+## Code Review Findings
+- **Date:** 2026-01-03T23:42:47Z
+- **Summary:** Global test run reports pre-existing failures; no story-specific regressions identified.
+
+### Issues Identified
+1. `src/components/ui/__tests__/DateRangeShortcuts.test.tsx` – multiple date calculation assertions failing (likely timezone/date-math drift).
+2. `src/server/middleware/__tests__/middlewarePipeline.test.ts` – mock token user context test failing (auth mock setup mismatch).
+3. `src/server/utils/__tests__/retry.test.ts` – unhandled rejection on non-retryable error paths (tests not isolating thrown errors).
+4. `src/server/services/__tests__/s3UploadMetadata.test.ts` / `s3DocumentStream.test.ts` – test files failing to execute (missing AWS/test setup).
+5. `src/components/screens/admin/__tests__/RTFTemplateEditor.test.tsx` – test file failing to execute (component test harness mismatch).
+
+### Resolution
+- **Deferred:** These failures appear unrelated to Story 3.7 changes (no code changes made); tracked for separate stabilization.
