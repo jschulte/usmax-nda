@@ -2,66 +2,57 @@
  * Inline Editable Document Component
  *
  * Shows document content with ability to switch to edit mode inline
- * Hybrid approach: View by default, click Edit to enter WYSIWYG mode
+ * Hybrid approach: View by default, click Edit to enter WYSIWYG mode with track changes
  */
 
 import React, { useState, useRef, useEffect } from 'react';
-import ReactQuill from 'react-quill';
-import 'quill/dist/quill.snow.css';
+import { RTFEditor } from '@jonahschulte/rtf-editor';
 import { Button } from './ui/AppButton';
 import { Card } from './ui/AppCard';
 import { Edit, Save, X, Loader2, Download, Eye, FileText } from 'lucide-react';
 import { toast } from 'sonner';
-import { convertHTMLToRTF } from '@jonahschulte/rtf-toolkit';
+import { parseRTF, toHTML } from '@jonahschulte/rtf-toolkit';
 
 interface InlineEditableDocumentProps {
   ndaId: string;
   documentId: string;
-  initialHtml: string;
+  initialRtf: string; // Changed from initialHtml to initialRtf
   canEdit: boolean;
   onSave?: (newVersion: any) => void;
 }
 
-const EDITOR_MODULES = {
-  toolbar: [
-    [{ header: [1, 2, 3, false] }],
-    ['bold', 'italic', 'underline'],
-    [{ list: 'ordered' }, { list: 'bullet' }],
-    [{ align: [] }],
-    [{ indent: '-1' }, { indent: '+1' }],
-    ['clean'],
-  ],
-};
-
-const FORMATS = [
-  'header',
-  'bold',
-  'italic',
-  'underline',
-  'list',
-  'bullet',
-  'align',
-  'indent',
-];
-
 export function InlineEditableDocument({
   ndaId,
   documentId,
-  initialHtml,
+  initialRtf,
   canEdit,
   onSave,
 }: InlineEditableDocumentProps) {
-  const quillRef = useRef<ReactQuill>(null);
   const [editMode, setEditMode] = useState(false);
-  const [content, setContent] = useState(initialHtml);
-  const [originalContent] = useState(initialHtml);
+  const [rtfContent, setRtfContent] = useState(initialRtf);
+  const [htmlContent, setHtmlContent] = useState('');
+  const [originalContent] = useState(initialRtf);
   const [saving, setSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
 
+  // Convert RTF to HTML for preview display
+  useEffect(() => {
+    if (initialRtf) {
+      try {
+        const parsed = parseRTF(initialRtf);
+        const html = toHTML(parsed);
+        setHtmlContent(html);
+      } catch (err) {
+        console.error('Failed to parse RTF:', err);
+        toast.error('Failed to load document preview');
+      }
+    }
+  }, [initialRtf]);
+
   // Track changes
   useEffect(() => {
-    setHasChanges(content !== originalContent);
-  }, [content, originalContent]);
+    setHasChanges(rtfContent !== originalContent);
+  }, [rtfContent, originalContent]);
 
   const handleEnterEditMode = () => {
     if (!canEdit) {
@@ -75,26 +66,31 @@ export function InlineEditableDocument({
     if (hasChanges) {
       const confirmed = window.confirm('Discard unsaved changes?');
       if (!confirmed) return;
-      setContent(originalContent);
+      setRtfContent(originalContent);
     }
     setEditMode(false);
+  };
+
+  const handleEditorChange = (data: { rtf: string; html: string }) => {
+    setRtfContent(data.rtf);
+    setHtmlContent(data.html);
   };
 
   const handleSave = async () => {
     try {
       setSaving(true);
 
-      // Convert HTML → RTF
-      const rtfContent = convertHTMLToRTF(content);
-
-      // Save via API
+      // Save RTF content via API
       const response = await fetch(`/api/ndas/${ndaId}/documents/${documentId}/save`, {
         method: 'PUT',
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ htmlContent: content }),
+        body: JSON.stringify({
+          rtfContent: rtfContent,
+          htmlContent: htmlContent
+        }),
       });
 
       if (!response.ok) {
@@ -128,7 +124,6 @@ export function InlineEditableDocument({
   const handleDownload = async () => {
     // Generate downloadable RTF
     try {
-      const rtfContent = convertHTMLToRTF(content);
       const blob = new Blob([rtfContent], { type: 'application/rtf' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -202,14 +197,13 @@ export function InlineEditableDocument({
       <div className="min-h-[600px]">
         {editMode ? (
           <div className="border border-gray-200 rounded">
-            <ReactQuill
-              ref={quillRef}
-              theme="snow"
-              value={content}
-              onChange={setContent}
-              modules={EDITOR_MODULES}
-              formats={FORMATS}
-              style={{ minHeight: '600px' }}
+            <RTFEditor
+              value={rtfContent}
+              onChange={handleEditorChange}
+              readOnly={!canEdit}
+              height="600px"
+              showSidebar={true}
+              showToolbar={true}
             />
           </div>
         ) : (
@@ -223,7 +217,7 @@ export function InlineEditableDocument({
             }}
           >
             <div
-              dangerouslySetInnerHTML={{ __html: content }}
+              dangerouslySetInnerHTML={{ __html: htmlContent }}
               style={{
                 fontFamily: 'Georgia, serif',
                 fontSize: '12pt',

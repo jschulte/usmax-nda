@@ -2330,16 +2330,15 @@ router.get(
 
 /**
  * GET /api/ndas/:id/documents/:docId/edit-content
- * Get document content as HTML for editing
+ * Get document content as RTF for editing
  *
- * Converts RTF → HTML using @jonahschulte/rtf-toolkit
+ * Returns raw RTF content for use with @jonahschulte/rtf-editor
  */
 router.get(
   '/:id/documents/:docId/edit-content',
   requirePermission(PERMISSIONS.NDA_VIEW),
   async (req, res) => {
     try {
-      const { parseRTF, toHTML } = await import('@jonahschulte/rtf-toolkit');
       const { getDocumentContent } = await import('../services/documentService.js');
 
       // Get RTF content from S3
@@ -2349,11 +2348,8 @@ router.get(
         req.userContext!
       );
 
-      // Convert RTF → HTML
-      const doc = parseRTF(rtfContent);
-      const htmlContent = toHTML(doc);
-
-      res.json({ htmlContent });
+      // Return raw RTF content (frontend will handle conversion)
+      res.json({ rtfContent });
     } catch (error) {
       console.error('[NDAs] Error loading document for editing:', error);
       res.status(500).json({
@@ -2368,27 +2364,26 @@ router.get(
  * PUT /api/ndas/:id/documents/:docId/save
  * Save edited document content
  *
- * Converts HTML → RTF and creates new document version
+ * Accepts RTF content from @jonahschulte/rtf-editor and creates new document version
  */
 router.put(
   '/:id/documents/:docId/save',
   requirePermission(PERMISSIONS.NDA_UPDATE),
   async (req, res) => {
     try {
-      const { htmlContent } = req.body;
+      const { rtfContent, htmlContent } = req.body;
 
-      if (!htmlContent || typeof htmlContent !== 'string') {
+      if (!rtfContent || typeof rtfContent !== 'string') {
         return res.status(400).json({
-          error: 'htmlContent is required',
+          error: 'rtfContent is required',
           code: 'MISSING_CONTENT',
         });
       }
 
-      const { convertHTMLToRTF } = await import('@jonahschulte/rtf-toolkit');
       const { uploadDocument } = await import('../services/s3Service.js');
 
-      // Convert HTML → RTF
-      const rtfContent = convertHTMLToRTF(htmlContent);
+      // RTF content is already provided by the editor
+      // htmlContent is optional and used for preview/search purposes
 
       // Create new document version
       const filename = `NDA_${req.params.id}_v${Date.now()}.rtf`;

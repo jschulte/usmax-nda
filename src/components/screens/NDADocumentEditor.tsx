@@ -1,54 +1,32 @@
 /**
  * NDA Document Editor
  *
- * WYSIWYG editor for editing NDA documents in-browser
- * Loads RTF → HTML, allows editing, saves HTML → RTF
+ * WYSIWYG editor for editing NDA documents in-browser with track changes
+ * Loads RTF, allows editing with track changes, saves RTF
  */
 
-import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import ReactQuill from 'react-quill';
-import 'quill/dist/quill.snow.css';
+import { RTFEditor } from '@jonahschulte/rtf-editor';
 import { Button } from '../ui/AppButton';
 import { Card } from '../ui/AppCard';
 import { ArrowLeft, Save, Eye, Loader2, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { getNdaDetail } from '../../client/services/ndaService';
 import { listDocuments, type Document } from '../../client/services/documentService';
-
-const FORMATS = [
-  'header',
-  'bold',
-  'italic',
-  'underline',
-  'font',
-  'size',
-  'list',
-  'bullet',
-];
-
-const EDITOR_MODULES = {
-  toolbar: [
-    [{ header: [1, 2, 3, false] }],
-    ['bold', 'italic', 'underline'],
-    [{ font: ['Times New Roman', 'Arial', 'Courier New'] }],
-    [{ size: ['small', false, 'large', 'huge'] }],
-    [{ list: 'ordered' }, { list: 'bullet' }],
-    ['clean'],
-  ],
-};
+import { parseRTF, toHTML } from '@jonahschulte/rtf-toolkit';
 
 export function NDADocumentEditor() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const quillRef = useRef<ReactQuill>(null);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [converting, setConverting] = useState(false);
   const [nda, setNda] = useState<any>(null);
   const [document, setDocument] = useState<Document | null>(null);
-  const [content, setContent] = useState<string>('');
+  const [rtfContent, setRtfContent] = useState<string>('');
+  const [htmlContent, setHtmlContent] = useState<string>('');
   const [originalContent, setOriginalContent] = useState<string>('');
   const [hasChanges, setHasChanges] = useState(false);
 
@@ -97,13 +75,12 @@ export function NDADocumentEditor() {
     loadData();
   }, [id, navigate]);
 
-  // Load document content (RTF → HTML)
+  // Load document content (RTF)
   const loadDocumentForEditing = async (ndaId: string, documentId: string) => {
     try {
       setConverting(true);
 
-      // Fetch document content from backend
-      // The backend will convert RTF → HTML using @jonahschulte/rtf-toolkit
+      // Fetch RTF document content from backend
       const response = await fetch(`/api/ndas/${ndaId}/documents/${documentId}/edit-content`, {
         credentials: 'include',
       });
@@ -112,12 +89,18 @@ export function NDADocumentEditor() {
         throw new Error('Failed to load document content');
       }
 
-      const { htmlContent } = await response.json();
-      setContent(htmlContent);
-      setOriginalContent(htmlContent);
+      const { rtfContent: rtf } = await response.json();
+
+      // Parse RTF to get HTML preview
+      const parsed = parseRTF(rtf);
+      const html = toHTML(parsed);
+
+      setRtfContent(rtf);
+      setHtmlContent(html);
+      setOriginalContent(rtf);
 
     } catch (err) {
-      console.error('Failed to convert document:', err);
+      console.error('Failed to load document:', err);
       toast.error('Failed to load document for editing');
       throw err;
     } finally {
@@ -128,8 +111,13 @@ export function NDADocumentEditor() {
   // Track content changes
   useEffect(() => {
     if (!originalContent) return;
-    setHasChanges(content !== originalContent);
-  }, [content, originalContent]);
+    setHasChanges(rtfContent !== originalContent);
+  }, [rtfContent, originalContent]);
+
+  const handleEditorChange = (data: { rtf: string; html: string }) => {
+    setRtfContent(data.rtf);
+    setHtmlContent(data.html);
+  };
 
   // Save edited document
   const handleSave = async () => {
@@ -138,15 +126,17 @@ export function NDADocumentEditor() {
     try {
       setSaving(true);
 
-      // Send HTML content to backend
-      // Backend will convert HTML → RTF and create new document version
+      // Send RTF content to backend
       const response = await fetch(`/api/ndas/${id}/documents/${document.id}/save`, {
         method: 'PUT',
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ htmlContent: content }),
+        body: JSON.stringify({
+          rtfContent: rtfContent,
+          htmlContent: htmlContent
+        }),
       });
 
       if (!response.ok) {
@@ -160,7 +150,7 @@ export function NDADocumentEditor() {
         description: `New version created: ${result.document.filename}`,
       });
 
-      setOriginalContent(content);
+      setOriginalContent(rtfContent);
       setHasChanges(false);
 
       // Optionally navigate back
@@ -199,7 +189,7 @@ export function NDADocumentEditor() {
             }
           </style>
         </head>
-        <body>${content}</body>
+        <body>${htmlContent}</body>
         </html>
       `);
       previewWindow.document.close();
@@ -310,19 +300,18 @@ export function NDADocumentEditor() {
         {converting ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="w-6 h-6 animate-spin text-[var(--color-primary)]" />
-            <p className="ml-3 text-[var(--color-text-secondary)]">Converting document...</p>
+            <p className="ml-3 text-[var(--color-text-secondary)]">Loading document...</p>
           </div>
         ) : (
           <div className="min-h-[600px]">
-            <ReactQuill
-              ref={quillRef}
-              theme="snow"
-              value={content}
-              onChange={setContent}
-              modules={EDITOR_MODULES}
-              formats={FORMATS}
+            <RTFEditor
+              value={rtfContent}
+              onChange={handleEditorChange}
+              readOnly={false}
+              height="600px"
+              showSidebar={true}
+              showToolbar={true}
               placeholder="Edit your NDA document..."
-              style={{ height: '600px' }}
             />
           </div>
         )}
@@ -333,10 +322,11 @@ export function NDADocumentEditor() {
         <h3 className="text-sm font-semibold text-blue-900 mb-2">Editing Tips</h3>
         <ul className="text-sm text-blue-800 space-y-1">
           <li>• Use the toolbar to format text (bold, italic, headers, lists)</li>
+          <li>• Track changes are automatically recorded as you edit</li>
+          <li>• Use the sidebar to review, accept, or reject individual changes</li>
           <li>• Changes will create a new document version (Version {document.versionNumber + 1})</li>
           <li>• The previous version will be preserved in document history</li>
-          <li>• Click "Preview" to see how the document will look</li>
-          <li>• Original RTF will be replaced with the edited version</li>
+          <li>• Click "Preview" to see how the final document will look</li>
         </ul>
       </div>
     </div>
