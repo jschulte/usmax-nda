@@ -16,6 +16,7 @@ import {
 // Mock dependencies
 vi.mock('../../db/index.js', () => ({
   prisma: {
+    $transaction: vi.fn(),
     nda: {
       findUnique: vi.fn(),
       findFirst: vi.fn(),
@@ -52,13 +53,16 @@ vi.mock('../auditService.js', () => ({
     DOCUMENT_UPLOADED: 'document_uploaded',
     DOCUMENT_DOWNLOADED: 'document_downloaded',
     DOCUMENT_MARKED_EXECUTED: 'document_marked_executed',
+    NDA_STATUS_CHANGED: 'nda_status_changed',
   },
 }));
 
 vi.mock('../statusTransitionService.js', () => ({
   transitionStatus: vi.fn(),
+  isValidTransition: vi.fn(),
   StatusTrigger: {
     FULLY_EXECUTED_UPLOAD: 'fully_executed_upload',
+    MANUAL_CHANGE: 'manual_change',
   },
 }));
 
@@ -73,7 +77,7 @@ vi.mock('../ndaService.js', () => ({
 import { prisma } from '../../db/index.js';
 import { uploadDocument, getDownloadUrl } from '../s3Service.js';
 import { auditService } from '../auditService.js';
-import { transitionStatus } from '../statusTransitionService.js';
+import { transitionStatus, isValidTransition } from '../statusTransitionService.js';
 import { findNdaWithScope } from '../../utils/scopedQuery.js';
 import {
   uploadNdaDocument,
@@ -98,6 +102,11 @@ const mockUserContext: UserContext = {
 const mockAdminContext: UserContext = {
   ...mockUserContext,
   permissions: new Set(['admin:manage_agencies']),
+};
+
+const mockStatusContext: UserContext = {
+  ...mockUserContext,
+  permissions: new Set(['nda:view', 'nda:create', 'nda:update', 'nda:mark_status']),
 };
 
 const mockNda = {
@@ -133,6 +142,9 @@ const mockDocument = {
 describe('Document Service', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(prisma.$transaction).mockImplementation(
+      async (cb: (tx: typeof prisma) => Promise<unknown>) => cb(prisma)
+    );
   });
 
   describe('File Validation', () => {
@@ -382,11 +394,29 @@ describe('Document Service', () => {
           fileSize: 1024,
           isFullyExecuted: true,
         },
-        mockUserContext
+        mockStatusContext
       );
 
       expect(result.isFullyExecuted).toBe(true);
       expect(transitionStatus).toHaveBeenCalled();
+    });
+
+    it('should reject fully executed upload without status permission', async () => {
+      vi.mocked(findNdaWithScope).mockResolvedValue(mockNda as any);
+
+      await expect(
+        uploadNdaDocument(
+          {
+            ndaId: 'nda-123',
+            filename: 'test.pdf',
+            content: Buffer.from('test content'),
+            contentType: 'application/pdf',
+            fileSize: 1024,
+            isFullyExecuted: true,
+          },
+          mockUserContext
+        )
+      ).rejects.toThrow('Permission denied');
     });
 
     it('should reject invalid file types', async () => {
@@ -472,6 +502,18 @@ describe('Document Service', () => {
       expect(getDownloadUrl).toHaveBeenCalledWith(mockDocument.s3Key, 900);
     });
 
+    it('should respect custom expiresIn when provided', async () => {
+      vi.mocked(prisma.document.findFirst).mockResolvedValue({
+        ...mockDocument,
+        nda: mockNda,
+      } as any);
+      vi.mocked(getDownloadUrl).mockResolvedValue('https://s3.amazonaws.com/presigned-url');
+
+      await getDocumentDownloadUrl('doc-123', mockUserContext, undefined, 300);
+
+      expect(getDownloadUrl).toHaveBeenCalledWith(mockDocument.s3Key, 300);
+    });
+
     it('should log audit entry for download', async () => {
       vi.mocked(prisma.document.findFirst).mockResolvedValue({
         ...mockDocument,
@@ -546,48 +588,50 @@ describe('Document Service', () => {
         ...mockDocument,
         nda: mockNda,
       } as any);
+      vi.mocked(isValidTransition).mockReturnValue(true);
       vi.mocked(prisma.document.update).mockResolvedValue({
         ...mockDocument,
         isFullyExecuted: true,
         documentType: 'FULLY_EXECUTED',
       } as any);
-      vi.mocked(transitionStatus).mockResolvedValue(undefined);
+      vi.mocked(prisma.nda.update).mockResolvedValue({
+        ...mockNda,
+        status: 'FULLY_EXECUTED',
+      } as any);
 
       const result = await markDocumentFullyExecuted('doc-123', mockUserContext);
 
       expect(result.isFullyExecuted).toBe(true);
-      expect(prisma.document.update).toHaveBeenCalledWith(
+      expect(prisma.document.update).toHaveBeenCalled();
+      expect(prisma.nda.update).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { id: 'doc-123' },
-          data: {
-            isFullyExecuted: true,
-            documentType: 'FULLY_EXECUTED',
-          },
+          where: { id: 'nda-123' },
+          data: expect.objectContaining({
+            status: 'FULLY_EXECUTED',
+          }),
         })
       );
     });
 
-    it('should trigger NDA status transition', async () => {
+    it('should update NDA status when transitioning to fully executed', async () => {
       vi.mocked(prisma.document.findFirst).mockResolvedValue({
         ...mockDocument,
         nda: mockNda,
       } as any);
+      vi.mocked(isValidTransition).mockReturnValue(true);
       vi.mocked(prisma.document.update).mockResolvedValue({
         ...mockDocument,
         isFullyExecuted: true,
         documentType: 'FULLY_EXECUTED',
       } as any);
-      vi.mocked(transitionStatus).mockResolvedValue(undefined);
+      vi.mocked(prisma.nda.update).mockResolvedValue({
+        ...mockNda,
+        status: 'FULLY_EXECUTED',
+      } as any);
 
       await markDocumentFullyExecuted('doc-123', mockUserContext);
 
-      expect(transitionStatus).toHaveBeenCalledWith(
-        'nda-123',
-        'FULLY_EXECUTED',
-        expect.anything(),
-        mockUserContext,
-        undefined
-      );
+      expect(prisma.nda.update).toHaveBeenCalled();
     });
 
     it('should log audit entry', async () => {
@@ -595,12 +639,16 @@ describe('Document Service', () => {
         ...mockDocument,
         nda: mockNda,
       } as any);
+      vi.mocked(isValidTransition).mockReturnValue(true);
       vi.mocked(prisma.document.update).mockResolvedValue({
         ...mockDocument,
         isFullyExecuted: true,
         documentType: 'FULLY_EXECUTED',
       } as any);
-      vi.mocked(transitionStatus).mockResolvedValue(undefined);
+      vi.mocked(prisma.nda.update).mockResolvedValue({
+        ...mockNda,
+        status: 'FULLY_EXECUTED',
+      } as any);
 
       await markDocumentFullyExecuted('doc-123', mockUserContext, {
         ipAddress: '127.0.0.1',
@@ -612,6 +660,13 @@ describe('Document Service', () => {
           action: 'document_marked_executed',
           entityType: 'document',
           entityId: 'doc-123',
+        })
+      );
+      expect(auditService.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'nda_status_changed',
+          entityType: 'nda',
+          entityId: 'nda-123',
         })
       );
     });

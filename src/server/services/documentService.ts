@@ -14,7 +14,7 @@
 import { prisma } from '../db/index.js';
 import { uploadDocument, getDownloadUrl, getDocumentContent as getS3DocumentContent, S3ServiceError } from './s3Service.js';
 import { auditService, AuditAction } from './auditService.js';
-import { attemptAutoTransition, transitionStatus, StatusTrigger } from './statusTransitionService.js';
+import { attemptAutoTransition, transitionStatus, StatusTrigger, isValidTransition } from './statusTransitionService.js';
 import type { Document, DocumentType, NdaStatus } from '../../generated/prisma/index.js';
 import type { UserContext } from '../types/auth.js';
 import { notifyStakeholders, NotificationEvent } from './notificationService.js';
@@ -164,6 +164,10 @@ export async function uploadNdaDocument(
     throw new DocumentServiceError('NDA not found', 'NDA_NOT_FOUND');
   }
 
+  if (input.isFullyExecuted && !userContext.permissions.has('nda:mark_status')) {
+    throw new DocumentServiceError('Permission denied', 'ACCESS_DENIED');
+  }
+
   // Get next version number
   const lastDoc = await prisma.document.findFirst({
     where: { ndaId: input.ndaId },
@@ -230,6 +234,22 @@ export async function uploadNdaDocument(
       versionNumber: nextVersion,
     },
   });
+
+  if (input.isFullyExecuted) {
+    await auditService.log({
+      action: AuditAction.DOCUMENT_MARKED_EXECUTED,
+      entityType: 'document',
+      entityId: document.id,
+      userId: userContext.contactId,
+      ipAddress: auditMeta?.ipAddress,
+      userAgent: auditMeta?.userAgent,
+      details: {
+        ndaId: input.ndaId,
+        ndaDisplayId: nda.displayId,
+        documentId: document.id,
+      },
+    });
+  }
 
   // Auto-transition status based on upload type (Story 3.12)
   let transitionResult: { previousStatus: string; newStatus: string } | undefined;
@@ -355,7 +375,8 @@ export async function getNdaDocuments(
 export async function getDocumentDownloadUrl(
   documentId: string,
   userContext: UserContext,
-  auditMeta?: { ipAddress?: string; userAgent?: string }
+  auditMeta?: { ipAddress?: string; userAgent?: string },
+  expiresInSeconds: number = 900
 ): Promise<{ url: string; filename: string }> {
   const securityFilter = await buildSecurityFilter(userContext);
   const document = await prisma.document.findFirst({
@@ -368,6 +389,7 @@ export async function getDocumentDownloadUrl(
         select: {
           id: true,
           displayId: true,
+          status: true,
         },
       },
     },
@@ -398,8 +420,8 @@ export async function getDocumentDownloadUrl(
     console.error('[DocumentService] Failed to log download audit:', error);
   }
 
-  // Generate pre-signed URL (15 minutes TTL) - AFTER audit log attempt
-  const url = await getDownloadUrl(document.s3Key, 900);
+  // Generate pre-signed URL (default 15 minutes TTL) - AFTER audit log attempt
+  const url = await getDownloadUrl(document.s3Key, expiresInSeconds);
 
   return { url, filename: document.filename };
 }
@@ -445,6 +467,13 @@ export async function markDocumentFullyExecuted(
   userContext: UserContext,
   auditMeta?: { ipAddress?: string; userAgent?: string }
 ): Promise<DocumentResponse> {
+  const canMarkStatus =
+    userContext.permissions.has('nda:mark_status') ||
+    userContext.permissions.has('admin:manage_agencies');
+  if (!canMarkStatus) {
+    throw new DocumentServiceError('Permission denied', 'ACCESS_DENIED');
+  }
+
   const securityFilter = await buildSecurityFilter(userContext);
   const document = await prisma.document.findFirst({
     where: {
@@ -456,6 +485,7 @@ export async function markDocumentFullyExecuted(
         select: {
           id: true,
           displayId: true,
+          status: true,
         },
       },
       uploadedBy: {
@@ -473,23 +503,62 @@ export async function markDocumentFullyExecuted(
     throw new DocumentServiceError('Document not found', 'DOCUMENT_NOT_FOUND');
   }
 
-  // Update document
-  const updated = await prisma.document.update({
-    where: { id: documentId },
-    data: {
-      isFullyExecuted: true,
-      documentType: 'FULLY_EXECUTED',
-    },
-    include: {
-      uploadedBy: {
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-          email: true,
+  const currentStatus = document.nda.status as NdaStatus;
+  if (
+    currentStatus !== ('FULLY_EXECUTED' as NdaStatus) &&
+    !isValidTransition(currentStatus, 'FULLY_EXECUTED' as NdaStatus)
+  ) {
+    throw new DocumentServiceError('Invalid status transition', 'INVALID_TRANSITION');
+  }
+
+  // Story 10.4: Set execution date and calculate expiration (365 days)
+  const executionDate = new Date();
+  const expirationDate = new Date(executionDate);
+  expirationDate.setFullYear(expirationDate.getFullYear() + 1);
+
+  const shouldTransition = currentStatus !== ('FULLY_EXECUTED' as NdaStatus);
+
+  // Update document + NDA atomically
+  const updated = await prisma.$transaction(async (tx) => {
+    const updatedDocument = await tx.document.update({
+      where: { id: documentId },
+      data: {
+        isFullyExecuted: true,
+        documentType: 'FULLY_EXECUTED',
+      },
+      include: {
+        uploadedBy: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
         },
       },
-    },
+    });
+
+    await tx.nda.update({
+      where: { id: document.ndaId },
+      data: shouldTransition
+        ? {
+            status: 'FULLY_EXECUTED',
+            fullyExecutedDate: executionDate,
+            expirationDate,
+            statusHistory: {
+              create: {
+                status: 'FULLY_EXECUTED',
+                changedById: userContext.contactId,
+              },
+            },
+          }
+        : {
+            fullyExecutedDate: executionDate,
+            expirationDate,
+          },
+    });
+
+    return updatedDocument;
   });
 
   // Log audit
@@ -506,30 +575,30 @@ export async function markDocumentFullyExecuted(
     },
   });
 
-  // Story 10.4: Set execution date and calculate expiration (365 days)
-  const executionDate = new Date();
-  const expirationDate = new Date(executionDate);
-  expirationDate.setFullYear(expirationDate.getFullYear() + 1);
+  if (shouldTransition) {
+    const statusChange = [
+      {
+        field: 'status',
+        before: currentStatus,
+        after: 'FULLY_EXECUTED',
+      },
+    ];
 
-  await prisma.nda.update({
-    where: { id: document.ndaId },
-    data: {
-      fullyExecutedDate: executionDate,
-      expirationDate: expirationDate,
-    },
-  });
-
-  // Auto-transition NDA status
-  try {
-    await transitionStatus(
-      document.ndaId,
-      'FULLY_EXECUTED' as NdaStatus,
-      StatusTrigger.FULLY_EXECUTED_UPLOAD,
-      userContext,
-      auditMeta
-    );
-  } catch {
-    console.log(`[Document] Could not auto-transition NDA ${document.ndaId}`);
+    await auditService.log({
+      action: AuditAction.NDA_STATUS_CHANGED,
+      entityType: 'nda',
+      entityId: document.ndaId,
+      userId: userContext.contactId,
+      ipAddress: auditMeta?.ipAddress,
+      userAgent: auditMeta?.userAgent,
+      details: {
+        displayId: document.nda.displayId,
+        previousStatus: currentStatus,
+        newStatus: 'FULLY_EXECUTED',
+        trigger: StatusTrigger.MANUAL_CHANGE,
+        changes: statusChange,
+      },
+    });
   }
 
   return formatDocumentResponse(updated);
@@ -699,11 +768,14 @@ export async function getDocumentContentWithAuth(
     throw new DocumentServiceError('Document not found', 'NOT_FOUND');
   }
 
-  // Check agency access
+  // Check agency access (admins bypass this check)
   if (!document.nda.subagencyId) {
     throw new DocumentServiceError('Document NDA has no subagency', 'INVALID_STATE');
   }
-  const hasAccess = userContext.authorizedSubagencies.includes(document.nda.subagencyId);
+
+  // Allow access if user is admin or has explicit subagency grant
+  const isAdmin = userContext.permissions.has('admin:manage_agencies');
+  const hasAccess = isAdmin || userContext.authorizedSubagencies.includes(document.nda.subagencyId);
   if (!hasAccess) {
     throw new DocumentServiceError('Access denied', 'ACCESS_DENIED');
   }

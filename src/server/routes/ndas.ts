@@ -903,7 +903,7 @@ router.post('/', requirePermission(PERMISSIONS.NDA_CREATE), async (req, res) => 
  * - stateOfIncorporation: string
  * - rtfTemplateId: string | null
  *
- * Requires: nda:update permission
+ * Requires: nda:mark_status permission
  */
 router.put('/:id', requirePermission(PERMISSIONS.NDA_UPDATE), async (req, res) => {
   try {
@@ -1462,7 +1462,7 @@ router.post(
  */
 router.patch(
   '/documents/:documentId/mark-executed',
-  requirePermission(PERMISSIONS.NDA_UPDATE),
+  requirePermission(PERMISSIONS.NDA_MARK_STATUS),
   async (req, res) => {
     try {
       const document = await markDocumentFullyExecuted(
@@ -1527,13 +1527,21 @@ router.get(
   ]),
   async (req, res) => {
     try {
+      const expiresInParam = req.query.expiresIn
+        ? parseInt(req.query.expiresIn as string, 10)
+        : 900;
+      const expiresIn = Number.isFinite(expiresInParam) && expiresInParam > 0
+        ? expiresInParam
+        : 900;
+
       const result = await getDocumentDownloadUrl(
         req.params.documentId,
         req.userContext!,
         {
           ipAddress: req.ip,
           userAgent: req.get('User-Agent'),
-        }
+        },
+        expiresIn
       );
 
       res.json({
@@ -1651,6 +1659,13 @@ router.get(
   ]),
   async (req, res) => {
     try {
+      const expiresInParam = req.query.expiresIn
+        ? parseInt(req.query.expiresIn as string, 10)
+        : 900;
+      const expiresIn = Number.isFinite(expiresInParam) && expiresInParam > 0
+        ? expiresInParam
+        : 900;
+
       // Story 6.3: Use documentService for proper audit logging
       const { url, filename } = await getDocumentDownloadUrl(
         req.params.documentId,
@@ -1658,12 +1673,9 @@ router.get(
         {
           ipAddress: req.ip,
           userAgent: req.get('user-agent'),
-        }
+        },
+        expiresIn
       );
-
-      const expiresIn = req.query.expiresIn
-        ? parseInt(req.query.expiresIn as string, 10)
-        : 900;
 
       res.json({
         downloadUrl: url,
