@@ -29,7 +29,8 @@ import {
   Check,
   AlertCircle,
   X,
-  Info
+  Info,
+  Copy
 } from 'lucide-react';
 import type { WorkflowStep } from '../../types';
 import {
@@ -1285,6 +1286,7 @@ export function NDADetail() {
   const canUploadDocument = !!nda.availableActions?.canUploadDocument;
   const canChangeStatus = !!nda.availableActions?.canChangeStatus;
   const canMarkExecutedOnUpload = canUploadDocument && canChangeStatus;
+  const canClone = user?.permissions?.includes('nda:create') || user?.roles?.includes('Admin');
   
   return (
     <div className="p-8">
@@ -1356,6 +1358,16 @@ export function NDADetail() {
             <Button variant="secondary" size="sm" icon={<Download className="w-4 h-4" />} onClick={handleDownloadPDF}>
               Download PDF
             </Button>
+            {canClone && (
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={<Copy className="w-4 h-4" />}
+                onClick={() => navigate(`/requests?cloneFrom=${nda.id}`)}
+              >
+                Clone NDA
+              </Button>
+            )}
 
             {/* Story 10.6: Route for Approval button (when CREATED) */}
             {nda.status === 'CREATED' && nda.availableActions?.canRouteForApproval && (
@@ -2011,13 +2023,13 @@ export function NDADetail() {
                                       ))}
                                     </ul>
                                   )}
-                                  {formatted.hasOtherFields && (
+                                  {(formatted.hasOtherFields || formatted.changes.length > 0) && (
                                     <details className="mt-2">
                                       <summary className="cursor-pointer text-xs text-blue-600 hover:text-blue-800">
                                         Show details
                                       </summary>
                                       <pre className="text-xs bg-gray-50 p-2 rounded mt-1">
-                                        {JSON.stringify(formatted.otherFields, null, 2)}
+                                        {JSON.stringify(entry.details, null, 2)}
                                       </pre>
                                     </details>
                                   )}

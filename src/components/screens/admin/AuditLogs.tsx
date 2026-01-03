@@ -755,13 +755,13 @@ export function AuditLogs() {
                         </div>
                       )}
 
-                      {formatted.hasOtherFields && (
+                      {(formatted.hasOtherFields || formatted.changes.length > 0) && (
                         <details className="mt-2">
                           <summary className="cursor-pointer text-xs text-blue-600 hover:text-blue-800 font-medium">
                             Show raw details
                           </summary>
                           <pre className="text-xs bg-gray-100 p-3 rounded mt-2 overflow-x-auto">
-                            {JSON.stringify(formatted.otherFields, null, 2)}
+                            {JSON.stringify(selectedEvent.details, null, 2)}
                           </pre>
                         </details>
                       )}

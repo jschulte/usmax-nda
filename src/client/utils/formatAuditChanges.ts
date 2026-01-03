@@ -49,9 +49,16 @@ export function formatValue(value: unknown): string {
     return value ? 'Yes' : 'No';
   }
 
-  // Handle ISO date strings
-  if (typeof value === 'string' && value.match(/^\d{4}-\d{2}-\d{2}T/)) {
-    return new Date(value).toLocaleDateString('en-US');
+  if (value instanceof Date) {
+    return value.toLocaleDateString('en-US');
+  }
+
+  // Handle ISO date strings (with or without time)
+  if (typeof value === 'string' && value.match(/^\d{4}-\d{2}-\d{2}/)) {
+    const date = new Date(value);
+    if (!Number.isNaN(date.getTime())) {
+      return date.toLocaleDateString('en-US');
+    }
   }
 
   return `'${String(value)}'`;
