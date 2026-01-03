@@ -27,7 +27,7 @@ def load_sprint_status(path: str = "_bmad-output/implementation-artifacts/sprint
                 break
 
             # Parse story line: "  story-id: status  # comment"
-            match = re.match(r'  ([a-z0-9-]+):\s*(\S+)', line)
+            match = re.match(r'  ([a-zA-Z0-9-]+):\s*(\S+)', line)
             if match:
                 story_id, status = match.groups()
                 statuses[story_id] = status

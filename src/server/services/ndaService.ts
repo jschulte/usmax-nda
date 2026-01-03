@@ -28,6 +28,7 @@ import { findNdaWithScope } from '../utils/scopedQuery.js';
 import { notifyPocAssignment } from './notificationService.js';
 // Story 6.2: Field change tracking
 import { detectFieldChanges } from '../utils/detectFieldChanges.js';
+import { getTimeInStatus } from '../utils/statusDurationCalculator.js';
 
 // Re-export enums for use in other modules
 export { NdaStatus, UsMaxPosition, NdaType };

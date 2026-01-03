@@ -17,7 +17,7 @@ instructions: "{installed_path}/instructions.md"
 # Inputs
 variables:
   sprint_status_file: "{implementation_artifacts}/sprint-status.yaml"
-  story_directory: "{implementation_artifacts}"
+  story_directory: "{implementation_artifacts}/sprint-artifacts"
   recovery_mode: "interactive" # Options: interactive, conservative, aggressive
 
 # Recovery script location

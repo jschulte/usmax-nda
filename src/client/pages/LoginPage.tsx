@@ -10,39 +10,50 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Mail, Lock, AlertCircle, Loader2 } from 'lucide-react';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { useAuth } from '../hooks/useAuth';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 
+const loginSchema = z.object({
+  email: z.string().email('Please enter a valid email address'),
+  password: z.string().min(12, 'Password must be at least 12 characters'),
+});
+
+type LoginFormValues = z.infer<typeof loginSchema>;
+
 export function LoginPage() {
   const navigate = useNavigate();
   const { login, isLoading, error, clearError } = useAuth();
 
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [localError, setLocalError] = useState<string | null>(null);
 
-  // Form validation
-  const isValidEmail = email.includes('@') && email.includes('.');
-  const isValidPassword = password.length >= 12;
-  const canSubmit = isValidEmail && isValidPassword && !isLoading;
+  const form = useForm<LoginFormValues>({
+    resolver: zodResolver(loginSchema),
+    mode: 'onChange',
+    defaultValues: {
+      email: '',
+      password: '',
+    },
+  });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const canSubmit = form.formState.isValid && !isLoading;
+
+  const handleSubmit = async (values: LoginFormValues) => {
     setLocalError(null);
     clearError();
 
-    if (!canSubmit) return;
-
     try {
-      const challenge = await login(email, password);
+      const challenge = await login(values.email, values.password);
 
       // Navigate to MFA challenge page with session data
       navigate('/mfa-challenge', {
         state: {
           session: challenge.session,
-          email,
+          email: values.email,
         },
       });
     } catch (err: any) {
@@ -78,7 +89,7 @@ export function LoginPage() {
           </CardDescription>
         </CardHeader>
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={form.handleSubmit(handleSubmit)}>
           <CardContent className="space-y-4">
             {/* Error display (AC2: Invalid credentials handling) */}
             {displayError && (
@@ -106,19 +117,18 @@ export function LoginPage() {
                   id="email"
                   type="email"
                   placeholder="you@usmax.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  {...form.register('email')}
                   className="pl-10"
                   autoComplete="email"
                   aria-label="Email address"
-                  aria-invalid={email.length > 0 && !isValidEmail}
+                  aria-invalid={!!form.formState.errors.email}
                   disabled={isLoading}
                   required
                 />
               </div>
-              {email.length > 0 && !isValidEmail && (
+              {form.formState.errors.email?.message && (
                 <p className="text-xs text-destructive" role="alert">
-                  Please enter a valid email address
+                  {form.formState.errors.email.message}
                 </p>
               )}
             </div>
@@ -137,19 +147,18 @@ export function LoginPage() {
                   id="password"
                   type="password"
                   placeholder="••••••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  {...form.register('password')}
                   className="pl-10"
                   autoComplete="current-password"
                   aria-label="Password"
-                  aria-invalid={password.length > 0 && !isValidPassword}
+                  aria-invalid={!!form.formState.errors.password}
                   disabled={isLoading}
                   required
                 />
               </div>
-              {password.length > 0 && !isValidPassword && (
+              {form.formState.errors.password?.message && (
                 <p className="text-xs text-destructive" role="alert">
-                  Password must be at least 12 characters
+                  {form.formState.errors.password.message}
                 </p>
               )}
             </div>

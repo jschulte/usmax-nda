@@ -62,7 +62,7 @@ development_status:
   epic-3: done
   3-16-in-browser-rtf-editing: ready-for-dev  # Updated 2026-01-02
   3-1-create-nda-with-basic-form: done  # Updated 2026-01-03
-  3-2-smart-form-auto-fill-company-first-entry-path: ready-for-dev  # Updated 2026-01-02
+  3-2-smart-form-auto-fill-company-first-entry-path: done  # Updated 2026-01-03
   3-3-clone-duplicate-nda-second-entry-path: ready-for-dev  # Updated 2026-01-02
   3-4-agency-first-entry-path-with-suggestions: ready-for-dev  # Updated 2026-01-02
   3-5-rtf-document-generation: ready-for-dev  # Updated 2026-01-02
@@ -82,7 +82,7 @@ development_status:
   epic-4: done
   4-8-s3-cross-region-replication: ready-for-dev  # Updated 2026-01-02
   4-1-document-upload-with-drag-drop: done  # Updated 2026-01-03
-  4-2-mark-document-as-fully-executed: ready-for-dev  # Updated 2026-01-02
+  4-2-mark-document-as-fully-executed: done  # Updated 2026-01-03
   4-3-document-download-with-pre-signed-urls: ready-for-dev  # Updated 2026-01-02
   4-4-document-version-history: ready-for-dev  # Updated 2026-01-02
   4-5-download-all-versions-as-zip: ready-for-dev  # Updated 2026-01-02
@@ -101,11 +101,11 @@ development_status:
   5-7-recently-used-values-in-dropdowns: done  # Updated 2026-01-03
   5-8-personalized-dashboard: done  # Updated 2026-01-03
   5-9-at-a-glance-metrics: done  # Updated 2026-01-03
-  5-10-stale-nda-identification: ready-for-dev  # Updated 2026-01-02
-  5-11-waiting-on-3rd-party-tracking: ready-for-dev  # Updated 2026-01-02
-  5-12-expiration-alerts: ready-for-dev  # Updated 2026-01-02
-  5-13-email-notification-preferences: ready-for-dev  # Updated 2026-01-02
-  5-14-nda-stakeholder-subscriptions: ready-for-dev  # Updated 2026-01-02
+  5-10-stale-nda-identification: done  # Updated 2026-01-03
+  5-11-waiting-on-3rd-party-tracking: done  # Updated 2026-01-03
+  5-12-expiration-alerts: done  # Updated 2026-01-03
+  5-13-email-notification-preferences: done  # Updated 2026-01-03
+  5-14-nda-stakeholder-subscriptions: done  # Updated 2026-01-03
   epic-5-retrospective: optional
 
   # Hardening Story - Bundled fixes from Epic 1-5 gap analyses
@@ -115,7 +115,7 @@ development_status:
   6-1-comprehensive-action-logging: done  # Updated 2026-01-03
   6-2-field-change-tracking: done  # Updated 2026-01-03
   6-3-document-download-tracking: done  # Updated 2026-01-03
-  6-4-login-attempt-tracking: review  # Updated 2026-01-02
+  6-4-login-attempt-tracking: done  # Updated 2026-01-03
   6-5-nda-audit-trail-viewer: done
   6-6-visual-timeline-display: done
   6-7-centralized-audit-log-viewer-admin: done

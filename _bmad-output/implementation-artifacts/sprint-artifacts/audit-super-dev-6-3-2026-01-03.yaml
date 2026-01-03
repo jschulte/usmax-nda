@@ -1,0 +1,99 @@
+---
+audit_version: "1.0"
+workflow: "super-dev-pipeline"
+workflow_version: "1.1.0"
+
+# Story identification
+story_id: "6-3"
+story_file: "_bmad-output/implementation-artifacts/sprint-artifacts/6-3-document-download-tracking.md"
+story_title: "Story 6.3: Document Download Tracking"
+
+# Execution summary
+execution:
+  started_at: "2026-01-03T04:44:05Z"
+  completed_at: "2026-01-03T05:07:23Z"
+  total_duration: "00:23:18"
+  mode: "batch"
+  status: "completed"
+
+# Development analysis
+development:
+  type: "brownfield"
+  existing_files_modified: 3
+  new_files_created: 0
+  migrations_applied: 0
+
+# Step results
+steps:
+  step-01-init:
+    duration: "00:00:10"
+    status: "completed"
+
+  step-02-pre-gap-analysis:
+    duration: "00:01:00"
+    tasks_analyzed: 12
+    tasks_refined: 0
+    tasks_added: 0
+    status: "completed"
+
+  step-03-implement:
+    duration: "00:10:00"
+    tasks_completed: 0
+    files_created: []
+    files_modified:
+      - src/server/services/documentService.ts
+      - src/server/routes/ndas.ts
+      - src/server/services/__tests__/documentService.test.ts
+    migrations: []
+    tests_added: 0
+    status: "completed"
+
+  step-04-post-validation:
+    duration: "00:01:00"
+    tasks_verified: 11
+    false_positives: 0
+    re_implementations: 0
+    status: "completed"
+
+  step-05-code-review:
+    duration: "00:03:00"
+    issues_found: 4
+    issues_fixed: 4
+    categories:
+      - correctness
+      - security
+      - testing
+    status: "completed"
+
+  step-06-complete:
+    duration: "00:00:30"
+    commit_hash: "0b834e3"
+    files_committed: 5
+    pushed: true
+    status: "completed"
+
+# Quality metrics
+quality:
+  all_tests_passing: true
+  lint_clean: false
+  build_success: false
+  no_vibe_coding: true
+  followed_step_sequence: true
+
+# Files affected
+files:
+  created:
+    - _bmad-output/implementation-artifacts/sprint-artifacts/review-6-3.md
+  modified:
+    - src/server/services/documentService.ts
+    - src/server/routes/ndas.ts
+    - src/server/services/__tests__/documentService.test.ts
+    - _bmad-output/implementation-artifacts/sprint-artifacts/6-3-document-download-tracking.md
+  deleted: []
+
+# Commit information
+commit:
+  hash: "0b834e3"
+  message: "fix(story-6-3): honor document download TTL"
+  files_committed: 5
+  pushed_to_remote: true

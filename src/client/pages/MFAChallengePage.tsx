@@ -11,6 +11,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Shield, AlertCircle, Loader2, ArrowLeft, KeyRound } from 'lucide-react';
+import { Controller, useForm } from 'react-hook-form';
+import { z } from 'zod';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { useAuth } from '../hooks/useAuth';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -21,12 +24,17 @@ interface LocationState {
   email: string;
 }
 
+const mfaSchema = z.object({
+  mfaCode: z.string().regex(/^\d{6}$/, 'Enter the 6-digit code'),
+});
+
+type MfaFormValues = z.infer<typeof mfaSchema>;
+
 export function MFAChallengePage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { verifyMFA, isLoading, error, clearError } = useAuth();
 
-  const [mfaCode, setMfaCode] = useState('');
   const [localError, setLocalError] = useState<string | null>(null);
   const [attemptsRemaining, setAttemptsRemaining] = useState<number | null>(null);
 
@@ -49,15 +57,22 @@ export function MFAChallengePage() {
     inputRef.current?.focus();
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const form = useForm<MfaFormValues>({
+    resolver: zodResolver(mfaSchema),
+    mode: 'onChange',
+    defaultValues: {
+      mfaCode: '',
+    },
+  });
+
+  const handleSubmit = async (values: MfaFormValues) => {
     setLocalError(null);
     clearError();
 
-    if (!session || mfaCode.length !== 6) return;
+    if (!session) return;
 
     try {
-      await verifyMFA(session, mfaCode);
+      await verifyMFA(session, values.mfaCode);
       // AC1: Redirect to dashboard on success
       navigate('/', { replace: true });
     } catch (err: any) {
@@ -66,22 +81,22 @@ export function MFAChallengePage() {
         setAttemptsRemaining(err.attemptsRemaining);
       }
       setLocalError(err.message || 'Invalid MFA code, please try again');
-      setMfaCode('');
+      form.setValue('mfaCode', '', { shouldValidate: true });
       inputRef.current?.focus();
     }
   };
 
-  const handleCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCodeChange = (value: string, onChange: (val: string) => void) => {
     // Only allow digits, max 6 characters
-    const value = e.target.value.replace(/\D/g, '').slice(0, 6);
-    setMfaCode(value);
+    const sanitized = value.replace(/\D/g, '').slice(0, 6);
+    onChange(sanitized);
   };
 
-  const handlePaste = (e: React.ClipboardEvent) => {
+  const handlePaste = (e: React.ClipboardEvent, onChange: (val: string) => void) => {
     e.preventDefault();
     const pastedData = e.clipboardData.getData('text');
     const digits = pastedData.replace(/\D/g, '').slice(0, 6);
-    setMfaCode(digits);
+    onChange(digits);
   };
 
   const handleBackToLogin = () => {
@@ -89,7 +104,7 @@ export function MFAChallengePage() {
   };
 
   const displayError = localError || error;
-  const canSubmit = mfaCode.length === 6 && !isLoading;
+  const canSubmit = form.formState.isValid && !isLoading;
 
   if (!session) {
     return null; // Will redirect in useEffect
@@ -113,7 +128,7 @@ export function MFAChallengePage() {
           </CardDescription>
         </CardHeader>
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={form.handleSubmit(handleSubmit)}>
           <CardContent className="space-y-4">
             {/* Error display with retry counter (AC2, Task 4.4, 4.6) */}
             {displayError && (
@@ -147,27 +162,42 @@ export function MFAChallengePage() {
               >
                 Authentication Code
               </label>
-              <Input
-                ref={inputRef}
-                id="mfaCode"
-                type="text"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                maxLength={6}
-                placeholder="000000"
-                value={mfaCode}
-                onChange={handleCodeChange}
-                onPaste={handlePaste}
-                className="text-center text-2xl tracking-[0.5em] font-mono"
-                autoComplete="one-time-code"
-                aria-label="6-digit authentication code"
-                aria-describedby="mfa-help"
-                disabled={isLoading || attemptsRemaining === 0}
-                required
+              <Controller
+                control={form.control}
+                name="mfaCode"
+                render={({ field }) => (
+                  <Input
+                    id="mfaCode"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={6}
+                    placeholder="000000"
+                    value={field.value}
+                    onChange={(e) => handleCodeChange(e.target.value, field.onChange)}
+                    onPaste={(e) => handlePaste(e, field.onChange)}
+                    className="text-center text-2xl tracking-[0.5em] font-mono"
+                    autoComplete="one-time-code"
+                    aria-label="6-digit authentication code"
+                    aria-describedby="mfa-help"
+                    aria-invalid={!!form.formState.errors.mfaCode}
+                    disabled={isLoading || attemptsRemaining === 0}
+                    required
+                    ref={(element) => {
+                      field.ref(element);
+                      inputRef.current = element;
+                    }}
+                  />
+                )}
               />
               <p id="mfa-help" className="text-xs text-muted-foreground">
                 Open your authenticator app (Google Authenticator, Authy, etc.) and enter the code shown for USmax.
               </p>
+              {form.formState.errors.mfaCode?.message && (
+                <p className="text-xs text-destructive" role="alert">
+                  {form.formState.errors.mfaCode.message}
+                </p>
+              )}
             </div>
           </CardContent>
 

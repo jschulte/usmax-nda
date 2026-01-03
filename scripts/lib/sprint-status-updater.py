@@ -67,7 +67,7 @@ class SprintStatusUpdater:
         current_line = self.lines[story_line_idx]
 
         # Parse current line: "  story-id: status  # comment"
-        match = re.match(r'(\s+)([a-z0-9-]+):\s*(\S+)(.*)', current_line)
+        match = re.match(r'(\s+)([a-zA-Z0-9-]+):\s*(\S+)(.*)', current_line)
         if not match:
             print(f"WARNING: Could not parse line: {current_line}", file=sys.stderr)
             return False
@@ -157,7 +157,7 @@ class SprintStatusUpdater:
 
         # Parse current line
         current_line = self.lines[epic_line_idx]
-        match = re.match(r'(\s+)([a-z0-9-]+):\s*(\S+)(.*)', current_line)
+        match = re.match(r'(\s+)([a-zA-Z0-9-]+):\s*(\S+)(.*)', current_line)
         if not match:
             return False
 
@@ -248,9 +248,9 @@ def scan_story_statuses(story_dir: str = "_bmad-output/implementation-artifacts/
     for story_file in story_files:
         story_id = story_file.stem
 
-        # Skip special files
+        # Skip special files (but NOT hardening stories like H-1)
         if (story_id.startswith('.') or
-            story_id.startswith('EPIC-') or
+            (story_id.startswith('EPIC-') and not story_id[5:6].isdigit()) or
             'COMPLETION' in story_id.upper() or
             'SUMMARY' in story_id.upper() or
             'REPORT' in story_id.upper() or
@@ -361,7 +361,7 @@ def main():
                 continue
 
             if in_dev_status and story_id in line:
-                match = re.match(r'\s+[a-z0-9-]+:\s*(\S+)', line)
+                match = re.match(r'\s+[a-zA-Z0-9-]+:\s*(\S+)', line)
                 if match:
                     current_status = match.group(1)
                     break

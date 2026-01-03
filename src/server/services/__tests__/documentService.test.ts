@@ -499,7 +499,7 @@ describe('Document Service', () => {
 
       expect(result.url).toBe('https://s3.amazonaws.com/presigned-url');
       expect(result.filename).toBe('test-document.pdf');
-      expect(getDownloadUrl).toHaveBeenCalledWith(mockDocument.s3Key, 900);
+      expect(getDownloadUrl).toHaveBeenCalledWith(mockDocument.s3Key, 900, mockDocument.s3Region || undefined);
     });
 
     it('should respect custom expiresIn when provided', async () => {
@@ -511,7 +511,7 @@ describe('Document Service', () => {
 
       await getDocumentDownloadUrl('doc-123', mockUserContext, undefined, 300);
 
-      expect(getDownloadUrl).toHaveBeenCalledWith(mockDocument.s3Key, 300);
+      expect(getDownloadUrl).toHaveBeenCalledWith(mockDocument.s3Key, 300, mockDocument.s3Region || undefined);
     });
 
     it('should log audit entry for download', async () => {

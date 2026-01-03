@@ -267,12 +267,6 @@ router.post('/users/:id/roles', async (req: Request, res: Response) => {
     });
 
     if (existing) {
-      console.log('[Admin] Role assignment blocked - user already has role:', {
-        userId: id,
-        userEmail: contact.email,
-        roleId,
-        roleName: role.name,
-      });
       return res.status(409).json({
         error: 'User already has this role',
         code: 'ROLE_ALREADY_ASSIGNED',

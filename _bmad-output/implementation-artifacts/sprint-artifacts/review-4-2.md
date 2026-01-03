@@ -44,7 +44,7 @@
 ## Tests/Build
 - `pnpm vitest run src/server/services/__tests__/documentService.test.ts` ✅ (console warnings from notification service mocks)
 - `pnpm vitest run src/server/routes/__tests__/documents.test.ts` ✅
-- `pnpm run build` ❌ (pre-existing duplicate helperText in `RequestWizard.tsx`, missing `zod` import in `LoginPage.tsx`)
+- `pnpm run build` ✅ (chunk size warning only)
 - Lint: no `lint` script in package.json
 
 ## Final Status

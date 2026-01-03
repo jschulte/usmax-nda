@@ -1,0 +1,9 @@
+---
+epic_num: 4
+started_at: "2026-01-03T04:13:43Z"
+total_stories: 8
+completed_stories:
+  - 4-1-document-upload-with-drag-drop
+  - 4-2-mark-document-as-fully-executed
+current_story: null
+status: running

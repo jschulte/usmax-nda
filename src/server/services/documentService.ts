@@ -413,6 +413,8 @@ export async function getDocumentDownloadUrl(
         ndaId: document.ndaId,
         ndaDisplayId: document.nda.displayId,
         filename: document.filename,
+        versionNumber: document.versionNumber,
+        s3Region: document.s3Region,
       },
     });
   } catch (error) {
@@ -421,7 +423,8 @@ export async function getDocumentDownloadUrl(
   }
 
   // Generate pre-signed URL (default 15 minutes TTL) - AFTER audit log attempt
-  const url = await getDownloadUrl(document.s3Key, expiresInSeconds);
+  // Story 4.3: Use region-aware download with failover
+  const url = await getDownloadUrl(document.s3Key, expiresInSeconds, document.s3Region || undefined);
 
   return { url, filename: document.filename };
 }

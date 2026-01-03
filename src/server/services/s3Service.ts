@@ -18,6 +18,7 @@ import {
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { randomUUID } from 'crypto';
 import { retryWithBackoff } from '../utils/retry.js';
+import { reportError } from './errorReportingService.js';
 
 /**
  * S3 Service Error
@@ -54,17 +55,37 @@ export interface UploadDocumentResult {
   bucket: string;
 }
 
-// Initialize S3 client - configured for us-east-1 with CRR to us-west-2
-const s3Client = new S3Client({
-  region: process.env.AWS_REGION || 'us-east-1',
-  // Credentials come from environment or IAM role
+const DEFAULT_REGION = process.env.AWS_REGION || 'us-east-1';
+const FAILOVER_REGION = process.env.S3_FAILOVER_REGION || 'us-west-2';
+
+const baseClientConfig = {
   ...(process.env.AWS_ACCESS_KEY_ID && {
     credentials: {
       accessKeyId: process.env.AWS_ACCESS_KEY_ID,
       secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
     },
   }),
-});
+};
+
+const s3Clients = new Map<string, S3Client>();
+
+function getOrCreateS3Client(region: string): S3Client {
+  const resolvedRegion = region || DEFAULT_REGION;
+  const existing = s3Clients.get(resolvedRegion);
+  if (existing) {
+    return existing;
+  }
+
+  const client = new S3Client({
+    region: resolvedRegion,
+    ...baseClientConfig,
+  });
+  s3Clients.set(resolvedRegion, client);
+  return client;
+}
+
+// Initialize S3 client - configured for us-east-1 with CRR to us-west-2
+const s3Client = getOrCreateS3Client(DEFAULT_REGION);
 
 // S3 bucket name from environment
 const BUCKET_NAME = process.env.S3_BUCKET_NAME || 'usmax-nda-documents';
@@ -138,25 +159,68 @@ export async function uploadDocument(
  */
 export async function getDownloadUrl(
   s3Key: string,
-  expiresInSeconds: number = 900
+  expiresInSeconds: number = 900,
+  primaryRegion: string = DEFAULT_REGION
 ): Promise<string> {
-  try {
+  const normalizedPrimary = primaryRegion || DEFAULT_REGION;
+  const fallbackRegion =
+    normalizedPrimary === FAILOVER_REGION ? DEFAULT_REGION : FAILOVER_REGION;
+
+  const generateSignedUrl = async (region: string) => {
     const command = new GetObjectCommand({
       Bucket: BUCKET_NAME,
       Key: s3Key,
     });
 
-    const url = await getSignedUrl(s3Client, command, {
+    return getSignedUrl(getOrCreateS3Client(region), command, {
       expiresIn: expiresInSeconds,
     });
+  };
 
-    return url;
+  const shouldFailover = (error: unknown) => {
+    const code = (error as { name?: string; code?: string; Code?: string })?.name ||
+      (error as { code?: string })?.code ||
+      (error as { Code?: string })?.Code;
+    const nonFailoverCodes = new Set([
+      'AccessDenied',
+      'InvalidAccessKeyId',
+      'SignatureDoesNotMatch',
+    ]);
+    return !code || !nonFailoverCodes.has(code);
+  };
+
+  try {
+    return await generateSignedUrl(normalizedPrimary);
   } catch (error) {
-    throw new S3ServiceError(
-      'Failed to generate download URL',
-      'URL_GENERATION_FAILED',
-      error instanceof Error ? error : undefined
-    );
+    if (!shouldFailover(error) || fallbackRegion === normalizedPrimary) {
+      throw new S3ServiceError(
+        'Failed to generate download URL',
+        'URL_GENERATION_FAILED',
+        error instanceof Error ? error : undefined
+      );
+    }
+
+    console.warn('[S3] Primary region failed, attempting failover', {
+      s3Key,
+      primaryRegion: normalizedPrimary,
+      fallbackRegion,
+    });
+    reportError(error, {
+      message: 'S3 download URL failover triggered',
+      s3Key,
+      primaryRegion: normalizedPrimary,
+      fallbackRegion,
+    });
+
+    try {
+      return await generateSignedUrl(fallbackRegion);
+    } catch (fallbackError) {
+      throw new S3ServiceError(
+        'Failed to generate download URL',
+        'URL_GENERATION_FAILED',
+        fallbackError instanceof Error ? fallbackError : undefined
+      );
+    }
   }
 }
 

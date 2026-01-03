@@ -31,79 +31,125 @@ so that **I can securely access the NDA system**.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: AWS Cognito User Pool Configuration** (AC: 1, 2)
-  - [ ] 1.1: Create Terraform configuration for Cognito User Pool
-  - [ ] 1.2: Configure MFA requirement (TOTP preferred, SMS fallback)
-  - [ ] 1.3: Configure password policy (CMMC Level 1 requirements)
-  - [ ] 1.4: Create App Client for SPA (no client secret)
-  - [ ] 1.5: Set token expiration (access: 4 hours, refresh: 30 days)
-  - [ ] 1.6: Deploy User Pool to AWS or document for later deployment
+- [x] **Task 1: AWS Cognito User Pool Configuration** (AC: 1, 2)
+  - [x] 1.1: Create Terraform configuration for Cognito User Pool
+  - [x] 1.2: Configure MFA requirement (TOTP preferred, SMS fallback)
+  - [x] 1.3: Configure password policy (CMMC Level 1 requirements)
+  - [x] 1.4: Create App Client for SPA (no client secret)
+  - [x] 1.5: Set token expiration (access: 4 hours, refresh: 30 days)
+  - [x] 1.6: Deploy User Pool to AWS or document for later deployment
 
-- [ ] **Task 2: Backend Authentication Endpoints** (AC: 1, 2)
-  - [ ] 2.1: Install AWS Cognito SDK (@aws-sdk/client-cognito-identity-provider)
-  - [ ] 2.2: Create cognitoService for AWS interactions
-  - [ ] 2.3: Implement POST /api/auth/login (initiates auth, returns MFA challenge)
-  - [ ] 2.4: Implement POST /api/auth/mfa-challenge (verifies MFA, returns tokens)
-  - [ ] 2.5: Implement POST /api/auth/refresh (refreshes access token)
-  - [ ] 2.6: Implement POST /api/auth/logout (clears cookies)
+- [x] **Task 2: Backend Authentication Endpoints** (AC: 1, 2)
+  - [x] 2.1: Install AWS Cognito SDK (@aws-sdk/client-cognito-identity-provider)
+  - [x] 2.2: Create cognitoService for AWS interactions
+  - [x] 2.3: Implement POST /api/auth/login (initiates auth, returns MFA challenge)
+  - [x] 2.4: Implement POST /api/auth/mfa-challenge (verifies MFA, returns tokens)
+  - [x] 2.5: Implement POST /api/auth/refresh (refreshes access token)
+  - [x] 2.6: Implement POST /api/auth/logout (clears cookies)
 
-- [ ] **Task 3: JWT Token Handling** (AC: 1)
-  - [ ] 3.1: Install cookie-parser middleware
-  - [ ] 3.2: Configure HttpOnly cookies (NOT localStorage)
-  - [ ] 3.3: Set Secure flag for HTTPS
-  - [ ] 3.4: Set SameSite=Strict for CSRF protection
-  - [ ] 3.5: Store access_token and refresh_token in separate cookies
+- [x] **Task 3: JWT Token Handling** (AC: 1)
+  - [x] 3.1: Install cookie-parser middleware
+  - [x] 3.2: Configure HttpOnly cookies (NOT localStorage)
+  - [x] 3.3: Set Secure flag for HTTPS
+  - [x] 3.4: Set SameSite=Strict for CSRF protection
+  - [x] 3.5: Store access_token and refresh_token in separate cookies
 
-- [ ] **Task 4: JWT Validation Middleware** (AC: 1)
-  - [ ] 4.1: Install aws-jwt-verify library
-  - [ ] 4.2: Create authenticateJWT middleware
-  - [ ] 4.3: Validate JWT signature against Cognito public keys (JWKS)
-  - [ ] 4.4: Extract user ID (sub) and email from token
-  - [ ] 4.5: Populate req.user with basic info (full context in Story 1.2)
-  - [ ] 4.6: Return 401 for missing, expired, or invalid tokens
+- [x] **Task 4: JWT Validation Middleware** (AC: 1)
+  - [x] 4.1: Install aws-jwt-verify library
+  - [x] 4.2: Create authenticateJWT middleware
+  - [x] 4.3: Validate JWT signature against Cognito public keys (JWKS)
+  - [x] 4.4: Extract user ID (sub) and email from token
+  - [x] 4.5: Populate req.user with basic info (full context in Story 1.2)
+  - [x] 4.6: Return 401 for missing, expired, or invalid tokens
 
-- [ ] **Task 5: Mock Authentication Mode** (AC: Development)
-  - [ ] 5.1: Create mock auth mode for development (USE_MOCK_AUTH=true)
-  - [ ] 5.2: Mock users: admin@usmax.com, test@usmax.com with test passwords
-  - [ ] 5.3: Mock MFA code: 123456 (always succeeds)
-  - [ ] 5.4: Generate mock JWT tokens for development
-  - [ ] 5.5: Allow switching between mock and real Cognito
+- [x] **Task 5: Mock Authentication Mode** (AC: Development)
+  - [x] 5.1: Create mock auth mode for development (USE_MOCK_AUTH=true)
+  - [x] 5.2: Mock users: admin@usmax.com, test@usmax.com with test passwords
+  - [x] 5.3: Mock MFA code: 123456 (always succeeds)
+  - [x] 5.4: Generate mock JWT tokens for development
+  - [x] 5.5: Allow switching between mock and real Cognito
 
 - [ ] **Task 6: Frontend Login Components** (AC: 1, 2)
-  - [ ] 6.1: Create LoginPage component with email/password form
-  - [ ] 6.2: Create MFAChallengePage component for MFA code entry
+  - [x] 6.1: Create LoginPage component with email/password form
+  - [x] 6.2: Create MFAChallengePage component for MFA code entry
   - [ ] 6.3: Implement form validation with React Hook Form + Zod
-  - [ ] 6.4: Show loading states during authentication
-  - [ ] 6.5: Display error messages for invalid credentials/MFA
-  - [ ] 6.6: Show retry counter (X of 3 attempts remaining)
+  - [x] 6.4: Show loading states during authentication
+  - [x] 6.5: Display error messages for invalid credentials/MFA
+  - [x] 6.6: Show retry counter (X of 3 attempts remaining)
 
-- [ ] **Task 7: Frontend Auth Context** (AC: 1, 3)
-  - [ ] 7.1: Create AuthContext for React app
-  - [ ] 7.2: Implement login(), verifyMFA(), logout() functions
-  - [ ] 7.3: Store user state in context (not tokens - those in cookies)
-  - [ ] 7.4: Create useAuth() hook
-  - [ ] 7.5: Create ProtectedRoute component (redirect to login if not authenticated)
+- [x] **Task 7: Frontend Auth Context** (AC: 1, 3)
+  - [x] 7.1: Create AuthContext for React app
+  - [x] 7.2: Implement login(), verifyMFA(), logout() functions
+  - [x] 7.3: Store user state in context (not tokens - those in cookies)
+  - [x] 7.4: Create useAuth() hook
+  - [x] 7.5: Create ProtectedRoute component (redirect to login if not authenticated)
 
-- [ ] **Task 8: Session Timeout Warning** (AC: 3)
-  - [ ] 8.1: Create SessionWarningModal component
-  - [ ] 8.2: Calculate time until expiration from token
-  - [ ] 8.3: Show modal 5 minutes before expiration
-  - [ ] 8.4: Implement "Extend Session" button (calls refresh endpoint)
-  - [ ] 8.5: Auto-logout on timeout with redirect
+- [x] **Task 8: Session Timeout Warning** (AC: 3)
+  - [x] 8.1: Create SessionWarningModal component
+  - [x] 8.2: Calculate time until expiration from token
+  - [x] 8.3: Show modal 5 minutes before expiration
+  - [x] 8.4: Implement "Extend Session" button (calls refresh endpoint)
+  - [x] 8.5: Auto-logout on timeout with redirect
 
-- [ ] **Task 9: Audit Logging for Auth Events** (AC: 2)
-  - [ ] 9.1: Create auditService if not exists
-  - [ ] 9.2: Log login_success, login_failed events
-  - [ ] 9.3: Log mfa_success, mfa_failed events with attempt count
-  - [ ] 9.4: Log logout events
-  - [ ] 9.5: Capture IP address, user agent, timestamp
+- [x] **Task 9: Audit Logging for Auth Events** (AC: 2)
+  - [x] 9.1: Create auditService if not exists
+  - [x] 9.2: Log login_success, login_failed events
+  - [x] 9.3: Log mfa_success, mfa_failed events with attempt count
+  - [x] 9.4: Log logout events
+  - [x] 9.5: Capture IP address, user agent, timestamp
 
 - [ ] **Task 10: Testing** (AC: All)
-  - [ ] 10.1: Unit tests for cognitoService (with mocked AWS SDK)
-  - [ ] 10.2: Unit tests for authenticateJWT middleware
-  - [ ] 10.3: Integration tests for auth endpoints (login, MFA, refresh, logout)
+  - [x] 10.1: Unit tests for cognitoService (with mocked AWS SDK)
+  - [x] 10.2: Unit tests for authenticateJWT middleware
+  - [x] 10.3: Integration tests for auth endpoints (login, MFA, refresh, logout)
   - [ ] 10.4: Component tests for LoginPage and MFAChallengePage
   - [ ] 10.5: E2E test for complete login flow (Playwright)
+
+### Added from Gap Analysis
+- [ ] Add `.env.example` with Cognito auth environment variables and mock auth flags
+
+## Gap Analysis
+
+### Pre-Development Analysis
+- **Date:** 2026-01-02T23:14:44-05:00
+- **Development Type:** hybrid
+- **Existing Files:** 9
+- **New Files:** 1
+
+**Findings:**
+- Tasks ready: 0
+- Tasks partially done: 2
+- Tasks already complete: 8
+- Tasks refined: 0
+- Tasks added: 1
+
+**Codebase Scan:**
+- Terraform: `infrastructure/cognito.tf`, `infrastructure/modules/cognito/main.tf`
+- Backend: `src/server/services/cognitoService.ts`, `src/server/routes/auth.ts`, `src/server/middleware/authenticateJWT.ts`
+- Frontend: `src/client/pages/LoginPage.tsx`, `src/client/pages/MFAChallengePage.tsx`, `src/client/contexts/AuthContext.tsx`, `src/client/components/SessionWarningModal.tsx`
+- Audit: `src/server/services/auditService.ts`
+
+**Notes:**
+- Login/MFA UI exists but does not yet use React Hook Form + Zod schemas.
+- Component tests and Playwright E2E coverage are still missing.
+- `.env.example` is missing for Cognito and mock auth settings.
+
+**Status:** Ready for implementation
+
+## Smart Batching Plan
+
+**Pattern Groups Detected:** None (all remaining tasks are independent and higher risk)
+
+### Individual Tasks (4 tasks)
+- Implement React Hook Form + Zod validation for Login/MFA forms
+- Add component tests for LoginPage and MFAChallengePage
+- Add Playwright E2E test for login flow (or link to Story 1-5)
+- Add `.env.example` with Cognito auth environment variables
+
+**Time Estimate:**
+- With batching: 2 hours
+- Without batching: 2 hours
+- Savings: 0 hours
 
 ## Dev Notes
 

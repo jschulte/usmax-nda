@@ -1,0 +1,12 @@
+epic_num: 9
+started: 2026-01-03T04:19:20Z
+total_stories: 26
+completed_stories:
+  - 9-1-fix-internal-notes-display
+  - 9-2-filter-system-events-from-audit-trail
+  - 9-3-fix-agency-groups-three-dots-menu
+  - 9-4-add-subagency-creation-button
+  - 9-5-fix-role-assignment-error
+  - 9-6-human-readable-audit-trail-display
+current_story: null
+status: running

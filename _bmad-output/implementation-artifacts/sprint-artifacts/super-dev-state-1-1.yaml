@@ -1,0 +1,58 @@
+---
+story_id: "1-1"
+story_file: "/Users/jonahschulte/git/usmax-nda/_bmad-output/implementation-artifacts/sprint-artifacts/1-1-aws-cognito-mfa-integration.md"
+mode: "batch"
+development_type: "hybrid"
+
+stepsCompleted: [1, 2]
+lastStep: 2
+currentStep: 3
+status: "in_progress"
+
+started_at: "2026-01-02T23:12:21-05:00"
+updated_at: "2026-01-02T23:14:44-05:00"
+
+cached_context:
+  story_loaded: true
+  project_context_loaded: true
+
+development_analysis:
+  existing_files: 9
+  new_files: 1
+  total_tasks: 10
+  unchecked_tasks: 10
+
+steps:
+  step-01-init:
+    status: completed
+    completed_at: "2026-01-02T23:12:21-05:00"
+  step-02-pre-gap-analysis:
+    status: completed
+    completed_at: "2026-01-02T23:14:44-05:00"
+  step-03-implement:
+    status: pending
+  step-04-post-validation:
+    status: pending
+  step-05-code-review:
+    status: pending
+  step-06-complete:
+    status: pending
+  step-07-summary:
+    status: pending
+
+gap_analysis:
+  development_type: "hybrid"
+  tasks_ready: 0
+  tasks_partial: 2
+  tasks_done: 8
+  tasks_refined: 0
+  tasks_added: 1
+
+smart_batching:
+  enabled: true
+  patterns_detected: 0
+  batchable_tasks: 0
+  individual_tasks: 4
+  estimated_time_with_batching: 2
+  estimated_time_without_batching: 2
+  estimated_savings: 0

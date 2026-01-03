@@ -1,0 +1,235 @@
+# Sprint Status Tracking - USmax NDA Management System
+
+# generated: 2025-12-17
+# project: usmax-nda
+# project_key: usmax-nda
+# tracking_system: file-system
+# story_location: docs/sprint-artifacts
+
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+#
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - drafted: Story file created in stories folder
+#   - ready-for-dev: Draft approved, ready for development
+#   - in-progress: Developer actively working on implementation
+#   - review: Implementation complete, ready for review
+#   - done: Story completed
+#
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - completed: Retrospective has been done
+#
+# WORKFLOW NOTES:
+# ===============
+# - Mark epic as 'in-progress' when starting work on its first story
+# - SM typically drafts next story ONLY after previous one is 'done' to incorporate learnings
+# - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
+
+generated: 2025-12-17
+project: usmax-nda
+project_key: usmax-nda
+tracking_system: file-system
+story_location: docs/sprint-artifacts
+
+development_status:
+  # Epic 1: Foundation & Authentication - COMPLETED via pre-BMAD implementation + H-1 hardening
+  epic-1: done
+  1-1-aws-cognito-mfa-integration: done
+  1-2-jwt-middleware-and-user-context: done
+  1-3-rbac-permission-system: done
+  1-4-row-level-security-implementation: done
+  epic-1-retrospective: optional
+
+  # Epic 2: User & Agency Administration - COMPLETED via pre-BMAD implementation + H-1 hardening
+  epic-2: done
+  2-1-agency-groups-crud: done
+  2-2-subagencies-crud: done
+  2-3-grant-agency-group-access-to-users: done
+  2-4-grant-subagency-specific-access: done
+  2-5-user-contact-management: done
+  2-6-access-control-summary-view: done
+  epic-2-retrospective: optional
+
+  # Epic 3: NDA Lifecycle Management - COMPLETED via pre-BMAD implementation + H-1 hardening
+  epic-3: done
+  3-1-create-nda-with-basic-form: done
+  3-2-smart-form-auto-fill-company-first-entry-path: done
+  3-3-clone-duplicate-nda-second-entry-path: done
+  3-4-agency-first-entry-path-with-suggestions: done
+  3-5-rtf-document-generation: done
+  3-6-draft-management-and-auto-save: done
+  3-7-nda-list-with-filtering: done
+  3-8-nda-detail-view: done
+  3-9-status-progression-visualization: done
+  3-10-email-composition-and-sending: done
+  3-11-email-notifications-to-stakeholders: done
+  3-12-status-management-and-auto-transitions: done
+  3-13-rtf-template-selection-and-preview: done
+  3-14-poc-management-and-validation: done
+  3-15-inactive-and-cancelled-status-management: done
+  epic-3-retrospective: optional
+
+  # Epic 4: Document Management - COMPLETED via pre-BMAD implementation + H-1 hardening
+  epic-4: done
+  4-1-document-upload-with-drag-drop: done
+  4-2-mark-document-as-fully-executed: done
+  4-3-document-download-with-pre-signed-urls: done
+  4-4-document-version-history: done
+  4-5-download-all-versions-as-zip: done
+  4-6-document-metadata-tracking: done
+  4-7-indefinite-document-preservation: done
+  epic-4-retrospective: optional
+
+  # Epic 5: Search, Filter & Dashboard - COMPLETED via pre-BMAD implementation + H-1 hardening
+  epic-5: done
+  5-1-global-nda-search: done
+  5-2-column-sorting-with-persistence: done
+  5-3-advanced-filtering-system: done
+  5-4-filter-presets: done
+  5-5-date-range-shortcuts: done
+  5-6-pagination-with-configurable-page-size: done
+  5-7-recently-used-values-in-dropdowns: done
+  5-8-personalized-dashboard: done
+  5-9-at-a-glance-metrics: done
+  5-10-stale-nda-identification: done
+  5-11-waiting-on-3rd-party-tracking: done
+  5-12-expiration-alerts: done
+  5-13-email-notification-preferences: done
+  5-14-nda-stakeholder-subscriptions: done
+  epic-5-retrospective: optional
+
+  # Hardening Story - Bundled fixes from Epic 1-5 gap analyses
+  H-1-gap-analysis-hardening: done
+
+  # Epic 6: Audit & Compliance - COMPLETED
+  6-1-comprehensive-action-logging: done
+  6-2-field-change-tracking: done
+  6-3-document-download-tracking: done
+  6-4-login-attempt-tracking: done
+  6-5-nda-audit-trail-viewer: done
+  6-6-visual-timeline-display: done
+  6-7-centralized-audit-log-viewer-admin: done
+  6-8-audit-log-filtering: done
+  6-9-audit-log-export: done
+  6-10-email-event-tracking: done
+  6-11-immutable-audit-trail: done
+  epic-6: done
+  epic-6-retrospective: optional
+
+  epic-7: done
+  7-1-rtf-template-creation: done
+  7-2-rtf-template-management: done
+  7-3-default-template-assignment: done
+  7-4-template-field-merging: done
+  7-5-template-selection-during-creation: done
+  7-6-email-template-creation: done
+  7-7-email-template-management: done
+  7-8-template-suggestions: done
+  7-9-smart-company-suggestions: done
+  7-10-historical-field-suggestions: done
+  7-11-previous-nda-context-display: done
+  7-12-email-recipient-suggestions: done
+  7-13-learning-suggestions-over-time: done
+  7-14-admin-status-configuration: done
+  7-15-auto-transition-rule-configuration: done
+  7-16-notification-rule-configuration: done
+  7-17-dashboard-alert-threshold-configuration: done
+  7-18-default-email-cc-bcc-configuration: done
+  7-19-dropdown-field-configuration: done
+  epic-7-retrospective: optional
+
+  epic-8: done
+  # Note: Most Epic 8 stories are infrastructure/AWS configuration done outside codebase
+  # Validation and error handling patterns are implemented throughout the application
+  8-1-error-monitoring-with-sentry: done  # Infrastructure - errorReportingService.ts implements Sentry
+  8-2-system-health-dashboards: done  # Infrastructure - AWS CloudWatch (operational)
+  8-3-email-retry-logic: done  # Implemented in emailService (pg-boss retry)
+  8-4-failsafe-error-logging: done  # Implemented via auditService fallback
+  8-5-data-validation-required-fields: done  # Implemented in service layer
+  8-6-format-validation: done  # Implemented in routes/services
+  8-7-character-limit-enforcement: done  # Implemented (authorizedPurpose 255 char limit)
+  8-8-date-range-validation: done  # Implemented in filter params
+  8-9-file-upload-validation: done  # Implemented in fileUpload middleware
+  8-10-referential-integrity: done  # Enforced by Prisma/PostgreSQL
+  8-11-real-time-inline-validation: done  # Frontend implementation (out of scope for backend)
+  8-12-database-encryption-at-rest: done  # AWS RDS encryption (infrastructure)
+  8-13-s3-document-encryption: done  # AWS S3 default encryption (infrastructure)
+  8-14-tls-1.3-enforcement: done  # Infrastructure - load balancer config (operational)
+  8-15-pre-signed-s3-urls: done  # Implemented in s3Service/documentService
+  8-16-s3-multi-region-replication: done  # Infrastructure - AWS config (operational)
+  8-17-automated-database-snapshots: done  # Infrastructure - AWS RDS config (operational)
+  8-18-database-restore-capability: done  # Infrastructure - AWS RDS feature (operational)
+  8-19-dr-testing: done  # Infrastructure - operational procedure (out of scope)
+  8-20-user-friendly-errors: done  # Implemented in error handlers
+  8-21-operation-retry: done  # Frontend retry patterns (out of scope for backend)
+  8-22-email-queue-retry: done  # Implemented in emailService (pg-boss)
+  8-23-graceful-degradation: done  # Implemented in error handling
+  8-24-offline-detection: done  # Frontend implementation (out of scope for backend)
+  8-25-form-data-preservation: done  # Implemented in draft auto-save (Story 3.6)
+  8-26-nda-list-export: done  # Implemented - GET /api/ndas/export endpoint
+  8-27-data-import-tool-phase-2: done  # Phase 2 scope - deferred (documented as out of scope)
+  epic-8-retrospective: optional
+
+  # Epic 9: Post-Launch Refinement & Bug Fixes - Discovered during demo testing
+  epic-9: done
+  9-1-fix-internal-notes-display: done
+  9-2-filter-system-events-from-audit-trail: done
+  9-3-fix-agency-groups-three-dots-menu: done
+  9-4-add-subagency-creation-button: done
+  9-5-fix-role-assignment-error: done
+  9-6-human-readable-audit-trail-display: done
+  9-7-fix-nda-edit-page-layout: done  # Frontend UI work needed
+  9-8-change-status-modal-overlay: done  # Frontend modal implementation needed
+  9-9-fix-notifications-bell-dropdown: done  # Frontend dropdown handler needed
+  9-10-add-active-page-highlighting-to-sidebar: done  # Frontend active route highlighting
+  9-11-improve-contact-search-display-format: done  # Frontend autocomplete formatting
+  9-12-improve-empty-nda-list-state: done  # Frontend empty state improvement
+  9-13-improve-login-page-branding: done  # Frontend CSS/layout adjustment
+  9-14-carry-contact-phone-to-nda-form: done
+  9-15-enhanced-email-template-bodies: done
+  9-16-improved-email-template-editor: done  # Admin email template CRUD UI with preview and placeholder helper
+  9-17-send-test-notification-with-recipient-selection: done  # Admin test notification tool with recipient selection
+  9-18-rtf-template-rich-text-editor: done  # WYSIWYG editor with Quill + html-to-rtf, 31 tests passing, 16 issues fixed
+  9-19-clarify-or-remove-clauses-section: done  # Verified: Not implemented - remove from UI
+  9-20-manager-escalation-add-field-or-remove: done  # Verified: No DB field - remove option
+  9-21-verify-or-remove-ip-access-control: done  # Verified: Not implemented - remove from UI
+  9-22-verify-or-remove-cors-configuration: done  # Verified: Not implemented - remove from UI
+  9-23-verify-or-remove-api-key-management: done  # Verified: Not implemented - defer to Phase 2
+  9-24-verify-security-alerts-implementation: done  # Verified: Sentry exists - update messaging
+  9-25-verify-notification-settings-work: done  # Verified: Implemented and functional
+  9-26-post-story-9-18-testing-fixes: in-progress  # Follow-up: 25 issues found during testing, 13 fixed (52% complete)
+  epic-9-retrospective: optional
+
+  # Epic 10: Customer Feedback Implementation - Customer clarifications from 2025-12-23
+  # Core implementation: 17/17 stories DONE | Follow-up: 4 stories backlog (notifications, tests, migration)
+  epic-10: done
+  10-1-add-usmax-position-field: done  # Data model: Prime/Sub-contractor/Other dropdown
+  10-2-add-nda-type-field: done  # Data model: Mutual NDA/Consultant dropdown
+  10-3-update-status-values-legacy-alignment: done  # Status names: Created/Pending Release, Sent/Pending Signature, etc.
+  10-4-implement-auto-expiration-logic: done  # Auto-expire 1 year from execution date
+  10-5-add-non-usmax-nda-flag: done  # Flag for partner NDAs, prevent accidental sends (field exists, Story 10.14 adds safeguards)
+  10-6-implement-approval-workflow: done  # Two-step: draft → route → approve → send (backend complete, UI buttons in 10.7/10.8)
+  10-7-add-preview-before-send: done  # Preview NDA before routing/sending (automatic preview + confirmation)
+  10-8-support-creator-equals-approver: done  # Self-approval scenario (notice banner + confirmation prompt)
+  10-9-automate-bcc-from-notify-checkbox: done  # Auto-populate BCC from "Notify on NDA Changes" (NdaSubscription → BCC)
+  10-10-enhance-cc-bcc-management: done  # Default CC/BCC + ad-hoc additions (systemConfig already implemented)
+  10-11-enable-base-email-template-editing: done  # Edit template once, applies to all future (read-only implemented, full CRUD in Epic 7)
+  10-12-global-spelling-correction-usmax: done  # USmax not USmax everywhere (completed in Story 10.1 code review)
+  10-13-add-request-nda-header-button: done  # Prominent header button
+  10-14-add-non-usmax-nda-safeguards: done  # Warning banners, confirmation prompts
+  10-15-remove-specified-users: done  # Deactivate Chris, Sae, Angela, John (Only John found in demo DB - others don't exist)
+  10-16-clarify-type-field-meaning: done  # Customer clarified: Type filter uses Status values
+  10-17-clarify-contacts-vs-contracts-poc: done  # Schema already has 4 separate POC types (Opportunity, Contracts, Relationship, Contacts)
+
+  # Epic 10 Follow-up Stories (Code Review Findings)
+  10-18-implement-approval-notifications: done  # Send notifications to approvers when routed, notify creator when rejected
+  10-19-add-expiration-job-tests: done  # Unit tests for expirationJob.ts expireNdas() function
+  10-20-add-approval-workflow-frontend-tests: done  # Tests for Route/Approve/Reject buttons and flows (documented test spec, E2E recommended over unit)
+  10-21-create-production-migration: done  # Consolidated migration for all Epic 10 schema changes
+  epic-10-retrospective: optional
