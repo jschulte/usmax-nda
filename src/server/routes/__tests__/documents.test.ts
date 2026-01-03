@@ -92,6 +92,38 @@ describe('Document Upload Routes Integration', () => {
     expect(documentService.uploadNdaDocument).toHaveBeenCalled();
   });
 
+  it('passes isFullyExecuted when provided', async () => {
+    vi.mocked(documentService.uploadNdaDocument).mockResolvedValue({
+      id: 'doc-2',
+      ndaId: 'nda-1',
+      filename: 'executed.pdf',
+      documentType: 'FULLY_EXECUTED',
+      isFullyExecuted: true,
+      versionNumber: 2,
+    } as any);
+
+    await request(app)
+      .post('/api/ndas/nda-1/documents/upload')
+      .field('isFullyExecuted', 'true')
+      .attach('file', Buffer.from('%PDF-1.4 executed'), 'executed.pdf');
+
+    expect(documentService.uploadNdaDocument).toHaveBeenCalledWith(
+      expect.objectContaining({ isFullyExecuted: true }),
+      expect.anything(),
+      expect.anything()
+    );
+  });
+
+  it('rejects invalid isFullyExecuted values', async () => {
+    const response = await request(app)
+      .post('/api/ndas/nda-1/documents/upload')
+      .field('isFullyExecuted', 'yes')
+      .attach('file', Buffer.from('%PDF-1.4 invalid'), 'invalid.pdf');
+
+    expect(response.status).toBe(400);
+    expect(response.body.code).toBe('INVALID_INPUT');
+  });
+
   it('returns 400 when no file is provided', async () => {
     const response = await request(app)
       .post('/api/ndas/nda-1/documents/upload');

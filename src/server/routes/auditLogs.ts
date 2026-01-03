@@ -105,8 +105,14 @@ router.get(
       }
 
       if (req.query.batchId) {
+        const andFilters = Array.isArray(where.AND)
+          ? where.AND
+          : where.AND
+            ? [where.AND]
+            : [];
+
         where.AND = [
-          ...(where.AND ?? []),
+          ...andFilters,
           {
             details: {
               path: ['batchId'],
@@ -230,8 +236,14 @@ router.get(
       }
 
       if (req.query.batchId) {
+        const andFilters = Array.isArray(where.AND)
+          ? where.AND
+          : where.AND
+            ? [where.AND]
+            : [];
+
         where.AND = [
-          ...(where.AND ?? []),
+          ...andFilters,
           {
             details: {
               path: ['batchId'],

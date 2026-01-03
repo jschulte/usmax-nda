@@ -12,6 +12,7 @@ import { prisma } from '../db/index.js';
 import { AuditAction } from './auditService.js';
 import { detectFieldChanges } from '../utils/detectFieldChanges.js';
 import type { UserContext } from '../types/auth.js';
+import type { Prisma } from '../../generated/prisma/index.js';
 
 export interface CreateAgencyGroupInput {
   name: string;
@@ -400,7 +401,7 @@ export async function updateAgencyGroup(
             changes: fieldChanges,
             previousName: existing.name,
             newName: group.name,
-          },
+          } as unknown as Prisma.InputJsonValue,
           ipAddress: auditContext?.ipAddress ?? null,
           userAgent: auditContext?.userAgent ?? null,
         },

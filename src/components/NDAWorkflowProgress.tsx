@@ -25,6 +25,7 @@ interface NDAWorkflowProgressProps {
   canSend?: boolean;
   canRouteForApproval?: boolean;
   isCreator?: boolean;
+  fullyExecutedDate?: string | null;
 }
 
 export function NDAWorkflowProgress({
@@ -33,8 +34,17 @@ export function NDAWorkflowProgress({
   canApprove = false,
   canSend = false,
   canRouteForApproval = false,
-  isCreator = false
+  isCreator = false,
+  fullyExecutedDate = null
 }: NDAWorkflowProgressProps) {
+  const formatExecutedDate = (dateValue: string | null) => {
+    if (!dateValue) return null;
+    const date = new Date(dateValue);
+    if (Number.isNaN(date.getTime())) return null;
+    return date.toLocaleDateString();
+  };
+
+  const executedDateLabel = formatExecutedDate(fullyExecutedDate);
 
   // Define workflow steps based on current status
   const getWorkflowSteps = (): WorkflowStep[] => {
@@ -70,7 +80,9 @@ export function NDAWorkflowProgress({
       {
         key: 'executed',
         label: 'Executed',
-        description: 'Fully executed by all parties',
+        description: executedDateLabel
+          ? `Fully executed on ${executedDateLabel}`
+          : 'Fully executed by all parties',
         status: currentStatus === 'FULLY_EXECUTED' ? 'completed' : 'pending'
       }
     ];

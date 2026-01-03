@@ -4,6 +4,7 @@ import { useAuth } from '../../client/hooks/useAuth';
 import { Card } from '../ui/AppCard';
 import { Badge } from '../ui/AppBadge';
 import { Button } from '../ui/AppButton';
+import { Checkbox } from '../ui/checkbox';
 import {
   ArrowLeft,
   Download,
@@ -131,6 +132,9 @@ export function NDADetail() {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [documentsLoading, setDocumentsLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [markExecutedOnUpload, setMarkExecutedOnUpload] = useState(false);
+  const [pendingUploadFile, setPendingUploadFile] = useState<File | null>(null);
+  const [showUploadExecutedDialog, setShowUploadExecutedDialog] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
@@ -916,6 +920,30 @@ export function NDADetail() {
 
 
   // Document handlers
+  const uploadDocumentFile = async (file: File, isFullyExecuted: boolean) => {
+    if (!id) return;
+
+    try {
+      setUploading(true);
+      await uploadDocument(id, file, isFullyExecuted);
+      toast.success('Document uploaded', {
+        description: `${file.name} has been uploaded successfully`
+      });
+      setMarkExecutedOnUpload(false);
+      // Reload documents
+      const docs = await listDocuments(id);
+      setDocuments(docs);
+      await refreshNdaDetail();
+    } catch (err) {
+      console.error('Failed to upload document:', err);
+      toast.error('Upload failed', {
+        description: err instanceof Error ? err.message : 'Failed to upload document'
+      });
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const handleFileSelect = async (files: FileList | null) => {
     if (!canUploadDocument) {
       toast.error("You don't have permission to upload documents.");
@@ -949,24 +977,30 @@ export function NDADetail() {
       return;
     }
 
-    try {
-      setUploading(true);
-      const document = await uploadDocument(id, file);
-      toast.success('Document uploaded', {
-        description: `${file.name} has been uploaded successfully`
-      });
-      // Reload documents
-      const docs = await listDocuments(id);
-      setDocuments(docs);
-      await refreshNdaDetail();
-    } catch (err) {
-      console.error('Failed to upload document:', err);
-      toast.error('Upload failed', {
-        description: err instanceof Error ? err.message : 'Failed to upload document'
-      });
-    } finally {
-      setUploading(false);
+    if (markExecutedOnUpload && canMarkExecutedOnUpload) {
+      setPendingUploadFile(file);
+      setShowUploadExecutedDialog(true);
+      return;
     }
+
+    await uploadDocumentFile(file, false);
+  };
+
+  const confirmUploadAsExecuted = async () => {
+    if (!pendingUploadFile) return;
+    if (!canMarkExecutedOnUpload) {
+      toast.error("You don't have permission to mark as fully executed.");
+      cancelUploadAsExecuted();
+      return;
+    }
+    setShowUploadExecutedDialog(false);
+    await uploadDocumentFile(pendingUploadFile, true);
+    setPendingUploadFile(null);
+  };
+
+  const cancelUploadAsExecuted = () => {
+    setShowUploadExecutedDialog(false);
+    setPendingUploadFile(null);
   };
 
   const handleDragEnter = (e: React.DragEvent) => {
@@ -1250,6 +1284,7 @@ export function NDADetail() {
   const canSendEmail = !!nda.availableActions?.canSendEmail;
   const canUploadDocument = !!nda.availableActions?.canUploadDocument;
   const canChangeStatus = !!nda.availableActions?.canChangeStatus;
+  const canMarkExecutedOnUpload = canUploadDocument && canChangeStatus;
   
   return (
     <div className="p-8">
@@ -1381,6 +1416,7 @@ export function NDADetail() {
         canSend={canSendEmail}
         canRouteForApproval={nda.availableActions?.canRouteForApproval || false}
         isCreator={nda.createdBy?.id === user?.id}
+        fullyExecutedDate={nda.fullyExecutedDate ?? null}
       />
 
       {/* Main content area - Document First Layout */}
@@ -1830,6 +1866,31 @@ export function NDADetail() {
                         </p>
                       </>
                     )}
+                  </div>
+
+                  <div className="mb-6 flex items-start gap-2">
+                    <Checkbox
+                      id="mark-executed-upload"
+                      checked={markExecutedOnUpload}
+                      onCheckedChange={(checked) => setMarkExecutedOnUpload(checked === true)}
+                      disabled={uploading || !canMarkExecutedOnUpload}
+                    />
+                    <div className="flex flex-col">
+                      <label
+                        htmlFor="mark-executed-upload"
+                        className={`text-sm ${canMarkExecutedOnUpload ? 'text-[var(--color-text-primary)]' : 'text-[var(--color-text-muted)]'}`}
+                      >
+                        Mark as Fully Executed NDA on upload
+                      </label>
+                      <span className="text-xs text-[var(--color-text-muted)]">
+                        Updates status and execution date immediately after upload.
+                      </span>
+                      {!canChangeStatus && (
+                        <span className="text-xs text-[var(--color-warning)]">
+                          You need status-change permission to use this option.
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   {/* Documents list */}
@@ -2455,6 +2516,24 @@ export function NDADetail() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={showUploadExecutedDialog} onOpenChange={setShowUploadExecutedDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Mark NDA as Fully Executed?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This upload will be marked as the fully executed version and will update the NDA status to
+              &quot;Fully Executed&quot; with today&apos;s date.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={cancelUploadAsExecuted}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmUploadAsExecuted} disabled={uploading}>
+              Confirm upload
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={showMarkExecutedDialog} onOpenChange={setShowMarkExecutedDialog}>
         <AlertDialogContent>

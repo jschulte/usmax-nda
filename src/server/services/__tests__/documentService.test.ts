@@ -599,7 +599,7 @@ describe('Document Service', () => {
         status: 'FULLY_EXECUTED',
       } as any);
 
-      const result = await markDocumentFullyExecuted('doc-123', mockUserContext);
+      const result = await markDocumentFullyExecuted('doc-123', mockStatusContext);
 
       expect(result.isFullyExecuted).toBe(true);
       expect(prisma.document.update).toHaveBeenCalled();
@@ -629,7 +629,7 @@ describe('Document Service', () => {
         status: 'FULLY_EXECUTED',
       } as any);
 
-      await markDocumentFullyExecuted('doc-123', mockUserContext);
+      await markDocumentFullyExecuted('doc-123', mockStatusContext);
 
       expect(prisma.nda.update).toHaveBeenCalled();
     });
@@ -650,7 +650,7 @@ describe('Document Service', () => {
         status: 'FULLY_EXECUTED',
       } as any);
 
-      await markDocumentFullyExecuted('doc-123', mockUserContext, {
+      await markDocumentFullyExecuted('doc-123', mockStatusContext, {
         ipAddress: '127.0.0.1',
         userAgent: 'Test/1.0',
       });
@@ -674,7 +674,7 @@ describe('Document Service', () => {
     it('should reject for non-existent document', async () => {
       vi.mocked(prisma.document.findFirst).mockResolvedValue(null);
 
-      await expect(markDocumentFullyExecuted('doc-invalid', mockUserContext)).rejects.toThrow(
+      await expect(markDocumentFullyExecuted('doc-invalid', mockStatusContext)).rejects.toThrow(
         'Document not found'
       );
     });
@@ -682,26 +682,41 @@ describe('Document Service', () => {
     it('should reject access when document is not accessible', async () => {
       vi.mocked(prisma.document.findFirst).mockResolvedValue(null);
 
-      await expect(markDocumentFullyExecuted('doc-123', mockUserContext)).rejects.toThrow(
+      await expect(markDocumentFullyExecuted('doc-123', mockStatusContext)).rejects.toThrow(
         'Document not found'
       );
     });
 
-    it('should not fail if status transition fails', async () => {
+    it('should reject without status permission', async () => {
       vi.mocked(prisma.document.findFirst).mockResolvedValue({
         ...mockDocument,
         nda: mockNda,
       } as any);
+
+      await expect(markDocumentFullyExecuted('doc-123', mockUserContext)).rejects.toThrow(
+        'Permission denied'
+      );
+    });
+
+    it('should not call transition helper for manual status change', async () => {
+      vi.mocked(prisma.document.findFirst).mockResolvedValue({
+        ...mockDocument,
+        nda: mockNda,
+      } as any);
+      vi.mocked(isValidTransition).mockReturnValue(true);
       vi.mocked(prisma.document.update).mockResolvedValue({
         ...mockDocument,
         isFullyExecuted: true,
         documentType: 'FULLY_EXECUTED',
       } as any);
-      vi.mocked(transitionStatus).mockRejectedValue(new Error('Transition not allowed'));
+      vi.mocked(prisma.nda.update).mockResolvedValue({
+        ...mockNda,
+        status: 'FULLY_EXECUTED',
+      } as any);
 
-      // Should not throw even if transition fails
-      const result = await markDocumentFullyExecuted('doc-123', mockUserContext);
-      expect(result.isFullyExecuted).toBe(true);
+      await markDocumentFullyExecuted('doc-123', mockStatusContext);
+
+      expect(transitionStatus).not.toHaveBeenCalled();
     });
   });
 
