@@ -503,8 +503,8 @@ router.get(
             description = `Status changed from "${previousStatus}" to "${newStatus}"`;
           }
         } else if (log.action === AuditAction.NDA_UPDATED) {
-          const changedFields = details.changedFields;
-          if (isJsonObject(changedFields)) {
+          const changedFields = details?.changedFields;
+          if (changedFields && isJsonObject(changedFields)) {
             description = `Updated: ${Object.keys(changedFields).join(', ')}`;
           }
         } else if (
