@@ -8,6 +8,24 @@ import express from 'express';
 import cookieParser from 'cookie-parser';
 import request from 'supertest';
 
+const prismaMock = {
+  internalNote: {
+    findMany: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+    findUnique: vi.fn(),
+  },
+  auditLog: {
+    create: vi.fn(),
+  },
+};
+
+vi.mock('../../db/index.js', () => ({
+  prisma: prismaMock,
+  default: prismaMock,
+}));
+
 vi.mock('../../middleware/authenticateJWT.js', () => ({
   authenticateJWT: (req: any, _res: any, next: any) => {
     req.user = { id: 'user-1', email: 'user@usmax.com' };
@@ -195,6 +213,143 @@ describe('NDA Routes Integration', () => {
       expect(response.status).toBe(400);
       expect(response.body.code).toBe('VALIDATION_ERROR');
       expect(response.body.error).toBe('Company Name is required');
+    });
+  });
+
+  describe('Internal notes', () => {
+    beforeEach(() => {
+      prismaMock.internalNote.findMany.mockReset();
+      prismaMock.internalNote.create.mockReset();
+      prismaMock.internalNote.update.mockReset();
+      prismaMock.internalNote.delete.mockReset();
+      prismaMock.internalNote.findUnique.mockReset();
+      prismaMock.auditLog.create.mockReset();
+    });
+
+    it('lists notes for an NDA', async () => {
+      vi.mocked(ndaService.getNda).mockResolvedValue({ id: 'nda-1' } as any);
+      prismaMock.internalNote.findMany.mockResolvedValue([
+        {
+          id: 'note-1',
+          ndaId: 'nda-1',
+          userId: 'contact-1',
+          noteText: 'Note 1',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          user: { id: 'contact-1', firstName: 'Test', lastName: 'User', email: 'user@usmax.com' },
+        },
+      ]);
+
+      const response = await request(app).get('/api/ndas/nda-1/notes');
+
+      expect(response.status).toBe(200);
+      expect(response.body.notes).toHaveLength(1);
+      expect(response.body.notes[0].id).toBe('note-1');
+      expect(prismaMock.internalNote.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: {
+          ndaId: 'nda-1',
+          userId: 'contact-1',
+        },
+      }));
+    });
+
+    it('creates an internal note', async () => {
+      vi.mocked(ndaService.getNda).mockResolvedValue({ id: 'nda-1' } as any);
+      prismaMock.internalNote.create.mockResolvedValue({
+        id: 'note-1',
+        ndaId: 'nda-1',
+        userId: 'contact-1',
+        noteText: 'New note',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        user: { id: 'contact-1', firstName: 'Test', lastName: 'User', email: 'user@usmax.com' },
+      });
+
+      const response = await request(app)
+        .post('/api/ndas/nda-1/notes')
+        .send({ noteText: 'New note' });
+
+      expect(response.status).toBe(201);
+      expect(response.body.note.id).toBe('note-1');
+    });
+
+    it('rejects empty note text', async () => {
+      const response = await request(app)
+        .post('/api/ndas/nda-1/notes')
+        .send({ noteText: '  ' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('updates an internal note for the owner', async () => {
+      vi.mocked(ndaService.getNda).mockResolvedValue({ id: 'nda-1' } as any);
+      prismaMock.internalNote.findUnique.mockResolvedValue({
+        id: 'note-1',
+        ndaId: 'nda-1',
+        userId: 'contact-1',
+      });
+      prismaMock.internalNote.update.mockResolvedValue({
+        id: 'note-1',
+        ndaId: 'nda-1',
+        userId: 'contact-1',
+        noteText: 'Updated note',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        user: { id: 'contact-1', firstName: 'Test', lastName: 'User', email: 'user@usmax.com' },
+      });
+
+      const response = await request(app)
+        .put('/api/ndas/nda-1/notes/note-1')
+        .send({ noteText: 'Updated note' });
+
+      expect(response.status).toBe(200);
+      expect(response.body.note.noteText).toBe('Updated note');
+    });
+
+    it('rejects edits for notes owned by other users', async () => {
+      prismaMock.internalNote.findUnique.mockResolvedValue({
+        id: 'note-1',
+        ndaId: 'nda-1',
+        userId: 'contact-2',
+      });
+
+      const response = await request(app)
+        .put('/api/ndas/nda-1/notes/note-1')
+        .send({ noteText: 'Updated note' });
+
+      expect(response.status).toBe(403);
+      expect(response.body.code).toBe('FORBIDDEN');
+    });
+
+    it('rejects edits when NDA id does not match', async () => {
+      prismaMock.internalNote.findUnique.mockResolvedValue({
+        id: 'note-1',
+        ndaId: 'nda-2',
+        userId: 'contact-1',
+      });
+
+      const response = await request(app)
+        .put('/api/ndas/nda-1/notes/note-1')
+        .send({ noteText: 'Updated note' });
+
+      expect(response.status).toBe(404);
+      expect(response.body.code).toBe('NOTE_NOT_FOUND');
+    });
+
+    it('deletes an internal note for the owner', async () => {
+      vi.mocked(ndaService.getNda).mockResolvedValue({ id: 'nda-1' } as any);
+      prismaMock.internalNote.findUnique.mockResolvedValue({
+        id: 'note-1',
+        ndaId: 'nda-1',
+        userId: 'contact-1',
+      });
+      prismaMock.internalNote.delete.mockResolvedValue({ id: 'note-1' });
+
+      const response = await request(app).delete('/api/ndas/nda-1/notes/note-1');
+
+      expect(response.status).toBe(200);
+      expect(response.body.message).toBe('Note deleted successfully');
     });
   });
 });

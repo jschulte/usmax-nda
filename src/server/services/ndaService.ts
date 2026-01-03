@@ -335,11 +335,15 @@ export async function createNda(
   }
 
   // Parse effective date if string
-  const effectiveDate = input.effectiveDate
-    ? typeof input.effectiveDate === 'string'
-      ? new Date(input.effectiveDate)
-      : input.effectiveDate
-    : null;
+  let effectiveDate: Date | null = null;
+  if (input.effectiveDate) {
+    effectiveDate =
+      typeof input.effectiveDate === 'string' ? new Date(input.effectiveDate) : input.effectiveDate;
+
+    if (Number.isNaN(effectiveDate.getTime())) {
+      throw new NdaServiceError('Effective Date must be a valid date', 'VALIDATION_ERROR');
+    }
+  }
 
   // Create NDA with initial status history
   const nda = await prisma.nda.create({
