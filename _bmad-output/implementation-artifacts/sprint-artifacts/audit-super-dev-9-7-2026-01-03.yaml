@@ -58,9 +58,9 @@ code_review_summary:
   approved: true
 
 commit_info:
-  commit_hash: "pending"
+  commit_hash: "1f9db44"
   commit_message: "feat(story-9-7): group and size NDA action buttons consistently"
-  files_committed: 2
+  files_committed: 4
   pushed: false
 
 test_execution:
