@@ -52,24 +52,24 @@ So that **I can understand what happened and when**.
 
 ## Tasks / Subtasks
 
-- [x] **Task 1: Verify Existing Implementation** (AC: 1-4)
-  - [x] 1.1: Review auditLogs.ts GET /api/ndas/:id/audit-trail endpoint - ✅ COMPLETE
-  - [x] 1.2: Verify all NDA-related actions are included - ✅ ALL COVERED
-  - [x] 1.3: Check security scoping (buildSecurityFilter) - ✅ ENFORCED
-  - [x] 1.4: Verify pagination and filtering support - ✅ IMPLEMENTED
+- [ ] **Task 1: Verify Existing Implementation** (AC: 1-4)
+  - [ ] 1.1: Review auditLogs.ts GET /api/ndas/:id/audit-trail endpoint - ✅ COMPLETE
+  - [ ] 1.2: Verify all NDA-related actions are included - ✅ ALL COVERED
+  - [ ] 1.3: Check security scoping (buildSecurityFilter) - ✅ ENFORCED
+  - [ ] 1.4: Verify pagination and filtering support - ✅ IMPLEMENTED
 
-- [x] **Task 2: Timeline Metadata** (AC: 2)
-  - [x] 2.1: Verify icon mapping for all action types (lines 384-396) - ✅ COMPLETE
-  - [x] 2.2: Verify human-readable descriptions (lines 411-424) - ✅ COMPLETE
-  - [x] 2.3: Verify relative time formatting (getRelativeTime helper) - ✅ COMPLETE
-  - [x] 2.4: Verify user name enrichment - ✅ COMPLETE
+- [ ] **Task 2: Timeline Metadata** (AC: 2)
+  - [ ] 2.1: Verify icon mapping for all action types (lines 384-396) - ✅ COMPLETE
+  - [ ] 2.2: Verify human-readable descriptions (lines 411-424) - ✅ COMPLETE
+  - [ ] 2.3: Verify relative time formatting (getRelativeTime helper) - ✅ COMPLETE
+  - [ ] 2.4: Verify user name enrichment - ✅ COMPLETE
 
-- [x] **Task 3: Testing** (AC: 1-4)
-- [x] 3.1: Integration test: Get audit trail for NDA - ✅ 4/4 tests passing
-  - [x] 3.2: Integration test: Verify security scoping
-  - [x] 3.3: Integration test: Filter by action type
-  - [x] 3.4: Integration test: Pagination works correctly
-  - [x] 3.5: Unit test: Relative time formatting
+- [ ] **Task 3: Testing** (AC: 1-4)
+- [ ] 3.1: Integration test: Get audit trail for NDA - ✅ 4/4 tests passing
+  - [ ] 3.2: Integration test: Verify security scoping
+  - [ ] 3.3: Integration test: Filter by action type
+  - [ ] 3.4: Integration test: Pagination works correctly
+  - [ ] 3.5: Unit test: Relative time formatting
 
 ## Dev Notes
 
@@ -259,17 +259,17 @@ No batchable patterns detected. Execute remaining task individually.
 
 ## Definition of Done
 
-- [x] Endpoint returns complete NDA audit history
-- [x] Timeline includes all action types (created, updated, status, documents, emails)
-- [x] Each entry shows timestamp, user, action, details
-- [x] Entries ordered newest first
-- [x] Action type filtering supported
-- [x] Row-level security enforced
-- [x] Timeline metadata includes icons, labels, colors
-- [x] Relative time formatting ("X ago")
-- [x] Human-readable descriptions generated
-- [x] Integration tests verify all functionality
-- [x] Code reviewed and approved
+- [ ] Endpoint returns complete NDA audit history
+- [ ] Timeline includes all action types (created, updated, status, documents, emails)
+- [ ] Each entry shows timestamp, user, action, details
+- [ ] Entries ordered newest first
+- [ ] Action type filtering supported
+- [ ] Row-level security enforced
+- [ ] Timeline metadata includes icons, labels, colors
+- [ ] Relative time formatting ("X ago")
+- [ ] Human-readable descriptions generated
+- [ ] Integration tests verify all functionality
+- [ ] Code reviewed and approved
 
 ## Dev Agent Record
 

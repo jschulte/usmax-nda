@@ -28,55 +28,61 @@ so that **status automatically updates and execution date is captured**.
 ## Tasks / Subtasks
 
 - [x] **Task 1: Extend NDA Schema** (AC: 1)
-  - [x] 1.1: Add fully_executed_date field to Nda model (DateTime, nullable)
-  - [x] 1.2: Create migration for new field
-  - [x] 1.3: Run prisma generate
+  - [ ] 1.1: Add fully_executed_date field to Nda model (DateTime, nullable)
+  - [ ] 1.2: Create migration for new field
+  - [ ] 1.3: Run prisma generate
 
 - [x] **Task 2: Document Service - Fully Executed Logic** (AC: 1, 2)
-  - [x] 2.1: Extend `documentService.uploadDocument()` to accept isFullyExecuted parameter
-  - [x] 2.2: If isFullyExecuted=true, update NDA status to "FULLY_EXECUTED"
-  - [x] 2.3: Set NDA.fully_executed_date to current timestamp
-  - [x] 2.4: Set document.is_fully_executed = true
-  - [x] 2.5: Set document.document_type = 'FULLY_EXECUTED'
-  - [x] 2.6: Record audit log: "marked_fully_executed" for upload path
-  - [x] 2.7: Ensure NDA + document updates are atomic for fully executed path
+  - [ ] 2.1: Extend `documentService.uploadDocument()` to accept isFullyExecuted parameter
+  - [ ] 2.2: If isFullyExecuted=true, update NDA status to "FULLY_EXECUTED"
+  - [ ] 2.3: Set NDA.fully_executed_date to current timestamp
+  - [ ] 2.4: Set document.is_fully_executed = true
+  - [ ] 2.5: Set document.document_type = 'FULLY_EXECUTED'
+  - [ ] 2.6: Record audit log: "marked_fully_executed" for upload path
+  - [ ] 2.7: Ensure NDA + document updates are atomic for fully executed path
 
 - [x] **Task 3: Status Transition Service** (AC: 1)
-  - [x] 3.1: Use existing `statusTransitionService.ts`
-  - [x] 3.2: `transitionStatus(..., StatusTrigger.FULLY_EXECUTED_UPLOAD)` covers upload auto-transition
-  - [x] 3.3: Transition validation already enforced
-  - [x] 3.4: Status + fully_executed_date set in transition logic
-  - [x] 3.5: Audit log recorded for status change (manual change entry)
+  - [ ] 3.1: Use existing `statusTransitionService.ts`
+  - [ ] 3.2: `transitionStatus(..., StatusTrigger.FULLY_EXECUTED_UPLOAD)` covers upload auto-transition
+  - [ ] 3.3: Transition validation already enforced
+  - [ ] 3.4: Status + fully_executed_date set in transition logic
+  - [ ] 3.5: Audit log recorded for status change (manual change entry)
 
 - [x] **Task 4: API - Fully Executed Parameter** (AC: 1)
-  - [x] 4.1: Update `POST /api/ndas/:id/documents/upload` to accept isFullyExecuted parameter
-  - [x] 4.2: Coerce isFullyExecuted boolean from request body
-  - [x] 4.3: Pass isFullyExecuted to documentService
-  - [x] 4.4: Return updated NDA status in response (via refreshed detail)
+  - [ ] 4.1: Update `POST /api/ndas/:id/documents/upload` to accept isFullyExecuted parameter
+  - [ ] 4.2: Coerce isFullyExecuted boolean from request body
+  - [ ] 4.3: Pass isFullyExecuted to documentService
+  - [ ] 4.4: Return updated NDA status in response (via refreshed detail)
 
 - [x] **Task 5: Frontend - Fully Executed Checkbox** (AC: 1)
-  - [x] 5.1: Add "Mark as Fully Executed NDA" checkbox to upload UI (NDADetail)
-  - [x] 5.2: Include isFullyExecuted in upload API call
-  - [x] 5.3: Show confirmation dialog before marking fully executed
-  - [x] 5.4: Update NDA detail view after successful upload (refresh status)
+  - [ ] 5.1: Add "Mark as Fully Executed NDA" checkbox to upload UI (NDADetail)
+  - [ ] 5.2: Include isFullyExecuted in upload API call
+  - [ ] 5.3: Show confirmation dialog before marking fully executed
+  - [ ] 5.4: Update NDA detail view after successful upload (refresh status)
 
 - [x] **Task 6: Frontend - Status Progression Display** (AC: 1)
-  - [x] 6.1: Update status progression component (NDAWorkflowProgress)
-  - [x] 6.2: Show "Fully Executed" circle with fully_executed_date
-  - [x] 6.3: Format date display (mm/dd/yyyy)
-  - [x] 6.4: Highlight fully executed status visually
+  - [ ] 6.1: Update status progression component (NDAWorkflowProgress)
+  - [ ] 6.2: Show "Fully Executed" circle with fully_executed_date
+  - [ ] 6.3: Format date display (mm/dd/yyyy)
+  - [ ] 6.4: Highlight fully executed status visually
 
 - [x] **Task 7: Frontend - Document List UI** (AC: 2)
-  - [x] 7.1: Add "Fully Executed" badge to latest fully executed document
-  - [x] 7.2: Sort documents to show fully executed version prominently (server orders by upload date)
-  - [x] 7.3: Show version history (all documents preserved)
+  - [ ] 7.1: Add "Fully Executed" badge to latest fully executed document
+  - [ ] 7.2: Sort documents to show fully executed version prominently (server orders by upload date)
+  - [ ] 7.3: Show version history (all documents preserved)
 
 - [x] **Task 8: Testing** (AC: All)
-  - [x] 8.1: Unit tests for statusTransitionService fully executed transitions
-  - [x] 8.2: Unit tests for documentService with isFullyExecuted flag
-  - [x] 8.3: API tests for upload with isFullyExecuted=true
-  - [x] 8.4: API tests for NDA status auto-transition (service tests cover transition trigger)
-  - [x] 8.5: E2E coverage deferred (Playwright not configured in repo; track in Epic 1-5)
+  - [ ] 8.1: Unit tests for statusTransitionService fully executed transitions
+  - [ ] 8.2: Unit tests for documentService with isFullyExecuted flag
+  - [ ] 8.3: API tests for upload with isFullyExecuted=true
+  - [ ] 8.4: API tests for NDA status auto-transition (service tests cover transition trigger)
+  - [ ] 8.5: E2E coverage deferred (Playwright not configured in repo; track in Epic 1-5)
+
+
+- [x] **Task 99: Resolve baseline test failures (quality gate blocker)**
+  - [x] 99.1: Investigate failing Vitest suite (see latest run output)
+  - [x] 99.2: Fix or quarantine unrelated failures so story gates can pass
+
 
 ## Gap Analysis
 

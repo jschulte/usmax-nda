@@ -130,9 +130,9 @@ development_status:
   7-1-rtf-template-creation: done
   7-2-rtf-template-management: done
   7-3-default-template-assignment: done
-  7-4-template-field-merging: ready-for-dev
+  7-4-template-field-merging: done
   7-5-template-selection-during-creation: ready-for-dev
-  7-6-email-template-creation: ready-for-dev
+  7-6-email-template-creation: done
   7-7-email-template-management: ready-for-dev
   7-8-template-suggestions: ready-for-dev
   7-9-smart-company-suggestions: ready-for-dev
@@ -181,33 +181,33 @@ development_status:
   epic-8-retrospective: optional
 
   # Epic 9: Post-Launch Refinement & Bug Fixes - Discovered during demo testing
-  epic-9: done
+  epic-9: in-progress
   9-1-fix-internal-notes-display: done
   9-2-filter-system-events-from-audit-trail: done
-  9-3-fix-agency-groups-three-dots-menu: review  # Updated 2026-01-02
+  9-3-fix-agency-groups-three-dots-menu: done
   9-4-add-subagency-creation-button: done
   9-5-fix-role-assignment-error: done
   9-6-human-readable-audit-trail-display: done
-  9-7-fix-nda-edit-page-layout: done  # Frontend UI work needed
-  9-8-change-status-modal-overlay: done  # Frontend modal implementation needed
-  9-9-fix-notifications-bell-dropdown: done  # Frontend dropdown handler needed
-  9-10-add-active-page-highlighting-to-sidebar: done  # Frontend active route highlighting
-  9-11-improve-contact-search-display-format: done  # Frontend autocomplete formatting
-  9-12-improve-empty-nda-list-state: done  # Frontend empty state improvement
-  9-13-improve-login-page-branding: done  # Frontend CSS/layout adjustment
+  9-7-fix-nda-edit-page-layout: done
+  9-8-change-status-modal-overlay: done
+  9-9-fix-notifications-bell-dropdown: done
+  9-10-add-active-page-highlighting-to-sidebar: done
+  9-11-improve-contact-search-display-format: done
+  9-12-improve-empty-nda-list-state: done
+  9-13-improve-login-page-branding: done
   9-14-carry-contact-phone-to-nda-form: done
   9-15-enhanced-email-template-bodies: done
-  9-16-improved-email-template-editor: done  # Admin email template CRUD UI with preview and placeholder helper
-  9-17-send-test-notification-with-recipient-selection: done  # Admin test notification tool with recipient selection
-  9-18-rtf-template-rich-text-editor: done  # WYSIWYG editor with Quill + html-to-rtf, 31 tests passing, 16 issues fixed
-  9-19-clarify-or-remove-clauses-section: done  # Verified: Not implemented - remove from UI
-  9-20-manager-escalation-add-field-or-remove: done  # Verified: No DB field - remove option
-  9-21-verify-or-remove-ip-access-control: done  # Verified: Not implemented - remove from UI
-  9-22-verify-or-remove-cors-configuration: done  # Verified: Not implemented - remove from UI
-  9-23-verify-or-remove-api-key-management: done  # Verified: Not implemented - defer to Phase 2
-  9-24-verify-security-alerts-implementation: done  # Verified: Sentry exists - update messaging
-  9-25-verify-notification-settings-work: done  # Verified: Implemented and functional
-  9-26-post-story-9-18-testing-fixes: review  # Updated 2026-01-02
+  9-16-improved-email-template-editor: done
+  9-17-send-test-notification-with-recipient-selection: done
+  9-18-rtf-template-rich-text-editor: done
+  9-19-clarify-or-remove-clauses-section: backlog
+  9-20-manager-escalation-add-field-or-remove: backlog
+  9-21-verify-or-remove-ip-access-control: backlog
+  9-22-verify-or-remove-cors-configuration: backlog
+  9-23-verify-or-remove-api-key-management: backlog
+  9-24-verify-security-alerts-implementation: backlog
+  9-25-verify-notification-settings-work: backlog
+  9-26-post-story-9-18-testing-fixes: done
   epic-9-retrospective: optional
 
   # Epic 10: Customer Feedback Implementation - Customer clarifications from 2025-12-23

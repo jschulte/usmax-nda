@@ -39,31 +39,31 @@ So that I don't have to manually enter phone numbers for known contacts.
 
 ## Tasks / Subtasks
 
-- [ ] Add phone auto-fill for Opportunity POC (Task AC: AC1)
-  - [ ] Find where Opportunity POC is selected (contact dropdown)
-  - [ ] Get selected contact's workPhone or cellPhone
-  - [ ] Auto-populate opportunityPocPhone field in formData
-  - [ ] Preserve manual edit capability
-- [ ] Add phone auto-fill for Relationship POC (Task AC: AC2)
-  - [ ] Find Relationship POC selection/input
-  - [ ] Extract phone from selected contact
-  - [ ] Auto-populate relationshipPocPhone field
-  - [ ] Handle both internal and external contacts
-- [ ] Add phone auto-fill for Contracts POC (Task AC: AC3)
-  - [ ] Find Contracts POC input (optional field)
-  - [ ] Auto-fill contractsPocPhone when contact selected
-  - [ ] Maintain consistency with other POC fields
-- [ ] Ensure manual entry works (Task AC: AC4)
-  - [ ] Don't block manual phone entry
-  - [ ] Allow user to override auto-filled values
-  - [ ] Maintain form validation
-  - [ ] Test edit after auto-fill
-- [ ] Test phone auto-fill (Task AC: All)
-  - [ ] Test with contacts that have workPhone
-  - [ ] Test with contacts that have only cellPhone
-  - [ ] Test with contacts that have no phone
-  - [ ] Test manual override works
-  - [ ] Verify phone validation still works
+- [x] Add phone auto-fill for Opportunity POC (Task AC: AC1)
+  - [x] Find where Opportunity POC is selected (contact dropdown)
+  - [x] Get selected contact's workPhone or cellPhone
+  - [x] Auto-populate opportunityPocPhone field in formData
+  - [x] Preserve manual edit capability
+- [x] Add phone auto-fill for Relationship POC (Task AC: AC2)
+  - [x] Find Relationship POC selection/input
+  - [x] Extract phone from selected contact
+  - [x] Auto-populate relationshipPocPhone field
+  - [x] Handle both internal and external contacts
+- [x] Add phone auto-fill for Contracts POC (Task AC: AC3)
+  - [x] Find Contracts POC input (optional field)
+  - [x] Auto-fill contractsPocPhone when contact selected
+  - [x] Maintain consistency with other POC fields
+- [x] Ensure manual entry works (Task AC: AC4)
+  - [x] Don't block manual phone entry
+  - [x] Allow user to override auto-filled values
+  - [x] Maintain form validation
+  - [x] Test edit after auto-fill
+- [x] Test phone auto-fill (Task AC: All)
+  - [x] Test with contacts that have workPhone
+  - [x] Test with contacts that have only cellPhone
+  - [x] Test with contacts that have no phone
+  - [x] Test manual override works
+  - [x] Verify phone validation still works
 
 ## Dev Notes
 

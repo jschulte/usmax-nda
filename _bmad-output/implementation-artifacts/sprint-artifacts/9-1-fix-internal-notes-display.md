@@ -1,6 +1,6 @@
 # Story 9.1: Fix Internal Notes Display
 
-Status: review
+Status: done
 
 ## Story
 

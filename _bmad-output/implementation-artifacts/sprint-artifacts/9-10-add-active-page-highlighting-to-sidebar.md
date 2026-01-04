@@ -32,23 +32,23 @@ So that I always know where I am in the application.
 
 ## Tasks / Subtasks
 
-- [ ] Fix current isActive logic (Task AC: AC1, AC2)
-  - [ ] Remove window.location.pathname check (line 89)
-  - [ ] Use NavLink's built-in active state properly
-  - [ ] Update NavLink className to use function with isActive param
-- [ ] Update NavLink styling (Task AC: AC1)
-  - [ ] Use React Router NavLink's className callback
-  - [ ] Apply active styles when isActive = true
-  - [ ] Ensure inactive styles when isActive = false
-  - [ ] Test visual distinction is clear
-- [ ] Handle sub-routes (Task AC: AC3)
-  - [ ] Check if /administration/* should highlight Administration
-  - [ ] Add end prop to NavLink if exact matching needed
-- [ ] Test highlighting behavior (Task AC: All)
-  - [ ] Navigate to each sidebar link
-  - [ ] Verify correct item highlights
-  - [ ] Test page refresh maintains highlighting
-  - [ ] Test browser back/forward buttons
+- [x] Fix current isActive logic (Task AC: AC1, AC2)
+  - [x] Remove window.location.pathname check (line 89)
+  - [x] Use NavLink's built-in active state properly
+  - [x] Update NavLink className to use function with isActive param
+- [x] Update NavLink styling (Task AC: AC1)
+  - [x] Use React Router NavLink's className callback
+  - [x] Apply active styles when isActive = true
+  - [x] Ensure inactive styles when isActive = false
+  - [x] Test visual distinction is clear
+- [x] Handle sub-routes (Task AC: AC3)
+  - [x] Check if /administration/* should highlight Administration
+  - [x] Add end prop to NavLink if exact matching needed
+- [x] Test highlighting behavior (Task AC: All)
+  - [x] Navigate to each sidebar link
+  - [x] Verify correct item highlights
+  - [x] Test page refresh maintains highlighting
+  - [x] Test browser back/forward buttons
 
 ## Dev Notes
 

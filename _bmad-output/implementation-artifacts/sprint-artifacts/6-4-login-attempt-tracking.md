@@ -44,30 +44,30 @@ So that **I can monitor for security threats and suspicious activity**.
 
 ## Tasks / Subtasks
 
-- [x] **Task 1: Verify Existing Implementation** (AC: 1, 2)
-  - [x] 1.1: Review auth.ts login endpoint audit logging - COMPLETE (already implemented)
-  - [x] 1.2: Review mfa-challenge endpoint audit logging - COMPLETE (already implemented)
-  - [x] 1.3: Verify all required fields are captured (email, IP, user-agent, reason) - ✅ ALL PRESENT
-  - [x] 1.4: Check if MFA method is tracked - Tracked as 'cognito_mfa' in details.method
+- [ ] **Task 1: Verify Existing Implementation** (AC: 1, 2)
+  - [ ] 1.1: Review auth.ts login endpoint audit logging - COMPLETE (already implemented)
+  - [ ] 1.2: Review mfa-challenge endpoint audit logging - COMPLETE (already implemented)
+  - [ ] 1.3: Verify all required fields are captured (email, IP, user-agent, reason) - ✅ ALL PRESENT
+  - [ ] 1.4: Check if MFA method is tracked - Tracked as 'cognito_mfa' in details.method
 
-- [x] **Task 2: Enhance MFA Method Tracking** (AC: 4)
-  - [x] 2.1: Check cognitoService for MFA method detection - Not exposed by current Cognito integration
-  - [x] 2.2: MFA method tracked as 'cognito_mfa' (sufficient for AC4)
-  - [x] 2.3: MFA_SUCCESS and MFA_FAILED already include method tracking
+- [ ] **Task 2: Enhance MFA Method Tracking** (AC: 4)
+  - [ ] 2.1: Check cognitoService for MFA method detection - Not exposed by current Cognito integration
+  - [ ] 2.2: MFA method tracked as 'cognito_mfa' (sufficient for AC4)
+  - [ ] 2.3: MFA_SUCCESS and MFA_FAILED already include method tracking
 
-- [x] **Task 3: Add Security Monitoring Helpers** (AC: 3)
-  - [x] 3.1: Create utility to query failed login attempts by IP - getFailedLoginsByIp()
-  - [x] 3.2: Create utility to query failed attempts by email - getFailedLoginsByEmail()
-  - [x] 3.3: Add security monitoring functions - getRecentFailedLogins(), shouldBlockIp()
-  - [x] 3.4: Alert threshold helper created - shouldBlockIp() with configurable threshold
+- [ ] **Task 3: Add Security Monitoring Helpers** (AC: 3)
+  - [ ] 3.1: Create utility to query failed login attempts by IP - getFailedLoginsByIp()
+  - [ ] 3.2: Create utility to query failed attempts by email - getFailedLoginsByEmail()
+  - [ ] 3.3: Add security monitoring functions - getRecentFailedLogins(), shouldBlockIp()
+  - [ ] 3.4: Alert threshold helper created - shouldBlockIp() with configurable threshold
 
-- [x] **Task 4: Testing** (AC: 1-4)
-  - [x] 4.1: Integration test: Successful login creates LOGIN_SUCCESS entry
-  - [x] 4.2: Integration test: Failed login creates LOGIN_FAILED entry
-  - [x] 4.3: Integration test: Failed MFA creates MFA_FAILED with attemptsRemaining
-  - [x] 4.4: Integration test: Successful MFA creates MFA_SUCCESS entry
-  - [x] 4.5: Verify all required fields present in audit entries
-  - [x] 4.6: Security monitoring utilities tested (7 tests)
+- [ ] **Task 4: Testing** (AC: 1-4)
+  - [ ] 4.1: Integration test: Successful login creates LOGIN_SUCCESS entry
+  - [ ] 4.2: Integration test: Failed login creates LOGIN_FAILED entry
+  - [ ] 4.3: Integration test: Failed MFA creates MFA_FAILED with attemptsRemaining
+  - [ ] 4.4: Integration test: Successful MFA creates MFA_SUCCESS entry
+  - [ ] 4.5: Verify all required fields present in audit entries
+  - [ ] 4.6: Security monitoring utilities tested (7 tests)
 
 ## Dev Notes
 
@@ -308,14 +308,14 @@ No batchable patterns detected. Execute remaining task individually.
 
 ## Definition of Done
 
-- [x] All login attempts logged with required fields (email, IP, user-agent, timestamp)
-- [x] Failed login reasons captured (invalid_credentials, invalid_mfa, account_locked)
-- [x] MFA failures include attemptsRemaining
-- [x] MFA method tracked ('cognito_mfa' in details.method)
-- [x] Security monitoring query utilities created (8/8 tests passing)
-- [x] Integration tests verify all auth audit logging (4/4 tests passing)
-- [x] All tests pass
-- [x] Code reviewed and approved
+- [ ] All login attempts logged with required fields (email, IP, user-agent, timestamp)
+- [ ] Failed login reasons captured (invalid_credentials, invalid_mfa, account_locked)
+- [ ] MFA failures include attemptsRemaining
+- [ ] MFA method tracked ('cognito_mfa' in details.method)
+- [ ] Security monitoring query utilities created (8/8 tests passing)
+- [ ] Integration tests verify all auth audit logging (4/4 tests passing)
+- [ ] All tests pass
+- [ ] Code reviewed and approved
 
 ## Dev Agent Record
 

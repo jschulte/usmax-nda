@@ -44,28 +44,28 @@ So that **I can audit document access for compliance**.
 
 ## Tasks / Subtasks
 
-- [x] **Task 1: Verify Existing Implementation** (AC: 1, 2)
-  - [x] 1.1: Review documentService.getDocumentDownloadUrl() implementation
-  - [x] 1.2: Verify audit logging includes all required fields
-  - [x] 1.3: Check audit log order: should be BEFORE getDownloadUrl() call
-  - [x] 1.4: Move audit log to BEFORE pre-signed URL generation - COMPLETED
+- [ ] **Task 1: Verify Existing Implementation** (AC: 1, 2)
+  - [ ] 1.1: Review documentService.getDocumentDownloadUrl() implementation
+  - [ ] 1.2: Verify audit logging includes all required fields
+  - [ ] 1.3: Check audit log order: should be BEFORE getDownloadUrl() call
+  - [ ] 1.4: Move audit log to BEFORE pre-signed URL generation - COMPLETED
 
-- [x] **Task 2: Add Middleware Support** (AC: 4)
-  - [x] 2.1: Verify auditMiddleware maps GET /api/ndas/documents/:id/download - GET excluded by design
-  - [x] 2.2: Service-level logging preferred over middleware for downloads
-  - [x] 2.3: Route handler updated to use documentService (proper audit logging)
+- [ ] **Task 2: Add Middleware Support** (AC: 4)
+  - [ ] 2.1: Verify auditMiddleware maps GET /api/ndas/documents/:id/download - GET excluded by design
+  - [ ] 2.2: Service-level logging preferred over middleware for downloads
+  - [ ] 2.3: Route handler updated to use documentService (proper audit logging)
 
-- [x] **Task 3: ZIP Download Tracking** (AC: 3)
-  - [x] 3.1: Review download-all ZIP endpoint implementation
-  - [x] 3.2: Verify audit logging for ZIP downloads - Already implemented (lines 606-619)
-  - [x] 3.3: Logs single ZIP download event with documentCount
+- [ ] **Task 3: ZIP Download Tracking** (AC: 3)
+  - [ ] 3.1: Review download-all ZIP endpoint implementation
+  - [ ] 3.2: Verify audit logging for ZIP downloads - Already implemented (lines 606-619)
+  - [ ] 3.3: Logs single ZIP download event with documentCount
 
-- [x] **Task 4: Testing** (AC: 1-4)
-  - [x] 4.1: Integration test: Download document → audit entry created
-  - [x] 4.2: Integration test: Audit log created before URL generation
-  - [x] 4.3: Integration test: ZIP download tracking verified (implementation exists)
-  - [x] 4.4: Test audit log includes all required fields (user, document, NDA, IP, timestamp)
-  - [x] 4.5: Test audit logging failure doesn't block download
+- [ ] **Task 4: Testing** (AC: 1-4)
+  - [ ] 4.1: Integration test: Download document → audit entry created
+  - [ ] 4.2: Integration test: Audit log created before URL generation
+  - [ ] 4.3: Integration test: ZIP download tracking verified (implementation exists)
+  - [ ] 4.4: Test audit log includes all required fields (user, document, NDA, IP, timestamp)
+  - [ ] 4.5: Test audit logging failure doesn't block download
 
 ## Dev Notes
 
@@ -320,14 +320,14 @@ No batchable patterns detected. Execute remaining task individually.
 
 ## Definition of Done
 
-- [x] Audit log created BEFORE pre-signed URL generation (AC2 compliant)
-- [x] Route handlers use documentService instead of direct S3 calls
-- [x] ZIP download endpoint logs audit entry (already implemented)
-- [x] All required fields included in audit entry (user, document, NDA, IP, timestamp)
-- [x] Tests verify audit log ordering (4/4 tests passing)
-- [x] Tests verify failed audit doesn't block downloads
-- [x] All tests pass
-- [x] Code reviewed and approved
+- [ ] Audit log created BEFORE pre-signed URL generation (AC2 compliant)
+- [ ] Route handlers use documentService instead of direct S3 calls
+- [ ] ZIP download endpoint logs audit entry (already implemented)
+- [ ] All required fields included in audit entry (user, document, NDA, IP, timestamp)
+- [ ] Tests verify audit log ordering (4/4 tests passing)
+- [ ] Tests verify failed audit doesn't block downloads
+- [ ] All tests pass
+- [ ] Code reviewed and approved
 
 ## Dev Agent Record
 

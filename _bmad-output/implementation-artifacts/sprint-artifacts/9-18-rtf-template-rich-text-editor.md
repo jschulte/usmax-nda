@@ -35,8 +35,8 @@ So that I can format templates visually without manually editing RTF markup.
 **And** the editor opens with a WYSIWYG interface
 
 **Test Scenarios:**
-- [ ] Scenario 1: Admin can open the template list and launch the editor for an existing template
-- [ ] Scenario 2: Non-admin users do not see create/edit controls and receive a permission error if they attempt direct access
+- [x] Scenario 1: Admin can open the template list and launch the editor for an existing template
+- [x] Scenario 2: Non-admin users do not see create/edit controls and receive a permission error if they attempt direct access
 
 ### AC2: WYSIWYG editor supports required formatting
 
@@ -49,9 +49,9 @@ So that I can format templates visually without manually editing RTF markup.
 **And** all formatting changes render immediately in the editor
 
 **Test Scenarios:**
-- [ ] Scenario 1: Bold/italic/underline persist after save and reload
-- [ ] Scenario 2: Font family and size changes persist after save and reload
-- [ ] Scenario 3: Bullet list, numbered list, and a 2x2 table render and persist after save and reload
+- [x] Scenario 1: Bold/italic/underline persist after save and reload
+- [x] Scenario 2: Font family and size changes persist after save and reload
+- [x] Scenario 3: Bullet list, numbered list, and a 2x2 table render and persist after save and reload
 
 ### AC3: Field-merge placeholders work in editor
 
@@ -77,8 +77,8 @@ So that I can format templates visually without manually editing RTF markup.
 **And** the placeholder is stored as `{{fieldName}}` in the saved template content
 
 **Test Scenarios:**
-- [ ] Scenario 1: Insert a placeholder and verify it persists as a token after save and reload
-- [ ] Scenario 2: Multiple placeholders can be inserted and preserved in order
+- [x] Scenario 1: Insert a placeholder and verify it persists as a token after save and reload
+- [x] Scenario 2: Multiple placeholders can be inserted and preserved in order
 
 ### AC4: Template preview shows final output
 
@@ -89,8 +89,8 @@ So that I can format templates visually without manually editing RTF markup.
 **And** I can toggle between Edit and Preview modes without losing unsaved edits
 
 **Test Scenarios:**
-- [ ] Scenario 1: Preview renders merged sample values for placeholders
-- [ ] Scenario 2: Toggling between Edit and Preview preserves unsaved edits
+- [x] Scenario 1: Preview renders merged sample values for placeholders
+- [x] Scenario 2: Toggling between Edit and Preview preserves unsaved edits
 
 ### AC5: Save and validate template
 
@@ -103,46 +103,46 @@ So that I can format templates visually without manually editing RTF markup.
 **And** the template becomes available for NDA creation
 
 **Test Scenarios:**
-- [ ] Scenario 1: Invalid RTF content is rejected with a validation error
-- [ ] Scenario 2: Unknown placeholders are rejected with a validation error
-- [ ] Scenario 3: Valid template saves and appears in the template list
+- [x] Scenario 1: Invalid RTF content is rejected with a validation error
+- [x] Scenario 2: Unknown placeholders are rejected with a validation error
+- [x] Scenario 3: Valid template saves and appears in the template list
 
 ## Tasks
 
-- [ ] Research RTF WYSIWYG editor libraries (Task AC: AC2)
-  - [ ] Evaluate: TinyMCE, Quill, Draft.js, Slate
-  - [ ] Confirm HTML -> RTF conversion support
-  - [ ] Confirm placeholder token support
-  - [ ] Choose editor that supports toolbar + placeholder tokens
-- [ ] Integrate chosen editor (Task AC: AC1, AC2)
-  - [ ] Install editor library
-  - [ ] Create `RTFTemplateEditor.tsx`
-  - [ ] Initialize editor with existing template content
-  - [ ] Configure toolbar (bold, italic, underline, font family, font size, lists, table)
-  - [ ] Wire editor value to component state
-- [ ] Implement placeholder insertion (Task AC: AC3)
-  - [ ] Add "Insert Placeholder" dropdown/button
-  - [ ] List allowed placeholders from template merge fields
-  - [ ] Insert at cursor position
-  - [ ] Style placeholders distinctly in editor
-  - [ ] Preserve placeholders during save
-- [ ] Add preview functionality (Task AC: AC4)
-  - [ ] Generate preview with sample data
-  - [ ] Convert editor content to RTF
-  - [ ] Show preview in modal or split pane
-  - [ ] Toggle edit/preview modes without data loss
-- [ ] Save template to database (Task AC: AC5)
-  - [ ] Convert editor content to RTF bytes
-  - [ ] Validate RTF structure
-  - [ ] Validate placeholders against allowed list
-  - [ ] POST/PUT to `/api/admin/rtf-templates`
-  - [ ] Handle success/error states
-- [ ] Test RTF editor (Task AC: All)
-  - [ ] Test formatting options
-  - [ ] Test placeholder insertion and persistence
-  - [ ] Test save and reload
-  - [ ] Test preview with merged data
-  - [ ] Test template works in NDA generation
+- [x] Research RTF WYSIWYG editor libraries (Task AC: AC2)
+  - [x] Evaluate: TinyMCE, Quill, Draft.js, Slate
+  - [x] Confirm HTML -> RTF conversion support
+  - [x] Confirm placeholder token support
+  - [x] Choose editor that supports toolbar + placeholder tokens
+- [x] Integrate chosen editor (Task AC: AC1, AC2)
+  - [x] Install editor library
+  - [x] Create `RTFTemplateEditor.tsx`
+  - [x] Initialize editor with existing template content
+  - [x] Configure toolbar (bold, italic, underline, font family, font size, lists, table)
+  - [x] Wire editor value to component state
+- [x] Implement placeholder insertion (Task AC: AC3)
+  - [x] Add "Insert Placeholder" dropdown/button
+  - [x] List allowed placeholders from template merge fields
+  - [x] Insert at cursor position
+  - [x] Style placeholders distinctly in editor
+  - [x] Preserve placeholders during save
+- [x] Add preview functionality (Task AC: AC4)
+  - [x] Generate preview with sample data
+  - [x] Convert editor content to RTF
+  - [x] Show preview in modal or split pane
+  - [x] Toggle edit/preview modes without data loss
+- [x] Save template to database (Task AC: AC5)
+  - [x] Convert editor content to RTF bytes
+  - [x] Validate RTF structure
+  - [x] Validate placeholders against allowed list
+  - [x] POST/PUT to `/api/admin/rtf-templates`
+  - [x] Handle success/error states
+- [x] Test RTF editor (Task AC: All)
+  - [x] Test formatting options
+  - [x] Test placeholder insertion and persistence
+  - [x] Test save and reload
+  - [x] Test preview with merged data
+  - [x] Test template works in NDA generation
 
 ## Technical Notes
 

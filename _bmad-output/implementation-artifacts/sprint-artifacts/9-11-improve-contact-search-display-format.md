@@ -32,25 +32,25 @@ So that I can easily identify and select the correct contact from search results
 
 ## Tasks / Subtasks
 
-- [ ] Analyze current contact search implementation (Task AC: All)
-  - [ ] Find contact search/autocomplete in RequestWizard.tsx
-  - [ ] Identify current display format
-  - [ ] Document what's missing or poorly formatted
-- [ ] Enhance autocomplete result display (Task AC: AC1)
-  - [ ] Update result template to show name, email, role
-  - [ ] Add proper layout with spacing
-  - [ ] Add badges for internal contacts
-  - [ ] Handle missing fields gracefully
-- [ ] Improve styling (Task AC: AC2)
-  - [ ] Enhance hover state visibility
-  - [ ] Improve text contrast
-  - [ ] Add padding for readability
-  - [ ] Test with long text (ellipsis, wrapping)
-- [ ] Test with various contacts (Task AC: All)
-  - [ ] Test internal contacts with all fields
-  - [ ] Test external contacts (may lack some fields)
-  - [ ] Test long names and emails
-  - [ ] Test hover and selection
+- [x] Analyze current contact search implementation (Task AC: All)
+  - [x] Find contact search/autocomplete in RequestWizard.tsx
+  - [x] Identify current display format
+  - [x] Document what's missing or poorly formatted
+- [x] Enhance autocomplete result display (Task AC: AC1)
+  - [x] Update result template to show name, email, role
+  - [x] Add proper layout with spacing
+  - [x] Add badges for internal contacts
+  - [x] Handle missing fields gracefully
+- [x] Improve styling (Task AC: AC2)
+  - [x] Enhance hover state visibility
+  - [x] Improve text contrast
+  - [x] Add padding for readability
+  - [x] Test with long text (ellipsis, wrapping)
+- [x] Test with various contacts (Task AC: All)
+  - [x] Test internal contacts with all fields
+  - [x] Test external contacts (may lack some fields)
+  - [x] Test long names and emails
+  - [x] Test hover and selection
 
 ## Dev Notes
 

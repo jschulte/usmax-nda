@@ -1,6 +1,11 @@
 epic_num: 7
 started: 2026-01-03T07:47:44Z
 total_stories: 19
-completed_stories: []
+completed_stories:
+  - 7-1-rtf-template-creation
+  - 7-2-rtf-template-management
+  - 7-3-default-template-assignment
+  - 7-4-template-field-merging
+  - 7-6-email-template-creation
 current_story: null
 status: running

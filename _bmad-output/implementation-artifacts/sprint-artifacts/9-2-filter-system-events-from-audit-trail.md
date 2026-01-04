@@ -1,6 +1,6 @@
 # Story 9.2: Filter System Events from User Audit Trail
 
-Status: review
+Status: done
 
 ## Story
 

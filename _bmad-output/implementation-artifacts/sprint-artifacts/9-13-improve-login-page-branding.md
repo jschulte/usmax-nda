@@ -39,31 +39,31 @@ So that I know I'm logging into the official USmax NDA system.
 
 ## Tasks / Subtasks
 
-- [ ] Replace Shield icon with USmax logo (Task AC: AC1)
-  - [ ] Update line 59-60 to use actual logo
-  - [ ] Use logo URL: https://www.usmax.com/wp-content/themes/usmax/static/images/usmax-site-logo.jpg
-  - [ ] Or download and host logo locally in public/
-  - [ ] Adjust logo sizing (h-12 or h-16)
-  - [ ] Ensure logo loads properly (error handling)
-- [ ] Fix spelling throughout page (Task AC: AC2)
-  - [ ] Line 62: "USmax NDA System" → "USmax NDA Management System"
-  - [ ] Line 64: "USmax credentials" → "USmax credentials"
-  - [ ] Line 95: "you@usmax.com" already correct
-  - [ ] Check any other text references
-- [ ] Enhance visual design (Task AC: AC3)
-  - [ ] Consider background gradient or subtle pattern
-  - [ ] Ensure card shadow/elevation is appropriate
-  - [ ] Review color scheme for brand consistency
-  - [ ] Add any missing brand elements
-- [ ] Update page title and description (Task AC: AC4)
-  - [ ] Update CardTitle with full system name
-  - [ ] Improve CardDescription for clarity
-  - [ ] Ensure MFA info is visible (already present line 163-167)
-- [ ] Test login page appearance (Task AC: All)
-  - [ ] Test logo loads correctly
-  - [ ] Test on different screen sizes
-  - [ ] Verify spelling is correct everywhere
-  - [ ] Check visual appeal and professionalism
+- [x] Replace Shield icon with USmax logo (Task AC: AC1)
+  - [x] Update line 59-60 to use actual logo
+  - [x] Use logo URL: https://www.usmax.com/wp-content/themes/usmax/static/images/usmax-site-logo.jpg
+  - [x] Or download and host logo locally in public/
+  - [x] Adjust logo sizing (h-12 or h-16)
+  - [x] Ensure logo loads properly (error handling)
+- [x] Fix spelling throughout page (Task AC: AC2)
+  - [x] Line 62: "USmax NDA System" → "USmax NDA Management System"
+  - [x] Line 64: "USmax credentials" → "USmax credentials"
+  - [x] Line 95: "you@usmax.com" already correct
+  - [x] Check any other text references
+- [x] Enhance visual design (Task AC: AC3)
+  - [x] Consider background gradient or subtle pattern
+  - [x] Ensure card shadow/elevation is appropriate
+  - [x] Review color scheme for brand consistency
+  - [x] Add any missing brand elements
+- [x] Update page title and description (Task AC: AC4)
+  - [x] Update CardTitle with full system name
+  - [x] Improve CardDescription for clarity
+  - [x] Ensure MFA info is visible (already present line 163-167)
+- [x] Test login page appearance (Task AC: All)
+  - [x] Test logo loads correctly
+  - [x] Test on different screen sizes
+  - [x] Verify spelling is correct everywhere
+  - [x] Check visual appeal and professionalism
 
 ## Dev Notes
 

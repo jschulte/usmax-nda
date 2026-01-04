@@ -47,51 +47,51 @@ So that **I can audit modifications and understand change history**.
 
 ## Tasks / Subtasks
 
-- [x] **Task 1: Extend AuditLogDetails Interface** (AC: 1, 4)
-  - [x] 1.1: Add `changes` field to AuditLogDetails interface in auditService.ts
-  - [x] 1.2: Define FieldChange interface: `{ field: string; before: unknown; after: unknown }`
-  - [x] 1.3: Type the changes field as `FieldChange[]`
+- [ ] **Task 1: Extend AuditLogDetails Interface** (AC: 1, 4)
+  - [ ] 1.1: Add `changes` field to AuditLogDetails interface in auditService.ts
+  - [ ] 1.2: Define FieldChange interface: `{ field: string; before: unknown; after: unknown }`
+  - [ ] 1.3: Type the changes field as `FieldChange[]`
 
-- [x] **Task 2: Create Field Change Detection Utility** (AC: 1, 3, 4)
-  - [x] 2.1: Create `src/server/utils/detectFieldChanges.ts`
-  - [x] 2.2: Implement `detectFieldChanges(before: object, after: object, fields?: string[]): FieldChange[]`
-  - [x] 2.3: Handle nested objects (shallow comparison for MVP)
-  - [x] 2.4: Handle different data types (strings, numbers, booleans, dates, null/undefined)
-  - [x] 2.5: Optionally filter to specific fields if provided
-  - [x] 2.6: Skip fields that haven't changed (only return actual changes)
+- [ ] **Task 2: Create Field Change Detection Utility** (AC: 1, 3, 4)
+  - [ ] 2.1: Create `src/server/utils/detectFieldChanges.ts`
+  - [ ] 2.2: Implement `detectFieldChanges(before: object, after: object, fields?: string[]): FieldChange[]`
+  - [ ] 2.3: Handle nested objects (shallow comparison for MVP)
+  - [ ] 2.4: Handle different data types (strings, numbers, booleans, dates, null/undefined)
+  - [ ] 2.5: Optionally filter to specific fields if provided
+  - [ ] 2.6: Skip fields that haven't changed (only return actual changes)
 
-- [x] **Task 3: Integrate into NDA Service** (AC: 1, 3)
-  - [x] 3.1: Modify `ndaService.updateNda()` to call detectFieldChanges
-  - [x] 3.2: Capture before values (existing NDA from database)
-  - [x] 3.3: Capture after values (input data)
-  - [x] 3.4: Include changes in audit log entry via auditService.log()
-  - [x] 3.5: Modify `changeNdaStatus()` to track status changes explicitly
-  - [x] 3.6: Update `updateDraft()` audit logging to use detectFieldChanges (no `input as any`)
+- [ ] **Task 3: Integrate into NDA Service** (AC: 1, 3)
+  - [ ] 3.1: Modify `ndaService.updateNda()` to call detectFieldChanges
+  - [ ] 3.2: Capture before values (existing NDA from database)
+  - [ ] 3.3: Capture after values (input data)
+  - [ ] 3.4: Include changes in audit log entry via auditService.log()
+  - [ ] 3.5: Modify `changeNdaStatus()` to track status changes explicitly
+  - [ ] 3.6: Update `updateDraft()` audit logging to use detectFieldChanges (no `input as any`)
 
-- [x] **Task 4: Integrate into Other Services** (AC: 1, 3)
-  - [x] 4.1: Update agencyGroupService.updateAgencyGroup() to use detectFieldChanges (FieldChange[])
-  - [x] 4.2: Update subagencyService.updateSubagency() to use detectFieldChanges (FieldChange[])
-  - [x] 4.3: Update userService.updateUser() / updateContact() - COMPLETED
-  - [x] 4.4: Verify all update operations have field change tracking - Core services completed (NDA, User, Agency, Subagency)
+- [ ] **Task 4: Integrate into Other Services** (AC: 1, 3)
+  - [ ] 4.1: Update agencyGroupService.updateAgencyGroup() to use detectFieldChanges (FieldChange[])
+  - [ ] 4.2: Update subagencyService.updateSubagency() to use detectFieldChanges (FieldChange[])
+  - [ ] 4.3: Update userService.updateUser() / updateContact() - COMPLETED
+  - [ ] 4.4: Verify all update operations have field change tracking - Core services completed (NDA, User, Agency, Subagency)
 
-- [x] **Task 5: Create Human-Readable Formatter** (AC: 2)
-  - [x] 5.1: Create `src/server/utils/formatFieldChanges.ts`
-  - [x] 5.2: Implement `formatFieldChange(change: FieldChange): string`
-  - [x] 5.3: Handle null/undefined values → "(empty)"
-  - [x] 5.4: Handle boolean values → "Yes"/"No"
-  - [x] 5.5: Handle date values → formatted date strings
-  - [x] 5.6: Handle field name formatting (camelCase → "Title Case")
+- [ ] **Task 5: Create Human-Readable Formatter** (AC: 2)
+  - [ ] 5.1: Create `src/server/utils/formatFieldChanges.ts`
+  - [ ] 5.2: Implement `formatFieldChange(change: FieldChange): string`
+  - [ ] 5.3: Handle null/undefined values → "(empty)"
+  - [ ] 5.4: Handle boolean values → "Yes"/"No"
+  - [ ] 5.5: Handle date values → formatted date strings
+  - [ ] 5.6: Handle field name formatting (camelCase → "Title Case")
 
-- [x] **Task 6: Testing** (AC: 1-4)
-  - [x] 6.1: Unit tests for detectFieldChanges utility (21 tests)
-  - [x] 6.2: Unit tests for formatFieldChanges utility (22 tests)
-  - [x] 6.3: Integration test: Update NDA, verify audit entry has changes
-  - [x] 6.4: Integration test: Update status, verify status change tracked
-  - [x] 6.5: Integration test: Update Contact, verify changes tracked
-  - [x] 6.6: Test edge cases: null values, undefined, nested objects
-  - [x] 6.7: Update agencyGroupService tests to assert FieldChange[] in audit log
-  - [x] 6.8: Update subagencyService tests to assert FieldChange[] in audit log
-  - [x] 6.9: Update updateDraft tests to assert FieldChange[] in audit log
+- [ ] **Task 6: Testing** (AC: 1-4)
+  - [ ] 6.1: Unit tests for detectFieldChanges utility (21 tests)
+  - [ ] 6.2: Unit tests for formatFieldChanges utility (22 tests)
+  - [ ] 6.3: Integration test: Update NDA, verify audit entry has changes
+  - [ ] 6.4: Integration test: Update status, verify status change tracked
+  - [ ] 6.5: Integration test: Update Contact, verify changes tracked
+  - [ ] 6.6: Test edge cases: null values, undefined, nested objects
+  - [ ] 6.7: Update agencyGroupService tests to assert FieldChange[] in audit log
+  - [ ] 6.8: Update subagencyService tests to assert FieldChange[] in audit log
+  - [ ] 6.9: Update updateDraft tests to assert FieldChange[] in audit log
 
 ## Dev Notes
 
@@ -496,14 +496,14 @@ No batchable patterns detected. Execute remaining tasks individually.
 
 ## Definition of Done
 
-- [x] FieldChange interface added to auditService.ts
-- [x] detectFieldChanges utility created and tested (21 tests passing)
-- [x] formatFieldChanges utility created and tested (22 tests passing)
-- [x] NDA service integrates change tracking (updateNda + changeNdaStatus)
-- [x] Core update services integrate change tracking (User service completed, pattern documented for others)
-- [x] All tests pass (52 tests: 21 unit + 22 unit + 9 integration)
-- [x] Audit log entries include changes array for updates
-- [x] Code reviewed and approved
+- [ ] FieldChange interface added to auditService.ts
+- [ ] detectFieldChanges utility created and tested (21 tests passing)
+- [ ] formatFieldChanges utility created and tested (22 tests passing)
+- [ ] NDA service integrates change tracking (updateNda + changeNdaStatus)
+- [ ] Core update services integrate change tracking (User service completed, pattern documented for others)
+- [ ] All tests pass (52 tests: 21 unit + 22 unit + 9 integration)
+- [ ] Audit log entries include changes array for updates
+- [ ] Code reviewed and approved
 
 ## Dev Agent Record
 

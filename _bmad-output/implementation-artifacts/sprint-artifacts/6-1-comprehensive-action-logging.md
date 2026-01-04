@@ -44,38 +44,38 @@ So that **we have a comprehensive audit trail for compliance and debugging**.
 
 ## Tasks / Subtasks
 
-- [x] **Task 1: Create auditMiddleware** (AC: 1, 2)
-  - [x] 1.1: Create `src/server/middleware/auditMiddleware.ts`
-  - [x] 1.2: Capture request method, path, user context, IP, user-agent
-  - [x] 1.3: Hook into response to capture status code (success/error)
-  - [x] 1.4: Map routes to action types (POST /api/ndas → NDA_CREATED, etc.)
-  - [x] 1.5: Call auditService.log() asynchronously after response sent
+- [ ] **Task 1: Create auditMiddleware** (AC: 1, 2)
+  - [ ] 1.1: Create `src/server/middleware/auditMiddleware.ts`
+  - [ ] 1.2: Capture request method, path, user context, IP, user-agent
+  - [ ] 1.3: Hook into response to capture status code (success/error)
+  - [ ] 1.4: Map routes to action types (POST /api/ndas → NDA_CREATED, etc.)
+  - [ ] 1.5: Call auditService.log() asynchronously after response sent
 
-- [x] **Task 2: Add Result Tracking** (AC: 1)
-  - [x] 2.1: Extend AuditLogEntry interface with `result: 'success' | 'error'`
-  - [x] 2.2: Include error message in details when result is 'error'
-  - [x] 2.3: Update auditService.log() to accept result field
+- [ ] **Task 2: Add Result Tracking** (AC: 1)
+  - [ ] 2.1: Extend AuditLogEntry interface with `result: 'success' | 'error'`
+  - [ ] 2.2: Include error message in details when result is 'error'
+  - [ ] 2.3: Update auditService.log() to accept result field
 
-- [x] **Task 3: Integrate Middleware into App** (AC: 1)
-  - [x] 3.1: Add auditMiddleware to Express pipeline in index.ts
-  - [x] 3.2: Position after route handlers (to capture response status)
-  - [x] 3.3: Exclude health check and static asset routes
+- [ ] **Task 3: Integrate Middleware into App** (AC: 1)
+  - [ ] 3.1: Add auditMiddleware to Express pipeline in index.ts
+  - [ ] 3.2: Position after route handlers (to capture response status)
+  - [ ] 3.3: Exclude health check and static asset routes
 
-- [x] **Task 4: Add Failure Alerting** (AC: 3)
-  - [x] 4.1: Add Sentry.captureException() call in auditService catch block
-  - [x] 4.2: Add structured console.error with timestamp and entry details
-  - [x] 4.3: Implement retry queue for failed entries (on reconnection)
+- [ ] **Task 4: Add Failure Alerting** (AC: 3)
+  - [ ] 4.1: Add Sentry.captureException() call in auditService catch block
+  - [ ] 4.2: Add structured console.error with timestamp and entry details
+  - [ ] 4.3: Implement retry queue for failed entries (on reconnection)
 
-- [x] **Task 5: Enforce Append-Only** (AC: 4)
-  - [x] 5.1: Verify auditService has no update/delete methods
-  - [x] 5.2: Add JSDoc comments documenting append-only requirement
-  - [x] 5.3: Consider PostgreSQL RULE or TRIGGER to prevent DELETE/UPDATE (optional, discuss with team)
+- [ ] **Task 5: Enforce Append-Only** (AC: 4)
+  - [ ] 5.1: Verify auditService has no update/delete methods
+  - [ ] 5.2: Add JSDoc comments documenting append-only requirement
+  - [ ] 5.3: Consider PostgreSQL RULE or TRIGGER to prevent DELETE/UPDATE (optional, discuss with team)
 
-- [x] **Task 6: Testing** (AC: 1-4)
-  - [x] 6.1: Unit tests for auditMiddleware route-to-action mapping
-  - [x] 6.2: Integration test: POST /api/ndas creates audit entry
-  - [x] 6.3: Test that failed DB write doesn't crash app
-  - [x] 6.4: Test in-memory fallback when DB unavailable
+- [ ] **Task 6: Testing** (AC: 1-4)
+  - [ ] 6.1: Unit tests for auditMiddleware route-to-action mapping
+  - [ ] 6.2: Integration test: POST /api/ndas creates audit entry
+  - [ ] 6.3: Test that failed DB write doesn't crash app
+  - [ ] 6.4: Test in-memory fallback when DB unavailable
 
 ## Dev Notes
 
@@ -226,12 +226,12 @@ No batchable patterns detected. Execute remaining task individually.
 
 ## Definition of Done
 
-- [x] auditMiddleware automatically logs all POST/PUT/DELETE requests
-- [x] Logging is non-blocking (doesn't delay user response)
-- [x] Failed log writes don't crash the application
-- [x] All existing tests still pass
-- [x] New tests cover middleware functionality (27 tests passing)
-- [x] Code reviewed and approved
+- [ ] auditMiddleware automatically logs all POST/PUT/DELETE requests
+- [ ] Logging is non-blocking (doesn't delay user response)
+- [ ] Failed log writes don't crash the application
+- [ ] All existing tests still pass
+- [ ] New tests cover middleware functionality (27 tests passing)
+- [ ] Code reviewed and approved
 
 ## Dev Agent Record
 

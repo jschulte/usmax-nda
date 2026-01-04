@@ -46,37 +46,37 @@ So that I can quickly view and access NDAs that need my attention.
 
 ## Tasks / Subtasks
 
-- [ ] Add dropdown state to TopBar component (Task AC: AC1)
-  - [ ] Add useState for showNotificationsDropdown
-  - [ ] Add state for notifications list
-  - [ ] Add state for unread count
-- [ ] Create notifications dropdown UI (Task AC: AC1, AC2)
-  - [ ] Follow profile menu pattern (lines 71-100)
-  - [ ] Absolute positioned dropdown below bell icon
-  - [ ] Render notifications list
-  - [ ] Show notification icon, text, timestamp for each
-  - [ ] Style read vs unread differently
-- [ ] Wire to notifications API (Task AC: AC2, AC4)
-  - [ ] Create getNotifications() API call
-  - [ ] Fetch notifications on TopBar mount
-  - [ ] Calculate unread count
-  - [ ] Update badge with count or hide if 0
-- [ ] Implement click to navigate (Task AC: AC3)
-  - [ ] Add onClick handler to each notification
-  - [ ] Navigate to `/ndas/${notification.ndaId}`
-  - [ ] Mark notification as read (API call)
-  - [ ] Close dropdown after navigation
-- [ ] Add empty state (Task AC: AC5)
-  - [ ] Conditional render when notifications.length === 0
-  - [ ] Show friendly "No notifications" message
-  - [ ] Maybe add icon or illustration
-- [ ] Test dropdown behavior (Task AC: All)
-  - [ ] Test dropdown opens/closes
-  - [ ] Test click outside to close
-  - [ ] Test navigation on notification click
-  - [ ] Test badge count updates
-  - [ ] Test unread vs read styling
-  - [ ] Test empty state
+- [x] Add dropdown state to TopBar component (Task AC: AC1)
+  - [x] Add useState for showNotificationsDropdown
+  - [x] Add state for notifications list
+  - [x] Add state for unread count
+- [x] Create notifications dropdown UI (Task AC: AC1, AC2)
+  - [x] Follow profile menu pattern (lines 71-100)
+  - [x] Absolute positioned dropdown below bell icon
+  - [x] Render notifications list
+  - [x] Show notification icon, text, timestamp for each
+  - [x] Style read vs unread differently
+- [x] Wire to notifications API (Task AC: AC2, AC4)
+  - [x] Create getNotifications() API call
+  - [x] Fetch notifications on TopBar mount
+  - [x] Calculate unread count
+  - [x] Update badge with count or hide if 0
+- [x] Implement click to navigate (Task AC: AC3)
+  - [x] Add onClick handler to each notification
+  - [x] Navigate to `/ndas/${notification.ndaId}`
+  - [x] Mark notification as read (API call)
+  - [x] Close dropdown after navigation
+- [x] Add empty state (Task AC: AC5)
+  - [x] Conditional render when notifications.length === 0
+  - [x] Show friendly "No notifications" message
+  - [x] Maybe add icon or illustration
+- [x] Test dropdown behavior (Task AC: All)
+  - [x] Test dropdown opens/closes
+  - [x] Test click outside to close
+  - [x] Test navigation on notification click
+  - [x] Test badge count updates
+  - [x] Test unread vs read styling
+  - [x] Test empty state
 
 ## Dev Notes
 

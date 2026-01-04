@@ -37,33 +37,33 @@ So that I can categorize NDAs by their legal structure per customer requirements
 
 ## Tasks / Subtasks
 
-- [x] Update Prisma schema NdaType enum (Task AC: AC1)
-  - [x] Keep MUTUAL value
-  - [x] Add CONSULTANT value
-  - [x] Remove: ONE_WAY_GOVERNMENT, ONE_WAY_COUNTERPARTY, VISITOR, RESEARCH, VENDOR_ACCESS
-- [x] Create and test Prisma migration (Task AC: AC1)
-  - [x] Generate migration file
-  - [x] Handle data migration for existing non-MUTUAL/CONSULTANT records
-  - [x] Test migration on local dev database
-- [x] Update TypeScript types and constants (Task AC: AC2, AC3, AC4)
-  - [x] Update any hardcoded enum references in src/
-  - [x] Update display name mappings (MUTUAL → "Mutual NDA", CONSULTANT → "Consultant")
-  - [x] Update filter options
-- [x] Update frontend NDA form dropdown (Task AC: AC2)
-  - [x] Update RequestWizard.tsx ndaTypes array to use only MUTUAL and CONSULTANT
-  - [x] Test dropdown displays correct labels
-  - [x] Test required field validation works
-- [x] Update NDA detail view display (Task AC: AC3)
-  - [x] Add ndaTypeLabels mapping in NDADetail.tsx
-  - [x] Apply formatting to display
-  - [x] Test with existing NDAs
-- [x] Update filter panel (Task AC: AC4)
-  - [x] Ensure Requests.tsx filter shows correct options
-  - [x] Test filtering by each type value
-- [x] Run full test suite (Task AC: All)
-  - [x] Fix any broken tests due to enum changes
-  - [x] Update test data with new enum values
-  - [x] Verify no regressions
+- [ ] Update Prisma schema NdaType enum (Task AC: AC1)
+  - [ ] Keep MUTUAL value
+  - [ ] Add CONSULTANT value
+  - [ ] Remove: ONE_WAY_GOVERNMENT, ONE_WAY_COUNTERPARTY, VISITOR, RESEARCH, VENDOR_ACCESS
+- [ ] Create and test Prisma migration (Task AC: AC1)
+  - [ ] Generate migration file
+  - [ ] Handle data migration for existing non-MUTUAL/CONSULTANT records
+  - [ ] Test migration on local dev database
+- [ ] Update TypeScript types and constants (Task AC: AC2, AC3, AC4)
+  - [ ] Update any hardcoded enum references in src/
+  - [ ] Update display name mappings (MUTUAL → "Mutual NDA", CONSULTANT → "Consultant")
+  - [ ] Update filter options
+- [ ] Update frontend NDA form dropdown (Task AC: AC2)
+  - [ ] Update RequestWizard.tsx ndaTypes array to use only MUTUAL and CONSULTANT
+  - [ ] Test dropdown displays correct labels
+  - [ ] Test required field validation works
+- [ ] Update NDA detail view display (Task AC: AC3)
+  - [ ] Add ndaTypeLabels mapping in NDADetail.tsx
+  - [ ] Apply formatting to display
+  - [ ] Test with existing NDAs
+- [ ] Update filter panel (Task AC: AC4)
+  - [ ] Ensure Requests.tsx filter shows correct options
+  - [ ] Test filtering by each type value
+- [ ] Run full test suite (Task AC: All)
+  - [ ] Fix any broken tests due to enum changes
+  - [ ] Update test data with new enum values
+  - [ ] Verify no regressions
 
 ## Dev Notes
 

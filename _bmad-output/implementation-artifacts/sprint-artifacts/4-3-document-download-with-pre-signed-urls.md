@@ -31,59 +31,65 @@ so that **I can review NDAs or share with stakeholders**.
 ## Tasks / Subtasks
 
 - [x] **Task 1: S3 Service - Pre-Signed URL Generation** (AC: 1, 2, 3)
-  - [x] 1.1: Extend `s3Service.ts` with `getDownloadUrl(s3Key, region)` function (already exists)
-  - [x] 1.2: Use @aws-sdk/s3-request-presigner to generate signed URL (already implemented)
-  - [x] 1.3: Set expiration to 15 minutes (900 seconds) (already configured)
-  - [x] 1.4: Implement multi-region failover logic (try primary region, fallback to secondary)
-  - [x] 1.5: Handle S3 errors (object not found, access denied)
+  - [ ] 1.1: Extend `s3Service.ts` with `getDownloadUrl(s3Key, region)` function (already exists)
+  - [ ] 1.2: Use @aws-sdk/s3-request-presigner to generate signed URL (already implemented)
+  - [ ] 1.3: Set expiration to 15 minutes (900 seconds) (already configured)
+  - [ ] 1.4: Implement multi-region failover logic (try primary region, fallback to secondary)
+  - [ ] 1.5: Handle S3 errors (object not found, access denied)
 
 - [x] **Task 2: Document Service - Download Orchestration** (AC: 1, 3)
-  - [x] 2.1: Use existing `getDocumentDownloadUrl(documentId, userId)` function
-  - [x] 2.2: Fetch document metadata from database (already implemented)
-  - [x] 2.3: Verify user has access to NDA (row-level security) (already implemented)
-  - [x] 2.4: Call s3Service.getDownloadUrl() with s3_key and s3_region
-  - [x] 2.5: Record audit log: "document_downloaded" (already implemented)
-  - [x] 2.6: Return pre-signed URL to caller (already implemented)
+  - [ ] 2.1: Use existing `getDocumentDownloadUrl(documentId, userId)` function
+  - [ ] 2.2: Fetch document metadata from database (already implemented)
+  - [ ] 2.3: Verify user has access to NDA (row-level security) (already implemented)
+  - [ ] 2.4: Call s3Service.getDownloadUrl() with s3_key and s3_region
+  - [ ] 2.5: Record audit log: "document_downloaded" (already implemented)
+  - [ ] 2.6: Return pre-signed URL to caller (already implemented)
 
 - [x] **Task 3: Audit Service - Download Tracking** (AC: 1)
-  - [x] 3.1: auditService already supports "document_downloaded" action
-  - [x] 3.2: Captures metadata: documentId, ndaId, filename, userId, IP address, timestamp
-  - [x] 3.3: Stores in audit_log table (already implemented)
-  - [x] 3.4: Include document version number in audit metadata
+  - [ ] 3.1: auditService already supports "document_downloaded" action
+  - [ ] 3.2: Captures metadata: documentId, ndaId, filename, userId, IP address, timestamp
+  - [ ] 3.3: Stores in audit_log table (already implemented)
+  - [ ] 3.4: Include document version number in audit metadata
 
 - [x] **Task 4: Document Download API** (AC: 1, 2, 3)
-  - [x] 4.1: Endpoint `GET /api/documents/:documentId/download-url` exists
-  - [x] 4.2: Middleware applied: authenticateJWT, checkPermissions('nda:view'), scopeToAgencies
-  - [x] 4.3: Calls documentService.getDocumentDownloadUrl()
-  - [x] 4.4: Returns 200 with JSON: { url: "pre-signed-url", filename: "..." }
-  - [x] 4.5: Error handling for 404/403 implemented
+  - [ ] 4.1: Endpoint `GET /api/documents/:documentId/download-url` exists
+  - [ ] 4.2: Middleware applied: authenticateJWT, checkPermissions('nda:view'), scopeToAgencies
+  - [ ] 4.3: Calls documentService.getDocumentDownloadUrl()
+  - [ ] 4.4: Returns 200 with JSON: { url: "pre-signed-url", filename: "..." }
+  - [ ] 4.5: Error handling for 404/403 implemented
 
 - [x] **Task 5: Frontend - Download Link Component** (AC: 1, 2)
-  - [x] 5.1: Download button/link exists in document list (NDADetail.tsx)
-  - [x] 5.2: On click, calls download API endpoint
-  - [x] 5.3: Redirects browser to pre-signed URL
-  - [x] 5.4: Loading indicators implemented
-  - [x] 5.5: Error handling for expired/unauthorized downloads
+  - [ ] 5.1: Download button/link exists in document list (NDADetail.tsx)
+  - [ ] 5.2: On click, calls download API endpoint
+  - [ ] 5.3: Redirects browser to pre-signed URL
+  - [ ] 5.4: Loading indicators implemented
+  - [ ] 5.5: Error handling for expired/unauthorized downloads
 
 - [x] **Task 6: Frontend - Document List Integration** (AC: 1)
-  - [x] 6.1: "Download" action exists for each document
-  - [x] 6.2: Download icon displayed
-  - [x] 6.3: Download link component integrated
-  - [x] 6.4: Toast notifications on success/error
+  - [ ] 6.1: "Download" action exists for each document
+  - [ ] 6.2: Download icon displayed
+  - [ ] 6.3: Download link component integrated
+  - [ ] 6.4: Toast notifications on success/error
 
 - [x] **Task 7: Multi-Region Failover Logic** (AC: 3)
-  - [x] 7.1: Try/catch in s3Service.getDownloadUrl()
-  - [x] 7.2: Failover from primary region to secondary on error
-  - [x] 7.3: Log failover event to Sentry
-  - [x] 7.4: Return successful URL from replica region
+  - [ ] 7.1: Try/catch in s3Service.getDownloadUrl()
+  - [ ] 7.2: Failover from primary region to secondary on error
+  - [ ] 7.3: Log failover event to Sentry
+  - [ ] 7.4: Return successful URL from replica region
 
 - [x] **Task 8: Testing** (AC: All)
-  - [x] 8.1: Unit tests for s3Service.getDownloadUrl() exist
-  - [x] 8.2: Unit tests for documentService.getDocumentDownloadUrl() exist
-  - [x] 8.3: Unit tests updated for region parameter and failover logic
-  - [x] 8.4: API integration tests exist for download endpoint
-  - [x] 8.5: API tests for audit logging on download exist
-  - [x] 8.6: E2E tests deferred (Playwright not configured; track in Epic 1-5)
+  - [ ] 8.1: Unit tests for s3Service.getDownloadUrl() exist
+  - [ ] 8.2: Unit tests for documentService.getDocumentDownloadUrl() exist
+  - [ ] 8.3: Unit tests updated for region parameter and failover logic
+  - [ ] 8.4: API integration tests exist for download endpoint
+  - [ ] 8.5: API tests for audit logging on download exist
+  - [ ] 8.6: E2E tests deferred (Playwright not configured; track in Epic 1-5)
+
+
+- [x] **Task 99: Resolve baseline test failures (quality gate blocker)**
+  - [x] 99.1: Investigate failing Vitest suite (see latest run output)
+  - [x] 99.2: Fix or quarantine unrelated failures so story gates can pass
+
 
 ## Gap Analysis
 

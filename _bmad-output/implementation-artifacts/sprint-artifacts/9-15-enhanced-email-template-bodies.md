@@ -41,32 +41,32 @@ So that partner communications are clear, complete, and professional.
 
 ## Tasks / Subtasks
 
-- [ ] Enhance default email body content (Task AC: AC1)
-  - [ ] Add more NDA details to email body
-  - [ ] Include effective date if available
-  - [ ] Include USmax position and agency
-  - [ ] Add project/purpose context
-  - [ ] Handle missing fields gracefully
-- [ ] Improve email formatting (Task AC: AC2)
-  - [ ] Add proper paragraph spacing
-  - [ ] Consider bullet points for NDA details
-  - [ ] Enhance signature block
-  - [ ] Improve overall readability
-- [ ] Clarify next steps (Task AC: AC3)
-  - [ ] Make "review, sign, return" explicit
-  - [ ] Add expected timeline if applicable
-  - [ ] Include contact information
-  - [ ] Add any compliance or legal disclaimers if needed
-- [ ] Support rich formatting (Task AC: AC4)
-  - [ ] Investigate HTML email support
-  - [ ] If HTML: Add basic styling (bold, lists, spacing)
-  - [ ] If plain text: Use spacing and characters for structure
-  - [ ] Test rendering in common email clients
-- [ ] Update email templates in database (Task AC: All)
-  - [ ] Update default template body text
-  - [ ] Add field-merge placeholders for new details
-  - [ ] Test template merging works correctly
-  - [ ] Update seed data if needed
+- [x] Enhance default email body content (Task AC: AC1)
+  - [x] Add more NDA details to email body
+  - [x] Include effective date if available
+  - [x] Include USmax position and agency
+  - [x] Add project/purpose context
+  - [x] Handle missing fields gracefully
+- [x] Improve email formatting (Task AC: AC2)
+  - [x] Add proper paragraph spacing
+  - [x] Consider bullet points for NDA details
+  - [x] Enhance signature block
+  - [x] Improve overall readability
+- [x] Clarify next steps (Task AC: AC3)
+  - [x] Make "review, sign, return" explicit
+  - [x] Add expected timeline if applicable
+  - [x] Include contact information
+  - [x] Add any compliance or legal disclaimers if needed
+- [x] Support rich formatting (Task AC: AC4)
+  - [x] Investigate HTML email support
+  - [x] If HTML: Add basic styling (bold, lists, spacing)
+  - [x] If plain text: Use spacing and characters for structure
+  - [x] Test rendering in common email clients
+- [x] Update email templates in database (Task AC: All)
+  - [x] Update default template body text
+  - [x] Add field-merge placeholders for new details
+  - [x] Test template merging works correctly
+  - [x] Update seed data if needed
 
 ## Dev Notes
 

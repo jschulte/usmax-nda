@@ -1,6 +1,6 @@
 # Story 9.6: Human-Readable Audit Trail Display
 
-Status: review
+Status: done
 
 ## Story
 

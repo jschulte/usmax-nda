@@ -1,6 +1,6 @@
 # Story 9.5: Fix Role Assignment Error
 
-Status: review
+Status: done
 
 ## Story
 

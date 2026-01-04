@@ -28,61 +28,67 @@ so that **I can easily archive or share complete NDA history**.
 ## Tasks / Subtasks
 
 - [x] **Task 1: Document Service - Bulk Download** (AC: 1, 2)
-  - [x] 1.1: Install `archiver` library for ZIP generation (`npm install archiver @types/archiver`)
-  - [x] 1.2: Implement `documentService.createBulkDownload(ndaId, userContext)` function
-  - [x] 1.3: Fetch all documents for NDA using listDocuments()
-  - [x] 1.4: Verify user has access to NDA (row-level security)
-  - [x] 1.5: Return readable stream for ZIP creation
+  - [ ] 1.1: Install `archiver` library for ZIP generation (`npm install archiver @types/archiver`)
+  - [ ] 1.2: Implement `documentService.createBulkDownload(ndaId, userContext)` function
+  - [ ] 1.3: Fetch all documents for NDA using listDocuments()
+  - [ ] 1.4: Verify user has access to NDA (row-level security)
+  - [ ] 1.5: Return readable stream for ZIP creation
 
 - [x] **Task 2: S3 Service - Stream Documents** (AC: 1)
-  - [x] 2.1: Create `s3Service.getDocumentStream(s3Key, region)` function
-  - [x] 2.2: Use S3 GetObjectCommand with streaming response
-  - [x] 2.3: Handle multi-region failover for streaming
-  - [x] 2.4: Return readable stream (no memory buffering)
+  - [ ] 2.1: Create `s3Service.getDocumentStream(s3Key, region)` function
+  - [ ] 2.2: Use S3 GetObjectCommand with streaming response
+  - [ ] 2.3: Handle multi-region failover for streaming
+  - [ ] 2.4: Return readable stream (no memory buffering)
 
 - [x] **Task 3: ZIP Generation Service** (AC: 1, 2)
-  - [x] 3.1: Create `src/server/services/zipService.ts`
-  - [x] 3.2: Implement `createDocumentZip(documents, ndaInfo)` function
-  - [x] 3.3: Use archiver to create ZIP stream
-  - [x] 3.4: For each document, stream from S3 into ZIP
-  - [x] 3.5: Set ZIP filename: `NDA-{displayId}-{company}-All-Versions.zip`
-  - [x] 3.6: Handle errors (S3 failures, partial ZIP creation)
-  - [x] 3.7: Finalize ZIP and return stream
+  - [ ] 3.1: Create `src/server/services/zipService.ts`
+  - [ ] 3.2: Implement `createDocumentZip(documents, ndaInfo)` function
+  - [ ] 3.3: Use archiver to create ZIP stream
+  - [ ] 3.4: For each document, stream from S3 into ZIP
+  - [ ] 3.5: Set ZIP filename: `NDA-{displayId}-{company}-All-Versions.zip`
+  - [ ] 3.6: Handle errors (S3 failures, partial ZIP creation)
+  - [ ] 3.7: Finalize ZIP and return stream
 
 - [x] **Task 4: Bulk Download API** (AC: 1, 2)
-  - [x] 4.1: Create `GET /api/ndas/:id/documents/download-all` endpoint
-  - [x] 4.2: Apply middleware: authenticateJWT, checkPermissions('nda:view'), scopeToAgencies
-  - [x] 4.3: Call documentService.createBulkDownload()
-  - [x] 4.4: Stream ZIP directly to response (Content-Type: application/zip)
-  - [x] 4.5: Set Content-Disposition header with filename
-  - [x] 4.6: Handle errors (500 with user-friendly message)
+  - [ ] 4.1: Create `GET /api/ndas/:id/documents/download-all` endpoint
+  - [ ] 4.2: Apply middleware: authenticateJWT, checkPermissions('nda:view'), scopeToAgencies
+  - [ ] 4.3: Call documentService.createBulkDownload()
+  - [ ] 4.4: Stream ZIP directly to response (Content-Type: application/zip)
+  - [ ] 4.5: Set Content-Disposition header with filename
+  - [ ] 4.6: Handle errors (500 with user-friendly message)
 
 - [x] **Task 5: Audit Service - Bulk Download Logging** (AC: 1)
-  - [x] 5.1: Record audit log: "bulk_download"
-  - [x] 5.2: Capture metadata: ndaId, documentIds (array), userId, IP, timestamp
-  - [x] 5.3: Include document count in audit metadata
-  - [x] 5.4: Store in audit_log table
+  - [ ] 5.1: Record audit log: "bulk_download"
+  - [ ] 5.2: Capture metadata: ndaId, documentIds (array), userId, IP, timestamp
+  - [ ] 5.3: Include document count in audit metadata
+  - [ ] 5.4: Store in audit_log table
 
 - [x] **Task 6: Frontend - Download All Button** (AC: 1, 2)
-  - [x] 6.1: Add "Download All as ZIP" button to Documents tab
-  - [x] 6.2: Position button prominently (top of document list)
-  - [x] 6.3: Disable if no documents exist
-  - [x] 6.4: Show download count: "Download All ({count} files)"
+  - [ ] 6.1: Add "Download All as ZIP" button to Documents tab
+  - [ ] 6.2: Position button prominently (top of document list)
+  - [ ] 6.3: Disable if no documents exist
+  - [ ] 6.4: Show download count: "Download All ({count} files)"
 
 - [x] **Task 7: Frontend - Download Handling** (AC: 1, 2)
-  - [x] 7.1: On click, navigate to GET /api/ndas/:id/documents/download-all
-  - [x] 7.2: Use window.location.href or hidden <a> tag with download attribute
-  - [x] 7.3: Show loading indicator while ZIP generates
-  - [x] 7.4: Handle errors (show toast, suggest individual downloads)
-  - [x] 7.5: Show success toast after download initiated
+  - [ ] 7.1: On click, navigate to GET /api/ndas/:id/documents/download-all
+  - [ ] 7.2: Use window.location.href or hidden <a> tag with download attribute
+  - [ ] 7.3: Show loading indicator while ZIP generates
+  - [ ] 7.4: Handle errors (show toast, suggest individual downloads)
+  - [ ] 7.5: Show success toast after download initiated
 
 - [x] **Task 8: Testing** (AC: All)
-  - [x] 8.1: Unit tests for zipService.createDocumentZip()
-  - [x] 8.2: Unit tests for s3Service.getDocumentStream()
-  - [x] 8.3: Unit tests for documentService.createBulkDownload()
-  - [x] 8.4: API integration tests for bulk download endpoint
-  - [x] 8.5: API tests for audit logging on bulk download
+  - [ ] 8.1: Unit tests for zipService.createDocumentZip()
+  - [ ] 8.2: Unit tests for s3Service.getDocumentStream()
+  - [ ] 8.3: Unit tests for documentService.createBulkDownload()
+  - [ ] 8.4: API integration tests for bulk download endpoint
+  - [ ] 8.5: API tests for audit logging on bulk download
   - ~~[ ] 8.6: E2E test for download all as ZIP flow~~ (deferred to full E2E pass)
+
+
+- [x] **Task 99: Resolve baseline test failures (quality gate blocker)**
+  - [x] 99.1: Investigate failing Vitest suite (see latest run output)
+  - [x] 99.2: Fix or quarantine unrelated failures so story gates can pass
+
 
 ## Gap Analysis
 

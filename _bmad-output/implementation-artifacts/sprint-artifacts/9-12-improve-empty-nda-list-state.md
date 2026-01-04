@@ -43,24 +43,24 @@ So that I understand why the list is empty and know what actions I can take.
 
 ## Tasks / Subtasks
 
-- [ ] Enhance empty state UI (Task AC: AC1)
-  - [ ] Add icon (Inbox, FileText, or custom illustration)
-  - [ ] Improve typography and spacing
-  - [ ] Center and style the container
-  - [ ] Make it visually appealing
-- [ ] Add context-aware messaging (Task AC: AC2)
-  - [ ] Detect if filters are active
-  - [ ] Show different message based on filter state
-  - [ ] Make messaging friendly and helpful
-- [ ] Add clear call-to-action (Task AC: AC3)
-  - [ ] Show "Create NDA" button if user has permission
-  - [ ] Show helpful message if no permission
-  - [ ] Wire button to navigate to /ndas/new
-- [ ] Handle filtered empty state (Task AC: AC4)
-  - [ ] Add "Clear Filters" button when filters active
-  - [ ] Show active filter summary
-  - [ ] Wire button to clear all filters
-  - [ ] Test with various filter combinations
+- [x] Enhance empty state UI (Task AC: AC1)
+  - [x] Add icon (Inbox, FileText, or custom illustration)
+  - [x] Improve typography and spacing
+  - [x] Center and style the container
+  - [x] Make it visually appealing
+- [x] Add context-aware messaging (Task AC: AC2)
+  - [x] Detect if filters are active
+  - [x] Show different message based on filter state
+  - [x] Make messaging friendly and helpful
+- [x] Add clear call-to-action (Task AC: AC3)
+  - [x] Show "Create NDA" button if user has permission
+  - [x] Show helpful message if no permission
+  - [x] Wire button to navigate to /ndas/new
+- [x] Handle filtered empty state (Task AC: AC4)
+  - [x] Add "Clear Filters" button when filters active
+  - [x] Show active filter summary
+  - [x] Wire button to clear all filters
+  - [x] Test with various filter combinations
 
 ## Dev Notes
 

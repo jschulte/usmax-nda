@@ -37,32 +37,32 @@ So that the NDA accurately reflects USmax's contractual role per customer requir
 
 ## Tasks / Subtasks
 
-- [x] Update Prisma schema UsMaxPosition enum (Task AC: AC1)
-  - [x] Change SUB to SUB_CONTRACTOR
-  - [x] Remove TEAMING value
-  - [x] Keep PRIME and OTHER
-- [x] Create and test Prisma migration (Task AC: AC1)
-  - [x] Generate migration file
-  - [x] Handle data migration for existing TEAMING records
-  - [x] Test migration on local dev database
-- [x] Update TypeScript types and constants (Task AC: AC2, AC3, AC4)
-  - [x] Update any hardcoded enum references in src/
-  - [x] Update display name mappings (PRIME → "Prime", SUB_CONTRACTOR → "Sub-contractor")
-  - [x] Update filter options
-- [x] Update frontend NDA form dropdown (Task AC: AC2)
-  - [x] Verify RequestWizard.tsx uses updated enum
-  - [x] Test dropdown displays correct labels
-  - [x] Test required field validation works
-- [x] Update NDA detail view display (Task AC: AC3)
-  - [x] Ensure NDADetail.tsx shows formatted values
-  - [x] Test with existing NDAs
-- [x] Update filter panel (Task AC: AC4)
-  - [x] Update Requests.tsx filter options
-  - [x] Test filtering by each position value
-- [x] Run full test suite (Task AC: All)
-  - [x] Fix any broken tests due to enum changes
-  - [x] Add tests for new enum values
-  - [x] Verify no regressions
+- [ ] Update Prisma schema UsMaxPosition enum (Task AC: AC1)
+  - [ ] Change SUB to SUB_CONTRACTOR
+  - [ ] Remove TEAMING value
+  - [ ] Keep PRIME and OTHER
+- [ ] Create and test Prisma migration (Task AC: AC1)
+  - [ ] Generate migration file
+  - [ ] Handle data migration for existing TEAMING records
+  - [ ] Test migration on local dev database
+- [ ] Update TypeScript types and constants (Task AC: AC2, AC3, AC4)
+  - [ ] Update any hardcoded enum references in src/
+  - [ ] Update display name mappings (PRIME → "Prime", SUB_CONTRACTOR → "Sub-contractor")
+  - [ ] Update filter options
+- [ ] Update frontend NDA form dropdown (Task AC: AC2)
+  - [ ] Verify RequestWizard.tsx uses updated enum
+  - [ ] Test dropdown displays correct labels
+  - [ ] Test required field validation works
+- [ ] Update NDA detail view display (Task AC: AC3)
+  - [ ] Ensure NDADetail.tsx shows formatted values
+  - [ ] Test with existing NDAs
+- [ ] Update filter panel (Task AC: AC4)
+  - [ ] Update Requests.tsx filter options
+  - [ ] Test filtering by each position value
+- [ ] Run full test suite (Task AC: All)
+  - [ ] Fix any broken tests due to enum changes
+  - [ ] Add tests for new enum values
+  - [ ] Verify no regressions
 
 ## Dev Notes
 
@@ -235,10 +235,10 @@ N/A - straightforward enum update
 
 ### Action Items
 
-- [x] [HIGH] Fix spelling inconsistency - "USMAX"/"US/MAX" should be "USmax" (10+ locations)
-- [x] [MEDIUM] Create proper Prisma migration file for production deployment
-- [x] [MEDIUM] Add frontend unit test for position label mapping
-- [x] [LOW] Apply label formatting to position suggestion display
+- [ ] [HIGH] Fix spelling inconsistency - "USMAX"/"US/MAX" should be "USmax" (10+ locations)
+- [ ] [MEDIUM] Create proper Prisma migration file for production deployment
+- [ ] [MEDIUM] Add frontend unit test for position label mapping
+- [ ] [LOW] Apply label formatting to position suggestion display
 
 ### Review Details
 

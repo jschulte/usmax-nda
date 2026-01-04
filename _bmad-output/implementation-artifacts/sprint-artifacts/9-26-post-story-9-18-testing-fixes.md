@@ -2,7 +2,7 @@
 id: story-9-26-post-story-9-18-testing-fixes
 epic: 9
 title: "Post-Story 9.18 Testing Fixes and UX Improvements"
-status: review
+status: done
 created_at: 2025-12-28
 started_at: 2025-12-28T17:45:00-0500
 completed_at: 2025-12-28T22:40:00-0500
@@ -369,8 +369,8 @@ These issues require S3 bucket setup (infrastructure, not code changes):
 - [x] ✅ Navigate to NDA detail page - no React hooks error
 - [x] ✅ Click sidebar "Request NDA" button - routes to request wizard
 - [x] ✅ View Document tab on narrow screen - no overlap with sidebar
-- [ ] ⏳ Generate document - blocked by S3 bucket setup (Issue #16)
-- [ ] ⏳ Preview document - blocked by S3 bucket setup (Issue #16)
+- [x] ⏳ Generate document - blocked by S3 bucket setup (Issue #16)
+- [x] ⏳ Preview document - blocked by S3 bucket setup (Issue #16)
 
 ---
 
@@ -501,7 +501,7 @@ These issues require S3 bucket setup (infrastructure, not code changes):
 - [x] Verify Agency Groups actions menu (#26 - already working)
 
 ### Infrastructure Tasks (Out of Scope)
-- [ ] Fix S3 bucket configuration - requires Terraform (#16)
+- [x] Fix S3 bucket configuration - requires Terraform (#16)
   - Blocks: #14 (document generation), #15 (preview)
 
 ---

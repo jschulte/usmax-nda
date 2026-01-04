@@ -41,42 +41,42 @@ So that users recognize familiar statuses and the system aligns with established
 
 ## Tasks / Subtasks
 
-- [x] Update Prisma schema NdaStatus enum (Task AC: AC1, AC2)
-  - [x] Rename EMAILED to SENT_PENDING_SIGNATURE
-  - [x] Merge INACTIVE and CANCELLED into INACTIVE_CANCELED
-  - [x] Add EXPIRED status
-  - [x] Keep CREATED, IN_REVISION, FULLY_EXECUTED
-- [x] Create and test Prisma migration (Task AC: AC2)
-  - [x] Generate migration file
-  - [x] Migrate EMAILED → SENT_PENDING_SIGNATURE
-  - [x] Merge INACTIVE + CANCELLED → INACTIVE_CANCELED
-  - [x] Add EXPIRED to enum
-  - [x] Update audit logs to preserve old values
-  - [x] Test migration on local dev database
-- [x] Create status display name mappings (Task AC: AC3)
-  - [x] Add getStatusDisplayName utility function
-  - [x] Map each enum to legacy display name
-  - [x] Apply to all UI components
-- [x] Update frontend NDA list (Task AC: AC3, AC4)
-  - [x] Update Requests.tsx to show legacy names
-  - [x] Update status filter dropdown options
-  - [x] Test sorting and filtering with new names
-- [x] Update NDA detail view (Task AC: AC3)
-  - [x] Update NDADetail.tsx status display
-  - [x] Update status badges with legacy names
-  - [x] Update visual progression timeline
-- [x] Update status change handlers (Task AC: AC2)
-  - [x] Update status transition logic for new enum values
-  - [x] Ensure auto-transitions still work
-  - [x] Update statusTransitionService
-- [x] Update all status references (Task AC: All)
-  - [x] Search codebase for hardcoded status strings
-  - [x] Update tests with new enum values
-  - [x] Update API documentation comments
-- [x] Run full test suite (Task AC: All)
-  - [x] Fix broken tests due to enum changes
-  - [x] Verify status transitions work correctly
-  - [x] Verify no regressions
+- [ ] Update Prisma schema NdaStatus enum (Task AC: AC1, AC2)
+  - [ ] Rename EMAILED to SENT_PENDING_SIGNATURE
+  - [ ] Merge INACTIVE and CANCELLED into INACTIVE_CANCELED
+  - [ ] Add EXPIRED status
+  - [ ] Keep CREATED, IN_REVISION, FULLY_EXECUTED
+- [ ] Create and test Prisma migration (Task AC: AC2)
+  - [ ] Generate migration file
+  - [ ] Migrate EMAILED → SENT_PENDING_SIGNATURE
+  - [ ] Merge INACTIVE + CANCELLED → INACTIVE_CANCELED
+  - [ ] Add EXPIRED to enum
+  - [ ] Update audit logs to preserve old values
+  - [ ] Test migration on local dev database
+- [ ] Create status display name mappings (Task AC: AC3)
+  - [ ] Add getStatusDisplayName utility function
+  - [ ] Map each enum to legacy display name
+  - [ ] Apply to all UI components
+- [ ] Update frontend NDA list (Task AC: AC3, AC4)
+  - [ ] Update Requests.tsx to show legacy names
+  - [ ] Update status filter dropdown options
+  - [ ] Test sorting and filtering with new names
+- [ ] Update NDA detail view (Task AC: AC3)
+  - [ ] Update NDADetail.tsx status display
+  - [ ] Update status badges with legacy names
+  - [ ] Update visual progression timeline
+- [ ] Update status change handlers (Task AC: AC2)
+  - [ ] Update status transition logic for new enum values
+  - [ ] Ensure auto-transitions still work
+  - [ ] Update statusTransitionService
+- [ ] Update all status references (Task AC: All)
+  - [ ] Search codebase for hardcoded status strings
+  - [ ] Update tests with new enum values
+  - [ ] Update API documentation comments
+- [ ] Run full test suite (Task AC: All)
+  - [ ] Fix broken tests due to enum changes
+  - [ ] Verify status transitions work correctly
+  - [ ] Verify no regressions
 
 ## Dev Notes
 
