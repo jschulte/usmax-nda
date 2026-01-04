@@ -23,7 +23,7 @@ export interface CreateAgencyGroupInput {
 export interface UpdateAgencyGroupInput {
   name?: string;
   code?: string;
-  description?: string;
+  description?: string | null;
 }
 
 export interface AgencyGroupWithCount {
@@ -121,6 +121,9 @@ export interface AgencyGroupsListResult {
   };
 }
 
+const DEFAULT_LIMIT = 50;
+const MAX_LIMIT = 100;
+
 /**
  * Get all agency groups with subagency counts
  * Story H-1: Added pagination support
@@ -128,10 +131,16 @@ export interface AgencyGroupsListResult {
 export async function listAgencyGroups(
   params?: ListAgencyGroupsParams
 ): Promise<AgencyGroupsListResult> {
-  const page = params?.page ?? 1;
-  const limit = params?.limit ?? 50; // Default to 50, can be increased
+  const rawPage = params?.page;
+  const rawLimit = params?.limit;
+  const normalizedPage =
+    Number.isFinite(rawPage) && (rawPage as number) > 0 ? Math.floor(rawPage as number) : 1;
+  const normalizedLimit =
+    Number.isFinite(rawLimit) && (rawLimit as number) > 0
+      ? Math.min(Math.floor(rawLimit as number), MAX_LIMIT)
+      : DEFAULT_LIMIT;
   const search = params?.search?.trim();
-  const skip = (page - 1) * limit;
+  const skip = (normalizedPage - 1) * normalizedLimit;
 
   // Build where clause for optional search
   const where = search
@@ -156,16 +165,16 @@ export async function listAgencyGroups(
     },
     orderBy: { name: 'asc' },
     skip,
-    take: limit,
+    take: normalizedLimit,
   });
 
   return {
     agencyGroups: groups.map(mapGroupWithCount),
     pagination: {
-      page,
-      limit,
+      page: normalizedPage,
+      limit: normalizedLimit,
       total,
-      totalPages: Math.ceil(total / limit),
+      totalPages: Math.ceil(total / normalizedLimit),
     },
   };
 }
@@ -260,22 +269,23 @@ export async function createAgencyGroup(
 ) {
   try {
     return await prisma.$transaction(async (tx) => {
-      const normalizedName = input.name.trim().toLowerCase();
-      const normalizedCode = input.code.trim().toLowerCase();
+      const normalizedName = input.name.trim();
+      const normalizedCode = input.code.trim().toUpperCase();
+      const normalizedDescription = input.description?.trim() || undefined;
 
       // Check for duplicate name or code
       const existing = await tx.agencyGroup.findFirst({
         where: {
           OR: [
-            { name: { equals: input.name, mode: 'insensitive' } },
-            { code: { equals: input.code, mode: 'insensitive' } },
+            { name: { equals: normalizedName, mode: 'insensitive' } },
+            { code: { equals: normalizedCode, mode: 'insensitive' } },
           ],
         },
       });
 
       if (existing) {
-        const isNameDuplicate = existing.name.trim().toLowerCase() === normalizedName;
-        const isCodeDuplicate = existing.code.trim().toLowerCase() === normalizedCode;
+        const isNameDuplicate = existing.name.trim().toLowerCase() === normalizedName.toLowerCase();
+        const isCodeDuplicate = existing.code.trim().toLowerCase() === normalizedCode.toLowerCase();
         throw new AgencyGroupError(
           isNameDuplicate
             ? 'Agency group name must be unique'
@@ -287,9 +297,9 @@ export async function createAgencyGroup(
 
       const group = await tx.agencyGroup.create({
         data: {
-          name: input.name,
-          code: input.code,
-          description: input.description,
+          name: normalizedName,
+          code: normalizedCode,
+          description: normalizedDescription,
         },
         include: {
           _count: { select: { subagencies: true } },
@@ -333,6 +343,8 @@ export async function updateAgencyGroup(
 ) {
   try {
     return await prisma.$transaction(async (tx) => {
+      const normalizedName = input.name?.trim();
+      const normalizedCode = input.code?.trim().toUpperCase();
       // Check group exists
       const existing = await tx.agencyGroup.findUnique({ where: { id } });
       if (!existing) {
@@ -340,11 +352,11 @@ export async function updateAgencyGroup(
       }
 
       // Check for duplicate name if changing
-      if (input.name && input.name !== existing.name) {
+      if (normalizedName && normalizedName !== existing.name) {
         const duplicate = await tx.agencyGroup.findFirst({
           where: {
             id: { not: id },
-            name: { equals: input.name, mode: 'insensitive' },
+            name: { equals: normalizedName, mode: 'insensitive' },
           },
         });
         if (duplicate) {
@@ -353,11 +365,11 @@ export async function updateAgencyGroup(
       }
 
       // Check for duplicate code if changing
-      if (input.code && input.code !== existing.code) {
+      if (normalizedCode && normalizedCode !== existing.code) {
         const duplicate = await tx.agencyGroup.findFirst({
           where: {
             id: { not: id },
-            code: { equals: input.code, mode: 'insensitive' },
+            code: { equals: normalizedCode, mode: 'insensitive' },
           },
         });
         if (duplicate) {
@@ -368,8 +380,8 @@ export async function updateAgencyGroup(
       const group = await tx.agencyGroup.update({
         where: { id },
         data: {
-          ...(input.name && { name: input.name }),
-          ...(input.code && { code: input.code }),
+          ...(normalizedName && { name: normalizedName }),
+          ...(normalizedCode && { code: normalizedCode }),
           ...(input.description !== undefined && { description: input.description }),
         },
         include: {
@@ -384,8 +396,8 @@ export async function updateAgencyGroup(
       };
 
       const afterValues: Record<string, unknown> = {
-        name: input.name ?? existing.name,
-        code: input.code ?? existing.code,
+        name: normalizedName ?? existing.name,
+        code: normalizedCode ?? existing.code,
         description: input.description ?? existing.description,
       };
 

@@ -233,6 +233,15 @@ export function AgencyGroups() {
     setShowGroupDialog(true);
   };
 
+  const refreshGroups = async (nextPage?: number) => {
+    if (nextPage !== undefined && nextPage !== pagination.page) {
+      setPagination((prev) => ({ ...prev, page: nextPage }));
+      return;
+    }
+
+    await loadGroups();
+  };
+
   const saveGroup = async () => {
     if (!groupForm.name.trim() || !groupForm.code.trim()) {
       toast.error('Name and code are required');
@@ -259,14 +268,13 @@ export function AgencyGroups() {
       };
 
       if (editingGroup) {
-        const response = await agencyService.updateAgencyGroup(editingGroup.id, payload);
-        setGroups((prev) => prev.map((g) => (g.id === editingGroup.id ? response.agencyGroup : g)));
+        await agencyService.updateAgencyGroup(editingGroup.id, payload);
         toast.success('Agency group updated');
+        await refreshGroups();
       } else {
-        const response = await agencyService.createAgencyGroup(payload);
-        setGroups((prev) => [response.agencyGroup, ...prev]);
-        setSubagencyCounts((prev) => ({ ...prev, [response.agencyGroup.id]: response.agencyGroup.subagencyCount ?? 0 }));
+        await agencyService.createAgencyGroup(payload);
         toast.success('Agency group created');
+        await refreshGroups(1);
       }
 
       setShowGroupDialog(false);
@@ -561,12 +569,13 @@ export function AgencyGroups() {
     try {
       if (deleteTarget.type === 'group' && deleteTarget.groupId) {
         await agencyService.deleteAgencyGroup(deleteTarget.groupId);
-        setGroups((prev) => prev.filter((g) => g.id !== deleteTarget.groupId));
+        const shouldDecrementPage = pagination.page > 1 && groups.length === 1;
         setSubagenciesByGroup((prev) => {
           const next = { ...prev };
           delete next[deleteTarget.groupId!];
           return next;
         });
+        await refreshGroups(shouldDecrementPage ? pagination.page - 1 : undefined);
         toast.success('Agency group deleted');
       }
 

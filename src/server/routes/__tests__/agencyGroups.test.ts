@@ -61,6 +61,7 @@ vi.mock('../../services/agencyGroupService.js', () => {
 
   return {
     listAgencyGroups: vi.fn(),
+    listAgencyGroupsForUser: vi.fn(),
     getAgencyGroup: vi.fn(),
     createAgencyGroup: vi.fn(),
     updateAgencyGroup: vi.fn(),
@@ -119,12 +120,13 @@ describe('Agency Groups Routes Integration', () => {
         },
       ];
 
-      vi.mocked(agencyGroupService.listAgencyGroups).mockResolvedValue(mockGroups as any);
+      vi.mocked(agencyGroupService.listAgencyGroupsForUser).mockResolvedValue(mockGroups as any);
 
       const response = await request(app).get('/api/agency-groups');
 
       expect(response.status).toBe(200);
       expect(response.body.agencyGroups).toHaveLength(1);
+      expect(agencyGroupService.listAgencyGroupsForUser).toHaveBeenCalled();
     });
 
     it('returns agency groups list', async () => {
@@ -140,7 +142,10 @@ describe('Agency Groups Routes Integration', () => {
         },
       ];
 
-      vi.mocked(agencyGroupService.listAgencyGroups).mockResolvedValue(mockGroups as any);
+      vi.mocked(agencyGroupService.listAgencyGroups).mockResolvedValue({
+        agencyGroups: mockGroups as any,
+        pagination: { page: 1, limit: 50, total: 1, totalPages: 1 },
+      } as any);
 
       const response = await request(app).get('/api/agency-groups');
 

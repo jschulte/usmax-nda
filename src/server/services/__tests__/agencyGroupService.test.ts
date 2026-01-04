@@ -111,6 +111,21 @@ describe('Agency Group Service', () => {
       expect(result.agencyGroups).toEqual([]);
       expect(result.pagination.total).toBe(0);
     });
+
+    it('clamps invalid pagination parameters', async () => {
+      mockPrisma.agencyGroup.count.mockResolvedValue(0);
+      mockPrisma.agencyGroup.findMany.mockResolvedValue([]);
+
+      await listAgencyGroups({ page: -2, limit: 9999 });
+
+      expect(mockPrisma.agencyGroup.findMany).toHaveBeenCalledWith({
+        include: { _count: { select: { subagencies: true } } },
+        orderBy: { name: 'asc' },
+        skip: 0,
+        take: 100,
+        where: undefined,
+      });
+    });
   });
 
   describe('getAgencyGroup', () => {
