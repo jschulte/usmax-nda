@@ -4,10 +4,10 @@ story_file: "/Users/jonahschulte/git/usmax-nda/_bmad-output/implementation-artif
 mode: "batch"
 development_type: "brownfield"
 
-stepsCompleted: [1, 2, 3, 4, 5]
-lastStep: 5
-currentStep: 6
-status: "in_progress"
+stepsCompleted: [1, 2, 3, 4, 5, 6, 7]
+lastStep: 7
+currentStep: null
+status: "complete"
 
 started_at: "2026-01-04T00:17:50Z"
 updated_at: "2026-01-04T00:17:50Z"
@@ -56,6 +56,8 @@ steps:
     status: completed
     completed_at: "2026-01-04T00:17:50Z"
   step-06-complete:
-    status: pending
+    status: completed
+    completed_at: "2026-01-04T00:17:50Z"
   step-07-summary:
-    status: pending
+    status: completed
+    completed_at: "2026-01-04T00:17:50Z"
