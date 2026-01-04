@@ -22,7 +22,7 @@ export interface CreateSubagencyInput {
 export interface UpdateSubagencyInput {
   name?: string;
   code?: string;
-  description?: string;
+  description?: string | null;
 }
 
 export interface SubagencyWithCount {
@@ -86,6 +86,13 @@ function normalizeName(value: string): string {
 
 function normalizeCode(value: string): string {
   return value.trim().toUpperCase();
+}
+
+function normalizeDescription(value: string | null | undefined): string | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  const trimmed = value.trim();
+  return trimmed.length === 0 ? null : trimmed;
 }
 
 /**
@@ -163,6 +170,7 @@ export async function createSubagency(
 ) {
   const normalizedName = normalizeName(input.name);
   const normalizedCode = normalizeCode(input.code);
+  const normalizedDescription = normalizeDescription(input.description);
 
   // Verify agency group exists
   const agencyGroup = await prisma.agencyGroup.findUnique({
@@ -214,7 +222,7 @@ export async function createSubagency(
       data: {
         name: normalizedName,
         code: normalizedCode,
-        description: input.description,
+        description: normalizedDescription,
         agencyGroupId,
       },
     });
@@ -256,6 +264,7 @@ export async function updateSubagency(
 ) {
   const normalizedName = input.name ? normalizeName(input.name) : undefined;
   const normalizedCode = input.code ? normalizeCode(input.code) : undefined;
+  const normalizedDescription = normalizeDescription(input.description);
 
   // Check subagency exists
   const existing = await prisma.subagency.findUnique({
@@ -313,7 +322,7 @@ export async function updateSubagency(
       data: {
         ...(normalizedName && { name: normalizedName }),
         ...(normalizedCode && { code: normalizedCode }),
-        ...(input.description !== undefined && { description: input.description }),
+        ...(normalizedDescription !== undefined && { description: normalizedDescription }),
       },
     });
 
@@ -326,7 +335,7 @@ export async function updateSubagency(
     const afterValues: Record<string, unknown> = {
       name: normalizedName ?? existing.name,
       code: normalizedCode ?? existing.code,
-      description: input.description ?? existing.description,
+      description: normalizedDescription ?? existing.description,
     };
 
     const fieldChanges = detectFieldChanges(beforeValues, afterValues);

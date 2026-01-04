@@ -17,7 +17,6 @@ import { authenticateJWT } from '../middleware/authenticateJWT.js';
 import { attachUserContext } from '../middleware/attachUserContext.js';
 import { requireAnyPermission, requirePermission } from '../middleware/checkPermissions.js';
 import { PERMISSIONS } from '../constants/permissions.js';
-import { ROLE_NAMES } from '../types/auth.js';
 import {
   listSubagenciesInGroup,
   getSubagency,
@@ -30,7 +29,7 @@ import {
 const router: RouterType = Router();
 
 function isAdmin(req: Request): boolean {
-  return req.userContext?.roles.includes(ROLE_NAMES.ADMIN) ?? false;
+  return req.userContext?.permissions?.has(PERMISSIONS.ADMIN_MANAGE_AGENCIES) ?? false;
 }
 
 // Apply authentication to all routes

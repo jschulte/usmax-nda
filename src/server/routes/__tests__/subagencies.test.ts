@@ -122,6 +122,31 @@ describe('Subagencies Routes', () => {
     });
   });
 
+  it('treats admin permissions as full access even without admin role', async () => {
+    currentUserContext = {
+      id: 'user-3',
+      email: 'perm-admin@usmax.com',
+      contactId: 'contact-3',
+      permissions: new Set([PERMISSIONS.ADMIN_MANAGE_AGENCIES]),
+      roles: [ROLE_NAMES.NDA_USER],
+      authorizedAgencyGroups: [],
+      authorizedSubagencies: ['sub-1'],
+      active: true,
+    };
+
+    const app = await buildApp();
+    mockPrisma.subagency.findMany.mockResolvedValueOnce([]);
+
+    const response = await request(app).get('/api/agency-groups/group-1/subagencies');
+
+    expect(response.status).toBe(200);
+    expect(mockPrisma.subagency.findMany).toHaveBeenCalledWith({
+      where: { agencyGroupId: 'group-1' },
+      include: { _count: { select: { ndas: true } } },
+      orderBy: { name: 'asc' },
+    });
+  });
+
   it('GET /api/agency-groups/:groupId/subagencies scopes to authorized subagencies', async () => {
     currentUserContext = {
       id: 'user-2',
