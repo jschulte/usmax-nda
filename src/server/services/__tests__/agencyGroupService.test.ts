@@ -29,13 +29,15 @@ const mockTx = vi.hoisted(() => ({
 }));
 
 // Mock prisma - must be defined before imports
-vi.mock('../../db/index.js', () => ({
-  prisma: {
+vi.mock('../../db/index.js', () => {
+  const prismaMock = {
     agencyGroup: mockTx.agencyGroup,
     auditLog: mockTx.auditLog,
     $transaction: vi.fn(async (callback: (tx: typeof mockTx) => Promise<unknown>) => callback(mockTx)),
-  },
-}));
+  };
+
+  return { prisma: prismaMock, default: prismaMock };
+});
 
 import {
   listAgencyGroups,

@@ -10,8 +10,8 @@ import request from 'supertest';
 import { AuditAction } from '../../services/auditService.js';
 
 // Mock Prisma
-vi.mock('../../db/index.js', () => ({
-  prisma: {
+vi.mock('../../db/index.js', () => {
+  const prismaMock = {
     auditLog: {
       count: vi.fn(),
       findMany: vi.fn(),
@@ -22,8 +22,10 @@ vi.mock('../../db/index.js', () => ({
     nda: {
       findFirst: vi.fn(),
     },
-  },
-}));
+  };
+
+  return { prisma: prismaMock, default: prismaMock };
+});
 
 // Mock ndaService
 vi.mock('../../services/ndaService.js', () => ({

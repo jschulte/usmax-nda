@@ -8,7 +8,7 @@ import express from 'express';
 import cookieParser from 'cookie-parser';
 import request from 'supertest';
 
-const prismaMock = {
+const prismaMock = vi.hoisted(() => ({
   internalNote: {
     findMany: vi.fn(),
     create: vi.fn(),
@@ -19,7 +19,7 @@ const prismaMock = {
   auditLog: {
     create: vi.fn(),
   },
-};
+}));
 
 vi.mock('../../db/index.js', () => ({
   prisma: prismaMock,

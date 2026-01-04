@@ -14,8 +14,8 @@ import {
 } from '../documentService.js';
 
 // Mock dependencies
-vi.mock('../../db/index.js', () => ({
-  prisma: {
+vi.mock('../../db/index.js', () => {
+  const prismaMock = {
     $transaction: vi.fn(),
     nda: {
       findUnique: vi.fn(),
@@ -30,8 +30,10 @@ vi.mock('../../db/index.js', () => ({
       create: vi.fn(),
       update: vi.fn(),
     },
-  },
-}));
+  };
+
+  return { prisma: prismaMock, default: prismaMock };
+});
 
 vi.mock('../s3Service.js', () => ({
   uploadDocument: vi.fn(),

@@ -45,9 +45,10 @@ describe('retryWithBackoff', () => {
     const fn = vi.fn().mockRejectedValue(new Error('Always fails'));
 
     const resultPromise = retryWithBackoff(fn, { maxAttempts: 3, baseDelayMs: 100 });
+    const assertion = expect(resultPromise).rejects.toThrow('Always fails');
     await vi.runAllTimersAsync();
 
-    await expect(resultPromise).rejects.toThrow('Always fails');
+    await assertion;
     expect(fn).toHaveBeenCalledTimes(3);
   });
 
@@ -120,15 +121,11 @@ describe('retryWithBackoff', () => {
       baseDelayMs: 100,
       shouldRetry
     });
+    const assertion = expect(resultPromise).rejects.toThrow('Non-retryable error');
 
     // Run timers and catch the expected rejection
     await vi.runAllTimersAsync();
-
-    try {
-      await resultPromise;
-    } catch (error) {
-      expect((error as Error).message).toBe('Non-retryable error');
-    }
+    await assertion;
 
     // Should stop after 2 attempts (first retried, second not retryable)
     expect(fn).toHaveBeenCalledTimes(2);
@@ -151,12 +148,8 @@ describe('retryWithBackoff', () => {
     const fn = vi.fn().mockRejectedValue('string error');
 
     const resultPromise = retryWithBackoff(fn, { maxAttempts: 1 });
+    const assertion = expect(resultPromise).rejects.toThrow('string error');
     await vi.runAllTimersAsync();
-
-    try {
-      await resultPromise;
-    } catch (error) {
-      expect((error as Error).message).toBe('string error');
-    }
+    await assertion;
   });
 });

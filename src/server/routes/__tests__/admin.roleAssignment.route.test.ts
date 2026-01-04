@@ -8,19 +8,21 @@ import express from 'express';
 import cookieParser from 'cookie-parser';
 import request from 'supertest';
 
-const prismaMock = {
-  contact: {
-    findUnique: vi.fn(),
+const { prismaMock } = vi.hoisted(() => ({
+  prismaMock: {
+    contact: {
+      findUnique: vi.fn(),
+    },
+    role: {
+      findUnique: vi.fn(),
+    },
+    contactRole: {
+      findUnique: vi.fn(),
+      create: vi.fn(),
+      delete: vi.fn(),
+    },
   },
-  role: {
-    findUnique: vi.fn(),
-  },
-  contactRole: {
-    findUnique: vi.fn(),
-    create: vi.fn(),
-    delete: vi.fn(),
-  },
-};
+}));
 
 vi.mock('../../db/index.js', () => ({
   prisma: prismaMock,

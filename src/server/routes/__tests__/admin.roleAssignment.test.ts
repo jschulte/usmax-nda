@@ -6,8 +6,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Mock Prisma
-vi.mock('../../db/index.js', () => ({
-  prisma: {
+vi.mock('../../db/index.js', () => {
+  const prismaMock = {
     contact: {
       findUnique: vi.fn(),
     },
@@ -20,8 +20,10 @@ vi.mock('../../db/index.js', () => ({
       delete: vi.fn(),
       count: vi.fn(),
     },
-  },
-}));
+  };
+
+  return { prisma: prismaMock, default: prismaMock };
+});
 
 // Mock auditService
 vi.mock('../../services/auditService.js', async () => {

@@ -16,42 +16,49 @@ import {
   TemplateServiceError,
 } from '../templateService.js';
 import type { UserContext } from '../../types/auth.js';
+import { sampleRtfContent } from '../../../test/factories/rtfTemplateFactory';
 
-const prismaMock = {
-  rtfTemplate: {
-    findMany: vi.fn(),
-    findUnique: vi.fn(),
-    findFirst: vi.fn(),
-    create: vi.fn(),
-    update: vi.fn(),
-    updateMany: vi.fn(),
-  },
-  nda: {
-    findUnique: vi.fn(),
-  },
-  document: {
-    create: vi.fn(),
-    aggregate: vi.fn(),
-  },
-  auditLog: {
-    create: vi.fn(),
-  },
-  subagency: {
-    findUnique: vi.fn(),
-  },
-  rtfTemplateDefault: {
-    findMany: vi.fn(),
-    findFirst: vi.fn(),
-    findUnique: vi.fn(),
-    create: vi.fn(),
-    delete: vi.fn(),
-  },
-  $transaction: vi.fn(async (callback: (tx: any) => any) => callback(prismaMock)),
-};
+const { prismaMock } = vi.hoisted(() => {
+  const prismaMock = {
+    rtfTemplate: {
+      findMany: vi.fn(),
+      findUnique: vi.fn(),
+      findFirst: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      updateMany: vi.fn(),
+    },
+    nda: {
+      findUnique: vi.fn(),
+    },
+    document: {
+      create: vi.fn(),
+      aggregate: vi.fn(),
+    },
+    auditLog: {
+      create: vi.fn(),
+    },
+    subagency: {
+      findUnique: vi.fn(),
+    },
+    rtfTemplateDefault: {
+      findMany: vi.fn(),
+      findFirst: vi.fn(),
+      findUnique: vi.fn(),
+      create: vi.fn(),
+      delete: vi.fn(),
+      deleteMany: vi.fn(),
+    },
+    $transaction: vi.fn(async (callback: (tx: any) => any) => callback(prismaMock)),
+  };
+
+  return { prismaMock };
+});
 
 // Mock Prisma
 vi.mock('../../db/index.js', () => ({
   prisma: prismaMock,
+  default: prismaMock,
 }));
 
 // Mock S3 service
@@ -250,10 +257,12 @@ describe('Template Service', () => {
         isActive: true,
       } as any);
 
-      mockPrisma.rtfTemplateDefault.findFirst.mockResolvedValue({
-        id: 'default-1',
-        templateId: 'template-old',
-      } as any);
+      mockPrisma.rtfTemplateDefault.findMany.mockResolvedValue([
+        {
+          id: 'default-1',
+          templateId: 'template-old',
+        } as any,
+      ]);
 
       mockPrisma.rtfTemplateDefault.create.mockResolvedValue({
         id: 'default-2',
@@ -273,8 +282,12 @@ describe('Template Service', () => {
         mockUserContext
       );
 
-      expect(mockPrisma.rtfTemplateDefault.delete).toHaveBeenCalledWith({
-        where: { id: 'default-1' },
+      expect(mockPrisma.rtfTemplateDefault.deleteMany).toHaveBeenCalledWith({
+        where: {
+          agencyGroupId: 'agency-1',
+          subagencyId: null,
+          ndaType: 'MUTUAL',
+        },
       });
       expect(mockPrisma.auditLog.create).toHaveBeenCalled();
       expect(result.templateId).toBe('template-1');
@@ -287,7 +300,7 @@ describe('Template Service', () => {
         id: 'new-template',
         name: 'New Template',
         description: null,
-        content: Buffer.from('content'),
+        content: sampleRtfContent,
         agencyGroupId: null,
         isDefault: false,
         isActive: true,
@@ -299,7 +312,7 @@ describe('Template Service', () => {
       const result = await createTemplate(
         {
           name: 'New Template',
-          content: Buffer.from('content'),
+          content: sampleRtfContent,
         },
         mockUserContext.contactId
       );
@@ -314,7 +327,7 @@ describe('Template Service', () => {
         id: 'new-default',
         name: 'New Default',
         description: null,
-        content: Buffer.from('content'),
+        content: sampleRtfContent,
         agencyGroupId: null,
         isDefault: true,
         isActive: true,
@@ -326,7 +339,7 @@ describe('Template Service', () => {
       await createTemplate(
         {
           name: 'New Default',
-          content: Buffer.from('content'),
+          content: sampleRtfContent,
           isDefault: true,
         },
         mockUserContext.contactId
@@ -386,7 +399,7 @@ describe('Template Service', () => {
 
       expect(mockPrisma.rtfTemplate.update).toHaveBeenCalledWith({
         where: { id: 'template-1' },
-        data: { isActive: false },
+        data: { isActive: false, isDefault: false },
       });
     });
 

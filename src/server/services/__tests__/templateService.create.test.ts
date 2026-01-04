@@ -5,6 +5,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createTemplate, TemplateServiceError } from '../templateService.js';
+import { sampleRtfContent } from '../../../test/factories/rtfTemplateFactory';
 
 const { prismaMock } = vi.hoisted(() => ({
   prismaMock: {
@@ -67,7 +68,7 @@ beforeEach(() => {
 });
 
 describe('createTemplate', () => {
-  const validRtfContent = Buffer.from('{\\rtf1\\ansi}{\\b Test}');
+  const validRtfContent = sampleRtfContent;
 
   it('rejects blank template names', async () => {
     await expect(

@@ -5,16 +5,18 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const sendMock = vi.fn().mockResolvedValue({});
-const capturedInputs: any[] = [];
+const { sendMock, capturedInputs } = vi.hoisted(() => ({
+  sendMock: vi.fn().mockResolvedValue({}),
+  capturedInputs: [] as Array<{ Metadata?: Record<string, string> }>,
+}));
 
 vi.mock('@aws-sdk/client-s3', () => ({
   S3Client: class {
     send = sendMock;
   },
   PutObjectCommand: class {
-    input: any;
-    constructor(input: any) {
+    input: { Metadata?: Record<string, string> };
+    constructor(input: { Metadata?: Record<string, string> }) {
       this.input = input;
       capturedInputs.push(input);
     }

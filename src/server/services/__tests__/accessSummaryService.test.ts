@@ -12,14 +12,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Mock prisma - must be defined before imports
-vi.mock('../../db/index.js', () => ({
-  prisma: {
+vi.mock('../../db/index.js', () => {
+  const prismaMock = {
     contact: {
       findUnique: vi.fn(),
       findMany: vi.fn(),
     },
-  },
-}));
+  };
+
+  return { prisma: prismaMock, default: prismaMock };
+});
 
 import {
   getUserAccessSummary,

@@ -13,16 +13,24 @@ import {
 import type { UserContext } from '../../types/auth.js';
 import { ROLE_NAMES } from '../../types/auth.js';
 
-// Mock Prisma
-vi.mock('../../db/index.js', () => ({
-  default: {
+const { prismaMock } = vi.hoisted(() => ({
+  prismaMock: {
     nda: {
       findMany: vi.fn(),
     },
     rtfTemplate: {
       findFirst: vi.fn(),
     },
+    rtfTemplateDefault: {
+      findFirst: vi.fn(),
+    },
   },
+}));
+
+// Mock Prisma
+vi.mock('../../db/index.js', () => ({
+  default: prismaMock,
+  prisma: prismaMock,
 }));
 
 vi.mock('../ndaService.js', () => ({
@@ -57,6 +65,7 @@ describe('agencySuggestionsService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockPrisma.rtfTemplate.findFirst.mockResolvedValue(null);
+    mockPrisma.rtfTemplateDefault.findFirst.mockResolvedValue(null);
   });
 
   describe('getCommonCompanies', () => {
@@ -176,10 +185,9 @@ describe('agencySuggestionsService', () => {
     it('returns combined suggestions', async () => {
       // Mock for getCommonCompanies and getTypicalPosition
       mockPrisma.nda.findMany.mockResolvedValue([
-        { companyName: 'Lockheed Martin', usMaxPosition: 'PRIME' },
-        { companyName: 'Boeing', usMaxPosition: 'PRIME' },
-        { companyName: 'Lockheed Martin', usMaxPosition: 'SUB_CONTRACTOR' },
-        { ndaType: 'MUTUAL' },
+        { companyName: 'Lockheed Martin', usMaxPosition: 'PRIME', ndaType: 'MUTUAL' },
+        { companyName: 'Boeing', usMaxPosition: 'PRIME', ndaType: 'MUTUAL' },
+        { companyName: 'Lockheed Martin', usMaxPosition: 'SUB_CONTRACTOR', ndaType: 'MUTUAL' },
       ]);
 
       const result = await getAgencySuggestions('agency-dod', mockUserContext);

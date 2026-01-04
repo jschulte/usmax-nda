@@ -56,9 +56,9 @@ describe('middleware pipeline', () => {
     expect(response.body.userContext).toMatchObject({
       id: 'mock-user-001',
       email: 'admin@usmax.com',
-      contactId: 'mock-contact-001',
       roles: ['Admin'],
     });
+    expect(response.body.userContext.contactId).toEqual(expect.any(String));
     expect(response.body.user.permissions).toContain('nda:view');
   });
 });

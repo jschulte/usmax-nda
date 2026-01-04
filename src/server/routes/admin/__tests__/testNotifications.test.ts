@@ -39,7 +39,9 @@ vi.mock('../../../middleware/checkPermissions.js', () => ({
 }));
 
 // Mock notification service
-const mockSendTestNotification = vi.fn();
+const { mockSendTestNotification } = vi.hoisted(() => ({
+  mockSendTestNotification: vi.fn(),
+}));
 
 vi.mock('../../../services/notificationService.js', () => ({
   sendTestNotification: mockSendTestNotification,
@@ -60,11 +62,13 @@ import adminTestNotificationsRouter from '../testNotifications.js';
 describe('Admin Test Notifications Routes', () => {
   let app: express.Express;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
 
     app = express();
     app.use(express.json());
+    const { attachUserContext } = await import('../../../middleware/attachUserContext.js');
+    app.use(attachUserContext as any);
     app.use('/api/admin/test-notifications', adminTestNotificationsRouter);
   });
 

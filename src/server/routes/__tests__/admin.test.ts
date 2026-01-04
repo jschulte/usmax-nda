@@ -36,6 +36,7 @@ vi.mock('../../middleware/attachUserContext.js', () => ({
 
 vi.mock('../../middleware/checkPermissions.js', () => ({
   requirePermission: () => (_req: any, _res: any, next: any) => next(),
+  requireAnyPermission: () => (_req: any, _res: any, next: any) => next(),
 }));
 
 const mockPrisma = {

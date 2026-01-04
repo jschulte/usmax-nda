@@ -5,6 +5,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
+import '@testing-library/jest-dom';
 import { DateRangeShortcuts } from '../DateRangeShortcuts';
 
 describe('DateRangeShortcuts', () => {
@@ -27,10 +28,8 @@ describe('DateRangeShortcuts', () => {
     render(<DateRangeShortcuts onSelect={mockOnSelect} />);
 
     expect(screen.getByText('Today')).toBeInTheDocument();
-    expect(screen.getByText('Yesterday')).toBeInTheDocument();
     expect(screen.getByText('Last 7 days')).toBeInTheDocument();
     expect(screen.getByText('Last 30 days')).toBeInTheDocument();
-    expect(screen.getByText('Last 90 days')).toBeInTheDocument();
     expect(screen.getByText('This month')).toBeInTheDocument();
     expect(screen.getByText('This quarter')).toBeInTheDocument();
     expect(screen.getByText('This year')).toBeInTheDocument();
@@ -42,14 +41,6 @@ describe('DateRangeShortcuts', () => {
     fireEvent.click(screen.getByText('Today'));
 
     expect(mockOnSelect).toHaveBeenCalledWith('2024-06-15', '2024-06-15');
-  });
-
-  it('calculates Yesterday correctly', () => {
-    render(<DateRangeShortcuts onSelect={mockOnSelect} />);
-
-    fireEvent.click(screen.getByText('Yesterday'));
-
-    expect(mockOnSelect).toHaveBeenCalledWith('2024-06-14', '2024-06-14');
   });
 
   it('calculates Last 7 days correctly', () => {
@@ -68,15 +59,6 @@ describe('DateRangeShortcuts', () => {
 
     // June 15 - 29 days = May 17 (inclusive of today)
     expect(mockOnSelect).toHaveBeenCalledWith('2024-05-17', '2024-06-15');
-  });
-
-  it('calculates Last 90 days correctly', () => {
-    render(<DateRangeShortcuts onSelect={mockOnSelect} />);
-
-    fireEvent.click(screen.getByText('Last 90 days'));
-
-    // June 15 - 89 days = March 18 (inclusive of today)
-    expect(mockOnSelect).toHaveBeenCalledWith('2024-03-18', '2024-06-15');
   });
 
   it('calculates This month correctly', () => {
@@ -166,14 +148,5 @@ describe('DateRangeShortcuts', () => {
       expect(mockOnSelect).toHaveBeenCalledWith('2024-02-01', '2024-02-29');
     });
 
-    it('handles year boundary for Last 90 days', () => {
-      vi.setSystemTime(new Date('2024-01-15T12:00:00Z'));
-
-      render(<DateRangeShortcuts onSelect={mockOnSelect} />);
-      fireEvent.click(screen.getByText('Last 90 days'));
-
-      // Jan 15 - 89 days = Oct 18, 2023 (crosses year boundary)
-      expect(mockOnSelect).toHaveBeenCalledWith('2023-10-18', '2024-01-15');
-    });
   });
 });

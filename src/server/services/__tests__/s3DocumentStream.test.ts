@@ -6,7 +6,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { PassThrough } from 'stream';
 
-const sendMock = vi.fn();
+const { sendMock } = vi.hoisted(() => ({
+  sendMock: vi.fn(),
+}));
 
 vi.mock('@aws-sdk/client-s3', () => ({
   S3Client: class {

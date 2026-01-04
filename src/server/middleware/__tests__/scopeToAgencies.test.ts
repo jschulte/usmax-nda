@@ -22,11 +22,25 @@ vi.mock('../../services/agencyScopeService.js', () => ({
   getUserAgencyScope: vi.fn(),
 }));
 
+vi.mock('../../services/auditService.js', () => ({
+  auditService: {
+    log: vi.fn(),
+  },
+  AuditAction: {
+    UNAUTHORIZED_ACCESS_ATTEMPT: 'unauthorized_access_attempt',
+  },
+}));
+
 import { getUserAgencyScope } from '../../services/agencyScopeService.js';
 
 // Helper to create mock request with user context
 function createMockRequest(userContext?: Partial<Request['userContext']>): Partial<Request> {
   return {
+    headers: {},
+    get: vi.fn().mockReturnValue(undefined),
+    ip: '127.0.0.1',
+    path: '/test',
+    method: 'GET',
     userContext: userContext
       ? {
           id: 'test-cognito-id',

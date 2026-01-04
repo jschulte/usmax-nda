@@ -27,6 +27,9 @@ describe('Auth Routes Integration', () => {
     app.use(express.json());
     app.use(cookieParser());
 
+    const { __resetMockAuthState } = await import('../../services/cognitoService');
+    __resetMockAuthState();
+
     // Dynamic import after setting env
     const { default: authRouter } = await import('../auth');
     app.use('/api/auth', authRouter);
@@ -365,7 +368,7 @@ describe('CognitoService', () => {
 
       expect(mfaResult.success).toBe(false);
       expect(mfaResult.attemptsRemaining).toBe(2);
-      expect(mfaResult.error).toBe('Invalid MFA code');
+      expect(mfaResult.error).toBe('Invalid MFA code, please try again');
     });
 
     it('should lock after 3 failed MFA attempts', async () => {
@@ -382,7 +385,7 @@ describe('CognitoService', () => {
 
       expect(finalResult.success).toBe(false);
       expect(finalResult.attemptsRemaining).toBe(0);
-      expect(finalResult.error).toBe('Account temporarily locked');
+      expect(finalResult.error).toBe('Account temporarily locked. Please try again in 5 minutes.');
     });
   });
 });

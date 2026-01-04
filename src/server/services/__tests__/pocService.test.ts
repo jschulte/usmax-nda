@@ -18,16 +18,18 @@ import {
 } from '../pocService.js';
 
 // Mock Prisma
-vi.mock('../../db/index.js', () => ({
-  prisma: {
+vi.mock('../../db/index.js', () => {
+  const prismaMock = {
     contact: {
       findMany: vi.fn(),
       findUnique: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
     },
-  },
-}));
+  };
+
+  return { prisma: prismaMock, default: prismaMock };
+});
 
 import { prisma } from '../../db/index.js';
 const mockPrisma = vi.mocked(prisma);

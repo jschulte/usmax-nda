@@ -7,6 +7,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import { MemoryRouter } from 'react-router-dom';
 import { AgencyGroups } from '../AgencyGroups';
@@ -35,7 +36,7 @@ vi.mock('../../../../client/components/UserAutocomplete', () => ({
   UserAutocomplete: () => <div data-testid="user-autocomplete" />,
 }));
 
-vi.mock('sonner@2.0.3', () => ({
+vi.mock('sonner', () => ({
   toast: {
     success: vi.fn(),
     error: vi.fn(),
@@ -69,6 +70,7 @@ describe('AgencyGroups menu', () => {
   });
 
   it('shows menu items when three-dots trigger is clicked', async () => {
+    const user = userEvent.setup();
     render(
       <MemoryRouter>
         <AgencyGroups />
@@ -78,7 +80,7 @@ describe('AgencyGroups menu', () => {
     await screen.findByText('Test Agency');
 
     const triggers = screen.getAllByLabelText('Agency options');
-    fireEvent.click(triggers[0]);
+    await user.click(triggers[0]);
 
     expect(await screen.findByText('Add Subagency')).toBeInTheDocument();
     expect(screen.getByText('Manage Access')).toBeInTheDocument();
@@ -87,6 +89,7 @@ describe('AgencyGroups menu', () => {
   });
 
   it('opens create subagency dialog from menu action', async () => {
+    const user = userEvent.setup();
     render(
       <MemoryRouter>
         <AgencyGroups />
@@ -96,9 +99,9 @@ describe('AgencyGroups menu', () => {
     await screen.findByText('Test Agency');
 
     const triggers = screen.getAllByLabelText('Agency options');
-    fireEvent.click(triggers[0]);
+    await user.click(triggers[0]);
 
-    fireEvent.click(await screen.findByText('Add Subagency'));
+    await user.click(await screen.findByText('Add Subagency'));
 
     await waitFor(() => {
       expect(screen.getByText('Create Subagency')).toBeInTheDocument();
@@ -106,6 +109,7 @@ describe('AgencyGroups menu', () => {
   });
 
   it('opens manage access dialog from menu action', async () => {
+    const user = userEvent.setup();
     render(
       <MemoryRouter>
         <AgencyGroups />
@@ -115,9 +119,9 @@ describe('AgencyGroups menu', () => {
     await screen.findByText('Test Agency');
 
     const triggers = screen.getAllByLabelText('Agency options');
-    fireEvent.click(triggers[0]);
+    await user.click(triggers[0]);
 
-    fireEvent.click(await screen.findByText('Manage Access'));
+    await user.click(await screen.findByText('Manage Access'));
 
     await waitFor(() => {
       expect(screen.getByText('Manage Access - Test Agency')).toBeInTheDocument();
@@ -125,6 +129,7 @@ describe('AgencyGroups menu', () => {
   });
 
   it('shows Add Subagency button in empty state and opens dialog', async () => {
+    const user = userEvent.setup();
     render(
       <MemoryRouter>
         <AgencyGroups />
@@ -133,12 +138,12 @@ describe('AgencyGroups menu', () => {
 
     await screen.findByText('Test Agency');
 
-    fireEvent.click(screen.getByLabelText('Toggle subagency list'));
+    await user.click(screen.getByLabelText('Toggle subagency list'));
 
     expect(await screen.findByText('No subagencies yet')).toBeInTheDocument();
 
     const addButton = screen.getByRole('button', { name: 'Add Subagency' });
-    fireEvent.click(addButton);
+    await user.click(addButton);
 
     await waitFor(() => {
       expect(screen.getByText('Create Subagency')).toBeInTheDocument();
@@ -146,6 +151,7 @@ describe('AgencyGroups menu', () => {
   });
 
   it('shows Add Subagency button when subagencies exist', async () => {
+    const user = userEvent.setup();
     const agencyService = await import('../../../../client/services/agencyService');
     vi.mocked(agencyService.listSubagencies).mockResolvedValue({
       subagencies: [
@@ -170,7 +176,7 @@ describe('AgencyGroups menu', () => {
 
     await screen.findByText('Test Agency');
 
-    fireEvent.click(screen.getByLabelText('Toggle subagency list'));
+    await user.click(screen.getByLabelText('Toggle subagency list'));
 
     expect(await screen.findByText('Subagencies (1)')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Add Subagency' })).toBeInTheDocument();

@@ -5,13 +5,15 @@
 
 import { describe, it, expect, vi } from 'vitest';
 
-vi.mock('../../db/index.js', () => ({
-  prisma: {
+vi.mock('../../db/index.js', () => {
+  const prismaMock = {
     document: {
       aggregate: vi.fn(),
     },
-  },
-}));
+  };
+
+  return { prisma: prismaMock, default: prismaMock };
+});
 
 import { prisma } from '../../db/index.js';
 import { getNextVersionNumber } from '../versionNumberHelper.js';

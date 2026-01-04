@@ -13,8 +13,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Mock prisma - must be defined before imports
-vi.mock('../../db/index.js', () => ({
-  prisma: {
+vi.mock('../../db/index.js', () => {
+  const prismaMock = {
     contact: {
       count: vi.fn(),
       findMany: vi.fn(),
@@ -23,8 +23,10 @@ vi.mock('../../db/index.js', () => ({
       create: vi.fn(),
       update: vi.fn(),
     },
-  },
-}));
+  };
+
+  return { prisma: prismaMock, default: prismaMock };
+});
 
 // Mock user context service
 vi.mock('../userContextService.js', () => ({

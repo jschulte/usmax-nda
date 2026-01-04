@@ -7,7 +7,7 @@ import { describe, it, expect, beforeEach, afterAll } from 'vitest';
 import express from 'express';
 import cookieParser from 'cookie-parser';
 import request from 'supertest';
-import { resetDatabase, seedBaseAuth } from '../../../test/dbUtils';
+import { resetDatabaseAndSeedBaseAuth } from '../../../test/dbUtils';
 import { clearAllUserContextCache } from '../../services/userContextService.js';
 import { prisma } from '../../db/index.js';
 
@@ -22,12 +22,11 @@ function makeMockToken(sub: string, email: string) {
 
 describe('Users Bulk Operations (integration)', () => {
   let app: express.Express;
-  let seededUsers: Awaited<ReturnType<typeof seedBaseAuth>>;
+  let seededUsers: Awaited<ReturnType<typeof resetDatabaseAndSeedBaseAuth>>;
 
   beforeEach(async () => {
     clearAllUserContextCache();
-    await resetDatabase();
-    seededUsers = await seedBaseAuth();
+    seededUsers = await resetDatabaseAndSeedBaseAuth();
 
     app = express();
     app.use(express.json());

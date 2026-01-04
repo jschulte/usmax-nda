@@ -8,8 +8,8 @@ import { auditService, AuditAction } from '../auditService.js';
 import type { UserContext } from '../../types/auth.js';
 
 // Mock Prisma
-vi.mock('../../db/index.js', () => ({
-  prisma: {
+vi.mock('../../db/index.js', () => {
+  const prismaMock = {
     document: {
       findFirst: vi.fn(),
       findMany: vi.fn(),
@@ -24,8 +24,10 @@ vi.mock('../../db/index.js', () => ({
     subagencyGrant: {
       findMany: vi.fn(),
     },
-  },
-}));
+  };
+
+  return { prisma: prismaMock, default: prismaMock };
+});
 
 // Mock ndaService
 vi.mock('../ndaService.js', () => ({

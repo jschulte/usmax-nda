@@ -11,9 +11,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import RTFTemplateEditor from '../RTFTemplateEditor';
-import { convertHtmlToRtf } from 'html-to-rtf';
-
-const mockConvertHtmlToRtf = convertHtmlToRtf as any;
+const { mockConvertHtmlToRtf } = vi.hoisted(() => ({
+  mockConvertHtmlToRtf: vi.fn((html: string) => `{\\rtf1\\ansi\\deff0 ${html}}`),
+}));
 
 // Mock Quill and ReactQuill
 vi.mock('react-quill', () => ({
@@ -24,7 +24,7 @@ vi.mock('react-quill', () => ({
         value={value}
         onChange={(e) => onChange(e.target.value)}
       />
-      <div data-testid="quill-toolbar">
+      <div className="ql-toolbar" data-testid="quill-toolbar">
         <button data-testid="rtf-toolbar-bold">Bold</button>
         <button data-testid="rtf-toolbar-italic">Italic</button>
         <button data-testid="rtf-toolbar-underline">Underline</button>
@@ -34,9 +34,9 @@ vi.mock('react-quill', () => ({
   )),
 }));
 
-// Mock html-to-rtf with proper RTF format
-vi.mock('html-to-rtf', () => ({
-  convertHtmlToRtf: vi.fn((html: string) => `{\\rtf1\\ansi\\deff0 ${html}}`),
+// Mock RTF converter used by the component
+vi.mock('../../../../client/utils/rtfConverter', () => ({
+  convertHtmlToRtf: mockConvertHtmlToRtf,
 }));
 
 // Mock placeholder blot registration

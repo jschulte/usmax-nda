@@ -5,8 +5,8 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-vi.mock('../../db/index.js', () => ({
-  prisma: {
+vi.mock('../../db/index.js', () => {
+  const prismaMock = {
     role: {
       findUnique: vi.fn(),
     },
@@ -32,8 +32,10 @@ vi.mock('../../db/index.js', () => ({
       findMany: vi.fn(),
       createMany: vi.fn(),
     },
-  },
-}));
+  };
+
+  return { prisma: prismaMock, default: prismaMock };
+});
 
 vi.mock('../auditService.js', () => ({
   auditService: {

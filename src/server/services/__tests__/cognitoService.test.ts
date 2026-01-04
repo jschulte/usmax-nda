@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { cognitoService } from '../cognitoService';
+import { cognitoService, __resetMockAuthState } from '../cognitoService';
 
 // Set up mock environment
 process.env.USE_MOCK_AUTH = 'true';
@@ -16,6 +16,7 @@ describe('CognitoService - Mock Mode', () => {
   beforeEach(() => {
     // Reset service state
     vi.clearAllMocks();
+    __resetMockAuthState();
   });
 
   describe('initiateAuth', () => {

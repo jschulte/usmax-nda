@@ -20,8 +20,8 @@ import {
 import type { UserContext } from '../../types/auth.js';
 
 // Mock Prisma
-vi.mock('../../db/index.js', () => ({
-  prisma: {
+vi.mock('../../db/index.js', () => {
+  const prismaMock = {
     notificationPreference: {
       findUnique: vi.fn(),
       upsert: vi.fn(),
@@ -40,8 +40,10 @@ vi.mock('../../db/index.js', () => ({
     contact: {
       findUnique: vi.fn(),
     },
-  },
-}));
+  };
+
+  return { prisma: prismaMock, default: prismaMock };
+});
 
 // Mock email service
 vi.mock('../emailService.js', () => ({

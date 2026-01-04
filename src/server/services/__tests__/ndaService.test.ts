@@ -15,8 +15,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Mock prisma - must be defined before imports
-vi.mock('../../db/index.js', () => ({
-  prisma: {
+vi.mock('../../db/index.js', () => {
+  const prismaMock = {
     nda: {
       create: vi.fn(),
       findFirst: vi.fn(),
@@ -45,8 +45,10 @@ vi.mock('../../db/index.js', () => ({
       findMany: vi.fn(),
       upsert: vi.fn(),
     },
-  },
-}));
+  };
+
+  return { prisma: prismaMock, default: prismaMock };
+});
 
 // Mock audit service
 vi.mock('../auditService.js', () => ({

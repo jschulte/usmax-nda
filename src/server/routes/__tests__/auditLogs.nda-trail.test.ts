@@ -10,8 +10,8 @@ import request from 'supertest';
 import type { Prisma } from '../../../generated/prisma/index.js';
 
 // Mock Prisma
-vi.mock('../../db/index.js', () => ({
-  prisma: {
+vi.mock('../../db/index.js', () => {
+  const prismaMock = {
     nda: {
       findFirst: vi.fn(),
     },
@@ -22,8 +22,10 @@ vi.mock('../../db/index.js', () => ({
     contact: {
       findMany: vi.fn(),
     },
-  },
-}));
+  };
+
+  return { prisma: prismaMock, default: prismaMock };
+});
 
 // Mock ndaService
 vi.mock('../../services/ndaService.js', () => ({

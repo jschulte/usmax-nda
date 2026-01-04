@@ -11,21 +11,26 @@ import {
   sampleRtfContentWithUnknownPlaceholder,
 } from '../../../test/factories/rtfTemplateFactory';
 
-const prismaMock = {
-  rtfTemplate: {
-    create: vi.fn(),
-    update: vi.fn(),
-    updateMany: vi.fn(),
-    findUnique: vi.fn(),
-  },
-  auditLog: {
-    create: vi.fn(),
-  },
-  $transaction: vi.fn(async (callback: (tx: any) => any) => callback(prismaMock)),
-};
+const { prismaMock } = vi.hoisted(() => {
+  const prismaMock = {
+    rtfTemplate: {
+      create: vi.fn(),
+      update: vi.fn(),
+      updateMany: vi.fn(),
+      findUnique: vi.fn(),
+    },
+    auditLog: {
+      create: vi.fn(),
+    },
+    $transaction: vi.fn(async (callback: (tx: any) => any) => callback(prismaMock)),
+  };
+
+  return { prismaMock };
+});
 
 vi.mock('../../db/index.js', () => ({
   prisma: prismaMock,
+  default: prismaMock,
 }));
 
 import { prisma } from '../../db/index.js';
