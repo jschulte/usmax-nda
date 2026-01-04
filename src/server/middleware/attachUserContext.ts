@@ -146,5 +146,5 @@ function getClientIp(req: Request): string | undefined {
     const ips = Array.isArray(forwardedFor) ? forwardedFor[0] : forwardedFor;
     return ips.split(',')[0].trim();
   }
-  return req.ip || req.socket.remoteAddress;
+  return req.ip || req.socket?.remoteAddress || req.connection?.remoteAddress;
 }

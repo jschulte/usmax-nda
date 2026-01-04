@@ -67,12 +67,16 @@ export async function scopeToAgencies(
     if (!hasGroupAccess && !hasDirectSubagencyAccess) {
       // User explicitly has no agency access - log this for audit trail
       // Story H-1: Explicit audit logging for unauthorized access attempts
+      const userAgentHeader =
+        typeof req.get === 'function'
+          ? req.get('user-agent')
+          : req.headers?.['user-agent'];
       await auditService.log({
         action: AuditAction.UNAUTHORIZED_ACCESS_ATTEMPT,
         entityType: 'agency_scope',
         userId: req.userContext.contactId,
-        ipAddress: req.ip || 'unknown',
-        userAgent: req.get('user-agent') || 'unknown',
+        ipAddress: req.ip || req.socket?.remoteAddress || req.connection?.remoteAddress || 'unknown',
+        userAgent: userAgentHeader || 'unknown',
         details: {
           reason: 'no_agency_access',
           path: req.path,
