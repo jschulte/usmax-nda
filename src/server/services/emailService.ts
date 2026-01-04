@@ -179,10 +179,42 @@ function buildEmailSignature(nda: {
   return `USmax${name ? `\n${name}` : ''}`;
 }
 
+const USMAX_POSITION_LABELS: Record<string, string> = {
+  PRIME: 'Prime Contractor',
+  SUB_CONTRACTOR: 'Sub-contractor',
+  OTHER: 'Other',
+};
+
+const NDA_TYPE_LABELS: Record<string, string> = {
+  MUTUAL: 'Mutual NDA',
+  CONSULTANT: 'Consultant Agreement',
+};
+
+function formatEffectiveDate(value?: Date | string | null): string {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+}
+
+function formatUsMaxPosition(value?: string | null): string {
+  if (!value) return '';
+  return USMAX_POSITION_LABELS[value] || value;
+}
+
+function formatNdaType(value?: string | null): string {
+  if (!value) return '';
+  return NDA_TYPE_LABELS[value] || value;
+}
+
 function buildEmailMergeFields(nda: {
   displayId: number;
   companyName: string;
   abbreviatedName: string;
+  authorizedPurpose?: string | null;
+  effectiveDate?: Date | string | null;
+  usMaxPosition?: string | null;
+  ndaType?: string | null;
   agencyOfficeName?: string | null;
   agencyGroup?: { name: string };
   relationshipPoc?: { firstName?: string | null; lastName?: string | null };
@@ -200,8 +232,14 @@ function buildEmailMergeFields(nda: {
     displayId: String(nda.displayId),
     companyName: nda.companyName,
     abbreviatedName: nda.abbreviatedName,
+    authorizedPurpose: nda.authorizedPurpose || '',
+    effectiveDate: formatEffectiveDate(nda.effectiveDate),
     agencyOfficeName: nda.agencyOfficeName || '',
     agencyGroupName: nda.agencyGroup?.name || '',
+    agencyGroup: nda.agencyGroup?.name || '',
+    usMaxPosition: formatUsMaxPosition(nda.usMaxPosition),
+    usmaxPosition: formatUsMaxPosition(nda.usMaxPosition),
+    ndaType: formatNdaType(nda.ndaType),
     relationshipPocName: relationshipName,
     opportunityPocName: opportunityName,
     signature: buildEmailSignature(nda),

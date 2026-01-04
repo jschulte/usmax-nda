@@ -36,29 +36,34 @@ interface TextAreaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement
   helperText?: string;
 }
 
-export function TextArea({ label, error, helperText, className = '', ...props }: TextAreaProps) {
-  return (
-    <div className="w-full">
-      {label && (
-        <label className="block text-sm mb-1.5 text-[var(--color-text-primary)]">
-          {label}
-        </label>
-      )}
-      <textarea
-        className={`w-full px-3 py-2 border rounded-md bg-white text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent ${
-          error ? 'border-[var(--color-danger)]' : 'border-[var(--color-border)]'
-        } ${className}`}
-        {...props}
-      />
-      {error && (
-        <p className="mt-1 text-xs text-[var(--color-danger)]">{error}</p>
-      )}
-      {helperText && !error && (
-        <p className="mt-1 text-xs text-[var(--color-text-secondary)]">{helperText}</p>
-      )}
-    </div>
-  );
-}
+export const TextArea = React.forwardRef<HTMLTextAreaElement, TextAreaProps>(
+  ({ label, error, helperText, className = '', ...props }, ref) => {
+    return (
+      <div className="w-full">
+        {label && (
+          <label className="block text-sm mb-1.5 text-[var(--color-text-primary)]">
+            {label}
+          </label>
+        )}
+        <textarea
+          ref={ref}
+          className={`w-full px-3 py-2 border rounded-md bg-white text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent ${
+            error ? 'border-[var(--color-danger)]' : 'border-[var(--color-border)]'
+          } ${className}`}
+          {...props}
+        />
+        {error && (
+          <p className="mt-1 text-xs text-[var(--color-danger)]">{error}</p>
+        )}
+        {helperText && !error && (
+          <p className="mt-1 text-xs text-[var(--color-text-secondary)]">{helperText}</p>
+        )}
+      </div>
+    );
+  }
+);
+
+TextArea.displayName = 'TextArea';
 
 interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
   label?: string;

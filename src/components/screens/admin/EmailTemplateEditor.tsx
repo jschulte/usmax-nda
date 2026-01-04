@@ -34,9 +34,12 @@ interface EmailTemplateEditorProps {
 const AVAILABLE_PLACEHOLDERS = [
   { key: '{{companyName}}', description: 'Partner company name' },
   { key: '{{abbreviatedName}}', description: 'Project/contract abbreviated name' },
-  { key: '{{effectiveDate}}', description: 'NDA effective date' },
   { key: '{{displayId}}', description: 'NDA reference number' },
-  { key: '{{agencyGroup}}', description: 'Agency group name' },
+  { key: '{{effectiveDate}}', description: 'NDA effective date' },
+  { key: '{{authorizedPurpose}}', description: 'Authorized purpose summary' },
+  { key: '{{agencyGroupName}}', description: 'Agency group name' },
+  { key: '{{agencyGroup}}', description: 'Legacy alias for agency group name' },
+  { key: '{{agencyOfficeName}}', description: 'Agency office name' },
   { key: '{{usMaxPosition}}', description: 'USmax position (Prime, Sub-contractor, etc.)' },
   { key: '{{ndaType}}', description: 'NDA type (Mutual, Consultant)' },
   { key: '{{relationshipPocName}}', description: 'Relationship POC full name' },
@@ -48,9 +51,12 @@ const AVAILABLE_PLACEHOLDERS = [
 const SAMPLE_DATA: Record<string, string> = {
   '{{companyName}}': 'Acme Corporation',
   '{{abbreviatedName}}': 'PROJ-2024-001',
-  '{{effectiveDate}}': '2024-12-25',
   '{{displayId}}': 'NDA-2024-12345',
+  '{{effectiveDate}}': 'December 25, 2024',
+  '{{authorizedPurpose}}': 'Proposal development for Contract XYZ-2024',
+  '{{agencyGroupName}}': 'Department of Defense',
   '{{agencyGroup}}': 'Department of Defense',
+  '{{agencyOfficeName}}': 'Office of the Secretary',
   '{{usMaxPosition}}': 'Prime Contractor',
   '{{ndaType}}': 'Mutual NDA',
   '{{relationshipPocName}}': 'John Smith',
@@ -73,18 +79,23 @@ export function EmailTemplateEditor({ template, onClose }: EmailTemplateEditorPr
   // Insert placeholder at cursor position
   function insertPlaceholder(placeholder: string) {
     const textarea = bodyRef.current;
-    if (!textarea) return;
+    if (!textarea) {
+      setBody((prev) => `${prev}${placeholder}`);
+      return;
+    }
 
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const newBody = body.substring(0, start) + placeholder + body.substring(end);
+    const current = textarea.value;
+    const start = textarea.selectionStart ?? current.length;
+    const end = textarea.selectionEnd ?? current.length;
+    const newBody = current.substring(0, start) + placeholder + current.substring(end);
 
     setBody(newBody);
 
     // Move cursor after inserted placeholder
     setTimeout(() => {
       textarea.focus();
-      textarea.setSelectionRange(start + placeholder.length, start + placeholder.length);
+      const nextPos = start + placeholder.length;
+      textarea.setSelectionRange(nextPos, nextPos);
     }, 0);
   }
 
@@ -160,7 +171,7 @@ export function EmailTemplateEditor({ template, onClose }: EmailTemplateEditorPr
               {template ? 'Edit Email Template' : 'Create Email Template'}
             </h2>
             <p className="text-sm text-[var(--color-text-secondary)] mt-1">
-              Use placeholders like {{companyName}} to insert dynamic values
+              Use placeholders like {'{{companyName}}'} to insert dynamic values
             </p>
           </div>
           <button

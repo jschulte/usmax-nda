@@ -25,6 +25,7 @@ import {
   type CreateEmailTemplateInput,
   type UpdateEmailTemplateInput,
 } from '../../services/emailTemplateService.js';
+import { validateEmailTemplatePlaceholders } from '../../validators/emailTemplatePlaceholderValidator.js';
 
 const router: Router = Router();
 
@@ -121,6 +122,24 @@ router.post('/', async (req: Request, res: Response) => {
     });
   }
 
+  const subjectValidation = validateEmailTemplatePlaceholders(subject.trim());
+  const bodyValidation = validateEmailTemplatePlaceholders(body.trim());
+
+  if (!subjectValidation.valid || !bodyValidation.valid) {
+    return res.status(400).json({
+      error: 'Invalid placeholders in email template',
+      code: 'INVALID_PLACEHOLDERS',
+      details: {
+        subject: subjectValidation.errors,
+        body: bodyValidation.errors,
+        unknownPlaceholders: {
+          subject: subjectValidation.unknownPlaceholders,
+          body: bodyValidation.unknownPlaceholders,
+        },
+      },
+    });
+  }
+
   try {
     const template = await createEmailTemplate({
       name: name.trim(),
@@ -187,6 +206,28 @@ router.put('/:id', async (req: Request, res: Response) => {
     return res.status(400).json({
       error: 'Body cannot be empty',
       code: 'INVALID_BODY',
+    });
+  }
+
+  const subjectValidation = updates.subject !== undefined
+    ? validateEmailTemplatePlaceholders(updates.subject.trim())
+    : null;
+  const bodyValidation = updates.body !== undefined
+    ? validateEmailTemplatePlaceholders(updates.body.trim())
+    : null;
+
+  if ((subjectValidation && !subjectValidation.valid) || (bodyValidation && !bodyValidation.valid)) {
+    return res.status(400).json({
+      error: 'Invalid placeholders in email template',
+      code: 'INVALID_PLACEHOLDERS',
+      details: {
+        subject: subjectValidation?.errors ?? [],
+        body: bodyValidation?.errors ?? [],
+        unknownPlaceholders: {
+          subject: subjectValidation?.unknownPlaceholders ?? [],
+          body: bodyValidation?.unknownPlaceholders ?? [],
+        },
+      },
     });
   }
 

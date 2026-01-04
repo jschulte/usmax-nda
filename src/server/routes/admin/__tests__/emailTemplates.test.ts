@@ -51,13 +51,15 @@ vi.mock('../../../services/auditService.js', () => ({
 }));
 
 // Mock email template service
-const mockService = {
-  listEmailTemplates: vi.fn(),
-  getEmailTemplate: vi.fn(),
-  createEmailTemplate: vi.fn(),
-  updateEmailTemplate: vi.fn(),
-  deleteEmailTemplate: vi.fn(),
-};
+const { mockService } = vi.hoisted(() => ({
+  mockService: {
+    listEmailTemplates: vi.fn(),
+    getEmailTemplate: vi.fn(),
+    createEmailTemplate: vi.fn(),
+    updateEmailTemplate: vi.fn(),
+    deleteEmailTemplate: vi.fn(),
+  },
+}));
 
 vi.mock('../../../services/emailTemplateService.js', () => mockService);
 
@@ -66,11 +68,14 @@ import adminEmailTemplatesRouter from '../emailTemplates.js';
 describe('Admin Email Templates Routes', () => {
   let app: express.Express;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
 
     app = express();
     app.use(express.json());
+
+    const { attachUserContext } = await import('../../../middleware/attachUserContext.js');
+    app.use(attachUserContext as any);
     app.use('/api/admin/email-templates', adminEmailTemplatesRouter);
   });
 
@@ -95,7 +100,13 @@ describe('Admin Email Templates Routes', () => {
       const res = await request(app).get('/api/admin/email-templates');
 
       expect(res.status).toBe(200);
-      expect(res.body.templates).toEqual(mockTemplates);
+      expect(res.body.templates).toEqual(
+        mockTemplates.map((template) => ({
+          ...template,
+          createdAt: template.createdAt.toISOString(),
+          updatedAt: template.updatedAt.toISOString(),
+        }))
+      );
       expect(res.body.count).toBe(1);
       expect(mockService.listEmailTemplates).toHaveBeenCalledWith(false);
     });
@@ -129,7 +140,11 @@ describe('Admin Email Templates Routes', () => {
       const res = await request(app).get('/api/admin/email-templates/template-1');
 
       expect(res.status).toBe(200);
-      expect(res.body.template).toEqual(mockTemplate);
+      expect(res.body.template).toEqual({
+        ...mockTemplate,
+        createdAt: mockTemplate.createdAt.toISOString(),
+        updatedAt: mockTemplate.updatedAt.toISOString(),
+      });
     });
 
     it('should return 404 if template not found', async () => {
@@ -166,7 +181,11 @@ describe('Admin Email Templates Routes', () => {
       const res = await request(app).post('/api/admin/email-templates').send(newTemplate);
 
       expect(res.status).toBe(201);
-      expect(res.body.template).toEqual(createdTemplate);
+      expect(res.body.template).toEqual({
+        ...createdTemplate,
+        createdAt: createdTemplate.createdAt.toISOString(),
+        updatedAt: createdTemplate.updatedAt.toISOString(),
+      });
       expect(mockService.createEmailTemplate).toHaveBeenCalledWith({
         name: newTemplate.name,
         description: newTemplate.description,
@@ -204,6 +223,32 @@ describe('Admin Email Templates Routes', () => {
 
       expect(res.status).toBe(400);
       expect(res.body.code).toBe('MISSING_FIELDS');
+    });
+
+    it('should reject unknown placeholders', async () => {
+      const res = await request(app).post('/api/admin/email-templates').send({
+        name: 'Test',
+        subject: 'Hello {{badField}}',
+        body: 'Body with {{companyName}}',
+      });
+
+      expect(res.status).toBe(400);
+      expect(res.body.code).toBe('INVALID_PLACEHOLDERS');
+      expect(res.body.details.subject[0]).toMatch(/Unknown placeholders/);
+      expect(mockService.createEmailTemplate).not.toHaveBeenCalled();
+    });
+
+    it('should reject malformed placeholder syntax', async () => {
+      const res = await request(app).post('/api/admin/email-templates').send({
+        name: 'Test',
+        subject: 'Hello {companyName}',
+        body: 'Body',
+      });
+
+      expect(res.status).toBe(400);
+      expect(res.body.code).toBe('INVALID_PLACEHOLDERS');
+      expect(res.body.details.subject.join(' ')).toMatch(/Malformed placeholders/);
+      expect(mockService.createEmailTemplate).not.toHaveBeenCalled();
     });
   });
 
@@ -248,6 +293,30 @@ describe('Admin Email Templates Routes', () => {
 
       expect(res.status).toBe(404);
       expect(res.body.code).toBe('TEMPLATE_NOT_FOUND');
+    });
+
+    it('should reject invalid placeholders on update', async () => {
+      const existingTemplate = {
+        id: 'template-1',
+        name: 'Old Name',
+        description: null,
+        subject: 'Old Subject',
+        body: 'Old body',
+        isDefault: false,
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      mockService.getEmailTemplate.mockResolvedValue(existingTemplate);
+
+      const res = await request(app)
+        .put('/api/admin/email-templates/template-1')
+        .send({ subject: 'Hello {{badField}}' });
+
+      expect(res.status).toBe(400);
+      expect(res.body.code).toBe('INVALID_PLACEHOLDERS');
+      expect(mockService.updateEmailTemplate).not.toHaveBeenCalled();
     });
   });
 
