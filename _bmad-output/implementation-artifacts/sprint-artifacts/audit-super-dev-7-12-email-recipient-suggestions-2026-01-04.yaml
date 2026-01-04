@@ -73,7 +73,7 @@ steps:
     duration: "0m30s"
     commit_hash: "53169f3"
     files_committed: 7
-    pushed: false
+    pushed: true
     status: "completed"
 
 # Quality metrics
@@ -103,4 +103,4 @@ commit:
   hash: "53169f3"
   message: "feat(story-7-12-email-recipient-suggestions): suggest recipients"
   files_committed: 7
-  pushed_to_remote: false
+  pushed_to_remote: true
