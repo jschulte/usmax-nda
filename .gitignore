@@ -5,6 +5,10 @@ node_modules/
 
 # Testing
 coverage/
+playwright-report/
+test-results/
+vitest-report.json
+vitest-report.xml
 
 # Production
 build/
