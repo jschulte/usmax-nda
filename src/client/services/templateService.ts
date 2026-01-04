@@ -20,6 +20,7 @@ export interface RtfTemplate {
 
 export interface RtfTemplateDetail extends RtfTemplate {
   content?: string; // base64 encoded (only for admins)
+  htmlSource?: string; // base64 encoded (only for admins)
 }
 
 export interface CreateTemplateData {

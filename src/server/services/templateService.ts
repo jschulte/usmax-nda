@@ -220,6 +220,7 @@ export async function getTemplate(
   name: string;
   description: string | null;
   content: Buffer;
+  htmlSource?: Buffer | null;
   agencyGroupId: string | null;
   isDefault: boolean;
   isActive: boolean;
@@ -235,6 +236,7 @@ export async function getTemplate(
     name: template.name,
     description: template.description,
     content: Buffer.from(template.content as Uint8Array),
+    htmlSource: template.htmlSource ? Buffer.from(template.htmlSource as Uint8Array) : null,
     agencyGroupId: template.agencyGroupId,
     isDefault: template.isDefault,
     isActive: template.isActive,
@@ -449,6 +451,7 @@ export async function generatePreview(
       opportunityPoc: { select: { firstName: true, lastName: true } },
       contractsPoc: { select: { firstName: true, lastName: true } },
       relationshipPoc: { select: { firstName: true, lastName: true } },
+      contactsPoc: { select: { firstName: true, lastName: true } },
     },
   });
 
@@ -640,12 +643,18 @@ export async function createTemplate(
     name: string;
     description?: string;
     content: Buffer;
+    htmlSource?: Buffer;
     agencyGroupId?: string;
     isDefault?: boolean;
   },
   createdById: string,
   auditContext?: { ipAddress?: string; userAgent?: string }
 ): Promise<{ id: string; name: string }> {
+  const trimmedName = data.name.trim();
+  if (!trimmedName) {
+    throw new TemplateServiceError('Template name is required', 'VALIDATION_ERROR');
+  }
+
   // Validate RTF content structure
   const rtfContent = data.content.toString('utf-8');
   const rtfValidation = validateRtfStructure(rtfContent);
@@ -662,6 +671,24 @@ export async function createTemplate(
   // Placeholder validation happens on HTML source if provided (WYSIWYG flow)
 
   return prisma.$transaction(async (tx) => {
+    const existingByName = await tx.rtfTemplate.findFirst({
+      where: { name: { equals: trimmedName, mode: 'insensitive' } },
+      select: { id: true },
+    });
+    if (existingByName) {
+      throw new TemplateServiceError('Template name already exists', 'VALIDATION_ERROR');
+    }
+
+    if (data.agencyGroupId) {
+      const agencyGroup = await tx.agencyGroup.findUnique({
+        where: { id: data.agencyGroupId },
+        select: { id: true },
+      });
+      if (!agencyGroup) {
+        throw new TemplateServiceError('Agency group not found', 'VALIDATION_ERROR');
+      }
+    }
+
     // If setting as default, unset other defaults
     if (data.isDefault) {
       await tx.rtfTemplate.updateMany({
@@ -675,9 +702,10 @@ export async function createTemplate(
 
     const template = await tx.rtfTemplate.create({
       data: {
-        name: data.name,
+        name: trimmedName,
         description: data.description,
         content: new Uint8Array(data.content),
+        htmlSource: data.htmlSource ? new Uint8Array(data.htmlSource) : undefined,
         agencyGroupId: data.agencyGroupId,
         isDefault: data.isDefault || false,
         createdById,
@@ -715,6 +743,7 @@ export async function updateTemplate(
     name?: string;
     description?: string;
     content?: Buffer;
+    htmlSource?: Buffer;
     agencyGroupId?: string | null;
     isDefault?: boolean;
     isActive?: boolean;
@@ -729,6 +758,34 @@ export async function updateTemplate(
 
     if (!existing) {
       throw new TemplateServiceError('Template not found', 'NOT_FOUND');
+    }
+
+    if (data.name) {
+      const trimmedName = data.name.trim();
+      if (!trimmedName) {
+        throw new TemplateServiceError('Template name is required', 'VALIDATION_ERROR');
+      }
+      const existingByName = await tx.rtfTemplate.findFirst({
+        where: {
+          id: { not: templateId },
+          name: { equals: trimmedName, mode: 'insensitive' },
+        },
+        select: { id: true },
+      });
+      if (existingByName) {
+        throw new TemplateServiceError('Template name already exists', 'VALIDATION_ERROR');
+      }
+      data.name = trimmedName;
+    }
+
+    if (data.agencyGroupId !== undefined && data.agencyGroupId !== null) {
+      const agencyGroup = await tx.agencyGroup.findUnique({
+        where: { id: data.agencyGroupId },
+        select: { id: true },
+      });
+      if (!agencyGroup) {
+        throw new TemplateServiceError('Agency group not found', 'VALIDATION_ERROR');
+      }
     }
 
     // Validate RTF content if provided
@@ -770,6 +827,7 @@ export async function updateTemplate(
         name: data.name,
         description: data.description,
         content: data.content ? new Uint8Array(data.content) : undefined,
+        htmlSource: data.htmlSource ? new Uint8Array(data.htmlSource) : undefined,
         agencyGroupId: data.agencyGroupId,
         isDefault: nextIsDefault,
         isActive: data.isActive,
@@ -935,6 +993,8 @@ function extractMergedFields(nda: {
   opportunityPoc: { firstName: string | null; lastName: string | null };
   contractsPoc: { firstName: string | null; lastName: string | null } | null;
   relationshipPoc: { firstName: string | null; lastName: string | null };
+  contactsPoc: { firstName: string | null; lastName: string | null } | null;
+  expirationDate: Date | null;
 }): Record<string, string> {
   const formatName = (poc: { firstName: string | null; lastName: string | null } | null): string => {
     if (!poc) return '';
@@ -968,10 +1028,12 @@ function extractMergedFields(nda: {
     abbreviatedName: nda.abbreviatedName,
     authorizedPurpose: nda.authorizedPurpose,
     effectiveDate: formatDate(nda.effectiveDate),
+    expirationDate: formatDate(nda.expirationDate),
     usMaxPosition: positionMap[nda.usMaxPosition] || nda.usMaxPosition,
     opportunityPocName: formatName(nda.opportunityPoc),
     contractsPocName: formatName(nda.contractsPoc),
     relationshipPocName: formatName(nda.relationshipPoc),
+    contactsPocName: formatName(nda.contactsPoc),
     generatedDate: formatDate(new Date()),
   };
 }

@@ -1,0 +1,61 @@
+---
+story_id: "7-1-rtf-template-creation"
+story_file: "/Users/jonahschulte/git/usmax-nda/_bmad-output/implementation-artifacts/sprint-artifacts/7-1-rtf-template-creation.md"
+mode: "batch"
+development_type: "brownfield"
+
+stepsCompleted: [1, 2, 3, 4, 5]
+lastStep: 5
+currentStep: 6
+status: "in_progress"
+
+started_at: "2026-01-04T00:17:50Z"
+updated_at: "2026-01-04T00:17:50Z"
+
+cached_context:
+  story_loaded: true
+  project_context_loaded: true
+
+development_analysis:
+  existing_files: 0
+  new_files: 0
+  total_tasks: 23
+  unchecked_tasks: 0
+
+gap_analysis:
+  development_type: "brownfield"
+  tasks_ready: 6
+  tasks_partial: 5
+  tasks_done: 12
+  tasks_refined: 0
+  tasks_added: 4
+
+smart_batching:
+  enabled: true
+  patterns_detected: 0
+  batchable_tasks: 0
+  individual_tasks: 23
+  estimated_time_with_batching: 0
+  estimated_time_without_batching: 0
+  estimated_savings: 0
+
+steps:
+  step-01-init:
+    status: completed
+    completed_at: "2026-01-04T00:17:50Z"
+  step-02-pre-gap-analysis:
+    status: completed
+    completed_at: "2026-01-04T00:17:50Z"
+  step-03-implement:
+    status: completed
+    completed_at: "2026-01-04T00:17:50Z"
+  step-04-post-validation:
+    status: completed
+    completed_at: "2026-01-04T00:17:50Z"
+  step-05-code-review:
+    status: completed
+    completed_at: "2026-01-04T00:17:50Z"
+  step-06-complete:
+    status: pending
+  step-07-summary:
+    status: pending

@@ -21,10 +21,12 @@ export const SAMPLE_MERGE_FIELDS: Record<string, string> = {
   abbreviatedName: 'ACME',
   authorizedPurpose: 'Proposal Development for Contract XYZ-2024',
   effectiveDate: 'January 15, 2024',
+  expirationDate: 'January 15, 2025',
   usMaxPosition: 'Prime Contractor',
   opportunityPocName: 'John Smith',
   contractsPocName: 'Jane Doe',
   relationshipPocName: 'Robert Johnson',
+  contactsPocName: 'Linda Carter',
   generatedDate: new Date().toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',

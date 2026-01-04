@@ -20,7 +20,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import * as templateService from '../../client/services/templateService';
 import type { RtfTemplate, TemplateDefaultAssignment } from '../../client/services/templateService';
 import { listAgencyGroups, listSubagencies, type AgencyGroup, type Subagency } from '../../client/services/agencyService';
@@ -489,7 +489,15 @@ export function Templates() {
         setTemplateIsDefault(template.isDefault);
 
         // Convert RTF to HTML for editing
-        if (fullTemplate.content) {
+        if (fullTemplate.htmlSource) {
+          try {
+            const html = atob(fullTemplate.htmlSource);
+            setWysiwygInitialContent(html);
+          } catch (decodeError) {
+            console.error('[Templates] HTML source decode error:', decodeError);
+            setWysiwygInitialContent('');
+          }
+        } else if (fullTemplate.content) {
           try {
             console.log('[Templates] Template content type:', typeof fullTemplate.content);
             console.log('[Templates] Template content length:', fullTemplate.content.length);

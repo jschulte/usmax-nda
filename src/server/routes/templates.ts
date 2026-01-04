@@ -239,6 +239,9 @@ router.get(
           isActive: template.isActive,
           // Only include content for admins
           content: isAdmin ? template.content.toString('base64') : undefined,
+          htmlSource: isAdmin && template.htmlSource
+            ? template.htmlSource.toString('base64')
+            : undefined,
         },
       });
     } catch (error) {
@@ -347,19 +350,23 @@ router.post(
         });
       }
 
+      let htmlBuffer: Buffer | undefined;
       // If htmlSource is provided (from WYSIWYG editor), validate both HTML and RTF
       if (htmlSource) {
         const htmlContent = Buffer.from(htmlSource, 'base64').toString('utf-8');
+        const sanitizedHtml = sanitizeHtml(htmlContent);
         const rtfContent = contentBuffer.toString('utf-8');
 
-        const validation = validateTemplate(htmlContent, rtfContent);
+        const validation = validateTemplate(sanitizedHtml, rtfContent);
         if (!validation.valid) {
           return res.status(400).json({
             error: 'Template validation failed',
             code: 'VALIDATION_ERROR',
             validationErrors: validation.errors,
+            unknownPlaceholders: validation.unknownPlaceholders,
           });
         }
+        htmlBuffer = Buffer.from(sanitizedHtml, 'utf-8');
       }
 
       const template = await createTemplate(
@@ -367,6 +374,7 @@ router.post(
           name,
           description,
           content: contentBuffer,
+          htmlSource: htmlBuffer,
           agencyGroupId,
           isDefault,
         },
@@ -433,19 +441,23 @@ router.put(
         });
       }
 
+      let htmlBuffer: Buffer | undefined;
       // If htmlSource is provided (from WYSIWYG editor), validate both HTML and RTF
       if (htmlSource && contentBuffer) {
         const htmlContent = Buffer.from(htmlSource, 'base64').toString('utf-8');
+        const sanitizedHtml = sanitizeHtml(htmlContent);
         const rtfContent = contentBuffer.toString('utf-8');
 
-        const validation = validateTemplate(htmlContent, rtfContent);
+        const validation = validateTemplate(sanitizedHtml, rtfContent);
         if (!validation.valid) {
           return res.status(400).json({
             error: 'Template validation failed',
             code: 'VALIDATION_ERROR',
             validationErrors: validation.errors,
+            unknownPlaceholders: validation.unknownPlaceholders,
           });
         }
+        htmlBuffer = Buffer.from(sanitizedHtml, 'utf-8');
       }
 
       const template = await updateTemplate(
@@ -454,6 +466,7 @@ router.put(
           name,
           description,
           content: contentBuffer,
+          htmlSource: htmlBuffer,
           agencyGroupId,
           isDefault,
           isActive,

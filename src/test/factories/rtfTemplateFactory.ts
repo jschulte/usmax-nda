@@ -9,10 +9,12 @@ export const RTF_PLACEHOLDER_KEYS = [
   'abbreviatedName',
   'authorizedPurpose',
   'effectiveDate',
+  'expirationDate',
   'usMaxPosition',
   'opportunityPocName',
   'contractsPocName',
   'relationshipPocName',
+  'contactsPocName',
   'generatedDate',
 ];
 
@@ -43,9 +45,11 @@ export const samplePreviewData = {
   abbreviatedName: 'ACME-DOD-2025',
   authorizedPurpose: 'Research and development',
   effectiveDate: 'January 1, 2025',
+  expirationDate: 'January 1, 2026',
   usMaxPosition: 'Prime Contractor',
   opportunityPocName: 'Jordan Lee',
   contractsPocName: 'Taylor Reed',
   relationshipPocName: 'Avery Kim',
+  contactsPocName: 'Morgan Patel',
   generatedDate: 'January 2, 2025',
 };

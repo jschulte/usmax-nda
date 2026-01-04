@@ -14,6 +14,7 @@ import { SAMPLE_MERGE_FIELDS, validatePlaceholders as validatePlaceholderNames }
 export interface ValidationResult {
   valid: boolean;
   errors: string[];
+  unknownPlaceholders?: string[];
 }
 
 /**
@@ -29,6 +30,17 @@ export interface ValidationResult {
  */
 export function validateRtfStructure(rtfContent: string): ValidationResult {
   const errors: string[] = [];
+  const dangerousControlWords = [
+    '\\\\object',
+    '\\\\objdata',
+    '\\\\objclass',
+    '\\\\field',
+    '\\\\fldinst',
+    '\\\\fldrslt',
+    '\\\\filetbl',
+    '\\\\datastore',
+    '\\\\linkself',
+  ];
 
   // Check if content is empty or too short
   if (!rtfContent || rtfContent.trim().length < 10) {
@@ -63,6 +75,12 @@ export function validateRtfStructure(rtfContent: string): ValidationResult {
     if (contentWithoutHeader.length === 0) {
       errors.push('RTF content has no body content beyond the header');
     }
+  }
+
+  // Check for potentially dangerous control words
+  const dangerRegex = new RegExp(`(${dangerousControlWords.join('|')})`, 'i');
+  if (dangerRegex.test(rtfContent)) {
+    errors.push('RTF content contains potentially unsafe control words');
   }
 
   return {
@@ -105,6 +123,62 @@ export function validateHtmlPlaceholders(htmlContent: string): ValidationResult 
   return {
     valid: errors.length === 0,
     errors,
+    unknownPlaceholders,
+  };
+}
+
+/**
+ * Validate that HTML content is reasonably well-formed
+ *
+ * Performs a basic tag balance check to catch malformed markup.
+ * Note: This is a lightweight validation to avoid adding heavy dependencies.
+ */
+export function validateHtmlStructure(htmlContent: string): ValidationResult {
+  const errors: string[] = [];
+  const voidTags = new Set([
+    'area',
+    'base',
+    'br',
+    'col',
+    'embed',
+    'hr',
+    'img',
+    'input',
+    'link',
+    'meta',
+    'param',
+    'source',
+    'track',
+    'wbr',
+  ]);
+  const stack: string[] = [];
+  const tagRegex = /<\/?([a-zA-Z][a-zA-Z0-9]*)\b[^>]*>/g;
+  let match: RegExpExecArray | null;
+
+  while ((match = tagRegex.exec(htmlContent)) !== null) {
+    const rawTag = match[0];
+    const tagName = match[1]?.toLowerCase();
+    if (!tagName || voidTags.has(tagName)) {
+      continue;
+    }
+    if (rawTag.startsWith('</')) {
+      const last = stack.pop();
+      if (!last || last !== tagName) {
+        errors.push(`Malformed HTML: closing </${tagName}> does not match opening <${last ?? 'none'}>`);
+        break;
+      }
+    } else if (!rawTag.endsWith('/>')) {
+      stack.push(tagName);
+    }
+  }
+
+  if (stack.length > 0) {
+    errors.push(`Malformed HTML: unclosed tag <${stack[stack.length - 1]}>`);
+  }
+
+  return {
+    valid: errors.length === 0,
+    errors,
   };
 }
 
@@ -123,11 +197,20 @@ export function validateTemplate(
   rtfContent: string
 ): ValidationResult {
   const errors: string[] = [];
+  let unknownPlaceholders: string[] | undefined;
+
+  const htmlStructure = validateHtmlStructure(htmlContent);
+  if (!htmlStructure.valid) {
+    errors.push(...htmlStructure.errors);
+  }
 
   // Validate HTML placeholders
   const htmlValidation = validateHtmlPlaceholders(htmlContent);
   if (!htmlValidation.valid) {
     errors.push(...htmlValidation.errors);
+  }
+  if (htmlValidation.unknownPlaceholders?.length) {
+    unknownPlaceholders = htmlValidation.unknownPlaceholders;
   }
 
   // Validate RTF structure
@@ -139,6 +222,7 @@ export function validateTemplate(
   return {
     valid: errors.length === 0,
     errors,
+    unknownPlaceholders,
   };
 }
 

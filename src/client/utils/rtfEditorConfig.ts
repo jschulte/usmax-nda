@@ -20,10 +20,12 @@ export const ALLOWED_PLACEHOLDERS = [
   'abbreviatedName',
   'authorizedPurpose',
   'effectiveDate',
+  'expirationDate',
   'usMaxPosition',
   'opportunityPocName',
   'contractsPocName',
   'relationshipPocName',
+  'contactsPocName',
   'generatedDate',
 ] as const;
 
@@ -43,10 +45,12 @@ export const PLACEHOLDER_LABELS: Record<PlaceholderField, string> = {
   abbreviatedName: 'Abbreviated Name',
   authorizedPurpose: 'Authorized Purpose',
   effectiveDate: 'Effective Date',
+  expirationDate: 'Expiration Date',
   usMaxPosition: 'USmax Position',
   opportunityPocName: 'Opportunity POC Name',
   contractsPocName: 'Contracts POC Name',
   relationshipPocName: 'Relationship POC Name',
+  contactsPocName: 'Contacts POC Name',
   generatedDate: 'Generated Date',
 };
 
