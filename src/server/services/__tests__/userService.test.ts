@@ -346,6 +346,38 @@ describe('User Service', () => {
         expect((error as UserServiceError).code).toBe('DUPLICATE_EMAIL');
       }
     });
+
+    it('throws error when unique constraint is violated on create', async () => {
+      mockPrisma.contact.findFirst.mockResolvedValue(null);
+      mockPrisma.contact.create.mockRejectedValue({
+        code: 'P2002',
+        meta: { target: ['email'] },
+      });
+
+      await expect(
+        createUser(
+          {
+            firstName: 'New',
+            lastName: 'User',
+            email: 'existing@test.com',
+          },
+          'admin-1'
+        )
+      ).rejects.toThrow(UserServiceError);
+
+      try {
+        await createUser(
+          {
+            firstName: 'New',
+            lastName: 'User',
+            email: 'existing@test.com',
+          },
+          'admin-1'
+        );
+      } catch (error) {
+        expect((error as UserServiceError).code).toBe('DUPLICATE_EMAIL');
+      }
+    });
   });
 
   describe('updateUser', () => {
@@ -431,6 +463,30 @@ describe('User Service', () => {
           id: 'other-user',
           email: 'taken@test.com',
         });
+        await updateUser('user-1', { email: 'taken@test.com' }, 'admin-1');
+      } catch (error) {
+        expect((error as UserServiceError).code).toBe('DUPLICATE_EMAIL');
+      }
+    });
+
+    it('throws error when unique constraint is violated on update', async () => {
+      mockPrisma.contact.findUnique.mockReset();
+      mockPrisma.contact.findUnique.mockResolvedValue({
+        id: 'user-1',
+        email: 'original@test.com',
+        firstName: 'Original',
+      });
+      mockPrisma.contact.findFirst.mockResolvedValue(null);
+      mockPrisma.contact.update.mockRejectedValue({
+        code: 'P2002',
+        meta: { target: ['email'] },
+      });
+
+      await expect(
+        updateUser('user-1', { email: 'taken@test.com' }, 'admin-1')
+      ).rejects.toThrow(UserServiceError);
+
+      try {
         await updateUser('user-1', { email: 'taken@test.com' }, 'admin-1');
       } catch (error) {
         expect((error as UserServiceError).code).toBe('DUPLICATE_EMAIL');

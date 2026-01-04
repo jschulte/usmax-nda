@@ -17,6 +17,31 @@ import { invalidateUserContext } from './userContextService.js';
 // Story 6.2: Field change tracking
 import { detectFieldChanges } from '../utils/detectFieldChanges.js';
 
+type PrismaUniqueError = {
+  code?: string;
+  meta?: {
+    target?: string[] | string;
+  };
+};
+
+function mapUniqueConstraintError(error: unknown): UserServiceError | null {
+  const prismaError = error as PrismaUniqueError;
+  if (prismaError?.code !== 'P2002') return null;
+
+  const target = prismaError.meta?.target;
+  if (Array.isArray(target)) {
+    if (target.includes('email')) {
+      return new UserServiceError('Email already exists', 'DUPLICATE_EMAIL');
+    }
+  }
+
+  if (typeof target === 'string' && target.includes('email')) {
+    return new UserServiceError('Email already exists', 'DUPLICATE_EMAIL');
+  }
+
+  return null;
+}
+
 // =============================================================================
 // INTERFACES
 // =============================================================================
@@ -331,34 +356,42 @@ export async function createUser(
     throw new UserServiceError('Email already exists', 'DUPLICATE_EMAIL');
   }
 
-  const user = await prisma.contact.create({
-    data: {
-      firstName: input.firstName,
-      lastName: input.lastName,
-      email: normalizedEmail,
-      workPhone: input.workPhone,
-      cellPhone: input.cellPhone,
-      jobTitle: input.jobTitle,
-      isInternal: true,
-      active: true,
-    },
-  });
+  try {
+    const user = await prisma.contact.create({
+      data: {
+        firstName: input.firstName,
+        lastName: input.lastName,
+        email: normalizedEmail,
+        workPhone: input.workPhone,
+        cellPhone: input.cellPhone,
+        jobTitle: input.jobTitle,
+        isInternal: true,
+        active: true,
+      },
+    });
 
-  // Audit log
-  await auditService.log({
-    action: AuditAction.USER_CREATED,
-    entityType: 'contact',
-    entityId: user.id,
-    userId: createdBy,
-    details: {
-      email: user.email,
-      name: [user.firstName, user.lastName].filter(Boolean).join(' '),
-    },
-    ipAddress: auditContext?.ipAddress,
-    userAgent: auditContext?.userAgent,
-  });
+    // Audit log
+    await auditService.log({
+      action: AuditAction.USER_CREATED,
+      entityType: 'contact',
+      entityId: user.id,
+      userId: createdBy,
+      details: {
+        email: user.email,
+        name: [user.firstName, user.lastName].filter(Boolean).join(' '),
+      },
+      ipAddress: auditContext?.ipAddress,
+      userAgent: auditContext?.userAgent,
+    });
 
-  return user;
+    return user;
+  } catch (error) {
+    const uniqueError = mapUniqueConstraintError(error);
+    if (uniqueError) {
+      throw uniqueError;
+    }
+    throw error;
+  }
 }
 
 /**
@@ -391,17 +424,26 @@ export async function updateUser(
     }
   }
 
-  const user = await prisma.contact.update({
-    where: { id },
-    data: {
-      ...(input.firstName !== undefined && { firstName: input.firstName }),
-      ...(input.lastName !== undefined && { lastName: input.lastName }),
-      ...(normalizedEmail !== undefined && { email: normalizedEmail }),
-      ...(input.workPhone !== undefined && { workPhone: input.workPhone }),
-      ...(input.cellPhone !== undefined && { cellPhone: input.cellPhone }),
-      ...(input.jobTitle !== undefined && { jobTitle: input.jobTitle }),
-    },
-  });
+  let user;
+  try {
+    user = await prisma.contact.update({
+      where: { id },
+      data: {
+        ...(input.firstName !== undefined && { firstName: input.firstName }),
+        ...(input.lastName !== undefined && { lastName: input.lastName }),
+        ...(normalizedEmail !== undefined && { email: normalizedEmail }),
+        ...(input.workPhone !== undefined && { workPhone: input.workPhone }),
+        ...(input.cellPhone !== undefined && { cellPhone: input.cellPhone }),
+        ...(input.jobTitle !== undefined && { jobTitle: input.jobTitle }),
+      },
+    });
+  } catch (error) {
+    const uniqueError = mapUniqueConstraintError(error);
+    if (uniqueError) {
+      throw uniqueError;
+    }
+    throw error;
+  }
 
   // Story 6.2: Detect field changes for audit trail
   const beforeValues: Record<string, unknown> = {
