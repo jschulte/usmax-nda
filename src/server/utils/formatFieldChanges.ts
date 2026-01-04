@@ -45,14 +45,25 @@ export function formatFieldChange(change: FieldChange): string {
  * formatFieldName('status') // Returns: "Status"
  */
 export function formatFieldName(field: string): string {
-  // Convert camelCase to Title Case
+  // Convert camelCase and acronyms to Title Case
   // e.g., "companyName" → "Company Name"
-  // "effectiveDate" → "Effective Date"
-  // "status" → "Status"
-  return field
-    .replace(/([A-Z])/g, ' $1') // Add space before capital letters
-    .replace(/^./, (str) => str.toUpperCase()) // Capitalize first letter
-    .trim(); // Remove leading/trailing spaces
+  // "isNonUSmax" → "Is Non U S Max"
+  const spaced = field
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/([A-Z]{2,})([a-z])/g, '$1 $2')
+    .trim();
+
+  const words = spaced.split(/\s+/).flatMap((word) => {
+    if (word.length > 1 && /^[A-Z]+$/.test(word)) {
+      return word.split('');
+    }
+    return [word];
+  });
+
+  return words
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
 }
 
 /**

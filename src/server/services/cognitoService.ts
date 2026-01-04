@@ -56,6 +56,11 @@ const MFA_LOCKOUT_MS = 5 * 60 * 1000; // 5 minutes
 const mfaAttemptsByEmail = new Map<string, { attempts: number; lockedUntil?: number }>();
 const activeMfaSessions = new Set<string>();
 
+export function __resetMockAuthState(): void {
+  mfaAttemptsByEmail.clear();
+  activeMfaSessions.clear();
+}
+
 function getMfaState(email: string): { attempts: number; lockedUntil?: number } {
   const existing = mfaAttemptsByEmail.get(email);
   if (!existing) return { attempts: 0 };
