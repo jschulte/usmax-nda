@@ -1,0 +1,16 @@
+epic_num: 2
+started: "2026-01-03T18:45:37-0500"
+total_stories: 7
+completed_stories:
+  - 2-1-agency-groups-crud
+  - 2-2-subagencies-crud
+  - 2-3-grant-agency-group-access-to-users
+  - 2-4-grant-subagency-specific-access
+  - 2-5-user-contact-management
+  - 2-6-access-control-summary-view
+  - 2-7-bulk-user-operations
+current_story: null
+status: completed
+success_count: 7
+failure_count: 0
+last_updated: "2026-01-04T19:58:00-0500"
