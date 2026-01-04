@@ -80,6 +80,7 @@ describe('bulkUserService', () => {
 
     expect(mockPrisma.contactRole.createMany).toHaveBeenCalledWith({
       data: [{ contactId: 'user-2', roleId: 'role-1', grantedBy: 'actor-1' }],
+      skipDuplicates: true,
     });
     expect(mockAudit.log).toHaveBeenCalled();
     expect(mockInvalidate).toHaveBeenCalledWith('cog-2');
@@ -103,6 +104,7 @@ describe('bulkUserService', () => {
 
     expect(mockPrisma.agencyGroupGrant.createMany).toHaveBeenCalledWith({
       data: [{ contactId: 'user-2', agencyGroupId: 'group-1', grantedBy: 'actor-1' }],
+      skipDuplicates: true,
     });
     expect(mockAudit.log).toHaveBeenCalled();
     expect(result.grantedCount).toBe(1);
@@ -129,6 +131,7 @@ describe('bulkUserService', () => {
 
     expect(mockPrisma.subagencyGrant.createMany).toHaveBeenCalledWith({
       data: [{ contactId: 'user-1', subagencyId: 'sub-2', grantedBy: 'actor-1' }],
+      skipDuplicates: true,
     });
     expect(result.grantedCount).toBe(1);
     expect(result.skippedCount).toBe(1);

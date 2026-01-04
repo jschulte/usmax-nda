@@ -130,6 +130,7 @@ export async function bulkAssignRole(
         roleId: role.id,
         grantedBy: actorId,
       })),
+      skipDuplicates: true,
     });
 
     await Promise.all(
@@ -247,6 +248,7 @@ export async function bulkGrantAccess(
           agencyGroupId: agencyGroup.id,
           grantedBy: actorId,
         })),
+        skipDuplicates: true,
       });
 
       await Promise.all(
@@ -347,6 +349,7 @@ export async function bulkGrantAccess(
         subagencyId: entry.subagencyId,
         grantedBy: actorId,
       })),
+      skipDuplicates: true,
     });
 
     await Promise.all(
