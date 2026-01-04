@@ -164,6 +164,7 @@ export function NDADetail() {
     body: '',
   });
   const [emailAttachments, setEmailAttachments] = useState<EmailPreview['attachments']>([]);
+  const [recipientSuggestions, setRecipientSuggestions] = useState<EmailPreview['recipientSuggestions'] | null>(null);
   const [emailTemplates, setEmailTemplates] = useState<EmailTemplateSummary[]>([]);
   const [selectedEmailTemplateId, setSelectedEmailTemplateId] = useState<string>('');
   const [availableRecipients, setAvailableRecipients] = useState<Recipient[]>([]);
@@ -511,6 +512,7 @@ export function NDADetail() {
         bccRecipients: preview.bccRecipients.join(', '),
         body: preview.body,
       });
+      setRecipientSuggestions(preview.recipientSuggestions ?? null);
       setEmailAttachments(preview.attachments);
       setSelectedEmailTemplateId(preview.templateId || templateId || '');
     } catch (err) {
@@ -670,6 +672,36 @@ export function NDADetail() {
       .split(',')
       .map((entry) => entry.trim())
       .filter((entry) => entry.length > 0);
+
+  const mergeRecipientInput = (value: string, email: string) => {
+    const current = parseRecipientInput(value);
+    if (current.includes(email)) return value;
+    return [...current, email].join(', ');
+  };
+
+  const handleAddSuggestedTo = (email: string) => {
+    const existing = availableRecipients.find((recipient) => recipient.email === email);
+    if (existing) {
+      setSelectedRecipientIds((prev) => new Set([...prev, existing.id]));
+      return;
+    }
+
+    handleAddCustomRecipient(email);
+  };
+
+  const handleAddSuggestedCc = (email: string) => {
+    setEmailForm((prev) => ({
+      ...prev,
+      ccRecipients: mergeRecipientInput(prev.ccRecipients, email),
+    }));
+  };
+
+  const handleAddSuggestedBcc = (email: string) => {
+    setEmailForm((prev) => ({
+      ...prev,
+      bccRecipients: mergeRecipientInput(prev.bccRecipients, email),
+    }));
+  };
 
   const handleToggleRecipient = (recipientId: string) => {
     setSelectedRecipientIds(prev => {
@@ -1173,6 +1205,13 @@ export function NDADetail() {
 
   const formatRecipients = (recipients: string[]) =>
     recipients.length > 0 ? recipients.join(', ') : '—';
+
+  const selectedToEmails = getSelectedRecipientEmails();
+  const ccEntries = parseRecipientInput(emailForm.ccRecipients);
+  const bccEntries = parseRecipientInput(emailForm.bccRecipients);
+  const toSuggestions = recipientSuggestions?.toRecipients.filter((email) => !selectedToEmails.includes(email)) ?? [];
+  const ccSuggestions = recipientSuggestions?.ccRecipients.filter((email) => !ccEntries.includes(email)) ?? [];
+  const bccSuggestions = recipientSuggestions?.bccRecipients.filter((email) => !bccEntries.includes(email)) ?? [];
 
   const renderPermissionedButton = (
     button: React.ReactElement,
@@ -2519,6 +2558,76 @@ export function NDADetail() {
                   onAddCustom={handleAddCustomRecipient}
                   allowCustomRecipients={true}
                 />
+
+                {toSuggestions.length > 0 && (
+                  <div className="rounded-lg border border-[var(--color-border)] p-3">
+                    <p className="text-xs text-[var(--color-text-secondary)] mb-2">
+                      Suggested recipients from previous emails
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {toSuggestions.map((email) => (
+                        <button
+                          key={`to-${email}`}
+                          type="button"
+                          onClick={() => handleAddSuggestedTo(email)}
+                          className="px-2 py-1 text-xs rounded border border-[var(--color-border)] bg-white hover:bg-[var(--color-surface)]"
+                        >
+                          {email}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-sm font-medium text-[var(--color-text-primary)] mb-2 block">CC</label>
+                    <input
+                      value={emailForm.ccRecipients}
+                      onChange={(e) => setEmailForm((prev) => ({ ...prev, ccRecipients: e.target.value }))}
+                      className="w-full px-3 py-2 border border-[var(--color-border)] rounded-lg text-sm"
+                      placeholder="comma-separated emails"
+                    />
+                    {ccSuggestions.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {ccSuggestions.map((email) => (
+                          <button
+                            key={`cc-${email}`}
+                            type="button"
+                            onClick={() => handleAddSuggestedCc(email)}
+                            className="px-2 py-1 text-xs rounded border border-[var(--color-border)] bg-white hover:bg-[var(--color-surface)]"
+                          >
+                            {email}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-medium text-[var(--color-text-primary)] mb-2 block">BCC</label>
+                    <input
+                      value={emailForm.bccRecipients}
+                      onChange={(e) => setEmailForm((prev) => ({ ...prev, bccRecipients: e.target.value }))}
+                      className="w-full px-3 py-2 border border-[var(--color-border)] rounded-lg text-sm"
+                      placeholder="comma-separated emails"
+                    />
+                    {bccSuggestions.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {bccSuggestions.map((email) => (
+                          <button
+                            key={`bcc-${email}`}
+                            type="button"
+                            onClick={() => handleAddSuggestedBcc(email)}
+                            className="px-2 py-1 text-xs rounded border border-[var(--color-border)] bg-white hover:bg-[var(--color-surface)]"
+                          >
+                            {email}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
 
                 <div>
                   <label className="text-sm font-medium text-[var(--color-text-primary)] mb-2 block">Email Template</label>

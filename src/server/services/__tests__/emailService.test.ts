@@ -114,6 +114,7 @@ describe('Email Service', () => {
     mockPrisma.emailTemplate.findFirst.mockResolvedValue(null);
     mockPrisma.emailTemplate.findUnique.mockResolvedValue(null);
     mockPrisma.ndaSubscription.findMany.mockResolvedValue([]);
+    mockPrisma.ndaEmail.findMany.mockResolvedValue([]);
   });
 
   describe('generateEmailSubject', () => {
@@ -224,6 +225,49 @@ describe('Email Service', () => {
       expect(preview.body).toContain('Dear John Smith');
       expect(preview.attachments).toHaveLength(1);
       expect(preview.attachments[0].filename).toBe('NDA_TechCorp.docx');
+    });
+
+    it('includes recipient suggestions based on historical emails', async () => {
+      mockPrisma.nda.findFirst.mockResolvedValue({
+        id: 'nda-123',
+        companyName: 'TechCorp',
+        abbreviatedName: 'OREM TMA 2025',
+        agencyOfficeName: 'DHS CBP',
+        agencyGroup: { id: 'ag-1', name: 'DHS', code: 'DHS' },
+        relationshipPoc: {
+          id: 'poc-1',
+          email: 'poc@techcorp.com',
+          firstName: 'John',
+          lastName: 'Smith',
+        },
+        documents: [
+          { id: 'doc-1', filename: 'NDA_TechCorp.docx' },
+        ],
+      } as any);
+
+      mockPrisma.contact.findUnique.mockResolvedValue({
+        id: 'user-123',
+        email: 'currentuser@usmax.com',
+      } as any);
+
+      mockPrisma.ndaEmail.findMany.mockResolvedValue([
+        {
+          toRecipients: ['to@techcorp.com', 'poc@techcorp.com'],
+          ccRecipients: ['cc@usmax.com'],
+          bccRecipients: ['bcc@usmax.com'],
+        },
+        {
+          toRecipients: ['to@techcorp.com'],
+          ccRecipients: ['cc@usmax.com', 'cc2@usmax.com'],
+          bccRecipients: [],
+        },
+      ] as any);
+
+      const preview = await getEmailPreview('nda-123', mockUserContext);
+
+      expect(preview.recipientSuggestions?.toRecipients).toContain('to@techcorp.com');
+      expect(preview.recipientSuggestions?.ccRecipients).toContain('cc@usmax.com');
+      expect(preview.recipientSuggestions?.bccRecipients).toContain('bcc@usmax.com');
     });
 
     it('applies selected email template when provided', async () => {

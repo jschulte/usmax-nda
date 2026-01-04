@@ -202,6 +202,11 @@ export interface EmailPreview {
   ccRecipients: string[];
   bccRecipients: string[];
   body: string;
+  recipientSuggestions?: {
+    toRecipients: string[];
+    ccRecipients: string[];
+    bccRecipients: string[];
+  };
   templateId?: string | null;
   templateName?: string | null;
   attachments: Array<{ filename: string; documentId: string }>;

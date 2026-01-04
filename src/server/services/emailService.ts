@@ -56,6 +56,11 @@ export interface EmailPreview {
   ccRecipients: string[];
   bccRecipients: string[];
   body: string;
+  recipientSuggestions?: {
+    toRecipients: string[];
+    ccRecipients: string[];
+    bccRecipients: string[];
+  };
   templateId?: string | null;
   templateName?: string | null;
   attachments: Array<{
@@ -177,6 +182,72 @@ function buildEmailSignature(nda: {
     .join(' ');
 
   return `USmax${name ? `\n${name}` : ''}`;
+}
+
+function addRecipientCounts(recipients: string[], counts: Map<string, number>) {
+  for (const recipient of recipients) {
+    const key = recipient.trim().toLowerCase();
+    if (!key) continue;
+    counts.set(key, (counts.get(key) || 0) + 1);
+  }
+}
+
+function getTopRecipients(counts: Map<string, number>, limit: number): string[] {
+  return Array.from(counts.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit)
+    .map(([email]) => email);
+}
+
+async function getRecipientSuggestions(
+  companyName: string,
+  userContext: UserContext,
+  limit: number = 3
+): Promise<{ toRecipients: string[]; ccRecipients: string[]; bccRecipients: string[] }> {
+  const securityFilter = await buildSecurityFilter(userContext);
+
+  const historicalEmails = await prisma.ndaEmail.findMany({
+    where: {
+      nda: {
+        AND: [
+          securityFilter,
+          {
+            companyName: {
+              equals: companyName,
+              mode: 'insensitive',
+            },
+          },
+        ],
+      },
+    },
+    select: {
+      toRecipients: true,
+      ccRecipients: true,
+      bccRecipients: true,
+    },
+    orderBy: { sentAt: 'desc' },
+    take: 25,
+  });
+
+  if (historicalEmails.length === 0) {
+    return { toRecipients: [], ccRecipients: [], bccRecipients: [] };
+  }
+
+  const toCounts = new Map<string, number>();
+  const ccCounts = new Map<string, number>();
+  const bccCounts = new Map<string, number>();
+
+  for (const email of historicalEmails) {
+    addRecipientCounts(email.toRecipients, toCounts);
+    addRecipientCounts(email.ccRecipients, ccCounts);
+    addRecipientCounts(email.bccRecipients, bccCounts);
+  }
+
+  return {
+    toRecipients: getTopRecipients(toCounts, limit),
+    ccRecipients: getTopRecipients(ccCounts, limit),
+    bccRecipients: getTopRecipients(bccCounts, limit),
+  };
 }
 
 const USMAX_POSITION_LABELS: Record<string, string> = {
@@ -421,12 +492,15 @@ export async function getEmailPreview(
     .map((sub) => sub.contact.email)
     .filter((email): email is string => !!email);
 
+  const recipientSuggestions = await getRecipientSuggestions(nda.companyName, userContext);
+
   return {
     subject,
     toRecipients,
     ccRecipients,
     bccRecipients: [...defaultBcc, ...subscribedEmails], // Story 10.9: Include subscribers
     body,
+    recipientSuggestions,
     templateId: template?.id ?? null,
     templateName: template?.name ?? null,
     attachments,

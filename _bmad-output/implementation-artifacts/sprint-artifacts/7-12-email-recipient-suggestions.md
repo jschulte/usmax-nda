@@ -1,7 +1,7 @@
 # Story 7.12: Email Recipient Suggestions
 
 ## Status
-ready-for-dev
+done
 
 ## Story
 As a **NDA User**,
@@ -14,16 +14,28 @@ So that **I don't have to manually enter CC/BCC every time**.
 **Then** system suggests TO/CC/BCC based on historical patterns
 
 ## Tasks / Subtasks
-⚠️ **DRAFT TASKS** - Generated from requirements analysis. Will be validated and refined against actual codebase when dev-story runs.
+- [x] **Task 1: Backend recipient suggestion logic** (AC: 1-3)
+  - [x] 1.1: Compute historical recipient patterns from nda_emails
+  - [x] 1.2: Include recipient suggestions in email preview response
 
-- [ ] Review existing data model and services for template/configuration support (AC: 1)
-- [ ] Implement or verify backend routes/services with RBAC + agency scoping (AC: 1-3)
-- [ ] Implement or verify frontend UI flows for admin/user interactions (AC: 1-3)
-- [ ] Add/verify audit logging, validation, and error handling (AC: 1-3)
-- [ ] Add/verify unit/integration tests for critical paths (AC: 1-3)
+- [x] **Task 2: Frontend suggestion UI** (AC: 1-3)
+  - [x] 2.1: Add CC/BCC inputs to email composer
+  - [x] 2.2: Render suggested TO/CC/BCC chips and allow quick add
+
+- [x] **Task 3: Tests** (AC: 1-3)
+  - [x] 3.1: emailService preview test for recipient suggestions
+  - [x] 3.2: NDADetail regression test coverage
 
 ## Gap Analysis
-_This section will be populated by dev-story when gap analysis runs._
+### Pre-Development Analysis (2026-01-04)
+- **Development Type:** brownfield (email preview + composer already implemented)
+- **Existing Implementations:** email preview defaults, recipient selector, NDA email history
+- **Gaps Identified:**
+  - No historical recipient suggestions in email preview response
+  - Email composer lacks CC/BCC inputs and suggestion affordances
+  - No tests validating suggestion logic in email preview
+
+**Status:** Ready for implementation
 
 ## Dev Notes
 - Keep all NDA queries scoped to authorized subagencies.
@@ -57,104 +69,45 @@ _This section will be populated by dev-story when gap analysis runs._
 - `AGENTS.md` (service layer, middleware order, scoping, audit logging)
 - `_bmad-output/planning-artifacts/epics-backup-20251223-155341.md` (Epic 7 story definitions)
 
+---
+
+## Implementation Summary
+- Added historical recipient suggestions to email preview (TO/CC/BCC) using nda_emails patterns.
+- Added CC/BCC inputs and suggestion chips to the email composer.
+- Added emailService unit test coverage for suggestions and verified NDADetail UI regression tests.
+
+## Post-Validation
+- `pnpm test:run src/server/services/__tests__/emailService.test.ts` ✅ (expected stderr from queueEmail mock warning)
+- `pnpm test:run src/components/__tests__/NDADetail.test.tsx` ✅
+
+## Code Review Summary
+- Issues found: 3
+- Issues fixed: 3
+- Review file: `_bmad-output/implementation-artifacts/sprint-artifacts/review-7-12-email-recipient-suggestions.md`
+
 
 ## Dev Agent Record
 ### Agent Model Used
 codex-cli (GPT-5)
 
 ### Debug Log References
+N/A
 
 ### Completion Notes List
+- Added historical recipient suggestions to email preview responses.
+- Added CC/BCC inputs and suggestion chips in the email composer.
+- Added emailService tests and validated NDADetail component tests.
 
 ### File List
+- src/server/services/emailService.ts
+- src/server/services/__tests__/emailService.test.ts
+- src/client/services/ndaService.ts
+- src/components/screens/NDADetail.tsx
+- test/e2e/utils/mockApi.ts
+- _bmad-output/implementation-artifacts/sprint-artifacts/review-7-12-email-recipient-suggestions.md
 
 ### Additional Context
 - This story is part of Epic 7 (Templates & Configuration).
-- Coordinate with existing template/email services and UI screens.
-- Follow established coding standards and security guardrails.
-- Validate acceptance criteria against current implementation and update if needed.
-- Maintain backward compatibility for existing templates and configurations.
-- Ensure UX labels, permissions, and audit trails align with compliance requirements.
-- When unsure, review prior stories and hardening notes for patterns.
-- This story is part of Epic 7 (Templates & Configuration).
-- Coordinate with existing template/email services and UI screens.
-- Follow established coding standards and security guardrails.
-- Validate acceptance criteria against current implementation and update if needed.
-- Maintain backward compatibility for existing templates and configurations.
-- Ensure UX labels, permissions, and audit trails align with compliance requirements.
-- When unsure, review prior stories and hardening notes for patterns.
-- Coordinate with existing template/email services and UI screens.
-- Follow established coding standards and security guardrails.
-- Validate acceptance criteria against current implementation and update if needed.
-- Maintain backward compatibility for existing templates and configurations.
-- Ensure UX labels, permissions, and audit trails align with compliance requirements.
-- When unsure, review prior stories and hardening notes for patterns.
-- Coordinate with existing template/email services and UI screens.
-- Follow established coding standards and security guardrails.
-- Validate acceptance criteria against current implementation and update if needed.
-- Maintain backward compatibility for existing templates and configurations.
-- Ensure UX labels, permissions, and audit trails align with compliance requirements.
-- When unsure, review prior stories and hardening notes for patterns.
-- Coordinate with existing template/email services and UI screens.
-- Follow established coding standards and security guardrails.
-- Validate acceptance criteria against current implementation and update if needed.
-- Maintain backward compatibility for existing templates and configurations.
-- Ensure UX labels, permissions, and audit trails align with compliance requirements.
-- When unsure, review prior stories and hardening notes for patterns.
-- Coordinate with existing template/email services and UI screens.
-- Follow established coding standards and security guardrails.
-- Validate acceptance criteria against current implementation and update if needed.
-- Maintain backward compatibility for existing templates and configurations.
-- Ensure UX labels, permissions, and audit trails align with compliance requirements.
-- When unsure, review prior stories and hardening notes for patterns.
-- Coordinate with existing template/email services and UI screens.
-- Follow established coding standards and security guardrails.
-- Validate acceptance criteria against current implementation and update if needed.
-- Maintain backward compatibility for existing templates and configurations.
-- Ensure UX labels, permissions, and audit trails align with compliance requirements.
-- When unsure, review prior stories and hardening notes for patterns.
-- Coordinate with existing template/email services and UI screens.
-- Follow established coding standards and security guardrails.
-- Validate acceptance criteria against current implementation and update if needed.
-- Maintain backward compatibility for existing templates and configurations.
-- Ensure UX labels, permissions, and audit trails align with compliance requirements.
-- When unsure, review prior stories and hardening notes for patterns.
-- Coordinate with existing template/email services and UI screens.
-- Follow established coding standards and security guardrails.
-- Validate acceptance criteria against current implementation and update if needed.
-- Maintain backward compatibility for existing templates and configurations.
-- Ensure UX labels, permissions, and audit trails align with compliance requirements.
-- When unsure, review prior stories and hardening notes for patterns.
-- Coordinate with existing template/email services and UI screens.
-- Follow established coding standards and security guardrails.
-- Validate acceptance criteria against current implementation and update if needed.
-- Maintain backward compatibility for existing templates and configurations.
-- Ensure UX labels, permissions, and audit trails align with compliance requirements.
-- When unsure, review prior stories and hardening notes for patterns.
-- Coordinate with existing template/email services and UI screens.
-- Follow established coding standards and security guardrails.
-- Validate acceptance criteria against current implementation and update if needed.
-- Maintain backward compatibility for existing templates and configurations.
-- Ensure UX labels, permissions, and audit trails align with compliance requirements.
-- When unsure, review prior stories and hardening notes for patterns.
-- Coordinate with existing template/email services and UI screens.
-- Follow established coding standards and security guardrails.
-- Validate acceptance criteria against current implementation and update if needed.
-- Maintain backward compatibility for existing templates and configurations.
-- Ensure UX labels, permissions, and audit trails align with compliance requirements.
-- When unsure, review prior stories and hardening notes for patterns.
-- Coordinate with existing template/email services and UI screens.
-- Follow established coding standards and security guardrails.
-- Validate acceptance criteria against current implementation and update if needed.
-- Maintain backward compatibility for existing templates and configurations.
-- Ensure UX labels, permissions, and audit trails align with compliance requirements.
-- When unsure, review prior stories and hardening notes for patterns.
-- Coordinate with existing template/email services and UI screens.
-- Follow established coding standards and security guardrails.
-- Validate acceptance criteria against current implementation and update if needed.
-- Maintain backward compatibility for existing templates and configurations.
-- Ensure UX labels, permissions, and audit trails align with compliance requirements.
-- When unsure, review prior stories and hardening notes for patterns.
 - Coordinate with existing template/email services and UI screens.
 - Follow established coding standards and security guardrails.
 - Validate acceptance criteria against current implementation and update if needed.

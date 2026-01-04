@@ -1248,6 +1248,11 @@ export async function setupMockApi(page: Page, state: MockState): Promise<void> 
           ccRecipients: [],
           bccRecipients: [],
           body: 'Please review the NDA.',
+          recipientSuggestions: {
+            toRecipients: ['suggested@partner.com'],
+            ccRecipients: ['legal@usmax.com'],
+            bccRecipients: [],
+          },
           attachments,
           templateId: 'email-1',
           templateName: 'Default Email Template',
