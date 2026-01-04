@@ -152,6 +152,53 @@ describe('RequestWizard', () => {
     });
   });
 
+  it('shows historical suggestions for authorized purpose and effective date', async () => {
+    const user = userEvent.setup();
+    vi.mocked(getCompanySuggestions).mockResolvedValue({
+      companies: [{ companyName: 'TechCorp Solutions Inc.', count: 3 }],
+    });
+    vi.mocked(getCompanyDefaults).mockResolvedValue({
+      defaults: {
+        mostCommonAgencyGroupId: 'agency-1',
+        authorizedPurposeCounts: [{ purpose: 'Prototype effort', count: 2 }],
+        effectiveDateSuggestions: ['2024-01-15'],
+      },
+    });
+
+    const { container } = render(<RequestWizard />);
+
+    await user.type(
+      screen.getByPlaceholderText('e.g., TechCorp Integration'),
+      'TechCorp Integration'
+    );
+    await user.type(
+      screen.getByPlaceholderText('Describe the authorized purpose of this NDA and the project context'),
+      'Initial purpose'
+    );
+
+    await user.click(screen.getByRole('button', { name: /next/i }));
+
+    const companyInput = await screen.findByPlaceholderText('Start typing to search...');
+    await user.click(companyInput);
+    const suggestion = await screen.findByText('TechCorp Solutions Inc.');
+    await user.click(suggestion);
+
+    await user.click(screen.getByRole('button', { name: /^back$/i }));
+
+    const purposeChip = await screen.findByRole('button', { name: /prototype effort/i });
+    await user.click(purposeChip);
+
+    expect(
+      screen.getByPlaceholderText('Describe the authorized purpose of this NDA and the project context')
+    ).toHaveValue('Prototype effort');
+
+    const dateChip = await screen.findByRole('button', { name: '2024-01-15' });
+    await user.click(dateChip);
+
+    const effectiveDateInput = container.querySelector('input[type=\"date\"]') as HTMLInputElement;
+    expect(effectiveDateInput.value).toBe('2024-01-15');
+  });
+
   it('shows clone banner with link when cloning from an NDA', async () => {
     mockLocation.search = '?cloneFrom=nda-1';
     vi.mocked(getNDA).mockResolvedValue({

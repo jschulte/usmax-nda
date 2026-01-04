@@ -121,6 +121,9 @@ describe('companySuggestionsService', () => {
           companyCity: 'San Francisco',
           companyState: 'CA',
           stateOfIncorporation: 'Delaware',
+          authorizedPurpose: 'Prototype work',
+          ndaType: 'MUTUAL',
+          effectiveDate: new Date('2024-01-15'),
           relationshipPocId: 'poc-1',
           relationshipPoc: { id: 'poc-1', firstName: 'John', lastName: 'Doe' },
           contractsPocId: 'poc-2',
@@ -144,6 +147,9 @@ describe('companySuggestionsService', () => {
       expect(defaults.lastContractsPocName).toBe('Jane Smith');
       expect(defaults.mostCommonAgencyGroupId).toBe('agency-1');
       expect(defaults.mostCommonAgencyGroupName).toBe('DoD');
+      expect(defaults.typicalAuthorizedPurpose).toBe('Prototype work');
+      expect(defaults.typicalNdaType).toBe('MUTUAL');
+      expect(defaults.effectiveDateSuggestions).toContain('2024-01-15');
     });
 
     it('returns most recent values for fields', async () => {
@@ -240,6 +246,26 @@ describe('companySuggestionsService', () => {
       // DoD appears twice, NASA once
       expect(defaults.mostCommonAgencyGroupId).toBe('agency-1');
       expect(defaults.mostCommonAgencyGroupName).toBe('DoD');
+    });
+
+    it('applies optional agency filters when provided', async () => {
+      mockPrisma.nda.findMany.mockResolvedValue([]);
+
+      await getCompanyDefaults('TechCorp', mockUserContext, {
+        agencyGroupId: 'agency-1',
+        subagencyId: 'sub-1',
+      });
+
+      expect(mockPrisma.nda.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            AND: expect.arrayContaining([
+              { agencyGroupId: 'agency-1' },
+              { subagencyId: 'sub-1' },
+            ]),
+          }),
+        })
+      );
     });
 
     it('returns empty object when no historical NDAs found', async () => {

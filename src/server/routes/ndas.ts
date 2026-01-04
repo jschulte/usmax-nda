@@ -469,6 +469,8 @@ router.get(
   async (req, res) => {
     try {
       const companyName = (req.query.name as string | undefined)?.trim();
+      const agencyGroupId = (req.query.agencyGroupId as string | undefined)?.trim();
+      const subagencyId = (req.query.subagencyId as string | undefined)?.trim();
 
       if (!companyName) {
         return res.status(400).json({
@@ -477,7 +479,10 @@ router.get(
         });
       }
 
-      const defaults = await getCompanyDefaults(companyName, req.userContext!);
+      const defaults = await getCompanyDefaults(companyName, req.userContext!, {
+        agencyGroupId: agencyGroupId || undefined,
+        subagencyId: subagencyId || undefined,
+      });
       res.json({ defaults });
     } catch (error) {
       console.error('[NDAs] Error getting company defaults:', error);

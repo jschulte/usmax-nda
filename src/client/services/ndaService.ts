@@ -311,6 +311,11 @@ export interface CompanyDefaults {
   mostCommonAgencyGroupName?: string;
   mostCommonSubagencyId?: string;
   mostCommonSubagencyName?: string;
+  typicalAuthorizedPurpose?: string;
+  authorizedPurposeCounts?: Array<{ purpose: string; count: number }>;
+  typicalNdaType?: NdaType;
+  ndaTypeCounts?: Array<{ ndaType: NdaType; count: number }>;
+  effectiveDateSuggestions?: string[];
 }
 
 export interface AgencySuggestions {
@@ -472,11 +477,14 @@ export async function getCompanySuggestions(
  * Get auto-fill defaults for a company
  */
 export async function getCompanyDefaults(
-  companyName: string
+  companyName: string,
+  options?: { agencyGroupId?: string; subagencyId?: string | null }
 ): Promise<{ defaults: CompanyDefaults }> {
-  return get<{ defaults: CompanyDefaults }>('/api/ndas/company-defaults', {
-    name: companyName,
-  });
+  const params: Record<string, string> = { name: companyName };
+  if (options?.agencyGroupId) params.agencyGroupId = options.agencyGroupId;
+  if (options?.subagencyId) params.subagencyId = options.subagencyId;
+
+  return get<{ defaults: CompanyDefaults }>('/api/ndas/company-defaults', params);
 }
 
 /**

@@ -10,6 +10,7 @@
 
 import prisma from '../db/index.js';
 import type { UserContext } from '../types/auth.js';
+import type { NdaType } from '../../generated/prisma/index.js';
 import { buildSecurityFilter } from './ndaService.js';
 
 export interface CompanyDefaults {
@@ -24,6 +25,11 @@ export interface CompanyDefaults {
   mostCommonAgencyGroupName?: string;
   mostCommonSubagencyId?: string;
   mostCommonSubagencyName?: string;
+  typicalAuthorizedPurpose?: string;
+  authorizedPurposeCounts?: Array<{ purpose: string; count: number }>;
+  typicalNdaType?: NdaType;
+  ndaTypeCounts?: Array<{ ndaType: NdaType; count: number }>;
+  effectiveDateSuggestions?: string[];
 }
 
 export interface RecentCompany {
@@ -141,9 +147,11 @@ export async function getRecentCompanies(
  */
 export async function getCompanyDefaults(
   companyName: string,
-  userContext: UserContext
+  userContext: UserContext,
+  options?: { agencyGroupId?: string; subagencyId?: string | null; limit?: number }
 ): Promise<CompanyDefaults> {
   const securityFilter = await buildSecurityFilter(userContext);
+  const limit = options?.limit ?? 10;
 
   // Get historical NDAs for this company
   const historicalNdas = await prisma.nda.findMany({
@@ -156,6 +164,8 @@ export async function getCompanyDefaults(
             mode: 'insensitive', // Case-insensitive match
           },
         },
+        ...(options?.agencyGroupId ? [{ agencyGroupId: options.agencyGroupId }] : []),
+        ...(options?.subagencyId ? [{ subagencyId: options.subagencyId }] : []),
       ],
     },
     include: {
@@ -187,7 +197,7 @@ export async function getCompanyDefaults(
       },
     },
     orderBy: { createdAt: 'desc' },
-    take: 10, // Last 10 NDAs for this company
+    take: limit, // Last N NDAs for this company
   });
 
   if (historicalNdas.length === 0) {
@@ -247,6 +257,39 @@ export async function getCompanyDefaults(
     }
   }
 
+  const purposeCounts = new Map<string, number>();
+  const ndaTypeCounts = new Map<NdaType, number>();
+  const effectiveDateSuggestions: string[] = [];
+  const effectiveDateSeen = new Set<string>();
+
+  for (const nda of historicalNdas) {
+    const purpose = nda.authorizedPurpose?.trim();
+    if (purpose) {
+      purposeCounts.set(purpose, (purposeCounts.get(purpose) || 0) + 1);
+    }
+
+    if (nda.ndaType) {
+      ndaTypeCounts.set(nda.ndaType, (ndaTypeCounts.get(nda.ndaType) || 0) + 1);
+    }
+
+    if (nda.effectiveDate) {
+      const dateValue = nda.effectiveDate.toISOString().split('T')[0];
+      if (!effectiveDateSeen.has(dateValue)) {
+        effectiveDateSeen.add(dateValue);
+        effectiveDateSuggestions.push(dateValue);
+      }
+    }
+  }
+
+  const authorizedPurposeCounts = Array.from(purposeCounts.entries())
+    .map(([purpose, count]) => ({ purpose, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 3);
+
+  const ndaTypeCountsList = Array.from(ndaTypeCounts.entries())
+    .map(([ndaType, count]) => ({ ndaType, count }))
+    .sort((a, b) => b.count - a.count);
+
   return {
     companyCity,
     companyState,
@@ -259,6 +302,11 @@ export async function getCompanyDefaults(
     mostCommonAgencyGroupName,
     mostCommonSubagencyId,
     mostCommonSubagencyName,
+    typicalAuthorizedPurpose: authorizedPurposeCounts[0]?.purpose,
+    authorizedPurposeCounts,
+    typicalNdaType: ndaTypeCountsList[0]?.ndaType,
+    ndaTypeCounts: ndaTypeCountsList,
+    effectiveDateSuggestions: effectiveDateSuggestions.slice(0, 3),
   };
 }
 

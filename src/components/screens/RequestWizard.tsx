@@ -33,6 +33,7 @@ import {
   type UpdateNdaData,
   type AgencySuggestions,
   type CompanySuggestion,
+  type CompanyDefaults,
   type UsMaxPosition,
   type NdaType,
 } from '../../client/services/ndaService';
@@ -90,6 +91,7 @@ export function RequestWizard() {
   const [autoFilledFields, setAutoFilledFields] = useState<Record<string, boolean>>({});
   const [cloneFieldsToUpdate, setCloneFieldsToUpdate] = useState<Record<string, boolean>>({});
   const [agencySuggestions, setAgencySuggestions] = useState<AgencySuggestions | null>(null);
+  const [companyDefaults, setCompanyDefaults] = useState<CompanyDefaults | null>(null);
   const [templates, setTemplates] = useState<RtfTemplate[]>([]);
   const [templatesLoading, setTemplatesLoading] = useState(false);
   const [contactSuggestions, setContactSuggestions] = useState<Contact[]>([]);
@@ -517,6 +519,56 @@ export function RequestWizard() {
     return () => clearTimeout(debounceTimer);
   }, [companySearchTerm, handleCompanySearch]);
 
+  const loadCompanyDefaults = useCallback(
+    async (companyName: string, agencyGroupId?: string, subagencyId?: string | null) => {
+      try {
+        const response = await getCompanyDefaults(companyName, {
+          agencyGroupId,
+          subagencyId,
+        });
+        const defaults = response.defaults;
+        const fieldsToMark: string[] = [];
+
+        setCompanyDefaults(defaults);
+
+        if (defaults.companyCity) fieldsToMark.push('companyCity');
+        if (defaults.companyState) fieldsToMark.push('companyState');
+        if (defaults.stateOfIncorporation) fieldsToMark.push('stateOfIncorporation');
+        if (defaults.lastRelationshipPocId || defaults.lastRelationshipPocName) {
+          fieldsToMark.push('relationshipPocId', 'relationshipPocName');
+        }
+        if (defaults.lastContractsPocId || defaults.lastContractsPocName) {
+          fieldsToMark.push('contractsPocId', 'contractsPocName');
+        }
+        if (defaults.mostCommonAgencyGroupId) fieldsToMark.push('agencyGroupId');
+        if (defaults.mostCommonSubagencyId) fieldsToMark.push('subagencyId');
+
+        setFormData((prev) => ({
+          ...prev,
+          companyCity: defaults.companyCity || prev.companyCity,
+          companyState: defaults.companyState || prev.companyState,
+          stateOfIncorporation: defaults.stateOfIncorporation || prev.stateOfIncorporation,
+          relationshipPocId: defaults.lastRelationshipPocId || prev.relationshipPocId,
+          relationshipPocName: defaults.lastRelationshipPocName || prev.relationshipPocName,
+          contractsPocId: defaults.lastContractsPocId || prev.contractsPocId,
+          contractsPocName: defaults.lastContractsPocName || prev.contractsPocName,
+          agencyGroupId: defaults.mostCommonAgencyGroupId || prev.agencyGroupId,
+          subagencyId: defaults.mostCommonSubagencyId || prev.subagencyId,
+        }));
+
+        markAutoFilled(fieldsToMark);
+
+        if (defaults.companyCity || defaults.companyState) {
+          toast.success('Company details auto-filled from previous records');
+        }
+      } catch (err) {
+        console.error('Failed to load company defaults:', err);
+        setCompanyDefaults(null);
+      }
+    },
+    [markAutoFilled]
+  );
+
   // Load company defaults when company is selected
   const handleCompanySelect = useCallback(async (companyName: string) => {
     setFormData((prev) => ({ ...prev, companyName }));
@@ -526,45 +578,23 @@ export function RequestWizard() {
     setTouchedFields((prev) => ({ ...prev, companyName: true }));
     setAutoFilledFields({});
 
-    try {
-      const response = await getCompanyDefaults(companyName);
-      const defaults = response.defaults;
-      const fieldsToMark: string[] = [];
+    await loadCompanyDefaults(
+      companyName,
+      formData.agencyGroupId || undefined,
+      formData.subagencyId || undefined
+    );
+  }, [formData.agencyGroupId, formData.subagencyId, loadCompanyDefaults]);
 
-      if (defaults.companyCity) fieldsToMark.push('companyCity');
-      if (defaults.companyState) fieldsToMark.push('companyState');
-      if (defaults.stateOfIncorporation) fieldsToMark.push('stateOfIncorporation');
-      if (defaults.lastRelationshipPocId || defaults.lastRelationshipPocName) {
-        fieldsToMark.push('relationshipPocId', 'relationshipPocName');
-      }
-      if (defaults.lastContractsPocId || defaults.lastContractsPocName) {
-        fieldsToMark.push('contractsPocId', 'contractsPocName');
-      }
-      if (defaults.mostCommonAgencyGroupId) fieldsToMark.push('agencyGroupId');
-      if (defaults.mostCommonSubagencyId) fieldsToMark.push('subagencyId');
+  useEffect(() => {
+    const companyName = formData.companyName.trim();
+    if (!companyName || !formData.agencyGroupId) return;
 
-      setFormData((prev) => ({
-        ...prev,
-        companyCity: defaults.companyCity || prev.companyCity,
-        companyState: defaults.companyState || prev.companyState,
-        stateOfIncorporation: defaults.stateOfIncorporation || prev.stateOfIncorporation,
-        relationshipPocId: defaults.lastRelationshipPocId || prev.relationshipPocId,
-        relationshipPocName: defaults.lastRelationshipPocName || prev.relationshipPocName,
-        contractsPocId: defaults.lastContractsPocId || prev.contractsPocId,
-        contractsPocName: defaults.lastContractsPocName || prev.contractsPocName,
-        agencyGroupId: defaults.mostCommonAgencyGroupId || prev.agencyGroupId,
-        subagencyId: defaults.mostCommonSubagencyId || prev.subagencyId,
-      }));
-
-      markAutoFilled(fieldsToMark);
-
-      if (defaults.companyCity || defaults.companyState) {
-        toast.success('Company details auto-filled from previous records');
-      }
-    } catch (err) {
-      console.error('Failed to load company defaults:', err);
-    }
-  }, []);
+    loadCompanyDefaults(
+      companyName,
+      formData.agencyGroupId,
+      formData.subagencyId || undefined
+    );
+  }, [formData.companyName, formData.agencyGroupId, formData.subagencyId, loadCompanyDefaults]);
 
   const companySuggestionItems = useMemo(() => {
     const items: Array<{ name: string; count?: number; source: 'recent' | 'agency' | 'search' }> = [];
@@ -1442,6 +1472,28 @@ export function RequestWizard() {
                   helperText={`${authorizedPurposeCount}/255`}
                   className={cloneHighlightClass('authorizedPurpose')}
                 />
+                {formData.agencyGroupId && companyDefaults?.authorizedPurposeCounts?.length ? (
+                  <div className="mt-2">
+                    <p className="text-xs text-[var(--color-text-secondary)]">
+                      Suggested purposes from similar NDAs
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {companyDefaults.authorizedPurposeCounts.map((suggestion) => (
+                        <button
+                          key={suggestion.purpose}
+                          type="button"
+                          onClick={() => {
+                            clearCloneField('authorizedPurpose');
+                            setFormData({ ...formData, authorizedPurpose: suggestion.purpose });
+                          }}
+                          className="px-2 py-1 text-xs rounded border border-[var(--color-border)] bg-white hover:bg-[var(--color-surface)]"
+                        >
+                          {suggestion.purpose} ({suggestion.count})
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
 
                 <div>
                   <label className="block text-sm mb-3 text-[var(--color-text-primary)]">
@@ -1449,7 +1501,11 @@ export function RequestWizard() {
                   </label>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {ndaTypes.map((typeOption) => {
-                      const isSuggested = agencySuggestions?.typicalNdaType === typeOption.value;
+                      const companySuggestedNdaType = formData.agencyGroupId
+                        ? companyDefaults?.typicalNdaType
+                        : undefined;
+                      const suggestedNdaType = agencySuggestions?.typicalNdaType ?? companySuggestedNdaType;
+                      const isSuggested = suggestedNdaType === typeOption.value;
                       return (
                         <button
                           key={typeOption.value}
@@ -1480,6 +1536,11 @@ export function RequestWizard() {
                   {agencySuggestions?.typicalNdaType && (
                     <p className="text-xs text-[var(--color-text-secondary)] mt-2">
                       Suggested NDA type based on this agency: {ndaTypes.find((t) => t.value === agencySuggestions.typicalNdaType)?.label}
+                    </p>
+                  )}
+                  {!agencySuggestions?.typicalNdaType && formData.agencyGroupId && companyDefaults?.typicalNdaType && (
+                    <p className="text-xs text-[var(--color-text-secondary)] mt-2">
+                      Suggested NDA type based on this company + agency: {ndaTypes.find((t) => t.value === companyDefaults.typicalNdaType)?.label}
                     </p>
                   )}
                 </div>
@@ -1538,6 +1599,28 @@ export function RequestWizard() {
                   helperText="Leave blank to use today's date"
                   className={cloneHighlightClass('effectiveDate')}
                 />
+                {formData.agencyGroupId && companyDefaults?.effectiveDateSuggestions?.length ? (
+                  <div className="mt-2">
+                    <p className="text-xs text-[var(--color-text-secondary)]">
+                      Suggested effective dates from similar NDAs
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {companyDefaults.effectiveDateSuggestions.map((date) => (
+                        <button
+                          key={date}
+                          type="button"
+                          onClick={() => {
+                            clearCloneField('effectiveDate');
+                            setFormData({ ...formData, effectiveDate: date });
+                          }}
+                          className="px-2 py-1 text-xs rounded border border-[var(--color-border)] bg-white hover:bg-[var(--color-surface)]"
+                        >
+                          {date}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
               </div>
             )}
             

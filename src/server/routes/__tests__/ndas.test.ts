@@ -180,13 +180,19 @@ describe('NDA Routes Integration', () => {
         companyCity: 'San Francisco',
       });
 
-      const response = await request(app).get('/api/ndas/company-defaults?name=TechCorp');
+      const response = await request(app).get(
+        '/api/ndas/company-defaults?name=TechCorp&agencyGroupId=agency-1&subagencyId=sub-1'
+      );
 
       expect(response.status).toBe(200);
       expect(response.body.defaults.companyCity).toBe('San Francisco');
       expect(companySuggestionsService.getCompanyDefaults).toHaveBeenCalledWith(
         'TechCorp',
-        expect.any(Object)
+        expect.any(Object),
+        {
+          agencyGroupId: 'agency-1',
+          subagencyId: 'sub-1',
+        }
       );
     });
 
