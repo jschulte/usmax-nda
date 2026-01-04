@@ -54,6 +54,17 @@ export interface MockState {
   notes: Record<string, InternalNote[]>;
   auditLogs: AuditLogEntry[];
   workflowGuidance: Record<string, WorkflowGuidance>;
+  emailTemplates: Array<{
+    id: string;
+    name: string;
+    description: string | null;
+    subject: string;
+    body: string;
+    isDefault: boolean;
+    isActive: boolean;
+    createdAt: string;
+    updatedAt: string;
+  }>;
 }
 
 const nowIso = () => new Date().toISOString();
@@ -218,6 +229,31 @@ export function createMockState(): MockState {
       authorizedAgencyGroupIds: ['ag-2'],
     },
   };
+
+  const emailTemplates = [
+    {
+      id: 'email-1',
+      name: 'Default Email Template',
+      description: 'Default template',
+      subject: 'NDA {{displayId}} - {{companyName}}',
+      body: 'Hello {{companyName}},\n\nPlease review NDA {{displayId}}.',
+      isDefault: true,
+      isActive: true,
+      createdAt: nowIso(),
+      updatedAt: nowIso(),
+    },
+    {
+      id: 'email-2',
+      name: 'Follow Up Template',
+      description: 'Follow up message',
+      subject: 'Follow up on NDA {{displayId}}',
+      body: 'Hi {{companyName}},\n\nJust checking in on NDA {{displayId}}.',
+      isDefault: false,
+      isActive: true,
+      createdAt: nowIso(),
+      updatedAt: nowIso(),
+    },
+  ];
 
   const ndaA = buildNdaDetail({
     id: 'nda-1',
@@ -394,6 +430,7 @@ export function createMockState(): MockState {
     },
     auditLogs,
     workflowGuidance,
+    emailTemplates,
   };
 }
 
@@ -678,20 +715,133 @@ export async function setupMockApi(page: Page, state: MockState): Promise<void> 
     }
 
     if (path === '/api/email-templates' && method === 'GET') {
+      const templates = state.emailTemplates.filter((template) => template.isActive);
       return jsonResponse(route, 200, {
-        templates: [
-          {
-            id: 'email-1',
-            name: 'Default Email Template',
-            description: 'Default template',
-            isDefault: true,
-            isActive: true,
-            createdAt: nowIso(),
-            updatedAt: nowIso(),
-          },
-        ],
-        count: 1,
+        templates,
+        count: templates.length,
       });
+    }
+
+    if (path === '/api/admin/email-templates' && method === 'GET') {
+      const includeInactive = url.searchParams.get('includeInactive') === 'true';
+      const templates = includeInactive
+        ? state.emailTemplates
+        : state.emailTemplates.filter((template) => template.isActive);
+      return jsonResponse(route, 200, { templates, count: templates.length });
+    }
+
+    if (path === '/api/admin/email-templates' && method === 'POST') {
+      const body = parseJsonBody<{
+        name?: string;
+        description?: string | null;
+        subject?: string;
+        body?: string;
+        isDefault?: boolean;
+      }>(request) ?? {};
+
+      const newTemplate = {
+        id: `email-${Date.now()}`,
+        name: body.name ?? 'Untitled Template',
+        description: body.description ?? null,
+        subject: body.subject ?? '',
+        body: body.body ?? '',
+        isDefault: body.isDefault ?? false,
+        isActive: true,
+        createdAt: nowIso(),
+        updatedAt: nowIso(),
+      };
+
+      if (newTemplate.isDefault) {
+        state.emailTemplates = state.emailTemplates.map((template) => ({
+          ...template,
+          isDefault: false,
+        }));
+      }
+
+      state.emailTemplates = [newTemplate, ...state.emailTemplates];
+      return jsonResponse(route, 201, { template: newTemplate, message: 'Email template created successfully' });
+    }
+
+    const adminEmailDuplicateMatch = path.match(/^\/api\/admin\/email-templates\/([^/]+)\/duplicate$/);
+    if (adminEmailDuplicateMatch && method === 'POST') {
+      const templateId = adminEmailDuplicateMatch[1];
+      const original = state.emailTemplates.find((template) => template.id === templateId);
+      if (!original) {
+        return jsonResponse(route, 404, { error: 'Email template not found', code: 'TEMPLATE_NOT_FOUND' });
+      }
+
+      const duplicate = {
+        ...original,
+        id: `email-${Date.now()}`,
+        name: `${original.name} (Copy)`,
+        isDefault: false,
+        createdAt: nowIso(),
+        updatedAt: nowIso(),
+      };
+
+      state.emailTemplates = [duplicate, ...state.emailTemplates];
+      return jsonResponse(route, 200, { template: duplicate, message: 'Email template duplicated successfully' });
+    }
+
+    const adminEmailTemplateMatch = path.match(/^\/api\/admin\/email-templates\/([^/]+)$/);
+    if (adminEmailTemplateMatch && method === 'PUT') {
+      const templateId = adminEmailTemplateMatch[1];
+      const body = parseJsonBody<{
+        name?: string;
+        description?: string | null;
+        subject?: string;
+        body?: string;
+        isDefault?: boolean;
+        isActive?: boolean;
+      }>(request) ?? {};
+
+      const templateIndex = state.emailTemplates.findIndex((template) => template.id === templateId);
+      if (templateIndex < 0) {
+        return jsonResponse(route, 404, { error: 'Email template not found', code: 'TEMPLATE_NOT_FOUND' });
+      }
+
+      if (body.isDefault) {
+        state.emailTemplates = state.emailTemplates.map((template) => ({
+          ...template,
+          isDefault: template.id === templateId,
+        }));
+      }
+
+      const existing = state.emailTemplates[templateIndex];
+      const updated = {
+        ...existing,
+        name: body.name ?? existing.name,
+        description: body.description ?? existing.description,
+        subject: body.subject ?? existing.subject,
+        body: body.body ?? existing.body,
+        isDefault: body.isDefault ?? existing.isDefault,
+        isActive: body.isActive ?? existing.isActive,
+        updatedAt: nowIso(),
+      };
+
+      state.emailTemplates[templateIndex] = updated;
+      return jsonResponse(route, 200, { template: updated, message: 'Email template updated successfully' });
+    }
+
+    if (adminEmailTemplateMatch && method === 'DELETE') {
+      const templateId = adminEmailTemplateMatch[1];
+      const templateIndex = state.emailTemplates.findIndex((template) => template.id === templateId);
+      if (templateIndex < 0) {
+        return jsonResponse(route, 404, { error: 'Email template not found', code: 'TEMPLATE_NOT_FOUND' });
+      }
+
+      const template = state.emailTemplates[templateIndex];
+      if (template.isDefault) {
+        return jsonResponse(route, 400, { error: 'Cannot delete the default template', code: 'CANNOT_DELETE_DEFAULT' });
+      }
+
+      state.emailTemplates[templateIndex] = {
+        ...template,
+        isActive: false,
+        updatedAt: nowIso(),
+      };
+
+      return jsonResponse(route, 200, { message: 'Email template deleted successfully' });
     }
 
     if (path === '/api/agency-groups' && method === 'GET') {

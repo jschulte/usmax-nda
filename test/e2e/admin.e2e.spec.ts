@@ -103,4 +103,50 @@ test.describe('Admin workflows', () => {
     const download = await downloadPromise;
     expect(download.suggestedFilename()).toMatch(/audit-logs/i);
   });
+
+  test('manage email templates', async ({ page, loginAs }) => {
+    await loginAs('admin');
+    await page.setViewportSize({ width: 1440, height: 900 });
+
+    await page.goto('/administration/email-templates');
+
+    await expect(page.getByRole('heading', { name: /email templates/i })).toBeVisible();
+
+    await page.getByRole('button', { name: /create new template/i }).click();
+    await page.getByPlaceholder('e.g., Standard NDA Email').fill('Ops Template');
+    await page.getByPlaceholder('Optional description').fill('Ops description');
+    await page
+      .getByPlaceholder('e.g., NDA {{displayId}} - {{companyName}}')
+      .fill('NDA {{displayId}} - {{companyName}}');
+    await page
+      .getByPlaceholder('Enter email body here. Use placeholders like {{companyName}} for dynamic content.')
+      .fill('Hello {{companyName}}');
+    const createTemplateButton = page.getByRole('button', { name: /create template/i }).last();
+    await createTemplateButton.evaluate((button) => (button as HTMLButtonElement).click());
+
+    await expect(page.getByText('Ops Template')).toBeVisible();
+
+    const optionsButtons = page.getByLabel('Template options');
+    await optionsButtons.first().click();
+    await page.getByRole('menuitem', { name: /edit/i }).click();
+    await page
+      .getByPlaceholder('e.g., NDA {{displayId}} - {{companyName}}')
+      .fill('Updated subject {{displayId}}');
+    const saveChangesButton = page.getByRole('button', { name: /save changes/i });
+    await saveChangesButton.evaluate((button) => (button as HTMLButtonElement).click());
+
+    await expect(page.getByRole('heading', { name: /email templates/i })).toBeVisible();
+
+    await optionsButtons.first().click();
+    await page.getByRole('menuitem', { name: /duplicate/i }).click();
+
+    await expect(page.getByText('Ops Template (Copy)')).toBeVisible();
+    await page.getByLabel('Close editor').evaluate((button) => (button as HTMLButtonElement).click());
+
+    page.once('dialog', (dialog) => dialog.accept());
+    await optionsButtons.first().click();
+    await page.getByRole('menuitem', { name: /^delete$/i }).click();
+
+    await expect(page.getByText('Ops Template (Copy)')).toHaveCount(0);
+  });
 });

@@ -176,6 +176,7 @@ export function EmailTemplateEditor({ template, onClose }: EmailTemplateEditorPr
           </div>
           <button
             onClick={() => onClose(false)}
+            aria-label="Close editor"
             className="text-gray-400 hover:text-gray-600"
           >
             <X className="w-6 h-6" />
