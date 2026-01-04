@@ -6,23 +6,26 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createTemplate, TemplateServiceError } from '../templateService.js';
 
-const prismaMock = {
-  rtfTemplate: {
-    findFirst: vi.fn(),
-    updateMany: vi.fn(),
-    create: vi.fn(),
+const { prismaMock } = vi.hoisted(() => ({
+  prismaMock: {
+    rtfTemplate: {
+      findFirst: vi.fn(),
+      updateMany: vi.fn(),
+      create: vi.fn(),
+    },
+    agencyGroup: {
+      findUnique: vi.fn(),
+    },
+    auditLog: {
+      create: vi.fn(),
+    },
+    $transaction: vi.fn(),
   },
-  agencyGroup: {
-    findUnique: vi.fn(),
-  },
-  auditLog: {
-    create: vi.fn(),
-  },
-  $transaction: vi.fn(),
-};
+}));
 
 vi.mock('../../db/index.js', () => ({
   prisma: prismaMock,
+  default: prismaMock,
 }));
 
 vi.mock('../auditService.js', () => ({
@@ -45,6 +48,8 @@ vi.mock('../s3Service.js', () => ({
 
 vi.mock('../templatePreviewService.js', () => ({
   extractPlaceholders: vi.fn().mockReturnValue([]),
+  validatePlaceholders: vi.fn().mockReturnValue([]),
+  SAMPLE_MERGE_FIELDS: {},
 }));
 
 vi.mock('@jonahschulte/rtf-toolkit', () => ({
@@ -62,10 +67,12 @@ beforeEach(() => {
 });
 
 describe('createTemplate', () => {
+  const validRtfContent = Buffer.from('{\\rtf1\\ansi}{\\b Test}');
+
   it('rejects blank template names', async () => {
     await expect(
       createTemplate(
-        { name: '  ', content: Buffer.from('{\\rtf1\\ansi test}') },
+        { name: '  ', content: validRtfContent },
         'user-1'
       )
     ).rejects.toThrow(TemplateServiceError);
@@ -76,7 +83,7 @@ describe('createTemplate', () => {
 
     await expect(
       createTemplate(
-        { name: 'Master NDA', content: Buffer.from('{\\rtf1\\ansi test}') },
+        { name: 'Master NDA', content: validRtfContent },
         'user-1'
       )
     ).rejects.toThrow('Template name already exists');
@@ -90,7 +97,7 @@ describe('createTemplate', () => {
       createTemplate(
         {
           name: 'Template',
-          content: Buffer.from('{\\rtf1\\ansi test}'),
+          content: validRtfContent,
           agencyGroupId: 'missing-group',
         },
         'user-1'
@@ -114,7 +121,7 @@ describe('createTemplate', () => {
       {
         name: 'Template',
         description: 'Desc',
-        content: Buffer.from('{\\rtf1\\ansi test}'),
+        content: validRtfContent,
         htmlSource: Buffer.from('<p>Test</p>'),
         agencyGroupId: 'group-1',
         isDefault: true,

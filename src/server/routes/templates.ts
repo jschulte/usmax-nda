@@ -21,6 +21,8 @@ import {
   getTemplatesForNda,
   listTemplates,
   getTemplate,
+  countTemplates,
+  getTemplateUsageSummary,
   listTemplateDefaults,
   assignTemplateDefault,
   removeTemplateDefault,
@@ -29,6 +31,8 @@ import {
   createTemplate,
   updateTemplate,
   deleteTemplate,
+  duplicateTemplate,
+  setTemplateActive,
   TemplateServiceError,
 } from '../services/templateService.js';
 import {
@@ -61,12 +65,32 @@ router.get(
   requireAnyPermission([PERMISSIONS.NDA_VIEW, PERMISSIONS.NDA_CREATE]),
   async (req, res) => {
     try {
-      const { agencyGroupId, subagencyId, ndaType, includeInactive } = req.query;
+      const { agencyGroupId, subagencyId, ndaType, includeInactive, active, sort, order } = req.query;
       if (typeof ndaType === 'string' && !VALID_NDA_TYPES.has(ndaType)) {
         return res.status(400).json({
           error: 'Invalid ndaType value',
           code: 'VALIDATION_ERROR',
         });
+      }
+      const sortField = typeof sort === 'string' ? sort : undefined;
+      if (sortField && !['name', 'createdAt', 'updatedAt'].includes(sortField)) {
+        return res.status(400).json({
+          error: 'Invalid sort value',
+          code: 'VALIDATION_ERROR',
+        });
+      }
+      const sortOrder = typeof order === 'string' ? order : undefined;
+      if (sortOrder && !['asc', 'desc'].includes(sortOrder)) {
+        return res.status(400).json({
+          error: 'Invalid order value',
+          code: 'VALIDATION_ERROR',
+        });
+      }
+
+      let activeFilter: boolean | undefined;
+      if (typeof active === 'string') {
+        if (active === 'true') activeFilter = true;
+        if (active === 'false') activeFilter = false;
       }
 
       let templates;
@@ -84,6 +108,9 @@ router.get(
           agencyGroupId: typeof agencyGroupId === 'string' ? agencyGroupId : undefined,
           subagencyId: typeof subagencyId === 'string' ? subagencyId : undefined,
           ndaType: typeof ndaType === 'string' ? (ndaType as any) : undefined,
+          active: activeFilter,
+          sort: sortField as any,
+          order: sortOrder as any,
         });
       }
 
@@ -95,6 +122,56 @@ router.get(
       console.error('[Templates] Error listing templates:', error);
       res.status(500).json({
         error: 'Failed to list templates',
+        code: 'INTERNAL_ERROR',
+      });
+    }
+  }
+);
+
+/**
+ * GET /api/rtf-templates/count
+ * Get template counts (admin only)
+ */
+router.get(
+  '/count',
+  requirePermission(PERMISSIONS.ADMIN_MANAGE_TEMPLATES),
+  async (_req, res) => {
+    try {
+      const counts = await countTemplates();
+      res.json({ counts });
+    } catch (error) {
+      console.error('[Templates] Error counting templates:', error);
+      res.status(500).json({
+        error: 'Failed to count templates',
+        code: 'INTERNAL_ERROR',
+      });
+    }
+  }
+);
+
+/**
+ * GET /api/rtf-templates/:id/usage
+ * Get template usage metadata (admin only)
+ */
+router.get(
+  '/:id/usage',
+  requirePermission(PERMISSIONS.ADMIN_MANAGE_TEMPLATES),
+  async (req, res) => {
+    try {
+      const usage = await getTemplateUsageSummary(req.params.id);
+      res.json({ usage });
+    } catch (error) {
+      if (error instanceof TemplateServiceError) {
+        const statusCode = error.code === 'NOT_FOUND' ? 404 : 400;
+        return res.status(statusCode).json({
+          error: error.message,
+          code: error.code,
+        });
+      }
+
+      console.error('[Templates] Error getting template usage:', error);
+      res.status(500).json({
+        error: 'Failed to get template usage',
         code: 'INTERNAL_ERROR',
       });
     }
@@ -203,6 +280,86 @@ router.delete(
       console.error('[Templates] Error removing template default:', error);
       res.status(500).json({
         error: 'Failed to remove template default',
+        code: 'INTERNAL_ERROR',
+      });
+    }
+  }
+);
+
+/**
+ * POST /api/rtf-templates/:id/duplicate
+ * Duplicate a template (admin only)
+ */
+router.post(
+  '/:id/duplicate',
+  requirePermission(PERMISSIONS.ADMIN_MANAGE_TEMPLATES),
+  async (req, res) => {
+    try {
+      const template = await duplicateTemplate(req.params.id, req.userContext!.contactId, {
+        ipAddress: req.ip,
+        userAgent: req.get('user-agent') ?? undefined,
+      });
+
+      res.status(201).json({
+        message: 'Template duplicated successfully',
+        template,
+      });
+    } catch (error) {
+      if (error instanceof TemplateServiceError) {
+        const statusCode = error.code === 'NOT_FOUND' ? 404 : 400;
+        return res.status(statusCode).json({
+          error: error.message,
+          code: error.code,
+        });
+      }
+
+      console.error('[Templates] Error duplicating template:', error);
+      res.status(500).json({
+        error: 'Failed to duplicate template',
+        code: 'INTERNAL_ERROR',
+      });
+    }
+  }
+);
+
+/**
+ * PATCH /api/rtf-templates/:id/archive
+ * Archive or activate a template (admin only)
+ */
+router.patch(
+  '/:id/archive',
+  requirePermission(PERMISSIONS.ADMIN_MANAGE_TEMPLATES),
+  async (req, res) => {
+    try {
+      const { isActive } = req.body ?? {};
+      if (typeof isActive !== 'boolean') {
+        return res.status(400).json({
+          error: 'isActive must be boolean',
+          code: 'VALIDATION_ERROR',
+        });
+      }
+
+      const template = await setTemplateActive(req.params.id, isActive, req.userContext!.contactId, {
+        ipAddress: req.ip,
+        userAgent: req.get('user-agent') ?? undefined,
+      });
+
+      res.json({
+        message: isActive ? 'Template activated successfully' : 'Template archived successfully',
+        template,
+      });
+    } catch (error) {
+      if (error instanceof TemplateServiceError) {
+        const statusCode = error.code === 'NOT_FOUND' ? 404 : 400;
+        return res.status(statusCode).json({
+          error: error.message,
+          code: error.code,
+        });
+      }
+
+      console.error('[Templates] Error updating template status:', error);
+      res.status(500).json({
+        error: 'Failed to update template status',
         code: 'INTERNAL_ERROR',
       });
     }

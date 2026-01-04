@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Card } from '../ui/AppCard';
 import { Badge } from '../ui/AppBadge';
 import { Button } from '../ui/AppButton';
@@ -22,7 +22,7 @@ import {
 } from '../ui/dropdown-menu';
 import { toast } from 'sonner';
 import * as templateService from '../../client/services/templateService';
-import type { RtfTemplate, TemplateDefaultAssignment } from '../../client/services/templateService';
+import type { RtfTemplate, TemplateDefaultAssignment, TemplateUsageSummary } from '../../client/services/templateService';
 import { listAgencyGroups, listSubagencies, type AgencyGroup, type Subagency } from '../../client/services/agencyService';
 import type { NdaType } from '../../client/services/ndaService';
 import { RTFTemplateEditor } from './admin/RTFTemplateEditor';
@@ -70,11 +70,15 @@ export function Templates() {
   // Filters
   const [agencyGroupFilter, setAgencyGroupFilter] = useState<string>('');
   const [showInactive, setShowInactive] = useState(false);
+  const [sortField, setSortField] = useState<'name' | 'createdAt' | 'updatedAt'>('name');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
   // Confirmation dialogs
   const [showDeleteTemplateConfirm, setShowDeleteTemplateConfirm] = useState(false);
   const [showDeleteClauseConfirm, setShowDeleteClauseConfirm] = useState(false);
   const [templateToDelete, setTemplateToDelete] = useState<RtfTemplate | null>(null);
+  const [deleteUsage, setDeleteUsage] = useState<TemplateUsageSummary | null>(null);
+  const [deleteUsageLoading, setDeleteUsageLoading] = useState(false);
   const [clauseToDelete, setClauseToDelete] = useState<any>(null);
 
   // Edit clause dialog
@@ -89,7 +93,11 @@ export function Templates() {
   // Load templates on mount and when filters change
   useEffect(() => {
     loadTemplates();
-  }, [agencyGroupFilter, showInactive]);
+  }, [agencyGroupFilter, showInactive, sortField, sortOrder]);
+
+  useEffect(() => {
+    loadAgencyGroups();
+  }, []);
 
   useEffect(() => {
     if (!defaultAgencyGroupId) {
@@ -108,6 +116,8 @@ export function Templates() {
       const data = await templateService.listTemplates({
         agencyGroupId: agencyGroupFilter || undefined,
         includeInactive: showInactive,
+        sort: sortField,
+        order: sortOrder,
       });
       setTemplates(data.templates);
     } catch (err: any) {
@@ -118,6 +128,34 @@ export function Templates() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const sortedTemplates = useMemo(() => {
+    const copy = [...templates];
+    const direction = sortOrder === 'asc' ? 1 : -1;
+    copy.sort((a, b) => {
+      const aVal = a[sortField];
+      const bVal = b[sortField];
+      if (sortField === 'createdAt' || sortField === 'updatedAt') {
+        return (new Date(aVal).getTime() - new Date(bVal).getTime()) * direction;
+      }
+      return String(aVal).localeCompare(String(bVal)) * direction;
+    });
+    return copy;
+  }, [templates, sortField, sortOrder]);
+
+  const toggleSort = (field: 'name' | 'createdAt' | 'updatedAt') => {
+    if (sortField === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortOrder('asc');
+    }
+  };
+
+  const sortIndicator = (field: 'name' | 'createdAt' | 'updatedAt') => {
+    if (sortField !== field) return '';
+    return sortOrder === 'asc' ? '▲' : '▼';
   };
 
   const loadAgencyGroups = async () => {
@@ -175,7 +213,7 @@ export function Templates() {
     return [agencyLabel, subagencyLabel, ndaLabel].filter(Boolean).join(' • ');
   };
 
-  const filteredTemplates = templates.filter(t =>
+  const filteredTemplates = sortedTemplates.filter(t =>
     t.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (t.description && t.description.toLowerCase().includes(searchTerm.toLowerCase()))
   );
@@ -403,9 +441,7 @@ export function Templates() {
   const handleToggleTemplate = async (template: RtfTemplate) => {
     try {
       const newStatus = !template.isActive;
-      await templateService.updateTemplate(template.id, {
-        isActive: newStatus,
-      });
+      await templateService.setTemplateActive(template.id, newStatus);
 
       toast.success(newStatus ? 'Template activated' : 'Template deactivated', {
         description: `${template.name} is now ${newStatus ? 'active' : 'inactive'}.`
@@ -418,9 +454,20 @@ export function Templates() {
     }
   };
 
-  const handleDeleteTemplate = (template: RtfTemplate) => {
+  const handleDeleteTemplate = async (template: RtfTemplate) => {
     setTemplateToDelete(template);
+    setDeleteUsage(null);
     setShowDeleteTemplateConfirm(true);
+    setDeleteUsageLoading(true);
+
+    try {
+      const { usage } = await templateService.getTemplateUsage(template.id);
+      setDeleteUsage(usage);
+    } catch (err: any) {
+      console.error('[Templates] Failed to load template usage:', err);
+    } finally {
+      setDeleteUsageLoading(false);
+    }
   };
 
   const confirmDeleteTemplate = async () => {
@@ -434,6 +481,7 @@ export function Templates() {
         description: `${templateToDelete.name} has been deleted.`
       });
       setShowDeleteTemplateConfirm(false);
+      setDeleteUsage(null);
       await loadTemplates();
     } catch (err: any) {
       toast.error('Failed to delete template', {
@@ -663,13 +711,18 @@ export function Templates() {
         <div className="flex flex-wrap items-center gap-4 mb-6">
           <div className="flex items-center gap-2">
             <label className="text-sm text-[var(--color-text-secondary)]">Agency Group:</label>
-            <input
-              type="text"
-              placeholder="Filter by agency..."
+            <Select
               value={agencyGroupFilter}
               onChange={(e) => setAgencyGroupFilter(e.target.value)}
-              className="px-3 py-2 border border-[var(--color-border)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
-            />
+              className="min-w-[200px]"
+            >
+              <option value="">All agencies</option>
+              {agencyGroups.map((group) => (
+                <option key={group.id} value={group.id}>
+                  {group.name}
+                </option>
+              ))}
+            </Select>
           </div>
           <div className="flex items-center gap-2">
             <input
@@ -731,13 +784,37 @@ export function Templates() {
                 <thead className="bg-gray-50 border-b border-[var(--color-border)]">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-[var(--color-text-secondary)]">
-                      Template Name
+                      <button
+                        type="button"
+                        className="flex items-center gap-2"
+                        onClick={() => toggleSort('name')}
+                      >
+                        Template Name
+                        <span className="text-[10px]">{sortIndicator('name')}</span>
+                      </button>
                     </th>
                     <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-[var(--color-text-secondary)]">
                       Agency Group
                     </th>
                     <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-[var(--color-text-secondary)]">
-                      Last Updated
+                      <button
+                        type="button"
+                        className="flex items-center gap-2"
+                        onClick={() => toggleSort('createdAt')}
+                      >
+                        Created
+                        <span className="text-[10px]">{sortIndicator('createdAt')}</span>
+                      </button>
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-[var(--color-text-secondary)]">
+                      <button
+                        type="button"
+                        className="flex items-center gap-2"
+                        onClick={() => toggleSort('updatedAt')}
+                      >
+                        Last Updated
+                        <span className="text-[10px]">{sortIndicator('updatedAt')}</span>
+                      </button>
                     </th>
                     <th className="px-6 py-3 text-center text-xs uppercase tracking-wider text-[var(--color-text-secondary)]">
                       Default
@@ -760,7 +837,10 @@ export function Templates() {
                         )}
                       </td>
                       <td className="px-6 py-4 text-sm text-[var(--color-text-secondary)]">
-                        {template.agencyGroupId || 'All agencies'}
+                        {template.agencyGroup?.name || 'All agencies'}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-[var(--color-text-secondary)]">
+                        {new Date(template.createdAt).toLocaleDateString()}
                       </td>
                       <td className="px-6 py-4 text-sm text-[var(--color-text-secondary)]">
                         {new Date(template.updatedAt).toLocaleDateString()}
@@ -1342,7 +1422,18 @@ export function Templates() {
             <DialogTitle>Delete Template</DialogTitle>
             <DialogDescription>
               Are you sure you want to delete "{templateToDelete?.name}"? This will deactivate the template.
-              {templateToDelete?.isDefault && (
+              {deleteUsageLoading && (
+                <span className="mt-2 block text-sm text-[var(--color-text-secondary)]">
+                  Loading usage details...
+                </span>
+              )}
+              {deleteUsage?.ndaUsageCount ? (
+                <span className="mt-2 block text-sm text-[var(--color-text-secondary)]">
+                  This template has been used in {deleteUsage.ndaUsageCount} NDA{deleteUsage.ndaUsageCount === 1 ? '' : 's'}.
+                  Deactivating it will not affect existing NDAs, but it will no longer be available for new ones.
+                </span>
+              ) : null}
+              {(templateToDelete?.isDefault || deleteUsage?.isDefault) && (
                 <span className="mt-2 block text-sm text-[var(--color-warning)]">
                   Warning: This template is currently the default. Deleting it will remove the default selection.
                 </span>

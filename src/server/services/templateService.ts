@@ -15,7 +15,11 @@ import { auditService, AuditAction } from './auditService.js';
 import type { UserContext } from '../types/auth.js';
 import { findNdaWithScope } from '../utils/scopedQuery.js';
 import { detectFieldChanges } from '../utils/detectFieldChanges.js';
-import { validateRtfStructure, validateHtmlPlaceholders } from './rtfTemplateValidation.js';
+import {
+  validateRtfStructure,
+  validateRtfPlaceholders,
+  validateHtmlPlaceholders,
+} from './rtfTemplateValidation.js';
 import { extractPlaceholders } from './templatePreviewService.js';
 import { parseRTF, toHTML } from '@jonahschulte/rtf-toolkit';
 import { getNextVersionNumber } from '../utils/versionNumberHelper.js';
@@ -176,11 +180,40 @@ export async function getTemplatesForNda(
  */
 export async function listTemplates(
   includeInactive = false,
-  options?: { agencyGroupId?: string; subagencyId?: string; ndaType?: NdaType }
+  options?: {
+    agencyGroupId?: string;
+    subagencyId?: string;
+    ndaType?: NdaType;
+    active?: boolean;
+    sort?: 'name' | 'createdAt' | 'updatedAt';
+    order?: 'asc' | 'desc';
+  }
 ): Promise<RtfTemplateWithRecommendation[]> {
+  if (options?.agencyGroupId) {
+    const agencyGroup = await prisma.agencyGroup.findUnique({
+      where: { id: options.agencyGroupId },
+      select: { id: true },
+    });
+    if (!agencyGroup) {
+      throw new TemplateServiceError('Agency group not found', 'VALIDATION_ERROR');
+    }
+  }
+
+  const where: Prisma.RtfTemplateWhereInput = {};
+  if (options?.active !== undefined) {
+    where.isActive = options.active;
+  } else if (!includeInactive) {
+    where.isActive = true;
+  }
+  if (options?.agencyGroupId) {
+    where.agencyGroupId = options.agencyGroupId;
+  }
+
+  const sortField = options?.sort ?? 'name';
+  const sortOrder = options?.order ?? 'asc';
   const templates = await prisma.rtfTemplate.findMany({
-    where: includeInactive ? {} : { isActive: true },
-    orderBy: [{ isDefault: 'desc' }, { name: 'asc' }],
+    where,
+    orderBy: [{ isDefault: 'desc' }, { [sortField]: sortOrder }],
     include: {
       agencyGroup: {
         select: { id: true, name: true, code: true },
@@ -241,6 +274,162 @@ export async function getTemplate(
     isDefault: template.isDefault,
     isActive: template.isActive,
   };
+}
+
+export async function countTemplates(): Promise<{
+  total: number;
+  active: number;
+  archived: number;
+  byAgencyGroup: Array<{ agencyGroupId: string | null; count: number }>;
+}> {
+  const [total, active, archived, grouped] = await Promise.all([
+    prisma.rtfTemplate.count(),
+    prisma.rtfTemplate.count({ where: { isActive: true } }),
+    prisma.rtfTemplate.count({ where: { isActive: false } }),
+    prisma.rtfTemplate.groupBy({
+      by: ['agencyGroupId'],
+      _count: { _all: true },
+    }),
+  ]);
+
+  return {
+    total,
+    active,
+    archived,
+    byAgencyGroup: grouped.map((group) => ({
+      agencyGroupId: group.agencyGroupId,
+      count: group._count._all,
+    })),
+  };
+}
+
+export async function getTemplateUsageSummary(
+  templateId: string
+): Promise<{
+  isDefault: boolean;
+  defaultAssignments: number;
+  ndaUsageCount: number;
+}> {
+  const template = await prisma.rtfTemplate.findUnique({
+    where: { id: templateId },
+    select: { id: true, isDefault: true },
+  });
+
+  if (!template) {
+    throw new TemplateServiceError('Template not found', 'NOT_FOUND');
+  }
+
+  const [ndaUsageCount, defaultAssignments] = await Promise.all([
+    prisma.nda.count({ where: { rtfTemplateId: templateId } }),
+    prisma.rtfTemplateDefault.count({ where: { templateId } }),
+  ]);
+
+  return {
+    isDefault: template.isDefault || defaultAssignments > 0,
+    defaultAssignments,
+    ndaUsageCount,
+  };
+}
+
+export async function duplicateTemplate(
+  templateId: string,
+  createdById: string,
+  auditContext?: { ipAddress?: string; userAgent?: string }
+): Promise<{ id: string; name: string }> {
+  return prisma.$transaction(async (tx) => {
+    const existing = await tx.rtfTemplate.findUnique({
+      where: { id: templateId },
+    });
+
+    if (!existing) {
+      throw new TemplateServiceError('Template not found', 'NOT_FOUND');
+    }
+
+    const baseName = `${existing.name} (Copy)`;
+    let candidateName = baseName;
+    let suffix = 2;
+
+    while (
+      await tx.rtfTemplate.findFirst({
+        where: { name: { equals: candidateName, mode: 'insensitive' } },
+        select: { id: true },
+      })
+    ) {
+      candidateName = `${existing.name} (Copy ${suffix})`;
+      suffix += 1;
+    }
+
+    const duplicate = await tx.rtfTemplate.create({
+      data: {
+        name: candidateName,
+        description: existing.description,
+        content: existing.content as Uint8Array,
+        htmlSource: existing.htmlSource as Uint8Array | null,
+        agencyGroupId: existing.agencyGroupId,
+        isDefault: false,
+        isActive: true,
+        createdById,
+      },
+    });
+
+    await tx.auditLog.create({
+      data: {
+        action: AuditAction.RTF_TEMPLATE_CREATED,
+        entityType: 'rtf_template',
+        entityId: duplicate.id,
+        userId: createdById,
+        details: {
+          name: duplicate.name,
+          sourceTemplateId: existing.id,
+        } as unknown as Prisma.InputJsonValue,
+        ipAddress: auditContext?.ipAddress ?? null,
+        userAgent: auditContext?.userAgent ?? null,
+      },
+    });
+
+    return { id: duplicate.id, name: duplicate.name };
+  });
+}
+
+export async function setTemplateActive(
+  templateId: string,
+  isActive: boolean,
+  updatedById: string,
+  auditContext?: { ipAddress?: string; userAgent?: string }
+): Promise<{ id: string; name: string; isActive: boolean }> {
+  return prisma.$transaction(async (tx) => {
+    const existing = await tx.rtfTemplate.findUnique({
+      where: { id: templateId },
+    });
+
+    if (!existing) {
+      throw new TemplateServiceError('Template not found', 'NOT_FOUND');
+    }
+
+    const nextIsDefault = isActive ? existing.isDefault : false;
+    const updated = await tx.rtfTemplate.update({
+      where: { id: templateId },
+      data: { isActive, isDefault: nextIsDefault },
+    });
+
+    await tx.auditLog.create({
+      data: {
+        action: isActive ? AuditAction.RTF_TEMPLATE_ACTIVATED : AuditAction.RTF_TEMPLATE_ARCHIVED,
+        entityType: 'rtf_template',
+        entityId: updated.id,
+        userId: updatedById,
+        details: {
+          name: updated.name,
+          previousIsActive: existing.isActive,
+          newIsActive: updated.isActive,
+        } as unknown as Prisma.InputJsonValue,
+        ipAddress: auditContext?.ipAddress ?? null,
+        userAgent: auditContext?.userAgent ?? null,
+      },
+    });
+
+    return { id: updated.id, name: updated.name, isActive: updated.isActive };
+  });
 }
 
 export async function listTemplateDefaults(
@@ -666,9 +855,13 @@ export async function createTemplate(
     );
   }
 
-  // Note: Do NOT validate RTF content with HTML placeholder validator
-  // RTF has single braces for formatting codes {\\b text} which are valid RTF
-  // Placeholder validation happens on HTML source if provided (WYSIWYG flow)
+  const placeholderValidation = validateRtfPlaceholders(rtfContent);
+  if (!placeholderValidation.valid) {
+    throw new TemplateServiceError(
+      placeholderValidation.errors.join(', '),
+      'VALIDATION_ERROR'
+    );
+  }
 
   return prisma.$transaction(async (tx) => {
     const existingByName = await tx.rtfTemplate.findFirst({
@@ -800,9 +993,13 @@ export async function updateTemplate(
         );
       }
 
-      // Note: Do NOT validate RTF content with HTML placeholder validator
-      // RTF has single braces for formatting codes {\\b text} which are valid RTF
-      // Placeholder validation happens on HTML source if provided (WYSIWYG flow)
+      const placeholderValidation = validateRtfPlaceholders(rtfContent);
+      if (!placeholderValidation.valid) {
+        throw new TemplateServiceError(
+          placeholderValidation.errors.join(', '),
+          'VALIDATION_ERROR'
+        );
+      }
     }
 
     const shouldSetDefault = data.isDefault && data.isActive !== false;

@@ -4,13 +4,14 @@
  * Handles RTF template management and document preview operations
  */
 
-import { get, post, put, del } from './api';
+import { get, post, put, patch, del } from './api';
 
 export interface RtfTemplate {
   id: string;
   name: string;
   description?: string;
   agencyGroupId?: string;
+  agencyGroup?: { id: string; name: string; code: string } | null;
   isDefault: boolean;
   isActive: boolean;
   isRecommended?: boolean;
@@ -52,6 +53,12 @@ export interface DocumentPreview {
   };
 }
 
+export interface TemplateUsageSummary {
+  isDefault: boolean;
+  defaultAssignments: number;
+  ndaUsageCount: number;
+}
+
 /**
  * List all templates with optional agency filter
  */
@@ -61,6 +68,9 @@ export async function listTemplates(
     subagencyId?: string;
     ndaType?: string;
     includeInactive?: boolean;
+    active?: boolean;
+    sort?: 'name' | 'createdAt' | 'updatedAt';
+    order?: 'asc' | 'desc';
   }
 ): Promise<{ templates: RtfTemplate[]; count: number }> {
   const params: Record<string, string | boolean> = {};
@@ -75,6 +85,15 @@ export async function listTemplates(
   }
   if (options?.includeInactive) {
     params.includeInactive = true;
+  }
+  if (options?.active !== undefined) {
+    params.active = options.active;
+  }
+  if (options?.sort) {
+    params.sort = options.sort;
+  }
+  if (options?.order) {
+    params.order = options.order;
   }
   return get<{ templates: RtfTemplate[]; count: number }>('/api/rtf-templates', params);
 }
@@ -110,6 +129,34 @@ export async function updateTemplate(
  */
 export async function deleteTemplate(id: string): Promise<{ message: string }> {
   return del<{ message: string }>(`/api/rtf-templates/${id}`);
+}
+
+export async function duplicateTemplate(id: string): Promise<{ message: string; template: RtfTemplate }> {
+  return post<{ message: string; template: RtfTemplate }>(`/api/rtf-templates/${id}/duplicate`);
+}
+
+export async function setTemplateActive(
+  id: string,
+  isActive: boolean
+): Promise<{ message: string; template: RtfTemplate }> {
+  return patch<{ message: string; template: RtfTemplate }>(`/api/rtf-templates/${id}/archive`, { isActive });
+}
+
+export async function getTemplateUsage(
+  id: string
+): Promise<{ usage: TemplateUsageSummary }> {
+  return get<{ usage: TemplateUsageSummary }>(`/api/rtf-templates/${id}/usage`);
+}
+
+export async function countTemplates(): Promise<{
+  counts: {
+    total: number;
+    active: number;
+    archived: number;
+    byAgencyGroup: Array<{ agencyGroupId: string | null; count: number }>;
+  };
+}> {
+  return get('/api/rtf-templates/count');
 }
 
 export interface TemplateDefaultAssignment {

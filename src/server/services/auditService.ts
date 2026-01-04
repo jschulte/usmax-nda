@@ -99,6 +99,8 @@ export enum AuditAction {
   RTF_TEMPLATE_CREATED = 'rtf_template_created',
   RTF_TEMPLATE_UPDATED = 'rtf_template_updated',
   RTF_TEMPLATE_DELETED = 'rtf_template_deleted',
+  RTF_TEMPLATE_ARCHIVED = 'rtf_template_archived',
+  RTF_TEMPLATE_ACTIVATED = 'rtf_template_activated',
   RTF_TEMPLATE_DEFAULT_ASSIGNED = 'rtf_template_default_assigned',
   RTF_TEMPLATE_DEFAULT_REMOVED = 'rtf_template_default_removed',
 
