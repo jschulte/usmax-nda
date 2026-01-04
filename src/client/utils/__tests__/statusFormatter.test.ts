@@ -4,12 +4,21 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { getStatusDisplayName, getStatusOptions, NDA_STATUS_DISPLAY_NAMES } from '../statusFormatter';
+import {
+  getStatusDisplayName,
+  getStatusOptions,
+  NDA_STATUS_DISPLAY_NAMES,
+  type NdaStatus,
+} from '../statusFormatter';
 
 describe('Status Display Name Formatter', () => {
   describe('NDA_STATUS_DISPLAY_NAMES', () => {
     it('maps CREATED to "Created/Pending Release"', () => {
       expect(NDA_STATUS_DISPLAY_NAMES.CREATED).toBe('Created/Pending Release');
+    });
+
+    it('maps PENDING_APPROVAL to "Pending Approval"', () => {
+      expect(NDA_STATUS_DISPLAY_NAMES.PENDING_APPROVAL).toBe('Pending Approval');
     });
 
     it('maps SENT_PENDING_SIGNATURE to "Sent/Pending Signature"', () => {
@@ -32,8 +41,8 @@ describe('Status Display Name Formatter', () => {
       expect(NDA_STATUS_DISPLAY_NAMES.EXPIRED).toBe('Expired');
     });
 
-    it('has exactly 6 status mappings', () => {
-      expect(Object.keys(NDA_STATUS_DISPLAY_NAMES)).toHaveLength(6);
+    it('has exactly 7 status mappings', () => {
+      expect(Object.keys(NDA_STATUS_DISPLAY_NAMES)).toHaveLength(7);
     });
 
     it('does not contain removed values', () => {
@@ -46,6 +55,7 @@ describe('Status Display Name Formatter', () => {
   describe('getStatusDisplayName', () => {
     it('returns correct display name for each status', () => {
       expect(getStatusDisplayName('CREATED')).toBe('Created/Pending Release');
+      expect(getStatusDisplayName('PENDING_APPROVAL')).toBe('Pending Approval');
       expect(getStatusDisplayName('SENT_PENDING_SIGNATURE')).toBe('Sent/Pending Signature');
       expect(getStatusDisplayName('IN_REVISION')).toBe('In Revision');
       expect(getStatusDisplayName('FULLY_EXECUTED')).toBe('Fully Executed NDA Uploaded');
@@ -54,7 +64,7 @@ describe('Status Display Name Formatter', () => {
     });
 
     it('returns raw value for unknown status', () => {
-      expect(getStatusDisplayName('UNKNOWN' as any)).toBe('UNKNOWN');
+      expect(getStatusDisplayName('UNKNOWN' as unknown as NdaStatus)).toBe('UNKNOWN');
     });
   });
 
@@ -62,7 +72,7 @@ describe('Status Display Name Formatter', () => {
     it('returns array of status options', () => {
       const options = getStatusOptions();
       expect(options).toBeInstanceOf(Array);
-      expect(options).toHaveLength(6);
+      expect(options).toHaveLength(7);
     });
 
     it('each option has value and label', () => {
@@ -79,6 +89,7 @@ describe('Status Display Name Formatter', () => {
       const options = getStatusOptions();
       const values = options.map(o => o.value);
       expect(values).toContain('CREATED');
+      expect(values).toContain('PENDING_APPROVAL');
       expect(values).toContain('SENT_PENDING_SIGNATURE');
       expect(values).toContain('IN_REVISION');
       expect(values).toContain('FULLY_EXECUTED');

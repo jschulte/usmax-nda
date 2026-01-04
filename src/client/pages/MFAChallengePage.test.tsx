@@ -7,9 +7,9 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 
-const navigateMock = vi.fn();
-const verifyMFAMock = vi.fn();
-const clearErrorMock = vi.fn();
+const navigateMock = vi.hoisted(() => vi.fn());
+const verifyMFAMock = vi.hoisted(() => vi.fn());
+const clearErrorMock = vi.hoisted(() => vi.fn());
 
 vi.mock('react-router-dom', () => ({
   useNavigate: () => navigateMock,
