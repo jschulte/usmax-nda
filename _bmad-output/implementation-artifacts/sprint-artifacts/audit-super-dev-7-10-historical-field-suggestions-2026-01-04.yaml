@@ -76,7 +76,7 @@ steps:
     duration: "0m30s"
     commit_hash: "94f1d30"
     files_committed: 10
-    pushed: false
+    pushed: true
     status: "completed"
 
 # Quality metrics
@@ -109,4 +109,4 @@ commit:
   hash: "94f1d30"
   message: "feat(story-7-10-historical-field-suggestions): add historical suggestions"
   files_committed: 10
-  pushed_to_remote: false
+  pushed_to_remote: true
