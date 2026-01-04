@@ -1,6 +1,6 @@
 # Story 1-5: E2E Playwright Tests
 
-Status: review
+Status: done
 
 ## Story
 
@@ -165,6 +165,8 @@ Gap analysis identified that while unit and integration tests exist, E2E tests u
 - Implemented E2E specs for auth, NDA lifecycle, admin workflows, and agency scoping.
 - Updated `playwright.config.ts` with webServer and parallel execution settings.
 - Added E2E job to CI with Playwright browser install, report artifact upload, and PR comment.
+- Hardened E2E selectors for strict-mode stability, dialog scoping, and scroll handling.
+- Verified `pnpm test:e2e` passes locally (2026-01-04).
 - Hardened E2E selectors for strict-mode stability, dialog scoping, and scroll handling.
 - Verified `pnpm test:e2e` passes locally (2026-01-04).
 
