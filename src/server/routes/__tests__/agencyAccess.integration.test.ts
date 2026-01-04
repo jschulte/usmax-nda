@@ -77,6 +77,21 @@ describe('Agency Access Routes (integration)', () => {
     expect(listResponse.body.users[0].contactId).toBe(seededUsers.ndaUser.id);
   });
 
+  it('blocks self-grant for agency group access', async () => {
+    const group = await prisma.agencyGroup.create({
+      data: { name: 'Self Grant', code: 'SELF' },
+    });
+
+    const adminToken = makeMockToken('mock-user-001', 'admin@usmax.com');
+    const response = await request(app)
+      .post(`/api/agency-groups/${group.id}/access`)
+      .set('Cookie', [`access_token=${adminToken}`])
+      .send({ contactId: seededUsers.admin.id });
+
+    expect(response.status).toBe(400);
+    expect(response.body.code).toBe('SELF_GRANT_FORBIDDEN');
+  });
+
   it('revokes agency group access', async () => {
     const group = await prisma.agencyGroup.create({
       data: { name: 'Commercial', code: 'COMM' },

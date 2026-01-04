@@ -456,6 +456,7 @@ export async function searchContacts(query: string): Promise<ContactSearchResult
         { email: { contains: query, mode: 'insensitive' } },
       ],
       active: true, // Only active users
+      isInternal: true, // Only internal users
     },
     include: {
       contactRoles: {

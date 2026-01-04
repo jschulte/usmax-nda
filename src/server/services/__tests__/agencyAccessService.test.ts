@@ -378,6 +378,7 @@ describe('Agency Access Service', () => {
         expect.objectContaining({
           where: expect.objectContaining({
             active: true,
+            isInternal: true,
           }),
           take: 10,
         })

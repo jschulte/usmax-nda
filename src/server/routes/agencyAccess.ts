@@ -80,6 +80,13 @@ router.post('/agency-groups/:id/access', async (req: Request, res: Response) => 
     });
   }
 
+  if (contactId === req.userContext?.contactId) {
+    return res.status(400).json({
+      error: 'Cannot grant access to yourself',
+      code: 'SELF_GRANT_FORBIDDEN',
+    });
+  }
+
   try {
     await grantAgencyGroupAccess(
       id,
@@ -209,6 +216,13 @@ router.post('/subagencies/:id/access', async (req: Request, res: Response) => {
     return res.status(400).json({
       error: 'contactId is required',
       code: 'MISSING_CONTACT_ID',
+    });
+  }
+
+  if (contactId === req.userContext?.contactId) {
+    return res.status(400).json({
+      error: 'Cannot grant access to yourself',
+      code: 'SELF_GRANT_FORBIDDEN',
     });
   }
 
