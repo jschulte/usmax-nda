@@ -194,6 +194,26 @@ describe('Agency Access Service', () => {
         expect((error as AgencyAccessError).code).toBe('ALREADY_GRANTED');
       }
     });
+
+    it('throws error when unique constraint is violated during grant', async () => {
+      mockPrisma.agencyGroup.findUnique.mockResolvedValue({ id: 'group-1', name: 'DoD' });
+      mockPrisma.contact.findUnique.mockResolvedValue({
+        id: 'user-1',
+        email: 'test@test.com',
+      });
+      mockPrisma.agencyGroupGrant.findUnique.mockResolvedValue(null);
+      mockPrisma.agencyGroupGrant.create.mockRejectedValue({ code: 'P2002' });
+
+      await expect(
+        grantAgencyGroupAccess('group-1', 'user-1', 'admin-1')
+      ).rejects.toThrow(AgencyAccessError);
+
+      try {
+        await grantAgencyGroupAccess('group-1', 'user-1', 'admin-1');
+      } catch (error) {
+        expect((error as AgencyAccessError).code).toBe('ALREADY_GRANTED');
+      }
+    });
   });
 
   describe('revokeAgencyGroupAccess', () => {
@@ -272,6 +292,33 @@ describe('Agency Access Service', () => {
         await getSubagencyAccess('nonexistent');
       } catch (error) {
         expect((error as AgencyAccessError).code).toBe('SUBAGENCY_NOT_FOUND');
+      }
+    });
+
+    it('throws error when unique constraint is violated during grant', async () => {
+      mockPrisma.subagency.findUnique.mockResolvedValue({
+        id: 'sub-1',
+        name: 'Air Force',
+        agencyGroup: { name: 'DoD' },
+      });
+      mockPrisma.contact.findUnique.mockResolvedValue({
+        id: 'user-1',
+        email: 'test@test.com',
+        cognitoId: 'cognito-123',
+        firstName: 'Test',
+        lastName: 'User',
+      });
+      mockPrisma.subagencyGrant.findUnique.mockResolvedValue(null);
+      mockPrisma.subagencyGrant.create.mockRejectedValue({ code: 'P2002' });
+
+      await expect(
+        grantSubagencyAccess('sub-1', 'user-1', 'admin-1')
+      ).rejects.toThrow(AgencyAccessError);
+
+      try {
+        await grantSubagencyAccess('sub-1', 'user-1', 'admin-1');
+      } catch (error) {
+        expect((error as AgencyAccessError).code).toBe('ALREADY_GRANTED');
       }
     });
   });

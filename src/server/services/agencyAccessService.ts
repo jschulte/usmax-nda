@@ -14,6 +14,15 @@ import { prisma } from '../db/index.js';
 import { auditService, AuditAction } from './auditService.js';
 import { invalidateUserContext } from './userContextService.js';
 
+type PrismaUniqueError = {
+  code?: string;
+};
+
+function isUniqueConstraintError(error: unknown): boolean {
+  const prismaError = error as PrismaUniqueError;
+  return prismaError?.code === 'P2002';
+}
+
 // =============================================================================
 // INTERFACES
 // =============================================================================
@@ -123,13 +132,20 @@ export async function grantAgencyGroupAccess(
   }
 
   // Grant access
-  await prisma.agencyGroupGrant.create({
-    data: {
-      contactId,
-      agencyGroupId,
-      grantedBy,
-    },
-  });
+  try {
+    await prisma.agencyGroupGrant.create({
+      data: {
+        contactId,
+        agencyGroupId,
+        grantedBy,
+      },
+    });
+  } catch (error) {
+    if (isUniqueConstraintError(error)) {
+      throw new AgencyAccessError('User already has access to this agency group', 'ALREADY_GRANTED');
+    }
+    throw error;
+  }
 
   // Invalidate user context cache so they get updated access
   if (contact.cognitoId) {
@@ -344,13 +360,20 @@ export async function grantSubagencyAccess(
   }
 
   // Grant access
-  await prisma.subagencyGrant.create({
-    data: {
-      contactId,
-      subagencyId,
-      grantedBy,
-    },
-  });
+  try {
+    await prisma.subagencyGrant.create({
+      data: {
+        contactId,
+        subagencyId,
+        grantedBy,
+      },
+    });
+  } catch (error) {
+    if (isUniqueConstraintError(error)) {
+      throw new AgencyAccessError('User already has direct access to this subagency', 'ALREADY_GRANTED');
+    }
+    throw error;
+  }
 
   // Invalidate user context cache
   if (contact.cognitoId) {
