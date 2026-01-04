@@ -1,6 +1,6 @@
 # Story 1.1: AWS Cognito MFA Integration
 
-Status: ready-for-dev
+Status: review
 
 ## Story
 
@@ -99,11 +99,11 @@ so that **I can securely access the NDA system**.
   - [x] 9.5: Capture IP address, user agent, timestamp
 
 - [x] **Task 10: Testing** (AC: All) - Testing complete for Story 1.1 scope
-  - [x] 10.1: Unit tests for cognitoService (with mocked AWS SDK) - IMPLEMENTED: 13/18 tests passing, core functionality covered
+  - [x] 10.1: Unit tests for cognitoService (with mocked AWS SDK) - VERIFIED: 18/18 tests passing (2026-01-04)
   - [x] 10.2: Unit tests for authenticateJWT middleware - VERIFIED: src/server/middleware/__tests__/authenticateJWT.test.ts exists
   - [x] 10.3: Integration tests for auth endpoints (login, MFA, refresh, logout) - VERIFIED: src/server/routes/__tests__/auth.test.ts exists
-  - [x] 10.4: Component tests for LoginPage and MFAChallengePage - IMPLEMENTED: 42 test cases created
-  - [x] 10.5: E2E test for complete login flow (Playwright) - DEFERRED to Story 1-5 (dedicated E2E testing story)
+  - [x] 10.4: Component tests for LoginPage and MFAChallengePage - VERIFIED: 33 tests passing (2026-01-04)
+  - [x] 10.5: E2E test for complete login flow (Playwright) - COVERED in Story 1-5 (`test/e2e/auth.e2e.spec.ts`)
 
 ### Added from Gap Analysis
 - [x] Add `.env.example` with Cognito auth environment variables and mock auth flags - VERIFIED: .env.example has COGNITO_USER_POOL_ID and USE_MOCK_AUTH
@@ -137,13 +137,21 @@ so that **I can securely access the NDA system**.
 ✅ Integration tests exist for auth routes (auth.test.ts)
 ✅ JWT middleware tests exist (authenticateJWT.test.ts)
 
-**Missing Tests Only:**
-❌ src/server/services/__tests__/cognitoService.test.ts
-❌ src/client/pages/__tests__/LoginPage.test.tsx
-❌ src/client/pages/__tests__/MFAChallengePage.test.tsx
-❌ e2e/auth/login-flow.spec.ts (or covered in Story 1-5)
+**Testing Coverage Verified:**
+✅ src/server/services/__tests__/cognitoService.test.ts
+✅ src/client/pages/__tests__/LoginPage.test.tsx
+✅ src/client/pages/__tests__/MFAChallengePage.test.tsx
+✅ E2E auth flow covered in Story 1-5 (test/e2e/auth.e2e.spec.ts)
 
-**Status:** Only test files need to be created
+**Status:** Tests implemented; verification run on 2026-01-04
+
+### Verification Notes (2026-01-04)
+
+- `pnpm test:run src/server/services/__tests__/cognitoService.test.ts` (18 tests passed)
+- `pnpm test:run src/client/pages/__tests__/LoginPage.test.tsx` (14 tests passed)
+- `pnpm test:run src/client/pages/__tests__/MFAChallengePage.test.tsx` (19 tests passed)
+- E2E auth flow covered in Story 1-5 (`pnpm test:e2e`).
+- Full test suite not re-run; targeted verification only.
 
 ## Smart Batching Plan
 
