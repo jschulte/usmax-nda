@@ -1,0 +1,65 @@
+---
+story_id: "1-4-row-level-security-implementation"
+story_file: "_bmad-output/implementation-artifacts/sprint-artifacts/1-4-row-level-security-implementation.md"
+mode: "batch"
+development_type: "brownfield"
+
+stepsCompleted: [1, 2, 3, 4, 5, 6, 7]
+lastStep: 7
+currentStep: 7
+status: "completed"
+
+started_at: "2026-01-03T18:44:16"
+updated_at: "2026-01-04T03:52:00Z"
+
+cached_context:
+  story_loaded: true
+  project_context_loaded: true
+
+development_analysis:
+  existing_files: 7
+  new_files: 0
+  total_tasks: 8
+  unchecked_tasks: 0
+
+steps:
+  step-01-init:
+    status: completed
+    completed_at: "2026-01-03T18:44:16"
+  step-02-pre-gap-analysis:
+    status: completed
+  step-03-implement:
+    status: completed
+    notes: "All tasks already implemented; no code changes required."
+  step-04-post-validation:
+    status: completed
+    notes: "pnpm test:run src/server/services/__tests__/agencyScopeService.test.ts; pnpm test:run src/server/middleware/__tests__/scopeToAgencies.test.ts (16 tests passed)."
+  step-05-code-review:
+    status: completed
+    notes: "3 issues found, 3 fixed (status/verification notes/file list updates)."
+  step-06-complete:
+    status: completed
+  step-07-summary:
+    status: completed
+
+gap_analysis:
+  development_type: brownfield
+  tasks_ready: 0
+  tasks_partial: 0
+  tasks_done: 8
+  tasks_refined: 0
+  tasks_added: 0
+
+smart_batching:
+  enabled: true
+  patterns_detected: 0
+  batchable_tasks: 0
+  individual_tasks: 0
+  estimated_time_with_batching: 0.0
+  estimated_time_without_batching: 0.0
+  estimated_savings: 0.0
+
+implementation:
+  files_modified: 1
+  tasks_verified: 8
+  blockers: []

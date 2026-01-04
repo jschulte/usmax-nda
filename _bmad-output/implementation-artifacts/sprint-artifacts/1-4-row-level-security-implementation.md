@@ -1,6 +1,6 @@
 # Story 1.4: Row-Level Security Implementation
 
-Status: ready-for-dev
+Status: review
 
 ## Story
 
@@ -113,10 +113,14 @@ so that **I don't access NDAs outside my scope (compliance requirement)**.
 
 ---
 
-### Verification Notes (2026-01-03)
+### Verification Notes (2026-01-04)
 
-- Full test suite currently failing from unrelated tests; not re-run for this story.
-- No code changes required for row-level security (already implemented).
+- Targeted tests executed:
+  - `pnpm test:run src/server/services/__tests__/agencyScopeService.test.ts`
+  - `pnpm test:run src/server/middleware/__tests__/scopeToAgencies.test.ts`
+- Results: ✅ 16 tests passed (4 + 12).
+- Expected stderr logs from error-handling tests (AgencyScope/ScopeToAgencies).
+- Full test suite still failing due to unrelated tests; not re-run.
 
 ---
 
@@ -356,7 +360,7 @@ Story created from PRD/Epics specifications without code anchoring.
 
 ### File List
 
-Files to be created/modified during implementation:
+Files created/modified during implementation (verified):
 - `src/server/services/agencyScopeService.ts` - NEW
 - `src/server/middleware/scopeToAgencies.ts` - NEW
 - `src/server/utils/scopedQuery.ts` - NEW
