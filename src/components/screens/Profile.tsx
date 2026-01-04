@@ -3,7 +3,7 @@ import { Card } from '../ui/AppCard';
 import { Button } from '../ui/AppButton';
 import { Input } from '../ui/AppInput';
 import { Key, Moon, Sun } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { Label } from '../ui/label';
 import {
   Dialog,

@@ -10,6 +10,7 @@ import {
   Plus
 } from 'lucide-react';
 import { Button } from '../ui/AppButton';
+import { PERMISSIONS, usePermissions } from '../../client/hooks/usePermissions';
 
 interface SidebarProps {
   isOpen?: boolean;
@@ -18,6 +19,15 @@ interface SidebarProps {
 
 export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
   const navigate = useNavigate();
+  const { hasPermission, hasAnyPermission } = usePermissions();
+
+  const canCreateNda = hasPermission(PERMISSIONS.NDA_CREATE);
+  const canAccessAdmin = hasAnyPermission([
+    PERMISSIONS.ADMIN_MANAGE_USERS,
+    PERMISSIONS.ADMIN_MANAGE_AGENCIES,
+    PERMISSIONS.ADMIN_MANAGE_TEMPLATES,
+    PERMISSIONS.ADMIN_VIEW_AUDIT_LOGS,
+  ]);
 
   const navItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
@@ -26,8 +36,15 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
     { icon: Inbox, label: 'All NDAs', path: '/ndas' },
     { icon: FolderOpen, label: 'Templates', path: '/templates' },
     { icon: BarChart3, label: 'Reports', path: '/reports' },
-    { icon: Settings, label: 'Administration', path: '/administration' }
+    { icon: Settings, label: 'Administration', path: '/administration', requiresAdmin: true }
   ];
+
+  const visibleNavItems = navItems.filter((item) => {
+    if (item.requiresAdmin && !canAccessAdmin) {
+      return false;
+    }
+    return true;
+  });
   
   return (
     <>
@@ -71,20 +88,22 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
 
         <nav className="flex-1 p-4 overflow-y-auto">
           {/* Story 10.13: Request NDA Button */}
-          <div className="mb-6">
-            <Button
-              onClick={() => {
-                navigate('/request-wizard');
-                onClose?.(); // Close mobile menu
-              }}
-              className="w-full flex items-center justify-center gap-2"
-            >
-              <Plus className="w-4 h-4" />
-              Request NDA
-            </Button>
-          </div>
+          {canCreateNda && (
+            <div className="mb-6">
+              <Button
+                onClick={() => {
+                  navigate('/request-wizard');
+                  onClose?.(); // Close mobile menu
+                }}
+                className="w-full flex items-center justify-center gap-2"
+              >
+                <Plus className="w-4 h-4" />
+                Request NDA
+              </Button>
+            </div>
+          )}
 
-          {navItems.map((item) => {
+          {visibleNavItems.map((item) => {
             const Icon = item.icon;
 
             return (

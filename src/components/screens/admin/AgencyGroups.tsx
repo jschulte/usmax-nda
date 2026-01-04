@@ -37,7 +37,7 @@ import {
   Trash2,
   Users,
 } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import * as agencyService from '../../../client/services/agencyService';
 import * as agencyAccessService from '../../../client/services/agencyAccessService';
 import { ApiError } from '../../../client/services/api';

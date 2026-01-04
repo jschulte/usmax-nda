@@ -3,15 +3,21 @@
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 
-const mockNavigate = vi.fn();
+const mockNavigate = vi.hoisted(() => vi.fn());
+const mockParams = vi.hoisted(() => ({ id: 'nda-1' }));
 
-vi.mock('react-router-dom', () => ({
-  useParams: () => ({ id: 'nda-1' }),
-  useNavigate: () => mockNavigate,
-}));
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+  return {
+    ...actual,
+    useParams: () => mockParams,
+    useNavigate: () => mockNavigate,
+  };
+});
 
 vi.mock('../../client/hooks/useAuth', () => ({
   useAuth: () => ({ user: { id: 'user-1', permissions: ['nda:create'] } }),
@@ -66,19 +72,44 @@ vi.mock('../ui/dialog', () => ({
   DialogClose: ({ children }: { children: React.ReactNode }) => <button>{children}</button>,
 }));
 
-vi.mock('lucide-react', () => ({
-  X: () => <span>X</span>,
-  User: () => <span>User</span>,
-  Mail: () => <span>Mail</span>,
-  Phone: () => <span>Phone</span>,
-  Calendar: () => <span>Calendar</span>,
-  FileText: () => <span>FileText</span>,
-  Upload: () => <span>Upload</span>,
-  AlertTriangle: () => <span>AlertTriangle</span>,
-  Clock: () => <span>Clock</span>,
-  Copy: () => <span>Copy</span>,
-  Info: () => <span>Info</span>,
-}));
+vi.mock('lucide-react', () => {
+  const Icon = (props: React.HTMLAttributes<HTMLSpanElement>) => <span {...props} />;
+  const iconNames = [
+    'ArrowLeft',
+    'Download',
+    'Edit',
+    'Send',
+    'ExternalLink',
+    'Calendar',
+    'Building',
+    'User',
+    'FileText',
+    'MessageSquare',
+    'Clock',
+    'Eye',
+    'CheckCircle',
+    'Circle',
+    'Bell',
+    'BellOff',
+    'Loader2',
+    'Upload',
+    'Trash2',
+    'Archive',
+    'Check',
+    'AlertCircle',
+    'X',
+    'Info',
+    'Copy',
+  ] as const;
+
+  return iconNames.reduce(
+    (acc, name) => {
+      acc[name] = Icon;
+      return acc;
+    },
+    { __esModule: true } as Record<(typeof iconNames)[number] | '__esModule', typeof Icon | true>
+  );
+});
 
 vi.mock('sonner', () => ({
   toast: {
@@ -101,7 +132,10 @@ vi.mock('../../client/services/ndaService', () => ({
       ndaType: 'MUTUAL',
       effectiveDate: null,
       isNonUsMax: false,
-      createdBy: { id: 'user-1' },
+      createdBy: { id: 'user-1', firstName: 'Alex', lastName: 'Carter', email: 'alex@usmax.com' },
+      relationshipPoc: { id: 'contact-2', firstName: 'Jamie', lastName: 'Lee', email: 'jamie@usmax.com' },
+      opportunityPoc: null,
+      contractsPoc: null,
       clonedFrom: null,
       rtfTemplateId: null,
     },
@@ -192,6 +226,7 @@ describe('NDADetail', () => {
   });
 
   it('renders document metadata in the documents tab', async () => {
+    const user = userEvent.setup();
     const document = {
       id: 'doc-1',
       ndaId: 'nda-1',
@@ -206,7 +241,7 @@ describe('NDADetail', () => {
       notes: 'Uploaded by Test User',
     };
 
-    vi.mocked(ndaService.getNdaDetail).mockResolvedValueOnce({
+    vi.mocked(ndaService.getNdaDetail).mockResolvedValue({
       nda: {
         id: 'nda-1',
         displayId: 1590,
@@ -218,7 +253,10 @@ describe('NDADetail', () => {
         ndaType: 'MUTUAL',
         effectiveDate: null,
         isNonUsMax: false,
-        createdBy: { id: 'user-1' },
+        createdBy: { id: 'user-1', firstName: 'Alex', lastName: 'Carter', email: 'alex@usmax.com' },
+        relationshipPoc: { id: 'contact-2', firstName: 'Jamie', lastName: 'Lee', email: 'jamie@usmax.com' },
+        opportunityPoc: null,
+        contractsPoc: null,
         clonedFrom: null,
         rtfTemplateId: null,
       },
@@ -238,12 +276,19 @@ describe('NDADetail', () => {
       },
     } as any);
 
-    vi.mocked(documentService.listDocuments).mockResolvedValueOnce([document] as any);
+    vi.mocked(documentService.listDocuments).mockResolvedValue([document] as any);
 
     render(<NDADetail />);
 
-    expect(await screen.findByText(/documents \\(1\\)/i)).toBeInTheDocument();
+    const documentTab = await screen.findByRole('button', { name: /^Document$/ });
+    await user.click(documentTab);
+
+    await waitFor(() => {
+      expect(documentService.listDocuments).toHaveBeenCalledWith('nda-1');
+    });
+
     expect(await screen.findByText('agreement.pdf')).toBeInTheDocument();
-    expect(await screen.findByText(/uploaded by test user/i)).toBeInTheDocument();
+    const uploadedByEntries = await screen.findAllByText(/uploaded by test user/i);
+    expect(uploadedByEntries.length).toBeGreaterThan(0);
   });
 });

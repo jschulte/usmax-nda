@@ -13,7 +13,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { getDashboard, Dashboard as DashboardData, StaleNda, ExpiringNda, WaitingNda, RecentActivity } from '../../client/services/dashboardService';
 import { getStatusDisplayName } from '../../client/utils/statusFormatter';
 

@@ -94,6 +94,8 @@ export function RTFTemplateEditor({
   useEffect(() => {
     const toolbar = document.querySelector('.ql-toolbar');
     if (toolbar) {
+      toolbar.setAttribute('data-testid', 'rtf-toolbar');
+      toolbar.setAttribute('aria-label', 'Formatting toolbar');
       toolbar.querySelector('.ql-bold')?.setAttribute('data-testid', 'rtf-toolbar-bold');
       toolbar.querySelector('.ql-italic')?.setAttribute('data-testid', 'rtf-toolbar-italic');
       toolbar.querySelector('.ql-underline')?.setAttribute('data-testid', 'rtf-toolbar-underline');

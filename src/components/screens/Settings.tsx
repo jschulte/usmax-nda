@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Card } from '../ui/AppCard';
 import { Button } from '../ui/AppButton';
 import { Mail, Save, Download, Trash2 } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { Label } from '../ui/label';
 import { Switch } from '../ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
