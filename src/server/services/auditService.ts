@@ -74,6 +74,7 @@ export enum AuditAction {
 
   // Document management events (Story 3.5+, 4.1+)
   DOCUMENT_GENERATED = 'document_generated',
+  DOCUMENT_GENERATION_FAILED = 'document_generation_failed',
   DOCUMENT_UPLOADED = 'document_uploaded',
   DOCUMENT_DOWNLOADED = 'document_downloaded',
   DOCUMENT_BULK_DOWNLOADED = 'bulk_download',

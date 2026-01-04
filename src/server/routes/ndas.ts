@@ -1292,22 +1292,25 @@ router.post(
       });
     } catch (error) {
       if (error instanceof DocumentGenerationError) {
-        reportError(error, {
-          ndaId: req.params.id,
-          code: error.code,
-          templateId: req.body?.templateId,
-          userId: req.userContext?.id,
-        });
+        if (!error.reported) {
+          reportError(error, {
+            ndaId: req.params.id,
+            code: error.code,
+            templateId: req.body?.templateId,
+            userId: req.userContext?.id,
+          });
+        }
         const statusCode =
           error.code === 'NDA_NOT_FOUND'
             ? 404
-            : error.code === 'NON_USMAX_SKIP'
+            : error.code === 'NON_USMAX_SKIP' || error.code === 'INVALID_TEMPLATE'
               ? 400
               : 500;
 
         return res.status(statusCode).json({
           error: error.message,
           code: error.code,
+          ...(error.details ? { details: error.details } : {}),
         });
       }
 

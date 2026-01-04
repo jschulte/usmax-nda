@@ -6,32 +6,48 @@
  * Used for WYSIWYG editor preview functionality before actual NDA creation.
  */
 
+import { VALID_PLACEHOLDERS, type PlaceholderName } from '../constants/templatePlaceholders.js';
+
 /**
  * Sample merge field data for template preview
  * Matches the structure from templateService.ts extractMergedFields()
  */
-export const SAMPLE_MERGE_FIELDS: Record<string, string> = {
+export const SAMPLE_MERGE_FIELDS: Record<PlaceholderName, string> = {
   companyName: 'Acme Corporation',
   companyCity: 'Washington',
   companyState: 'DC',
+  city: 'Washington',
+  state: 'DC',
   stateOfIncorporation: 'Delaware',
   agencyGroupName: 'Department of Defense',
   subagencyName: 'U.S. Air Force',
   agencyOfficeName: 'Office of the Secretary',
   abbreviatedName: 'ACME',
   authorizedPurpose: 'Proposal Development for Contract XYZ-2024',
-  effectiveDate: 'January 15, 2024',
-  expirationDate: 'January 15, 2025',
+  effectiveDate: '01/15/2024',
+  expirationDate: '01/15/2025',
+  createdDate: '01/10/2024',
+  requestedDate: '01/10/2024',
+  generatedDate: '01/20/2024',
+  displayId: '100123',
   usMaxPosition: 'Prime Contractor',
+  usmaxPosition: 'Prime Contractor',
+  ndaType: 'MUTUAL',
+  opportunityContactName: 'John Smith',
+  opportunityContactEmail: 'john.smith@example.com',
+  opportunityContactPhone: '(555) 123-4567',
+  contractsContactName: 'Jane Doe',
+  contractsContactEmail: 'jane.doe@example.com',
+  contractsContactPhone: '(555) 222-3333',
+  relationshipContactName: 'Robert Johnson',
+  relationshipContactEmail: 'robert.johnson@example.com',
+  relationshipContactPhone: '(555) 444-5555',
+  contactsContactName: 'Linda Carter',
   opportunityPocName: 'John Smith',
   contractsPocName: 'Jane Doe',
   relationshipPocName: 'Robert Johnson',
   contactsPocName: 'Linda Carter',
-  generatedDate: new Date().toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  }),
+  createdByName: 'Alex Morgan',
 };
 
 /**
@@ -66,7 +82,7 @@ export function generateTemplatePreview(htmlContent: string): string {
  */
 export function validatePlaceholders(htmlContent: string): string[] {
   const placeholderRegex = /\{\{(\w+)\}\}/g;
-  const allowedPlaceholders = Object.keys(SAMPLE_MERGE_FIELDS);
+  const allowedPlaceholders = VALID_PLACEHOLDERS;
   const unknownPlaceholders: string[] = [];
   let match: RegExpExecArray | null;
 

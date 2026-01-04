@@ -14,10 +14,11 @@ import type { UserContext } from '../../types/auth.js';
 import { ROLE_NAMES } from '../../types/auth.js';
 
 // Mock Prisma
-vi.mock('../../db/index.js', () => ({
-  prisma: {
+vi.mock('../../db/index.js', () => {
+  const prismaMock = {
     nda: {
       findUnique: vi.fn(),
+      findFirst: vi.fn(),
     },
     rtfTemplate: {
       findFirst: vi.fn(),
@@ -32,8 +33,10 @@ vi.mock('../../db/index.js', () => ({
       findMany: vi.fn(),
       aggregate: vi.fn(),
     },
-  },
-}));
+  };
+
+  return { prisma: prismaMock, default: prismaMock };
+});
 
 // Mock S3 service
 vi.mock('../s3Service.js', () => ({
@@ -51,7 +54,7 @@ vi.mock('../auditService.js', () => ({
   },
 }));
 
-vi.mock('../utils/scopedQuery.js', () => ({
+vi.mock('../../utils/scopedQuery.js', () => ({
   findNdaWithScope: vi.fn(),
 }));
 
@@ -62,7 +65,7 @@ vi.mock('../ndaService.js', () => ({
 import { prisma } from '../../db/index.js';
 import { uploadDocument } from '../s3Service.js';
 import { auditService } from '../auditService.js';
-import { findNdaWithScope } from '../utils/scopedQuery.js';
+import { findNdaWithScope } from '../../utils/scopedQuery.js';
 
 const mockPrisma = prisma as any;
 const mockUploadDocument = uploadDocument as any;
@@ -120,7 +123,7 @@ describe('documentGenerationService', () => {
     mockPrisma.rtfTemplate.findFirst.mockResolvedValue({
       id: 'template-1',
       name: 'Default Template',
-      content: Buffer.from('Hello {{companyName}}'),
+      content: Buffer.from('{\\rtf1\\ansi Hello {{companyName}}}'),
     });
     mockPrisma.systemConfig.findUnique.mockResolvedValue(null);
     mockPrisma.document.aggregate.mockResolvedValue({
@@ -191,6 +194,119 @@ describe('documentGenerationService', () => {
           entityId: 'doc-456',
         })
       );
+    });
+
+    it('formats dates as MM/DD/YYYY in merged content', async () => {
+      vi.mocked(findNdaWithScope).mockResolvedValue(mockNda as any);
+      mockPrisma.rtfTemplate.findFirst.mockResolvedValue({
+        id: 'template-1',
+        name: 'Default Template',
+        content: Buffer.from('{\\rtf1\\ansi {{effectiveDate}}}'),
+      });
+      mockUploadDocument.mockResolvedValue({
+        s3Key: 'ndas/nda-123/doc-789-generated.rtf',
+        documentId: 'doc-789',
+        bucket: 'usmax-nda-documents',
+      });
+      mockPrisma.document.create.mockResolvedValue({
+        id: 'doc-789',
+        ndaId: 'nda-123',
+        filename: 'generated.rtf',
+        s3Key: 'ndas/nda-123/doc-789-generated.rtf',
+        documentType: 'GENERATED',
+        uploadedById: 'contact-1',
+        uploadedAt: new Date(),
+      });
+
+      await generateDocument({ ndaId: 'nda-123' }, mockUserContext);
+
+      const uploadCall = mockUploadDocument.mock.calls[0][0];
+      const contentString = uploadCall.content.toString('utf8');
+      expect(contentString).toContain('01/15/2024');
+    });
+
+    it('logs unknown placeholders without failing generation', async () => {
+      vi.mocked(findNdaWithScope).mockResolvedValue(mockNda as any);
+      mockPrisma.rtfTemplate.findFirst.mockResolvedValue({
+        id: 'template-1',
+        name: 'Default Template',
+        content: Buffer.from('{\\rtf1\\ansi {{unknownField}}}'),
+      });
+      mockUploadDocument.mockResolvedValue({
+        s3Key: 'ndas/nda-123/doc-777-generated.rtf',
+        documentId: 'doc-777',
+        bucket: 'usmax-nda-documents',
+      });
+      mockPrisma.document.create.mockResolvedValue({
+        id: 'doc-777',
+        ndaId: 'nda-123',
+        filename: 'generated.rtf',
+        s3Key: 'ndas/nda-123/doc-777-generated.rtf',
+        documentType: 'GENERATED',
+        uploadedById: 'contact-1',
+        uploadedAt: new Date(),
+      });
+
+      await generateDocument({ ndaId: 'nda-123' }, mockUserContext);
+
+      expect(mockAuditService.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'document_generated',
+          details: expect.objectContaining({
+            unknownPlaceholders: ['unknownField'],
+          }),
+        })
+      );
+    });
+
+    it('handles missing optional fields without errors', async () => {
+      const ndaWithNulls = {
+        ...mockNda,
+        effectiveDate: null,
+        expirationDate: null,
+        contractsPoc: null,
+        contactsPoc: null,
+      };
+      vi.mocked(findNdaWithScope).mockResolvedValue(ndaWithNulls as any);
+      mockPrisma.rtfTemplate.findFirst.mockResolvedValue({
+        id: 'template-1',
+        name: 'Default Template',
+        content: Buffer.from('{\\rtf1\\ansi {{contractsContactName}} {{expirationDate}}}'),
+      });
+      mockUploadDocument.mockResolvedValue({
+        s3Key: 'ndas/nda-123/doc-888-generated.rtf',
+        documentId: 'doc-888',
+        bucket: 'usmax-nda-documents',
+      });
+      mockPrisma.document.create.mockResolvedValue({
+        id: 'doc-888',
+        ndaId: 'nda-123',
+        filename: 'generated.rtf',
+        s3Key: 'ndas/nda-123/doc-888-generated.rtf',
+        documentType: 'GENERATED',
+        uploadedById: 'contact-1',
+        uploadedAt: new Date(),
+      });
+
+      await generateDocument({ ndaId: 'nda-123' }, mockUserContext);
+
+      const uploadCall = mockUploadDocument.mock.calls[0][0];
+      const contentString = uploadCall.content.toString('utf8');
+      expect(contentString).not.toContain('{{contractsContactName}}');
+      expect(contentString).not.toContain('{{expirationDate}}');
+    });
+
+    it('throws invalid template error for malformed RTF', async () => {
+      vi.mocked(findNdaWithScope).mockResolvedValue(mockNda as any);
+      mockPrisma.rtfTemplate.findFirst.mockResolvedValue({
+        id: 'template-1',
+        name: 'Default Template',
+        content: Buffer.from('Not an RTF document'),
+      });
+
+      await expect(
+        generateDocument({ ndaId: 'nda-123' }, mockUserContext)
+      ).rejects.toMatchObject({ code: 'INVALID_TEMPLATE' });
     });
 
     it('throws error when NDA not found', async () => {

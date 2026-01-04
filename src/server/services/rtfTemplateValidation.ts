@@ -6,7 +6,8 @@
  * Ensures templates meet quality standards before saving to database.
  */
 
-import { SAMPLE_MERGE_FIELDS, validatePlaceholders as validatePlaceholderNames } from './templatePreviewService.js';
+import { validatePlaceholders as validatePlaceholderNames } from './templatePreviewService.js';
+import { VALID_PLACEHOLDERS } from '../constants/templatePlaceholders.js';
 
 /**
  * Validation result type
@@ -90,6 +91,30 @@ export function validateRtfStructure(rtfContent: string): ValidationResult {
 }
 
 /**
+ * Validate placeholder usage inside RTF content
+ *
+ * Only checks double-brace placeholders ({{fieldName}}) to avoid
+ * false positives from RTF formatting braces.
+ */
+export function validateRtfPlaceholders(rtfContent: string): ValidationResult {
+  const errors: string[] = [];
+  const unknownPlaceholders = validatePlaceholderNames(rtfContent);
+
+  if (unknownPlaceholders.length > 0) {
+    errors.push(
+      `Unknown placeholders found: ${unknownPlaceholders.join(', ')}. ` +
+        `Allowed placeholders: ${VALID_PLACEHOLDERS.join(', ')}`
+    );
+  }
+
+  return {
+    valid: errors.length === 0,
+    errors,
+    unknownPlaceholders,
+  };
+}
+
+/**
  * Validate HTML content for placeholder usage
  *
  * Checks that:
@@ -107,7 +132,7 @@ export function validateHtmlPlaceholders(htmlContent: string): ValidationResult 
   if (unknownPlaceholders.length > 0) {
     errors.push(
       `Unknown placeholders found: ${unknownPlaceholders.join(', ')}. ` +
-        `Allowed placeholders: ${Object.keys(SAMPLE_MERGE_FIELDS).join(', ')}`
+        `Allowed placeholders: ${VALID_PLACEHOLDERS.join(', ')}`
     );
   }
 

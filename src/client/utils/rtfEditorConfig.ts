@@ -7,12 +7,14 @@
 
 /**
  * Allowed placeholder tokens for RTF templates
- * These must match the merge fields in src/server/services/templateService.ts
+ * These must match server-side merge fields in src/server/constants/templatePlaceholders.ts
  */
 export const ALLOWED_PLACEHOLDERS = [
   'companyName',
   'companyCity',
   'companyState',
+  'city',
+  'state',
   'stateOfIncorporation',
   'agencyGroupName',
   'subagencyName',
@@ -21,12 +23,28 @@ export const ALLOWED_PLACEHOLDERS = [
   'authorizedPurpose',
   'effectiveDate',
   'expirationDate',
+  'createdDate',
+  'requestedDate',
+  'generatedDate',
+  'displayId',
   'usMaxPosition',
+  'usmaxPosition',
+  'ndaType',
+  'opportunityContactName',
+  'opportunityContactEmail',
+  'opportunityContactPhone',
+  'contractsContactName',
+  'contractsContactEmail',
+  'contractsContactPhone',
+  'relationshipContactName',
+  'relationshipContactEmail',
+  'relationshipContactPhone',
+  'contactsContactName',
   'opportunityPocName',
   'contractsPocName',
   'relationshipPocName',
   'contactsPocName',
-  'generatedDate',
+  'createdByName',
 ] as const;
 
 export type PlaceholderField = typeof ALLOWED_PLACEHOLDERS[number];
@@ -38,6 +56,8 @@ export const PLACEHOLDER_LABELS: Record<PlaceholderField, string> = {
   companyName: 'Company Name',
   companyCity: 'Company City',
   companyState: 'Company State',
+  city: 'City (Alias)',
+  state: 'State (Alias)',
   stateOfIncorporation: 'State of Incorporation',
   agencyGroupName: 'Agency Group Name',
   subagencyName: 'Subagency Name',
@@ -46,12 +66,28 @@ export const PLACEHOLDER_LABELS: Record<PlaceholderField, string> = {
   authorizedPurpose: 'Authorized Purpose',
   effectiveDate: 'Effective Date',
   expirationDate: 'Expiration Date',
+  createdDate: 'Created Date',
+  requestedDate: 'Requested Date',
+  generatedDate: 'Generated Date',
+  displayId: 'Display ID',
   usMaxPosition: 'USmax Position',
+  usmaxPosition: 'USmax Position (Lowercase Alias)',
+  ndaType: 'NDA Type',
+  opportunityContactName: 'Opportunity Contact Name',
+  opportunityContactEmail: 'Opportunity Contact Email',
+  opportunityContactPhone: 'Opportunity Contact Phone',
+  contractsContactName: 'Contracts Contact Name',
+  contractsContactEmail: 'Contracts Contact Email',
+  contractsContactPhone: 'Contracts Contact Phone',
+  relationshipContactName: 'Relationship Contact Name',
+  relationshipContactEmail: 'Relationship Contact Email',
+  relationshipContactPhone: 'Relationship Contact Phone',
+  contactsContactName: 'Contacts Contact Name',
   opportunityPocName: 'Opportunity POC Name',
   contractsPocName: 'Contracts POC Name',
   relationshipPocName: 'Relationship POC Name',
   contactsPocName: 'Contacts POC Name',
-  generatedDate: 'Generated Date',
+  createdByName: 'Created By Name',
 };
 
 /**

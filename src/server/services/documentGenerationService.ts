@@ -3,14 +3,13 @@
  * Story 3.5: RTF Document Generation
  *
  * Handles NDA document generation:
- * - Template field merging with Handlebars
+ * - Template field merging with placeholder replacement
  * - RTF generation from stored template content
  * - S3 storage integration
  * - Database record creation
  * - Audit logging
  */
 
-import Handlebars from 'handlebars';
 import { prisma } from '../db/index.js';
 import { uploadDocument } from './s3Service.js';
 import { auditService, AuditAction } from './auditService.js';
@@ -20,6 +19,14 @@ import { buildSecurityFilter } from './ndaService.js';
 import { findNdaWithScope } from '../utils/scopedQuery.js';
 import { getNextVersionNumber } from '../utils/versionNumberHelper.js';
 import { generateDocumentNotes } from '../utils/documentNotesGenerator.js';
+import { reportError } from './errorReportingService.js';
+import {
+  mergeTemplateContent,
+  extractPlaceholders,
+  MergeError,
+  TemplateError,
+} from './rtfMergeService.js';
+import { VALID_PLACEHOLDERS } from '../constants/templatePlaceholders.js';
 
 // Re-export DocumentType
 export { DocumentType } from '../../generated/prisma/index.js';
@@ -31,7 +38,9 @@ export class DocumentGenerationError extends Error {
   constructor(
     message: string,
     public code: string,
-    public originalError?: Error
+    public originalError?: Error,
+    public details?: Record<string, unknown>,
+    public reported: boolean = false
   ) {
     super(message);
     this.name = 'DocumentGenerationError';
@@ -62,59 +71,6 @@ interface AuditMeta {
   ipAddress?: string;
   userAgent?: string;
 }
-
-/**
- * NDA fields for template merging
- */
-interface NdaTemplateFields {
-  companyName: string;
-  companyCity?: string;
-  companyState?: string;
-  stateOfIncorporation?: string;
-  agencyGroupName?: string;
-  subagencyName?: string;
-  agencyOfficeName?: string;
-  abbreviatedName: string;
-  authorizedPurpose: string;
-  effectiveDate?: string;
-  usMaxPosition: string;
-  ndaType: string;
-  opportunityPocName?: string;
-  contractsPocName?: string;
-  relationshipPocName?: string;
-  contactsPocName?: string;
-  displayId: number;
-  generatedDate: string;
-}
-
-/**
- * Register Handlebars helpers
- */
-function registerHandlebarsHelpers(): void {
-  // Date formatting helper
-  Handlebars.registerHelper('formatDate', (date: Date | string | undefined) => {
-    if (!date) return '';
-    const d = new Date(date);
-    return d.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
-  });
-
-  // Uppercase helper
-  Handlebars.registerHelper('uppercase', (str: string) => {
-    return str?.toUpperCase() || '';
-  });
-
-  // Conditional helper
-  Handlebars.registerHelper('ifEquals', function (this: unknown, arg1: unknown, arg2: unknown, options: Handlebars.HelperOptions) {
-    return arg1 === arg2 ? options.fn(this) : options.inverse(this);
-  });
-}
-
-// Register helpers once on module load
-registerHandlebarsHelpers();
 
 /**
  * Generate document from NDA data
@@ -150,15 +106,95 @@ export async function generateDocument(
     }
   }
 
-  // Extract template fields
-  const templateFields = extractTemplateFields(nda);
-
   // Resolve template (selected or default)
   const template = await getTemplateForNda(nda, input.templateId);
 
-  // Merge fields into RTF template
-  const rtfContent = mergeTemplate(template.content.toString('utf8'), templateFields);
-  const rtfBuffer = Buffer.from(rtfContent, 'utf8');
+  const mergeContext = {
+    generatedAt: new Date(),
+    timeZone: 'UTC',
+    locale: 'en-US',
+    generatedBy: {
+      id: userContext.id,
+      name: userContext.name,
+      email: userContext.email,
+    },
+  };
+
+  let mergeResult: { mergedContent: string; unknownPlaceholders: string[] };
+  const templateText = template.content.toString('utf8');
+  const extractedPlaceholders = extractPlaceholders(templateText);
+  const unknownPlaceholders = extractedPlaceholders.filter(
+    (placeholder) => !VALID_PLACEHOLDERS.includes(placeholder as (typeof VALID_PLACEHOLDERS)[number])
+  );
+
+  try {
+    mergeResult = mergeTemplateContent(templateText, nda, mergeContext);
+  } catch (error) {
+    reportError(error, {
+      ndaId: nda.id,
+      templateId: template.id,
+      userId: userContext.id,
+    });
+
+    await auditService.log({
+      action: AuditAction.DOCUMENT_GENERATION_FAILED,
+      entityType: 'nda',
+      entityId: nda.id,
+      userId: userContext.id,
+      details: {
+        ndaId: nda.id,
+        ndaDisplayId: nda.displayId,
+        templateId: template.id,
+        error: error instanceof Error ? error.message : String(error),
+        unknownPlaceholders,
+      },
+      ipAddress: auditMeta?.ipAddress,
+      userAgent: auditMeta?.userAgent,
+    });
+
+    if (error instanceof TemplateError) {
+      throw new DocumentGenerationError(
+        error.message,
+        'INVALID_TEMPLATE',
+        error,
+        { unknownPlaceholders },
+        true
+      );
+    }
+
+    if (error instanceof MergeError) {
+      throw new DocumentGenerationError(
+        error.message,
+        'MERGE_ERROR',
+        error,
+        { field: error.field, unknownPlaceholders },
+        true
+      );
+    }
+
+    throw new DocumentGenerationError(
+      'Document generation failed. Please try again.',
+      'MERGE_ERROR',
+      error instanceof Error ? error : undefined,
+      { unknownPlaceholders },
+      true
+    );
+  }
+
+  if (unknownPlaceholders.length > 0) {
+    reportError(
+      new Error('Unknown placeholders found in template'),
+      {
+        ndaId: nda.id,
+        templateId: template.id,
+        unknownPlaceholders,
+        userId: userContext.id,
+      },
+      'warning'
+    );
+  }
+
+  const rtfBuffer = Buffer.from(mergeResult.mergedContent, 'utf8');
 
   // Generate filename
   const filename = generateFilename(nda);
@@ -210,6 +246,8 @@ export async function generateDocument(
       ndaDisplayId: nda.displayId,
       filename,
       s3Key: uploadResult.s3Key,
+      templateId: template.id,
+      unknownPlaceholders: mergeResult.unknownPlaceholders,
     },
     ipAddress: auditMeta?.ipAddress,
     userAgent: auditMeta?.userAgent,
@@ -230,20 +268,88 @@ async function getNdaWithRelations(
   userContext: UserContext
 ): Promise<Nda & {
   agencyGroup: { name: string };
-  subagency?: { name: string } | null;
-  opportunityPoc: { firstName?: string | null; lastName?: string | null };
-  contractsPoc?: { firstName?: string | null; lastName?: string | null } | null;
-  relationshipPoc: { firstName?: string | null; lastName?: string | null };
-  contactsPoc?: { firstName?: string | null; lastName?: string | null } | null;
+  subagency?: { name: string; agencyGroup?: { name: string } } | null;
+  opportunityPoc: {
+    firstName?: string | null;
+    lastName?: string | null;
+    email?: string | null;
+    workPhone?: string | null;
+    cellPhone?: string | null;
+  };
+  contractsPoc?: {
+    firstName?: string | null;
+    lastName?: string | null;
+    email?: string | null;
+    workPhone?: string | null;
+    cellPhone?: string | null;
+  } | null;
+  relationshipPoc: {
+    firstName?: string | null;
+    lastName?: string | null;
+    email?: string | null;
+    workPhone?: string | null;
+    cellPhone?: string | null;
+  };
+  contactsPoc?: {
+    firstName?: string | null;
+    lastName?: string | null;
+    email?: string | null;
+    workPhone?: string | null;
+    cellPhone?: string | null;
+  } | null;
+  createdBy?: {
+    firstName?: string | null;
+    lastName?: string | null;
+    email?: string | null;
+  } | null;
 } | null> {
   return findNdaWithScope(ndaId, userContext, {
     include: {
       agencyGroup: { select: { name: true } },
-      subagency: { select: { name: true } },
-      opportunityPoc: { select: { firstName: true, lastName: true } },
-      contractsPoc: { select: { firstName: true, lastName: true } },
-      relationshipPoc: { select: { firstName: true, lastName: true } },
-      contactsPoc: { select: { firstName: true, lastName: true } },
+      subagency: { select: { name: true, agencyGroup: { select: { name: true } } } },
+      opportunityPoc: {
+        select: {
+          firstName: true,
+          lastName: true,
+          email: true,
+          workPhone: true,
+          cellPhone: true,
+        },
+      },
+      contractsPoc: {
+        select: {
+          firstName: true,
+          lastName: true,
+          email: true,
+          workPhone: true,
+          cellPhone: true,
+        },
+      },
+      relationshipPoc: {
+        select: {
+          firstName: true,
+          lastName: true,
+          email: true,
+          workPhone: true,
+          cellPhone: true,
+        },
+      },
+      contactsPoc: {
+        select: {
+          firstName: true,
+          lastName: true,
+          email: true,
+          workPhone: true,
+          cellPhone: true,
+        },
+      },
+      createdBy: {
+        select: {
+          firstName: true,
+          lastName: true,
+          email: true,
+        },
+      },
     },
   });
 }
@@ -272,60 +378,6 @@ async function checkNonUsMaxSkipSetting(): Promise<boolean> {
   } catch {
     return false;
   }
-}
-
-/**
- * Extract template fields from NDA
- */
-function extractTemplateFields(nda: Nda & {
-  agencyGroup: { name: string };
-  subagency?: { name: string } | null;
-  opportunityPoc: { firstName?: string | null; lastName?: string | null };
-  contractsPoc?: { firstName?: string | null; lastName?: string | null } | null;
-  relationshipPoc: { firstName?: string | null; lastName?: string | null };
-  contactsPoc?: { firstName?: string | null; lastName?: string | null } | null;
-}): NdaTemplateFields {
-  const formatName = (poc: { firstName?: string | null; lastName?: string | null } | null | undefined): string => {
-    if (!poc) return '';
-    return [poc.firstName, poc.lastName].filter(Boolean).join(' ');
-  };
-
-  const formatDate = (date: Date | null | undefined): string => {
-    if (!date) return '';
-    return new Date(date).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
-  };
-
-  const positionMap: Record<string, string> = {
-    PRIME: 'Prime Contractor',
-    SUB: 'Subcontractor',
-    TEAMING: 'Teaming Partner',
-    OTHER: 'Other',
-  };
-
-  return {
-    companyName: nda.companyName,
-    companyCity: nda.companyCity || undefined,
-    companyState: nda.companyState || undefined,
-    stateOfIncorporation: nda.stateOfIncorporation || undefined,
-    agencyGroupName: nda.agencyGroup.name,
-    subagencyName: nda.subagency?.name || undefined,
-    agencyOfficeName: nda.agencyOfficeName || undefined,
-    abbreviatedName: nda.abbreviatedName,
-    authorizedPurpose: nda.authorizedPurpose,
-    effectiveDate: formatDate(nda.effectiveDate),
-    usMaxPosition: positionMap[nda.usMaxPosition] || nda.usMaxPosition,
-    ndaType: nda.ndaType,
-    opportunityPocName: formatName(nda.opportunityPoc),
-    contractsPocName: formatName(nda.contractsPoc) || undefined,
-    relationshipPocName: formatName(nda.relationshipPoc),
-    contactsPocName: formatName(nda.contactsPoc) || undefined,
-    displayId: nda.displayId,
-    generatedDate: formatDate(new Date()),
-  };
 }
 
 /**
@@ -392,11 +444,6 @@ async function getTemplateForNda(
 /**
  * Merge NDA fields into RTF template content
  */
-function mergeTemplate(templateContent: string, fields: NdaTemplateFields): string {
-  const template = Handlebars.compile(templateContent);
-  return template(fields);
-}
-
 /**
  * Generate filename for the document
  */
