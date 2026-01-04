@@ -327,6 +327,195 @@ USE_MOCK_AUTH=true  # Enables mock authentication without AWS
 6. **AWS changes via Terraform only** - Infrastructure as code in `infrastructure/`
 7. **GitHub Actions for deployment** - Not manual AWS CLI commands
 
+## 🚨 Story File Integrity Rules (CRITICAL)
+
+**Story files in `_bmad-output/implementation-artifacts/sprint-artifacts/` are IMPLEMENTATION BLUEPRINTS, not historical records.**
+
+### Checkbox Policy - ABSOLUTE REQUIREMENTS
+
+**NEVER check a task checkbox [x] unless:**
+1. You personally wrote the code for that task in the current session, AND
+2. You can cite the exact file:line where the code exists
+
+**NEVER:**
+- Bulk-check boxes because a story is marked "done" in sprint-status.yaml
+- Assume implementation exists based on story status
+- Check boxes "for documentation purposes" or as "historical record"
+- Trust previous checkbox state without file:line verification
+- Check boxes in stories you're creating/regenerating (boxes are checked DURING implementation, not before)
+
+**DEFAULT STATE:** All task checkboxes are UNCHECKED [ ] until implementation proves otherwise.
+
+### Story File Purpose
+
+**Story files serve as:**
+- **BLUEPRINTS:** Detailed specifications of what needs to be built
+- **TASK LISTS:** Actionable items for dev agents to implement
+- **VERIFICATION GUIDES:** Checklist to verify completeness
+
+**Story files are NOT:**
+- Historical archives of work done
+- Documentation of existing code
+- Places to record what happened (that's what git commits and audit logs are for)
+
+### Story Status vs Task Checkboxes
+
+**Story Status in sprint-status.yaml:**
+- `ready-for-dev` = Story file is ready, implementation can begin
+- `in-progress` = Developer currently working on it
+- `done` = Feature is working in production (from business perspective)
+
+**Task Checkboxes in story .md files:**
+- `[ ]` = Task not yet implemented (or not verified)
+- `[x]` = Task implemented AND verified with file:line citation in current session
+
+**IMPORTANT:** A "done" story can (and usually should) have unchecked boxes. The story being "done" means the feature works - it doesn't mean we have perfect task tracking.
+
+### Story Regeneration Rules
+
+**When creating or regenerating story files:**
+
+**For ANY story (ready-for-dev OR done):**
+1. Write comprehensive 15-20KB story file with detailed tasks
+2. **ALL task checkboxes UNCHECKED [ ]**
+3. Include: Story, AC (5-7 detailed BDD), Tasks (40-80 subtasks), Dev Notes (with code examples), References
+4. Gap Analysis can note "appears to exist" based on code scanning, but boxes stay unchecked
+5. Let implementation process naturally verify and check boxes
+
+**Do NOT:**
+- Create separate "done story" vs "ready-for-dev story" formats
+- Check boxes during story creation
+- Make assumptions about implementation completeness
+
+### Quality Requirements
+
+**Every story file MUST meet these minimums:**
+
+- **File Size:** ≥10KB (preferably 15-20KB)
+- **Acceptance Criteria:** 5-7 detailed BDD criteria (Given/When/Then/And)
+- **Tasks:** 6-10 task groups with 5-10 subtasks each (40-80 total)
+- **Dev Notes:** Implementation approaches, architecture patterns, code examples
+- **No Repetitions:** Same paragraph must not appear more than 2 times
+- **No Template Placeholders:** "[Add technical notes]" and similar must be replaced with actual content
+
+### Validation Checks
+
+**Before committing story file changes, verify:**
+1. File size ≥10KB (ready-for-dev stories should be 15-20KB)
+2. No checked boxes [x] exist (unless you wrote the code in this session)
+3. No repetitive content (same text >3 times)
+4. No unfilled template placeholders
+5. Task descriptions are clear and actionable
+
+### Why This Matters
+
+**Corrupted story files cause:**
+- LLM agents skip features thinking they're done (sees [x] boxes)
+- Wasted tokens regenerating bad stories
+- Implementation gaps when agents trust false checkboxes
+- Lost development time tracking down what's actually missing
+
+**Story file integrity is critical to project success. Treat story files as sacred blueprints that must be accurate.**
+
+## 🧪 Test Coverage Requirements (CRITICAL)
+
+**This is a government-grade compliance system. Testing is NOT optional.**
+
+### Definition of Done - Testing Requirements
+
+**A task checkbox for "Add tests" can ONLY be checked [x] if:**
+
+1. **Coverage Threshold Met:** ≥80% code coverage for ALL code (not just "core functionality")
+2. **All Test Types Present:** Unit tests, integration tests, AND E2E tests where applicable
+3. **Coverage Verified:** Run `npm run test -- --coverage` and verify 80%+ for modified files
+4. **Edge Cases Tested:** Not just happy path - error cases, null values, boundary conditions, permission denials
+5. **File:Line Citation:** Cite specific test files with line counts (e.g., "Added 45 tests in service.test.ts:120-450")
+
+### Test Coverage Standards
+
+**NEVER accept:**
+- "Added tests for core functionality" (what about edge cases?)
+- "Added basic tests" (not comprehensive enough)
+- "Added some tests" (vague, unverified)
+- 50-70% coverage (below threshold)
+
+**ALWAYS require:**
+- **80%+ statement coverage** for all modified files
+- **Unit tests:** All functions, all branches, all error paths
+- **Integration tests:** API endpoints with various inputs (valid, invalid, edge cases, permissions)
+- **E2E tests:** Critical user flows work end-to-end
+
+### Test Types Required
+
+**Backend Code:**
+- **Unit Tests:** Every service function, every utility, every validator
+- **Integration Tests:** Every API endpoint (happy path + error cases + permission checks)
+- **E2E Tests:** Critical flows (create NDA → upload document → send email)
+
+**Frontend Code:**
+- **Component Tests:** Every React component (render, interactions, error states)
+- **Integration Tests:** Component + API interaction
+- **E2E Tests:** User workflows (Playwright/Cypress)
+
+**Database:**
+- **Migration Tests:** Schema changes work forward and backward
+- **Constraint Tests:** Foreign keys, unique constraints, check constraints enforced
+- **Transaction Tests:** Rollback behavior
+
+### Testing Checklist (Before Checking "Add tests" Box)
+
+**For every feature implementation:**
+
+- [ ] Unit tests cover all functions (80%+ statement coverage)
+- [ ] Unit tests cover all branches (if/else, switch cases)
+- [ ] Unit tests cover all error paths (try/catch, validation failures)
+- [ ] Integration tests cover API endpoint happy path
+- [ ] Integration tests cover API endpoint error cases (400, 403, 404, 500)
+- [ ] Integration tests cover permission checks (authorized + unauthorized)
+- [ ] Integration tests cover row-level security (user sees only their data)
+- [ ] Edge case tests (null values, empty strings, boundary values)
+- [ ] E2E test for critical user flow (if user-facing feature)
+- [ ] Run `npm run test -- --coverage` and verify ≥80% for modified files
+- [ ] Commit test files with implementation (tests + code in same commit)
+
+### Common Testing Anti-Patterns (DO NOT DO THIS)
+
+**❌ Insufficient Coverage:**
+```typescript
+// BAD: Only testing happy path
+it('creates NDA', async () => {
+  const nda = await createNda(validData);
+  expect(nda).toBeDefined();
+});
+// Missing: validation errors, permission checks, null fields, duplicate detection
+```
+
+**✅ Comprehensive Coverage:**
+```typescript
+// GOOD: Testing happy path + error cases
+describe('createNda', () => {
+  it('creates NDA with valid data', async () => { /* ... */ });
+  it('rejects NDA with missing required fields', async () => { /* ... */ });
+  it('rejects NDA with invalid date format', async () => { /* ... */ });
+  it('rejects NDA if user lacks permission', async () => { /* ... */ });
+  it('rejects NDA if user lacks agency access', async () => { /* ... */ });
+  it('handles null POC contacts gracefully', async () => { /* ... */ });
+  it('creates audit log entry', async () => { /* ... */ });
+  it('rolls back on error', async () => { /* ... */ });
+});
+```
+
+### Enforcement
+
+**When reviewing code or checking task boxes:**
+1. Run `npm run test -- --coverage`
+2. Check coverage report for modified files
+3. If <80%, DO NOT check the "Add tests" box
+4. If ≥80% but missing error cases, DO NOT check the box
+5. Only check when comprehensive tests exist AND coverage verified
+
+**This is non-negotiable for a compliance-critical government system.**
+
 ## BMad Method (BMAD)
 
 This project uses the BMad Method for development workflow. Key directories:
