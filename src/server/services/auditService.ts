@@ -95,6 +95,7 @@ export enum AuditAction {
   EMAIL_TEMPLATE_CREATED = 'email_template_created',
   EMAIL_TEMPLATE_UPDATED = 'email_template_updated',
   EMAIL_TEMPLATE_DELETED = 'email_template_deleted',
+  EMAIL_TEMPLATE_DUPLICATED = 'email_template_duplicated',
 
   // RTF template management events (Story 7.1)
   RTF_TEMPLATE_CREATED = 'rtf_template_created',

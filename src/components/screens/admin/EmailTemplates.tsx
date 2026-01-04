@@ -9,8 +9,14 @@
 import React, { useState, useEffect } from 'react';
 import { Card } from '../../ui/AppCard';
 import { Button } from '../../ui/AppButton';
-import { Plus, Edit, Trash2 } from 'lucide-react';
+import { Plus, Edit, Trash2, MoreVertical, Copy, Archive, RefreshCcw, Star } from 'lucide-react';
 import { EmailTemplateEditor } from './EmailTemplateEditor';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../../ui/dropdown-menu';
 
 interface EmailTemplate {
   id: string;
@@ -30,17 +36,18 @@ export function EmailTemplates() {
   const [error, setError] = useState<string | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<EmailTemplate | null>(null);
+  const [showArchived, setShowArchived] = useState(false);
 
   useEffect(() => {
     loadTemplates();
-  }, []);
+  }, [showArchived]);
 
   async function loadTemplates() {
     setLoading(true);
     setError(null);
 
     try {
-      const res = await fetch('/api/admin/email-templates?includeInactive=true', {
+      const res = await fetch(`/api/admin/email-templates?includeInactive=${showArchived}`, {
         credentials: 'include',
       });
 
@@ -55,6 +62,75 @@ export function EmailTemplates() {
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleDuplicate(template: EmailTemplate) {
+    try {
+      const res = await fetch(`/api/admin/email-templates/${template.id}/duplicate`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to duplicate template');
+      }
+
+      const data = await res.json();
+      setTemplates((prev) => [data.template, ...prev]);
+      setSelectedTemplate(data.template);
+      setEditorOpen(true);
+    } catch (err: any) {
+      console.error('Error duplicating template:', err);
+      alert(err.message);
+    }
+  }
+
+  async function handleSetDefault(template: EmailTemplate) {
+    try {
+      const res = await fetch(`/api/admin/email-templates/${template.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ isDefault: true }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to set default template');
+      }
+
+      await loadTemplates();
+    } catch (err: any) {
+      console.error('Error setting default template:', err);
+      alert(err.message);
+    }
+  }
+
+  async function handleToggleArchive(template: EmailTemplate) {
+    if (template.isDefault && template.isActive) {
+      alert('Cannot archive the default template. Set another template as default first.');
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/admin/email-templates/${template.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ isActive: !template.isActive }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to update template status');
+      }
+
+      await loadTemplates();
+    } catch (err: any) {
+      console.error('Error updating template status:', err);
+      alert(err.message);
     }
   }
 
@@ -111,20 +187,31 @@ export function EmailTemplates() {
 
   return (
     <div className="p-8">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-wrap justify-between items-center gap-4 mb-6">
         <div>
           <h1 className="mb-2">Email Templates</h1>
           <p className="text-[var(--color-text-secondary)]">
             Manage email templates with field-merge placeholders
           </p>
         </div>
-        <Button
-          variant="primary"
-          icon={<Plus className="w-4 h-4" />}
-          onClick={handleCreate}
-        >
-          Create New Template
-        </Button>
+        <div className="flex items-center gap-4">
+          <label className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)]">
+            <input
+              type="checkbox"
+              checked={showArchived}
+              onChange={(e) => setShowArchived(e.target.checked)}
+              className="rounded border-gray-300"
+            />
+            Show archived
+          </label>
+          <Button
+            variant="primary"
+            icon={<Plus className="w-4 h-4" />}
+            onClick={handleCreate}
+          >
+            Create New Template
+          </Button>
+        </div>
       </div>
 
       {error && (
@@ -160,26 +247,53 @@ export function EmailTemplates() {
                   Subject: {template.subject}
                 </p>
               </div>
-              <div className="flex gap-2">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  icon={<Edit className="w-4 h-4" />}
-                  onClick={() => handleEdit(template)}
-                >
-                  Edit
-                </Button>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  icon={<Trash2 className="w-4 h-4" />}
-                  onClick={() => handleDelete(template)}
-                  disabled={template.isDefault}
-                  title={template.isDefault ? 'Cannot delete default template' : 'Delete template'}
-                >
-                  Delete
-                </Button>
-              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="px-2"
+                    type="button"
+                    aria-label="Template options"
+                  >
+                    <MoreVertical className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" sideOffset={5}>
+                  <DropdownMenuItem onSelect={() => handleEdit(template)}>
+                    <Edit className="w-4 h-4 mr-2" />
+                    Edit
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => handleDuplicate(template)}>
+                    <Copy className="w-4 h-4 mr-2" />
+                    Duplicate
+                  </DropdownMenuItem>
+                  {!template.isDefault && template.isActive && (
+                    <DropdownMenuItem onSelect={() => handleSetDefault(template)}>
+                      <Star className="w-4 h-4 mr-2" />
+                      Set as Default
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem
+                    onSelect={() => handleToggleArchive(template)}
+                    disabled={template.isDefault && template.isActive}
+                  >
+                    {template.isActive ? (
+                      <Archive className="w-4 h-4 mr-2" />
+                    ) : (
+                      <RefreshCcw className="w-4 h-4 mr-2" />
+                    )}
+                    {template.isActive ? 'Archive' : 'Reactivate'}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onSelect={() => handleDelete(template)}
+                    disabled={template.isDefault}
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </Card>
         ))}

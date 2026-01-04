@@ -31,6 +31,7 @@ import {
   createEmailTemplate,
   updateEmailTemplate,
   deleteEmailTemplate,
+  duplicateEmailTemplate,
 } from '../emailTemplateService.js';
 import { prisma } from '../../db/index.js';
 
@@ -267,6 +268,60 @@ describe('Email Template Service', () => {
         where: { id: 'tmpl-1' },
         data: { isActive: false },
       });
+    });
+  });
+
+  describe('duplicateEmailTemplate', () => {
+    it('throws when template not found', async () => {
+      mockPrisma.emailTemplate.findUnique.mockResolvedValue(null);
+
+      await expect(duplicateEmailTemplate('missing')).rejects.toThrow('Template not found');
+    });
+
+    it('creates a non-default active copy with "(Copy)" suffix', async () => {
+      mockPrisma.emailTemplate.findUnique.mockResolvedValue({
+        name: 'Standard NDA',
+        description: 'Default template',
+        subject: 'Subject',
+        body: 'Body',
+      });
+      mockPrisma.emailTemplate.create.mockResolvedValue({
+        id: 'tmpl-copy',
+        name: 'Standard NDA (Copy)',
+        description: 'Default template',
+        subject: 'Subject',
+        body: 'Body',
+        isDefault: false,
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const result = await duplicateEmailTemplate('tmpl-1');
+
+      expect(mockPrisma.emailTemplate.create).toHaveBeenCalledWith({
+        data: {
+          name: 'Standard NDA (Copy)',
+          description: 'Default template',
+          subject: 'Subject',
+          body: 'Body',
+          isDefault: false,
+          isActive: true,
+        },
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          subject: true,
+          body: true,
+          isDefault: true,
+          isActive: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
+      expect(result.isDefault).toBe(false);
+      expect(result.isActive).toBe(true);
     });
   });
 });

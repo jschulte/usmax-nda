@@ -190,3 +190,45 @@ export async function deleteEmailTemplate(templateId: string): Promise<void> {
     data: { isActive: false },
   });
 }
+
+/**
+ * Duplicate an email template
+ * Story 7.7 AC3
+ */
+export async function duplicateEmailTemplate(templateId: string): Promise<EmailTemplateDetail> {
+  const template = await prisma.emailTemplate.findUnique({
+    where: { id: templateId },
+    select: {
+      name: true,
+      description: true,
+      subject: true,
+      body: true,
+    },
+  });
+
+  if (!template) {
+    throw new Error('Template not found');
+  }
+
+  return prisma.emailTemplate.create({
+    data: {
+      name: `${template.name} (Copy)`,
+      description: template.description,
+      subject: template.subject,
+      body: template.body,
+      isDefault: false,
+      isActive: true,
+    },
+    select: {
+      id: true,
+      name: true,
+      description: true,
+      subject: true,
+      body: true,
+      isDefault: true,
+      isActive: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
+}

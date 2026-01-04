@@ -47,6 +47,7 @@ vi.mock('../../../services/auditService.js', () => ({
     EMAIL_TEMPLATE_CREATED: 'email_template_created',
     EMAIL_TEMPLATE_UPDATED: 'email_template_updated',
     EMAIL_TEMPLATE_DELETED: 'email_template_deleted',
+    EMAIL_TEMPLATE_DUPLICATED: 'email_template_duplicated',
   },
 }));
 
@@ -58,6 +59,7 @@ const { mockService } = vi.hoisted(() => ({
     createEmailTemplate: vi.fn(),
     updateEmailTemplate: vi.fn(),
     deleteEmailTemplate: vi.fn(),
+    duplicateEmailTemplate: vi.fn(),
   },
 }));
 
@@ -249,6 +251,56 @@ describe('Admin Email Templates Routes', () => {
       expect(res.body.code).toBe('INVALID_PLACEHOLDERS');
       expect(res.body.details.subject.join(' ')).toMatch(/Malformed placeholders/);
       expect(mockService.createEmailTemplate).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('POST /api/admin/email-templates/:id/duplicate', () => {
+    it('should duplicate an existing template', async () => {
+      const sourceTemplate = {
+        id: 'template-1',
+        name: 'Standard NDA Email',
+        description: null,
+        subject: 'NDA {{displayId}}',
+        body: 'Dear {{companyName}}...',
+        isDefault: true,
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      const duplicatedTemplate = {
+        id: 'template-1-copy',
+        name: 'Standard NDA Email (Copy)',
+        description: null,
+        subject: 'NDA {{displayId}}',
+        body: 'Dear {{companyName}}...',
+        isDefault: false,
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      mockService.getEmailTemplate.mockResolvedValue(sourceTemplate);
+      mockService.duplicateEmailTemplate.mockResolvedValue(duplicatedTemplate);
+
+      const res = await request(app).post('/api/admin/email-templates/template-1/duplicate');
+
+      expect(res.status).toBe(201);
+      expect(res.body.template).toEqual({
+        ...duplicatedTemplate,
+        createdAt: duplicatedTemplate.createdAt.toISOString(),
+        updatedAt: duplicatedTemplate.updatedAt.toISOString(),
+      });
+      expect(mockService.duplicateEmailTemplate).toHaveBeenCalledWith('template-1');
+    });
+
+    it('should return 404 if template not found', async () => {
+      mockService.getEmailTemplate.mockResolvedValue(null);
+
+      const res = await request(app).post('/api/admin/email-templates/invalid-id/duplicate');
+
+      expect(res.status).toBe(404);
+      expect(res.body.code).toBe('TEMPLATE_NOT_FOUND');
     });
   });
 

@@ -7,6 +7,7 @@
  * - GET /api/admin/email-templates/:id - Get template by ID
  * - POST /api/admin/email-templates - Create new template
  * - PUT /api/admin/email-templates/:id - Update template
+ * - POST /api/admin/email-templates/:id/duplicate - Duplicate template
  * - DELETE /api/admin/email-templates/:id - Soft delete template
  *
  * All routes require admin:manage_templates permission (Story 9.16)
@@ -22,6 +23,7 @@ import {
   createEmailTemplate,
   updateEmailTemplate,
   deleteEmailTemplate,
+  duplicateEmailTemplate,
   type CreateEmailTemplateInput,
   type UpdateEmailTemplateInput,
 } from '../../services/emailTemplateService.js';
@@ -265,6 +267,52 @@ router.put('/:id', async (req: Request, res: Response) => {
     console.error('[Admin/EmailTemplates] Error updating template:', error);
     return res.status(500).json({
       error: 'Failed to update email template',
+      code: 'INTERNAL_ERROR',
+    });
+  }
+});
+
+/**
+ * POST /api/admin/email-templates/:id/duplicate
+ * Duplicate an email template
+ * Story 7.7 AC3
+ */
+router.post('/:id/duplicate', async (req: Request, res: Response) => {
+  const { id } = req.params;
+
+  try {
+    const sourceTemplate = await getEmailTemplate(id);
+    if (!sourceTemplate) {
+      return res.status(404).json({
+        error: 'Email template not found',
+        code: 'TEMPLATE_NOT_FOUND',
+      });
+    }
+
+    const template = await duplicateEmailTemplate(id);
+
+    await auditService.log({
+      action: AuditAction.EMAIL_TEMPLATE_DUPLICATED,
+      entityType: 'email_template',
+      entityId: template.id,
+      userId: req.userContext!.contactId,
+      details: {
+        sourceTemplateId: id,
+        sourceTemplateName: sourceTemplate.name,
+        templateName: template.name,
+      },
+      ipAddress: req.ip,
+      userAgent: req.headers['user-agent'],
+    });
+
+    return res.status(201).json({
+      message: 'Email template duplicated successfully',
+      template,
+    });
+  } catch (error) {
+    console.error('[Admin/EmailTemplates] Error duplicating template:', error);
+    return res.status(500).json({
+      error: 'Failed to duplicate email template',
       code: 'INTERNAL_ERROR',
     });
   }
