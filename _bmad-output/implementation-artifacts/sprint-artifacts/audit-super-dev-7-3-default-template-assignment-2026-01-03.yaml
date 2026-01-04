@@ -1,0 +1,120 @@
+---
+audit_version: "1.0"
+workflow: "super-dev-pipeline"
+workflow_version: "1.1.0"
+
+# Story identification
+story_id: "7-3-default-template-assignment"
+story_file: "_bmad-output/implementation-artifacts/sprint-artifacts/7-3-default-template-assignment.md"
+story_title: "Story 7.3: Default Template Assignment"
+
+# Execution summary
+execution:
+  started_at: "2026-01-03T08:12:47Z"
+  completed_at: "2026-01-03T08:40:01Z"
+  total_duration: "00:27:14"
+  mode: "batch"
+  status: "completed"
+
+# Development analysis
+development:
+  type: "brownfield"
+  existing_files_modified: 10
+  new_files_created: 2
+  migrations_applied: 1
+
+# Step results
+steps:
+  step-01-init:
+    duration: "00:05:10"
+    status: "completed"
+
+  step-02-pre-gap-analysis:
+    duration: "00:05:10"
+    tasks_analyzed: 8
+    tasks_refined: 1
+    tasks_added: 0
+    status: "completed"
+
+  step-03-implement:
+    duration: "00:18:02"
+    tasks_completed: 7
+    files_created:
+      - prisma/migrations/20260103090000_add_rtf_template_defaults/migration.sql
+      - _bmad-output/implementation-artifacts/sprint-artifacts/review-7-3-default-template-assignment.md
+    files_modified:
+      - prisma/schema.prisma
+      - src/server/services/auditService.ts
+      - src/server/services/templateService.ts
+      - src/server/services/agencySuggestionsService.ts
+      - src/server/routes/templates.ts
+      - src/client/services/templateService.ts
+      - src/components/screens/Templates.tsx
+      - src/components/screens/RequestWizard.tsx
+      - src/components/screens/NDADetail.tsx
+      - src/server/services/__tests__/templateService.test.ts
+      - _bmad-output/implementation-artifacts/sprint-artifacts/7-3-default-template-assignment.md
+    migrations:
+      - 20260103090000_add_rtf_template_defaults
+    tests_added: 1
+    status: "completed"
+
+  step-04-post-validation:
+    duration: "00:00:24"
+    tasks_verified: 8
+    false_positives: 0
+    re_implementations: 0
+    status: "completed"
+
+  step-05-code-review:
+    duration: "00:01:29"
+    issues_found: 3
+    issues_fixed: 3
+    categories:
+      - security
+      - performance
+      - error-handling
+      - code-quality
+      - architecture
+    status: "completed"
+
+  step-06-complete:
+    duration: "00:00:40"
+    commit_hash: "0dd97c3a2d12af44db71702bb8d8609853acb34a"
+    files_committed: 13
+    pushed: true
+    status: "completed"
+
+# Quality metrics
+quality:
+  all_tests_passing: false
+  lint_clean: false
+  build_success: false
+  no_vibe_coding: true
+  followed_step_sequence: true
+
+# Files affected
+files:
+  created:
+    - prisma/migrations/20260103090000_add_rtf_template_defaults/migration.sql
+    - _bmad-output/implementation-artifacts/sprint-artifacts/review-7-3-default-template-assignment.md
+  modified:
+    - prisma/schema.prisma
+    - src/server/services/auditService.ts
+    - src/server/services/templateService.ts
+    - src/server/services/agencySuggestionsService.ts
+    - src/server/routes/templates.ts
+    - src/client/services/templateService.ts
+    - src/components/screens/Templates.tsx
+    - src/components/screens/RequestWizard.tsx
+    - src/components/screens/NDADetail.tsx
+    - src/server/services/__tests__/templateService.test.ts
+    - _bmad-output/implementation-artifacts/sprint-artifacts/7-3-default-template-assignment.md
+  deleted: []
+
+# Commit information
+commit:
+  hash: "0dd97c3a2d12af44db71702bb8d8609853acb34a"
+  message: "feat(story-7-3-default-template-assignment): default template scopes"
+  files_committed: 13
+  pushed_to_remote: true
