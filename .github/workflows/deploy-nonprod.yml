@@ -4,8 +4,6 @@
 name: Deploy to NonProd
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
     inputs:
       skip_tests:

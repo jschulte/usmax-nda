@@ -7,7 +7,7 @@ import { describe, it, expect, beforeEach, afterAll } from 'vitest';
 import express from 'express';
 import cookieParser from 'cookie-parser';
 import request from 'supertest';
-import { resetDatabase, seedBaseAuth } from '../../../test/dbUtils';
+import { resetDatabaseAndSeedBaseAuth } from '../../../test/dbUtils';
 import { clearAllUserContextCache } from '../../services/userContextService.js';
 import { prisma } from '../../db/index.js';
 
@@ -22,12 +22,18 @@ function makeMockToken(sub: string, email: string) {
 
 describe('Subagencies Routes (integration)', () => {
   let app: express.Express;
-  let seededUsers: Awaited<ReturnType<typeof seedBaseAuth>>;
+  let seededUsers: Awaited<ReturnType<typeof resetDatabaseAndSeedBaseAuth>>;
+
+  const createAgencyGroup = async (baseName: string, baseCode: string) => {
+    const suffix = Math.random().toString(36).slice(2, 8).toUpperCase();
+    return prisma.agencyGroup.create({
+      data: { name: `${baseName}-${suffix}`, code: `${baseCode}_${suffix}` },
+    });
+  };
 
   beforeEach(async () => {
     clearAllUserContextCache();
-    await resetDatabase();
-    seededUsers = await seedBaseAuth();
+    seededUsers = await resetDatabaseAndSeedBaseAuth();
 
     app = express();
     app.use(express.json());
@@ -42,9 +48,7 @@ describe('Subagencies Routes (integration)', () => {
   });
 
   it('blocks users without permissions', async () => {
-    const group = await prisma.agencyGroup.create({
-      data: { name: 'DoD', code: 'DOD' },
-    });
+    const group = await createAgencyGroup('DoD', 'DOD');
     const token = makeMockToken('mock-user-003', 'noaccess@usmax.com');
 
     const response = await request(app)
@@ -56,9 +60,7 @@ describe('Subagencies Routes (integration)', () => {
   });
 
   it('lists subagencies for NDA users with group access', async () => {
-    const group = await prisma.agencyGroup.create({
-      data: { name: 'DoD', code: 'DOD' },
-    });
+    const group = await createAgencyGroup('DoD', 'DOD');
     await prisma.subagency.create({
       data: { agencyGroupId: group.id, name: 'Air Force', code: 'USAF' },
     });
@@ -70,6 +72,7 @@ describe('Subagencies Routes (integration)', () => {
         grantedBy: seededUsers.admin.id,
       },
     });
+    clearAllUserContextCache();
 
     const token = makeMockToken('mock-user-002', 'test@usmax.com');
     const response = await request(app)
@@ -82,9 +85,7 @@ describe('Subagencies Routes (integration)', () => {
   });
 
   it('creates a subagency (admin)', async () => {
-    const group = await prisma.agencyGroup.create({
-      data: { name: 'Commercial', code: 'COMM' },
-    });
+    const group = await createAgencyGroup('Commercial', 'COMM');
 
     const token = makeMockToken('mock-user-001', 'admin@usmax.com');
     const response = await request(app)
@@ -102,9 +103,7 @@ describe('Subagencies Routes (integration)', () => {
   });
 
   it('updates a subagency (admin)', async () => {
-    const group = await prisma.agencyGroup.create({
-      data: { name: 'Federal Civ', code: 'FEDCIV' },
-    });
+    const group = await createAgencyGroup('Federal Civ', 'FEDCIV');
     const subagency = await prisma.subagency.create({
       data: { agencyGroupId: group.id, name: 'USDA', code: 'USDA' },
     });
@@ -120,9 +119,7 @@ describe('Subagencies Routes (integration)', () => {
   });
 
   it('returns subagency details when user has access', async () => {
-    const group = await prisma.agencyGroup.create({
-      data: { name: 'Healthcare', code: 'HLTH' },
-    });
+    const group = await createAgencyGroup('Healthcare', 'HLTH');
     const subagency = await prisma.subagency.create({
       data: { agencyGroupId: group.id, name: 'NIH', code: 'NIH' },
     });
@@ -134,6 +131,7 @@ describe('Subagencies Routes (integration)', () => {
         grantedBy: seededUsers.admin.id,
       },
     });
+    clearAllUserContextCache();
 
     const token = makeMockToken('mock-user-002', 'test@usmax.com');
     const response = await request(app)
@@ -145,12 +143,18 @@ describe('Subagencies Routes (integration)', () => {
   });
 
   it('blocks delete when NDAs exist (admin)', async () => {
-    const group = await prisma.agencyGroup.create({
-      data: { name: 'DoD', code: 'DOD' },
-    });
+    const group = await createAgencyGroup('DoD', 'DOD');
     const subagency = await prisma.subagency.create({
       data: { agencyGroupId: group.id, name: 'USAF', code: 'USAF' },
     });
+
+    const adminContact =
+      (await prisma.contact.findUnique({ where: { id: seededUsers.admin.id } })) ??
+      (await prisma.contact.findUnique({ where: { email: 'admin@usmax.com' } }));
+
+    if (!adminContact) {
+      throw new Error('Admin contact not found for NDA setup');
+    }
 
     await prisma.nda.create({
       data: {
@@ -159,9 +163,9 @@ describe('Subagencies Routes (integration)', () => {
         subagencyId: subagency.id,
         abbreviatedName: 'ACME',
         authorizedPurpose: 'Test NDA',
-        opportunityPocId: seededUsers.admin.id,
-        relationshipPocId: seededUsers.admin.id,
-        createdById: seededUsers.admin.id,
+        opportunityPocId: adminContact.id,
+        relationshipPocId: adminContact.id,
+        createdById: adminContact.id,
       },
     });
 
@@ -176,9 +180,7 @@ describe('Subagencies Routes (integration)', () => {
   });
 
   it('deletes subagency when no NDAs exist (admin)', async () => {
-    const group = await prisma.agencyGroup.create({
-      data: { name: 'Commercial', code: 'COMM' },
-    });
+    const group = await createAgencyGroup('Commercial', 'COMM');
     const subagency = await prisma.subagency.create({
       data: { agencyGroupId: group.id, name: 'Retail', code: 'RTL' },
     });

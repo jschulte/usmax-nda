@@ -7,31 +7,44 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { BrowserRouter, MemoryRouter } from 'react-router-dom';
+import '@testing-library/jest-dom';
 import { MFAChallengePage } from '../MFAChallengePage';
 import * as useAuthModule from '../../hooks/useAuth';
 
 // Mock useAuth hook
 const mockVerifyMFA = vi.fn();
 const mockClearError = vi.fn();
+const mockNavigate = vi.hoisted(() => vi.fn());
+const mockLocationState = vi.hoisted(() => ({
+  state: { session: 'test-session', email: 'admin@usmax.com' } as { session: string; email: string } | null,
+}));
 
 vi.mock('../../hooks/useAuth', () => ({
   useAuth: vi.fn(),
 }));
 
-const renderMFAPage = (locationState?: any) => {
-  const state = locationState || { session: 'test-session', email: 'admin@usmax.com' };
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+  return {
+    ...actual,
+    useNavigate: () => mockNavigate,
+    useLocation: () => ({ state: mockLocationState.state }),
+  };
+});
 
-  return render(
-    <MemoryRouter initialEntries={[{ pathname: '/mfa', state }]}>
-      <MFAChallengePage />
-    </MemoryRouter>
-  );
+const renderMFAPage = (locationState?: { session: string; email: string } | null) => {
+  if (locationState === undefined) {
+    mockLocationState.state = { session: 'test-session', email: 'admin@usmax.com' };
+  } else {
+    mockLocationState.state = locationState;
+  }
+  return render(<MFAChallengePage />);
 };
 
 describe('MFAChallengePage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockNavigate.mockReset();
     vi.spyOn(useAuthModule, 'useAuth').mockReturnValue({
       verifyMFA: mockVerifyMFA,
       isLoading: false,
@@ -44,7 +57,7 @@ describe('MFAChallengePage', () => {
     it('should render MFA code input field', () => {
       renderMFAPage();
 
-      expect(screen.getByLabelText(/verification code/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/authentication code/i)).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /verify/i })).toBeInTheDocument();
     });
 
@@ -55,13 +68,11 @@ describe('MFAChallengePage', () => {
     });
 
     it('should redirect to login if no session provided', () => {
-      const mockNavigate = vi.fn();
-
-      // Test would verify redirect behavior
-      // Actual implementation uses useEffect with navigate
       renderMFAPage(null);
 
-      // Page should indicate missing session or redirect
+      return waitFor(() => {
+        expect(mockNavigate).toHaveBeenCalledWith('/login', { replace: true });
+      });
     });
   });
 
@@ -70,12 +81,12 @@ describe('MFAChallengePage', () => {
       const user = userEvent.setup();
       renderMFAPage();
 
-      const codeInput = screen.getByLabelText(/verification code/i);
+      const codeInput = screen.getByLabelText(/authentication code/i);
       await user.type(codeInput, 'abcdef');
       await user.tab();
 
       await waitFor(() => {
-        expect(screen.getByText(/6-digit code/i)).toBeInTheDocument();
+        expect(screen.getByText(/6-digit code/i, { selector: 'p[role=\"alert\"]' })).toBeInTheDocument();
       });
     });
 
@@ -83,12 +94,12 @@ describe('MFAChallengePage', () => {
       const user = userEvent.setup();
       renderMFAPage();
 
-      const codeInput = screen.getByLabelText(/verification code/i);
+      const codeInput = screen.getByLabelText(/authentication code/i);
       await user.type(codeInput, '123');
       await user.tab();
 
       await waitFor(() => {
-        expect(screen.getByText(/6-digit code/i)).toBeInTheDocument();
+        expect(screen.getByText(/6-digit code/i, { selector: 'p[role=\"alert\"]' })).toBeInTheDocument();
       });
     });
 
@@ -96,7 +107,7 @@ describe('MFAChallengePage', () => {
       const user = userEvent.setup();
       renderMFAPage();
 
-      const codeInput = screen.getByLabelText(/verification code/i);
+      const codeInput = screen.getByLabelText(/authentication code/i);
       await user.type(codeInput, '123456');
 
       await waitFor(() => {
@@ -113,7 +124,7 @@ describe('MFAChallengePage', () => {
 
       renderMFAPage();
 
-      await user.type(screen.getByLabelText(/verification code/i), '123456');
+      await user.type(screen.getByLabelText(/authentication code/i), '123456');
       await user.click(screen.getByRole('button', { name: /verify/i }));
 
       await waitFor(() => {
@@ -127,29 +138,30 @@ describe('MFAChallengePage', () => {
 
       renderMFAPage();
 
-      await user.type(screen.getByLabelText(/verification code/i), '123456');
+      await user.type(screen.getByLabelText(/authentication code/i), '123456');
       await user.click(screen.getByRole('button', { name: /verify/i }));
 
       await waitFor(() => {
         expect(mockVerifyMFA).toHaveBeenCalled();
       });
 
-      // Note: Navigation testing requires mocking useNavigate
+      await waitFor(() => {
+        expect(mockNavigate).toHaveBeenCalledWith('/', { replace: true });
+      });
     });
   });
 
   describe('Retry Counter (AC2: Show retry counter)', () => {
     it('should show remaining attempts after failed verification', async () => {
       const user = userEvent.setup();
-      mockVerifyMFA.mockResolvedValue({
-        success: false,
+      mockVerifyMFA.mockRejectedValue({
         attemptsRemaining: 2,
-        error: 'Invalid MFA code',
+        message: 'Invalid MFA code',
       });
 
       renderMFAPage();
 
-      await user.type(screen.getByLabelText(/verification code/i), '000000');
+      await user.type(screen.getByLabelText(/authentication code/i), '000000');
       await user.click(screen.getByRole('button', { name: /verify/i }));
 
       await waitFor(() => {
@@ -159,33 +171,31 @@ describe('MFAChallengePage', () => {
 
     it('should show lockout message after 3 failed attempts', async () => {
       const user = userEvent.setup();
-      mockVerifyMFA.mockResolvedValue({
-        success: false,
+      mockVerifyMFA.mockRejectedValue({
         attemptsRemaining: 0,
-        error: 'Account temporarily locked',
+        message: 'Account temporarily locked',
       });
 
       renderMFAPage();
 
-      await user.type(screen.getByLabelText(/verification code/i), '999999');
+      await user.type(screen.getByLabelText(/authentication code/i), '999999');
       await user.click(screen.getByRole('button', { name: /verify/i }));
 
       await waitFor(() => {
-        expect(screen.getByText(/temporarily locked/i)).toBeInTheDocument();
+        expect(screen.getAllByText(/account temporarily locked/i).length).toBeGreaterThan(0);
       });
     });
 
     it('should disable submit after account lockout', async () => {
       const user = userEvent.setup();
-      mockVerifyMFA.mockResolvedValue({
-        success: false,
+      mockVerifyMFA.mockRejectedValue({
         attemptsRemaining: 0,
-        error: 'Account temporarily locked',
+        message: 'Account temporarily locked',
       });
 
       renderMFAPage();
 
-      await user.type(screen.getByLabelText(/verification code/i), '999999');
+      await user.type(screen.getByLabelText(/authentication code/i), '999999');
       await user.click(screen.getByRole('button', { name: /verify/i }));
 
       await waitFor(() => {
@@ -209,7 +219,7 @@ describe('MFAChallengePage', () => {
       expect(screen.getByText(/invalid mfa code/i)).toBeInTheDocument();
     });
 
-    it('should clear error when user starts typing', async () => {
+    it('should clear error on submit', async () => {
       const user = userEvent.setup();
       vi.spyOn(useAuthModule, 'useAuth').mockReturnValue({
         verifyMFA: mockVerifyMFA,
@@ -220,7 +230,8 @@ describe('MFAChallengePage', () => {
 
       renderMFAPage();
 
-      await user.type(screen.getByLabelText(/verification code/i), '1');
+      await user.type(screen.getByLabelText(/authentication code/i), '123456');
+      await user.click(screen.getByRole('button', { name: /verify/i }));
 
       await waitFor(() => {
         expect(mockClearError).toHaveBeenCalled();
@@ -253,26 +264,30 @@ describe('MFAChallengePage', () => {
 
       renderMFAPage();
 
-      expect(screen.getByLabelText(/verification code/i)).toBeDisabled();
+      expect(screen.getByLabelText(/authentication code/i)).toBeDisabled();
     });
   });
 
   describe('Back to Login', () => {
-    it('should provide link to return to login page', () => {
+    it('should provide a button to return to login page', async () => {
+      const user = userEvent.setup();
       renderMFAPage();
 
-      const backLink = screen.getByRole('link', { name: /back to login/i });
-      expect(backLink).toBeInTheDocument();
-      expect(backLink).toHaveAttribute('href', '/login');
+      const backButton = screen.getByRole('button', { name: /back to login/i });
+      expect(backButton).toBeInTheDocument();
+      await user.click(backButton);
+      expect(mockNavigate).toHaveBeenCalledWith('/login');
     });
   });
 
   describe('Auto-focus', () => {
-    it('should auto-focus MFA code input on mount', () => {
+    it('should auto-focus MFA code input on mount', async () => {
       renderMFAPage();
 
-      const codeInput = screen.getByLabelText(/verification code/i);
-      expect(codeInput).toHaveFocus();
+      const codeInput = screen.getByLabelText(/authentication code/i);
+      await waitFor(() => {
+        expect(codeInput).toHaveFocus();
+      });
     });
   });
 
@@ -280,8 +295,8 @@ describe('MFAChallengePage', () => {
     it('should have proper ARIA labels', () => {
       renderMFAPage();
 
-      expect(screen.getByLabelText(/verification code/i)).toHaveAttribute('type', 'text');
-      expect(screen.getByLabelText(/verification code/i)).toHaveAttribute('inputmode', 'numeric');
+      expect(screen.getByLabelText(/authentication code/i)).toHaveAttribute('type', 'text');
+      expect(screen.getByLabelText(/authentication code/i)).toHaveAttribute('inputmode', 'numeric');
     });
 
     it('should announce error to screen readers', async () => {
@@ -294,8 +309,8 @@ describe('MFAChallengePage', () => {
 
       renderMFAPage();
 
-      const errorElement = screen.getByText(/invalid code/i);
-      expect(errorElement).toHaveAttribute('role', 'alert');
+      const errorElement = screen.getByRole('alert');
+      expect(errorElement).toHaveTextContent(/invalid code/i);
     });
   });
 });

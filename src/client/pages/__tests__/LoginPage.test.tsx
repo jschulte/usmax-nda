@@ -7,6 +7,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import '@testing-library/jest-dom';
 import { BrowserRouter } from 'react-router-dom';
 import { LoginPage } from '../LoginPage';
 import * as useAuthModule from '../../hooks/useAuth';
@@ -15,9 +16,19 @@ import * as useAuthModule from '../../hooks/useAuth';
 const mockLogin = vi.fn();
 const mockClearError = vi.fn();
 
+const mockNavigate = vi.hoisted(() => vi.fn());
+
 vi.mock('../../hooks/useAuth', () => ({
   useAuth: vi.fn(),
 }));
+
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+  return {
+    ...actual,
+    useNavigate: () => mockNavigate,
+  };
+});
 
 const renderLoginPage = () => {
   return render(
@@ -30,6 +41,7 @@ const renderLoginPage = () => {
 describe('LoginPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockNavigate.mockReset();
     vi.spyOn(useAuthModule, 'useAuth').mockReturnValue({
       login: mockLogin,
       isLoading: false,
@@ -50,8 +62,12 @@ describe('LoginPage', () => {
     it('should render USmax branding', () => {
       renderLoginPage();
 
-      expect(screen.getByText(/usmax/i)).toBeInTheDocument();
-      expect(screen.getByText(/nda management/i)).toBeInTheDocument();
+      expect(
+        screen.getByRole('heading', { name: /usmax nda management system/i })
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(/sign in with your usmax credentials/i)
+      ).toBeInTheDocument();
     });
   });
 
@@ -117,13 +133,19 @@ describe('LoginPage', () => {
   describe('Submit Handling', () => {
     it('should call login function with correct credentials', async () => {
       const user = userEvent.setup();
-      mockLogin.mockResolvedValue({ type: 'mfa_required', challenge: { session: 'test-session' } });
+      mockLogin.mockResolvedValue({ challengeName: 'SOFTWARE_TOKEN_MFA', session: 'test-session' });
 
       renderLoginPage();
 
       await user.type(screen.getByLabelText(/email/i), 'admin@usmax.com');
       await user.type(screen.getByLabelText(/password/i), 'Admin123!@#$');
-      await user.click(screen.getByRole('button', { name: /sign in/i }));
+      const submitButton = screen.getByRole('button', { name: /sign in/i });
+
+      await waitFor(() => {
+        expect(submitButton).toBeEnabled();
+      });
+
+      await user.click(submitButton);
 
       await waitFor(() => {
         expect(mockLogin).toHaveBeenCalledWith('admin@usmax.com', 'Admin123!@#$');
@@ -132,28 +154,28 @@ describe('LoginPage', () => {
 
     it('should navigate to MFA page on successful login', async () => {
       const user = userEvent.setup();
-      const mockNavigate = vi.fn();
-
-      // Mock useNavigate
-      vi.mock('react-router-dom', async () => {
-        const actual = await vi.importActual('react-router-dom');
-        return {
-          ...actual,
-          useNavigate: () => mockNavigate,
-        };
-      });
-
-      mockLogin.mockResolvedValue({ type: 'mfa_required', challenge: { session: 'test-session' } });
+      mockLogin.mockResolvedValue({ challengeName: 'SOFTWARE_TOKEN_MFA', session: 'test-session' });
 
       renderLoginPage();
 
       await user.type(screen.getByLabelText(/email/i), 'test@usmax.com');
       await user.type(screen.getByLabelText(/password/i), 'Test1234!@#$');
-      await user.click(screen.getByRole('button', { name: /sign in/i }));
+      const submitButton = screen.getByRole('button', { name: /sign in/i });
 
-      // Note: Navigation testing requires mocking useNavigate
+      await waitFor(() => {
+        expect(submitButton).toBeEnabled();
+      });
+
+      await user.click(submitButton);
+
       await waitFor(() => {
         expect(mockLogin).toHaveBeenCalled();
+        expect(mockNavigate).toHaveBeenCalledWith('/mfa-challenge', {
+          state: {
+            session: 'test-session',
+            email: 'test@usmax.com',
+          },
+        });
       });
     });
   });
@@ -172,7 +194,7 @@ describe('LoginPage', () => {
       expect(screen.getByText(/invalid credentials/i)).toBeInTheDocument();
     });
 
-    it('should clear error when user starts typing', async () => {
+    it('should clear error on submit', async () => {
       const user = userEvent.setup();
       vi.spyOn(useAuthModule, 'useAuth').mockReturnValue({
         login: mockLogin,
@@ -183,7 +205,9 @@ describe('LoginPage', () => {
 
       renderLoginPage();
 
-      await user.type(screen.getByLabelText(/email/i), 'a');
+      await user.type(screen.getByLabelText(/email/i), 'admin@usmax.com');
+      await user.type(screen.getByLabelText(/password/i), 'Admin123!@#$');
+      await user.click(screen.getByRole('button', { name: /sign in/i }));
 
       await waitFor(() => {
         expect(mockClearError).toHaveBeenCalled();

@@ -7,13 +7,13 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 
-const mockNavigate = vi.fn();
-let mockSearch = '';
+const mockNavigate = vi.hoisted(() => vi.fn());
+const mockLocation = vi.hoisted(() => ({ search: '' }));
 
 vi.mock('react-router-dom', () => ({
   useNavigate: () => mockNavigate,
   useParams: () => ({}),
-  useLocation: () => ({ search: mockSearch }),
+  useLocation: () => ({ search: mockLocation.search }),
 }));
 
 vi.mock('react-quill', () => ({
@@ -89,7 +89,7 @@ import { getCompanyDefaults, getCompanySuggestions, getNDA } from '../../client/
 
 describe('RequestWizard', () => {
   beforeEach(() => {
-    mockSearch = '';
+    mockLocation.search = '';
     mockNavigate.mockReset();
   });
 
@@ -140,16 +140,20 @@ describe('RequestWizard', () => {
       expect(cityInput).toHaveValue('San Francisco');
     });
 
-    expect(cityInput).toHaveClass('bg-[var(--color-primary-light)]');
+    await waitFor(() => {
+      expect(cityInput).toHaveClass('bg-[var(--color-primary-light)]');
+    });
 
     await user.clear(cityInput);
     await user.type(cityInput, 'Oakland');
 
-    expect(cityInput).not.toHaveClass('bg-[var(--color-primary-light)]');
+    await waitFor(() => {
+      expect(cityInput).not.toHaveClass('bg-[var(--color-primary-light)]');
+    });
   });
 
   it('shows clone banner with link when cloning from an NDA', async () => {
-    mockSearch = '?cloneFrom=nda-1';
+    mockLocation.search = '?cloneFrom=nda-1';
     vi.mocked(getNDA).mockResolvedValue({
       id: 'nda-1',
       displayId: 1590,
