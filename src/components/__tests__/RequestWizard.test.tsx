@@ -52,6 +52,7 @@ vi.mock('../../client/services/ndaService', () => ({
   searchCompanies: vi.fn().mockResolvedValue({ companies: [] }),
   getCompanySuggestions: vi.fn().mockResolvedValue({ companies: [] }),
   getCompanyDefaults: vi.fn().mockResolvedValue({ defaults: {} }),
+  getCompanyHistory: vi.fn().mockResolvedValue({ history: [] }),
   getAgencySuggestions: vi.fn().mockResolvedValue({
     suggestions: {
       commonCompanies: [],
@@ -85,7 +86,7 @@ vi.mock('../../client/services/documentService', () => ({
 }));
 
 import { RequestWizard } from '../screens/RequestWizard';
-import { getCompanyDefaults, getCompanySuggestions, getNDA } from '../../client/services/ndaService';
+import { getCompanyDefaults, getCompanySuggestions, getCompanyHistory, getNDA } from '../../client/services/ndaService';
 
 describe('RequestWizard', () => {
   beforeEach(() => {
@@ -197,6 +198,61 @@ describe('RequestWizard', () => {
 
     const effectiveDateInput = container.querySelector('input[type=\"date\"]') as HTMLInputElement;
     expect(effectiveDateInput.value).toBe('2024-01-15');
+  });
+
+  it('shows previous NDAs for selected company with view and clone actions', async () => {
+    const user = userEvent.setup();
+    vi.mocked(getCompanySuggestions).mockResolvedValue({
+      companies: [{ companyName: 'TechCorp Solutions Inc.', count: 3 }],
+    });
+    vi.mocked(getCompanyHistory).mockResolvedValue({
+      history: [
+        {
+          id: 'nda-1',
+          displayId: 1001,
+          status: 'CREATED',
+          ndaType: 'MUTUAL',
+          abbreviatedName: 'TC-2024',
+          effectiveDate: '2024-01-15',
+          createdAt: '2024-01-20T00:00:00Z',
+          agencyGroupName: 'DoD',
+          subagencyName: 'Army',
+        },
+      ],
+    });
+
+    render(<RequestWizard />);
+
+    await user.type(
+      screen.getByPlaceholderText('e.g., TechCorp Integration'),
+      'TechCorp Integration'
+    );
+    await user.type(
+      screen.getByPlaceholderText('Describe the authorized purpose of this NDA and the project context'),
+      'Authorized purpose for integration'
+    );
+
+    await user.click(screen.getByRole('button', { name: /next/i }));
+
+    const companyInput = await screen.findByPlaceholderText('Start typing to search...');
+    await user.click(companyInput);
+
+    const suggestion = await screen.findByText('TechCorp Solutions Inc.');
+    await user.click(suggestion);
+
+    await waitFor(() => {
+      expect(screen.getByText('Previous NDAs')).toBeInTheDocument();
+    });
+
+    expect(screen.getByText('NDA #1001')).toBeInTheDocument();
+
+    const viewButton = screen.getByRole('button', { name: /^view$/i });
+    await user.click(viewButton);
+    expect(mockNavigate).toHaveBeenCalledWith('/nda/nda-1');
+
+    const cloneButton = screen.getByRole('button', { name: /^clone$/i });
+    await user.click(cloneButton);
+    expect(mockNavigate).toHaveBeenCalledWith('/request-wizard?cloneFrom=nda-1');
   });
 
   it('shows clone banner with link when cloning from an NDA', async () => {

@@ -670,6 +670,26 @@ export async function setupMockApi(page: Page, state: MockState): Promise<void> 
       });
     }
 
+    if (path === '/api/ndas/company-history' && method === 'GET') {
+      const name = url.searchParams.get('name')?.toLowerCase() ?? '';
+      const history = state.ndas
+        .filter((nda) => nda.companyName.toLowerCase() === name)
+        .slice(0, 5)
+        .map((nda) => ({
+          id: nda.id,
+          displayId: Number(nda.displayId),
+          status: nda.status,
+          ndaType: nda.ndaType,
+          abbreviatedName: nda.abbreviatedName,
+          effectiveDate: nda.effectiveDate,
+          createdAt: nda.createdAt,
+          agencyGroupName: nda.agencyGroup?.name ?? null,
+          subagencyName: nda.subagency?.name ?? null,
+        }));
+
+      return jsonResponse(route, 200, { history });
+    }
+
     if (path === '/api/ndas/agency-suggestions' && method === 'GET') {
       return jsonResponse(route, 200, {
         suggestions: {

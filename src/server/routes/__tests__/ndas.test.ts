@@ -88,6 +88,7 @@ vi.mock('../../services/ndaService.js', () => {
 vi.mock('../../services/companySuggestionsService.js', () => ({
   getRecentCompanies: vi.fn(),
   getCompanyDefaults: vi.fn(),
+  getCompanyHistory: vi.fn(),
   searchCompanies: vi.fn(),
   getMostCommonAgency: vi.fn(),
 }));
@@ -205,6 +206,30 @@ describe('NDA Routes Integration', () => {
 
     it('rejects blank company defaults query', async () => {
       const response = await request(app).get('/api/ndas/company-defaults?name=%20%20');
+
+      expect(response.status).toBe(400);
+      expect(response.body.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('returns company history', async () => {
+      vi.mocked(companySuggestionsService.getCompanyHistory).mockResolvedValue([
+        { id: 'nda-1', displayId: 1001, status: 'CREATED' },
+      ] as any);
+
+      const response = await request(app).get('/api/ndas/company-history?name=TechCorp&limit=3');
+
+      expect(response.status).toBe(200);
+      expect(response.body.history).toHaveLength(1);
+      expect(response.body.history[0].displayId).toBe(1001);
+      expect(companySuggestionsService.getCompanyHistory).toHaveBeenCalledWith(
+        'TechCorp',
+        expect.any(Object),
+        3
+      );
+    });
+
+    it('validates company history query', async () => {
+      const response = await request(app).get('/api/ndas/company-history');
 
       expect(response.status).toBe(400);
       expect(response.body.code).toBe('VALIDATION_ERROR');

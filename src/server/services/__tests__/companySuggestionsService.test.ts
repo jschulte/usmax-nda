@@ -7,6 +7,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   getRecentCompanies,
   getCompanyDefaults,
+  getCompanyHistory,
   getMostCommonAgency,
   searchCompanies,
 } from '../companySuggestionsService.js';
@@ -292,6 +293,53 @@ describe('companySuggestionsService', () => {
                 },
               }),
             ]),
+          }),
+        })
+      );
+    });
+  });
+
+  describe('getCompanyHistory', () => {
+    it('returns recent NDAs for a company', async () => {
+      mockPrisma.nda.findMany.mockResolvedValue([
+        {
+          id: 'nda-1',
+          displayId: 1001,
+          status: 'CREATED',
+          ndaType: 'MUTUAL',
+          abbreviatedName: 'TC-2024',
+          effectiveDate: new Date('2024-01-15'),
+          createdAt: new Date('2024-01-20'),
+          agencyGroup: { name: 'DoD' },
+          subagency: { name: 'Army' },
+        },
+      ]);
+
+      const history = await getCompanyHistory('TechCorp', mockUserContext);
+
+      expect(history).toHaveLength(1);
+      expect(history[0]).toMatchObject({
+        id: 'nda-1',
+        displayId: 1001,
+        status: 'CREATED',
+        ndaType: 'MUTUAL',
+        abbreviatedName: 'TC-2024',
+        agencyGroupName: 'DoD',
+        subagencyName: 'Army',
+      });
+    });
+
+    it('applies security filter and limit', async () => {
+      mockPrisma.nda.findMany.mockResolvedValue([]);
+
+      await getCompanyHistory('TechCorp', mockUserContext, 2);
+
+      expect(buildSecurityFilter).toHaveBeenCalledWith(mockUserContext);
+      expect(mockPrisma.nda.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          take: 2,
+          where: expect.objectContaining({
+            AND: expect.any(Array),
           }),
         })
       );

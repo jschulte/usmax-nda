@@ -27,6 +27,7 @@ import {
   searchCompanies,
   getCompanySuggestions,
   getCompanyDefaults,
+  getCompanyHistory,
   getAgencySuggestions,
   updateDraft,
   type CreateNdaData,
@@ -34,6 +35,7 @@ import {
   type AgencySuggestions,
   type CompanySuggestion,
   type CompanyDefaults,
+  type CompanyHistoryNda,
   type UsMaxPosition,
   type NdaType,
 } from '../../client/services/ndaService';
@@ -54,6 +56,7 @@ import {
   type RtfTemplate,
 } from '../../client/services/templateService';
 import { generateDocument } from '../../client/services/documentService';
+import { getStatusDisplayName } from '../../client/utils/statusFormatter';
 
 const ndaTypes: { value: NdaType; label: string; description: string }[] = [
   { value: 'MUTUAL', label: 'Mutual NDA', description: 'Both parties will exchange confidential information' },
@@ -92,6 +95,8 @@ export function RequestWizard() {
   const [cloneFieldsToUpdate, setCloneFieldsToUpdate] = useState<Record<string, boolean>>({});
   const [agencySuggestions, setAgencySuggestions] = useState<AgencySuggestions | null>(null);
   const [companyDefaults, setCompanyDefaults] = useState<CompanyDefaults | null>(null);
+  const [companyHistory, setCompanyHistory] = useState<CompanyHistoryNda[]>([]);
+  const [companyHistoryLoading, setCompanyHistoryLoading] = useState(false);
   const [templates, setTemplates] = useState<RtfTemplate[]>([]);
   const [templatesLoading, setTemplatesLoading] = useState(false);
   const [contactSuggestions, setContactSuggestions] = useState<Contact[]>([]);
@@ -569,6 +574,25 @@ export function RequestWizard() {
     [markAutoFilled]
   );
 
+  const loadCompanyHistory = useCallback(async (companyName: string) => {
+    const trimmedName = companyName.trim();
+    if (!trimmedName) {
+      setCompanyHistory([]);
+      return;
+    }
+
+    try {
+      setCompanyHistoryLoading(true);
+      const response = await getCompanyHistory(trimmedName);
+      setCompanyHistory(response.history);
+    } catch (err) {
+      console.error('Failed to load company history:', err);
+      setCompanyHistory([]);
+    } finally {
+      setCompanyHistoryLoading(false);
+    }
+  }, []);
+
   // Load company defaults when company is selected
   const handleCompanySelect = useCallback(async (companyName: string) => {
     setFormData((prev) => ({ ...prev, companyName }));
@@ -595,6 +619,23 @@ export function RequestWizard() {
       formData.subagencyId || undefined
     );
   }, [formData.companyName, formData.agencyGroupId, formData.subagencyId, loadCompanyDefaults]);
+
+  useEffect(() => {
+    if (currentStep < 2) return;
+    const companyName = formData.companyName.trim();
+
+    if (companyName.length < 2) {
+      setCompanyHistory([]);
+      setCompanyHistoryLoading(false);
+      return;
+    }
+
+    const debounceTimer = setTimeout(() => {
+      loadCompanyHistory(companyName);
+    }, 400);
+
+    return () => clearTimeout(debounceTimer);
+  }, [currentStep, formData.companyName, loadCompanyHistory]);
 
   const companySuggestionItems = useMemo(() => {
     const items: Array<{ name: string; count?: number; source: 'recent' | 'agency' | 'search' }> = [];
@@ -1660,6 +1701,79 @@ export function RequestWizard() {
                       </div>
                     )}
                 </div>
+
+                {companyHistoryLoading ? (
+                  <div className="mt-4 flex items-center gap-2 text-sm text-[var(--color-text-secondary)]">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Loading previous NDAs…</span>
+                  </div>
+                ) : companyHistory.length > 0 ? (
+                  <div className="mt-4 border border-[var(--color-border)] rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-sm font-semibold">Previous NDAs</h3>
+                      <span className="text-xs text-[var(--color-text-secondary)]">
+                        Showing {Math.min(companyHistory.length, 5)} most recent
+                      </span>
+                    </div>
+                    <div className="space-y-3">
+                      {companyHistory.map((nda) => {
+                        const agencyLabel = [nda.agencyGroupName, nda.subagencyName]
+                          .filter(Boolean)
+                          .join(' • ');
+                        return (
+                          <div
+                            key={nda.id}
+                            className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between border border-[var(--color-border)] rounded-lg p-3"
+                          >
+                            <div className="space-y-2">
+                              <div>
+                                <p className="text-sm font-medium">NDA #{nda.displayId}</p>
+                                {nda.abbreviatedName && (
+                                  <p className="text-xs text-[var(--color-text-secondary)]">
+                                    {nda.abbreviatedName}
+                                  </p>
+                                )}
+                                {agencyLabel && (
+                                  <p className="text-xs text-[var(--color-text-secondary)]">
+                                    {agencyLabel}
+                                  </p>
+                                )}
+                              </div>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <Badge variant="status" status={nda.status}>
+                                  {getStatusDisplayName(nda.status)}
+                                </Badge>
+                                {nda.effectiveDate && (
+                                  <Badge variant="info">
+                                    Effective {new Date(nda.effectiveDate).toLocaleDateString()}
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                type="button"
+                                variant="subtle"
+                                size="sm"
+                                onClick={() => navigate(`/nda/${nda.id}`)}
+                              >
+                                View
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="secondary"
+                                size="sm"
+                                onClick={() => navigate(`/request-wizard?cloneFrom=${nda.id}`)}
+                              >
+                                Clone
+                              </Button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : null}
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <Input

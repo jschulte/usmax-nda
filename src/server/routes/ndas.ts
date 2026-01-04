@@ -15,6 +15,7 @@
  * - GET    /api/ndas/filter-presets     - Get available filter presets
  * - GET    /api/ndas/company-suggestions - Get recent companies
  * - GET    /api/ndas/company-defaults   - Get auto-fill defaults for company
+ * - GET    /api/ndas/company-history    - Get recent NDAs for a company
  * - GET    /api/ndas/company-search     - Search companies
  * - GET    /api/ndas/agency-suggestions - Get suggestions for an agency
  * - GET    /api/ndas/agency-subagencies - Get common subagencies for agency
@@ -64,6 +65,7 @@ import {
 import {
   getRecentCompanies,
   getCompanyDefaults,
+  getCompanyHistory,
   searchCompanies,
   getMostCommonAgency,
 } from '../services/companySuggestionsService.js';
@@ -488,6 +490,46 @@ router.get(
       console.error('[NDAs] Error getting company defaults:', error);
       res.status(500).json({
         error: 'Failed to get company defaults',
+        code: 'INTERNAL_ERROR',
+      });
+    }
+  }
+);
+
+/**
+ * GET /api/ndas/company-history
+ * Get recent NDAs for a company
+ *
+ * Query params:
+ * - name: Company name (required)
+ * - limit: Max results (default: 5)
+ *
+ * Requires: nda:create or nda:update permission
+ */
+router.get(
+  '/company-history',
+  requireAnyPermission([PERMISSIONS.NDA_CREATE, PERMISSIONS.NDA_UPDATE]),
+  async (req, res) => {
+    try {
+      const companyName = (req.query.name as string | undefined)?.trim();
+      const limitParam = req.query.limit as string | undefined;
+      const parsedLimit = limitParam ? parseInt(limitParam, 10) : NaN;
+      const limit =
+        Number.isFinite(parsedLimit) && parsedLimit > 0 ? parsedLimit : 5;
+
+      if (!companyName) {
+        return res.status(400).json({
+          error: 'Company name is required',
+          code: 'VALIDATION_ERROR',
+        });
+      }
+
+      const history = await getCompanyHistory(companyName, req.userContext!, limit);
+      res.json({ history });
+    } catch (error) {
+      console.error('[NDAs] Error getting company history:', error);
+      res.status(500).json({
+        error: 'Failed to get company history',
         code: 'INTERNAL_ERROR',
       });
     }

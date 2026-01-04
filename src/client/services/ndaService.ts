@@ -318,6 +318,18 @@ export interface CompanyDefaults {
   effectiveDateSuggestions?: string[];
 }
 
+export interface CompanyHistoryNda {
+  id: string;
+  displayId: number;
+  status: NdaStatus;
+  ndaType?: NdaType | null;
+  abbreviatedName?: string | null;
+  effectiveDate?: string | null;
+  createdAt: string;
+  agencyGroupName?: string | null;
+  subagencyName?: string | null;
+}
+
 export interface AgencySuggestions {
   commonCompanies: Array<{ companyName: string; count: number }>;
   typicalPosition?: UsMaxPosition;
@@ -485,6 +497,19 @@ export async function getCompanyDefaults(
   if (options?.subagencyId) params.subagencyId = options.subagencyId;
 
   return get<{ defaults: CompanyDefaults }>('/api/ndas/company-defaults', params);
+}
+
+/**
+ * Get previous NDAs for a company (most recent first)
+ */
+export async function getCompanyHistory(
+  companyName: string,
+  limit = 5
+): Promise<{ history: CompanyHistoryNda[] }> {
+  return get<{ history: CompanyHistoryNda[] }>('/api/ndas/company-history', {
+    name: companyName,
+    limit,
+  });
 }
 
 /**

@@ -10,7 +10,7 @@
 
 import prisma from '../db/index.js';
 import type { UserContext } from '../types/auth.js';
-import type { NdaType } from '../../generated/prisma/index.js';
+import type { NdaType, NdaStatus } from '../../generated/prisma/index.js';
 import { buildSecurityFilter } from './ndaService.js';
 
 export interface CompanyDefaults {
@@ -30,6 +30,18 @@ export interface CompanyDefaults {
   typicalNdaType?: NdaType;
   ndaTypeCounts?: Array<{ ndaType: NdaType; count: number }>;
   effectiveDateSuggestions?: string[];
+}
+
+export interface CompanyHistoryNda {
+  id: string;
+  displayId: number;
+  status: NdaStatus;
+  ndaType: NdaType | null;
+  abbreviatedName: string | null;
+  effectiveDate: Date | null;
+  createdAt: Date;
+  agencyGroupName: string | null;
+  subagencyName: string | null;
 }
 
 export interface RecentCompany {
@@ -308,6 +320,64 @@ export async function getCompanyDefaults(
     ndaTypeCounts: ndaTypeCountsList,
     effectiveDateSuggestions: effectiveDateSuggestions.slice(0, 3),
   };
+}
+
+/**
+ * Get most recent NDAs for a company
+ */
+export async function getCompanyHistory(
+  companyName: string,
+  userContext: UserContext,
+  limit: number = 5
+): Promise<CompanyHistoryNda[]> {
+  const securityFilter = await buildSecurityFilter(userContext);
+
+  const ndas = await prisma.nda.findMany({
+    where: {
+      AND: [
+        securityFilter,
+        {
+          companyName: {
+            equals: companyName,
+            mode: 'insensitive',
+          },
+        },
+      ],
+    },
+    select: {
+      id: true,
+      displayId: true,
+      status: true,
+      ndaType: true,
+      abbreviatedName: true,
+      effectiveDate: true,
+      createdAt: true,
+      agencyGroup: {
+        select: {
+          name: true,
+        },
+      },
+      subagency: {
+        select: {
+          name: true,
+        },
+      },
+    },
+    orderBy: { createdAt: 'desc' },
+    take: limit,
+  });
+
+  return ndas.map((nda) => ({
+    id: nda.id,
+    displayId: nda.displayId,
+    status: nda.status as NdaStatus,
+    ndaType: nda.ndaType,
+    abbreviatedName: nda.abbreviatedName,
+    effectiveDate: nda.effectiveDate,
+    createdAt: nda.createdAt,
+    agencyGroupName: nda.agencyGroup?.name ?? null,
+    subagencyName: nda.subagency?.name ?? null,
+  }));
 }
 
 /**
