@@ -76,7 +76,7 @@ steps:
     duration: "0m30s"
     commit_hash: "fd312f7"
     files_committed: 10
-    pushed: false
+    pushed: true
     status: "completed"
 
 # Quality metrics
@@ -109,4 +109,4 @@ commit:
   hash: "fd312f7"
   message: "feat(story-7-11-previous-nda-context-display): show previous NDAs"
   files_committed: 10
-  pushed_to_remote: false
+  pushed_to_remote: true
