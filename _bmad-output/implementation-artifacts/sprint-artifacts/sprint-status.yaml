@@ -133,7 +133,7 @@ development_status:
   7-4-template-field-merging: done
   7-5-template-selection-during-creation: ready-for-dev
   7-6-email-template-creation: done
-  7-7-email-template-management: ready-for-dev
+  7-7-email-template-management: done
   7-8-template-suggestions: ready-for-dev
   7-9-smart-company-suggestions: ready-for-dev
   7-10-historical-field-suggestions: ready-for-dev
