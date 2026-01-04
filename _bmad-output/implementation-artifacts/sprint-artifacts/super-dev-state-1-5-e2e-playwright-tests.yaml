@@ -1,0 +1,66 @@
+---
+story_id: "1-5-e2e-playwright-tests"
+story_file: "_bmad-output/implementation-artifacts/sprint-artifacts/1-5-e2e-playwright-tests.md"
+mode: "batch"
+development_type: "greenfield"
+
+stepsCompleted: [1, 2, 3, 4, 5, 6, 7]
+lastStep: 7
+currentStep: 7
+status: "completed"
+
+started_at: "2026-01-03T18:49:24"
+updated_at: "2026-01-04T03:45:23Z"
+
+cached_context:
+  story_loaded: true
+  project_context_loaded: true
+
+development_analysis:
+  existing_files: 2
+  new_files: 15
+  total_tasks: 10
+  unchecked_tasks: 0
+
+steps:
+  step-01-init:
+    status: completed
+    completed_at: "2026-01-03T18:49:24"
+  step-02-pre-gap-analysis:
+    status: completed
+  step-03-implement:
+    status: completed
+    notes: "E2E fixtures, mock API, page objects, specs, and CI integration added."
+  step-04-post-validation:
+    status: completed
+    notes: "pnpm test:e2e (14 passed). Vite proxy warnings logged for /api/auth/me and /api/mock-download/*."
+  step-05-code-review:
+    status: completed
+    notes: "3 issues found, 3 fixed (context-wide mock routing, NDA scoping on mutations, strict mock fallback + PUT /api/users/:id)."
+  step-06-complete:
+    status: completed
+  step-07-summary:
+    status: completed
+
+gap_analysis:
+  development_type: greenfield
+  tasks_ready: 0
+  tasks_partial: 0
+  tasks_done: 10
+  tasks_refined: 0
+  tasks_added: 0
+
+smart_batching:
+  enabled: true
+  patterns_detected: 0
+  batchable_tasks: 0
+  individual_tasks: 0
+  estimated_time_with_batching: 0.0
+  estimated_time_without_batching: 0.0
+  estimated_savings: 0.0
+
+implementation:
+  files_modified: 2
+  tasks_completed: 10
+  tasks_remaining: 0
+  blockers: []
